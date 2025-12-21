@@ -81,16 +81,18 @@ def update_cabinet(
 
     before = model_to_dict(cabinet)
 
+    data = payload.model_dump(exclude_unset=True)
+
     if payload.name is not None:
         cabinet.name = payload.name
-    if payload.location_id is not None:
-        if payload.location_id:
+    if "location_id" in data:
+        if data["location_id"]:
             location = db.scalar(
-                select(Location).where(Location.id == payload.location_id, Location.is_deleted == False)
+                select(Location).where(Location.id == data["location_id"], Location.is_deleted == False)
             )
             if not location:
                 raise HTTPException(status_code=404, detail="Location not found")
-        cabinet.location_id = payload.location_id
+        cabinet.location_id = data["location_id"]
     if payload.meta_data is not None:
         cabinet.meta_data = payload.meta_data
     if payload.is_deleted is not None:

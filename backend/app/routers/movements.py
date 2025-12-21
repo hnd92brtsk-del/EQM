@@ -60,7 +60,8 @@ def change_quantity(item, delta: int):
     if new_value < 0:
         raise HTTPException(status_code=409, detail="Insufficient quantity")
     item.quantity = new_value
-    item.last_updated = datetime.utcnow()
+    if hasattr(item, "last_updated"):
+        item.last_updated = datetime.utcnow()
 
 
 @router.get("/", response_model=Pagination[MovementOut])

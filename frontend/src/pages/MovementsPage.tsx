@@ -38,7 +38,7 @@ type Cabinet = { id: number; name: string };
 export default function MovementsPage() {
   const [movementType, setMovementType] = useState<string>("");
   const [equipmentTypeId, setEquipmentTypeId] = useState<number | "">("");
-
+  const parseSelectValue = (value: string | number) => (value === "" ? "" : Number(value));
   const movementsQuery = useQuery({
     queryKey: ["movements", movementType, equipmentTypeId],
     queryFn: () =>
@@ -150,7 +150,7 @@ export default function MovementsPage() {
               <Select
                 label="Номенклатура"
                 value={equipmentTypeId}
-                onChange={(event) => setEquipmentTypeId(event.target.value as number)}
+                onChange={(event) => setEquipmentTypeId(parseSelectValue(event.target.value))}
               >
                 <MenuItem value="">Все</MenuItem>
                 {equipmentTypesQuery.data?.items.map((item) => (
@@ -168,3 +168,6 @@ export default function MovementsPage() {
     </Box>
   );
 }
+
+
+

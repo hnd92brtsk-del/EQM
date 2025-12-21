@@ -105,3 +105,108 @@ Frontend будет доступен: `http://localhost:5173`
   - открыть справочники
   - добавить оборудование в шкаф напрямую
   - добавить оборудование со склада (если есть остатки)
+
+```
+EQM
+├─ Architecture.md
+├─ backend
+│  ├─ alembic
+│  │  ├─ env.py
+│  │  └─ versions
+│  │     └─ 0001_initial.py
+│  ├─ alembic.ini
+│  ├─ app
+│  │  ├─ core
+│  │  │  ├─ audit.py
+│  │  │  ├─ config.py
+│  │  │  ├─ dependencies.py
+│  │  │  ├─ pagination.py
+│  │  │  └─ security.py
+│  │  ├─ db
+│  │  │  ├─ base.py
+│  │  │  ├─ session.py
+│  │  │  └─ __init__.py
+│  │  ├─ main.py
+│  │  ├─ models
+│  │  │  ├─ attachments.py
+│  │  │  ├─ audit.py
+│  │  │  ├─ core.py
+│  │  │  ├─ io.py
+│  │  │  ├─ movements.py
+│  │  │  ├─ operations.py
+│  │  │  ├─ security.py
+│  │  │  ├─ sessions.py
+│  │  │  └─ __init__.py
+│  │  ├─ routers
+│  │  │  ├─ audit_logs.py
+│  │  │  ├─ auth.py
+│  │  │  ├─ cabinets.py
+│  │  │  ├─ cabinet_items.py
+│  │  │  ├─ dashboard.py
+│  │  │  ├─ equipment_types.py
+│  │  │  ├─ io_signals.py
+│  │  │  ├─ locations.py
+│  │  │  ├─ manufacturers.py
+│  │  │  ├─ movements.py
+│  │  │  ├─ sessions.py
+│  │  │  ├─ users.py
+│  │  │  ├─ warehouses.py
+│  │  │  ├─ warehouse_items.py
+│  │  │  └─ __init__.py
+│  │  ├─ schemas
+│  │  │  ├─ audit_logs.py
+│  │  │  ├─ auth.py
+│  │  │  ├─ cabinets.py
+│  │  │  ├─ cabinet_items.py
+│  │  │  ├─ common.py
+│  │  │  ├─ dashboard.py
+│  │  │  ├─ equipment_types.py
+│  │  │  ├─ io_signals.py
+│  │  │  ├─ locations.py
+│  │  │  ├─ manufacturers.py
+│  │  │  ├─ movements.py
+│  │  │  ├─ sessions.py
+│  │  │  ├─ users.py
+│  │  │  ├─ warehouses.py
+│  │  │  └─ warehouse_items.py
+│  │  └─ __init__.py
+│  ├─ requirements.txt
+│  └─ scripts
+│     ├─ create_database.py
+│     └─ seed.py
+├─ Checklist.md
+├─ frontend
+│  ├─ index.html
+│  ├─ package.json
+│  ├─ src
+│  │  ├─ api
+│  │  │  ├─ auth.ts
+│  │  │  ├─ client.ts
+│  │  │  └─ entities.ts
+│  │  ├─ App.tsx
+│  │  ├─ components
+│  │  │  ├─ AppLayout.tsx
+│  │  │  └─ DataTable.tsx
+│  │  ├─ context
+│  │  │  └─ AuthContext.tsx
+│  │  ├─ main.tsx
+│  │  ├─ pages
+│  │  │  ├─ AuditLogsPage.tsx
+│  │  │  ├─ CabinetItemsPage.tsx
+│  │  │  ├─ DashboardPage.tsx
+│  │  │  ├─ DictionariesPage.tsx
+│  │  │  ├─ LoginPage.tsx
+│  │  │  ├─ MovementsPage.tsx
+│  │  │  ├─ SessionsPage.tsx
+│  │  │  └─ UsersPage.tsx
+│  │  ├─ styles.css
+│  │  ├─ utils
+│  │  └─ vite-env.d.ts
+│  ├─ tsconfig.json
+│  ├─ tsconfig.node.json
+│  └─ vite.config.ts
+├─ GitManual.md
+├─ README.md
+└─ START_PROMPT_FOR_CODEX v1.0.md
+
+```

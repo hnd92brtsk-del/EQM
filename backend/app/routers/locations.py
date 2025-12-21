@@ -70,10 +70,12 @@ def update_location(
 
     before = model_to_dict(location)
 
+    data = payload.model_dump(exclude_unset=True)
+
     if payload.name is not None:
         location.name = payload.name
-    if payload.parent_id is not None:
-        location.parent_id = payload.parent_id
+    if "parent_id" in data:
+        location.parent_id = data["parent_id"]
     if payload.is_deleted is not None:
         location.is_deleted = payload.is_deleted
         location.deleted_at = datetime.utcnow() if payload.is_deleted else None

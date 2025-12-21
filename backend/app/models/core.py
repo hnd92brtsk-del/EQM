@@ -1,4 +1,5 @@
-﻿from sqlalchemy import String, Integer, Boolean, JSON, ForeignKey, Index
+﻿from sqlalchemy import String, Integer, Boolean, ForeignKey, Index
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, SoftDeleteMixin, VersionMixin
@@ -44,7 +45,7 @@ class EquipmentType(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     )
     is_channel_forming: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
     channel_count: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)
-    meta_data: Mapped[dict | None] = mapped_column(JSON)
+    meta_data: Mapped[dict | None] = mapped_column(JSONB)
 
     manufacturer: Mapped[Manufacturer] = relationship()
 
@@ -65,7 +66,7 @@ class Warehouse(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     location_id: Mapped[int | None] = mapped_column(
         ForeignKey("locations.id", ondelete="SET NULL"), index=True
     )
-    meta_data: Mapped[dict | None] = mapped_column(JSON)
+    meta_data: Mapped[dict | None] = mapped_column(JSONB)
 
     location: Mapped[Location | None] = relationship()
 
@@ -78,6 +79,8 @@ class Cabinet(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     location_id: Mapped[int | None] = mapped_column(
         ForeignKey("locations.id", ondelete="SET NULL"), index=True
     )
-    meta_data: Mapped[dict | None] = mapped_column(JSON)
+    meta_data: Mapped[dict | None] = mapped_column(JSONB)
 
     location: Mapped[Location | None] = relationship()
+
+

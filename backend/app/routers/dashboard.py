@@ -31,17 +31,35 @@ def get_dashboard(db=Depends(get_db), user: User = Depends(get_current_user)):
 
     total_equipment = warehouse_items_total + cabinet_items_total
 
+    warehouse_qty = (
+        select(
+            WarehouseItem.equipment_type_id,
+            func.sum(WarehouseItem.quantity).label("warehouse_qty"),
+        )
+        .where(WarehouseItem.is_deleted == False)
+        .group_by(WarehouseItem.equipment_type_id)
+        .subquery()
+    )
+    cabinet_qty = (
+        select(
+            CabinetItem.equipment_type_id,
+            func.sum(CabinetItem.quantity).label("cabinet_qty"),
+        )
+        .where(CabinetItem.is_deleted == False)
+        .group_by(CabinetItem.equipment_type_id)
+        .subquery()
+    )
+
     by_type_rows = db.execute(
         select(
             EquipmentType.id,
             EquipmentType.name,
-            func.coalesce(func.sum(WarehouseItem.quantity), 0).label("warehouse_qty"),
-            func.coalesce(func.sum(CabinetItem.quantity), 0).label("cabinet_qty"),
+            func.coalesce(warehouse_qty.c.warehouse_qty, 0),
+            func.coalesce(cabinet_qty.c.cabinet_qty, 0),
         )
-        .join(WarehouseItem, WarehouseItem.equipment_type_id == EquipmentType.id, isouter=True)
-        .join(CabinetItem, CabinetItem.equipment_type_id == EquipmentType.id, isouter=True)
+        .outerjoin(warehouse_qty, warehouse_qty.c.equipment_type_id == EquipmentType.id)
+        .outerjoin(cabinet_qty, cabinet_qty.c.equipment_type_id == EquipmentType.id)
         .where(EquipmentType.is_deleted == False)
-        .group_by(EquipmentType.id, EquipmentType.name)
     ).all()
 
     equipment_by_type = []

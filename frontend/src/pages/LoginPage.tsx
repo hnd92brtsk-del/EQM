@@ -1,4 +1,5 @@
 ﻿import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Button,
@@ -14,6 +15,7 @@ import { useAuth } from "../context/AuthContext";
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +27,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(username, password);
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       setError("Неверный логин или пароль");
     } finally {
@@ -79,3 +82,5 @@ export default function LoginPage() {
     </Box>
   );
 }
+
+

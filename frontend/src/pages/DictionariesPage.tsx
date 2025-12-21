@@ -15,6 +15,7 @@ import {
   Tab,
   Tabs,
   TextField,
+  Switch,
   Typography,
   Checkbox,
   FormControlLabel
@@ -67,7 +68,12 @@ type DialogState = {
   onSave: (values: Record<string, any>) => void;
 };
 
-function EntityDialog({ state, onClose }: { state: DialogState; onClose: () => void }) {\n  const [values, setValues] = useState(state.values);\n\n  useEffect(() => {\n    setValues(state.values);\n  }, [state.values]);
+function EntityDialog({ state, onClose }: { state: DialogState; onClose: () => void }) {
+  const [values, setValues] = useState(state.values);
+
+  useEffect(() => {
+    setValues(state.values);
+  }, [state.values]);
 
   return (
     <Dialog open={state.open} onClose={onClose} fullWidth maxWidth="sm">
@@ -148,39 +154,40 @@ export default function DictionariesPage() {
   const queryClient = useQueryClient();
 
   const [tab, setTab] = useState(0);
+  const [showDeleted, setShowDeleted] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
 
   const manufacturersQuery = useQuery({
-    queryKey: ["manufacturers"],
-    queryFn: () => listEntity<Manufacturer>("/manufacturers", { page: 1, page_size: PAGE_SIZE })
+    queryKey: ["manufacturers", showDeleted],
+    queryFn: () => listEntity<Manufacturer>("/manufacturers", { page: 1, page_size: PAGE_SIZE, include_deleted: showDeleted })
   });
 
   const locationsQuery = useQuery({
-    queryKey: ["locations"],
-    queryFn: () => listEntity<Location>("/locations", { page: 1, page_size: PAGE_SIZE })
+    queryKey: ["locations", showDeleted],
+    queryFn: () => listEntity<Location>("/locations", { page: 1, page_size: PAGE_SIZE, include_deleted: showDeleted })
   });
 
   const equipmentTypesQuery = useQuery({
-    queryKey: ["equipment-types"],
-    queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: PAGE_SIZE })
+    queryKey: ["equipment-types", showDeleted],
+    queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: PAGE_SIZE, include_deleted: showDeleted })
   });
 
   const warehousesQuery = useQuery({
-    queryKey: ["warehouses"],
-    queryFn: () => listEntity<Warehouse>("/warehouses", { page: 1, page_size: PAGE_SIZE })
+    queryKey: ["warehouses", showDeleted],
+    queryFn: () => listEntity<Warehouse>("/warehouses", { page: 1, page_size: PAGE_SIZE, include_deleted: showDeleted })
   });
 
   const cabinetsQuery = useQuery({
-    queryKey: ["cabinets"],
-    queryFn: () => listEntity<Cabinet>("/cabinets", { page: 1, page_size: PAGE_SIZE })
+    queryKey: ["cabinets", showDeleted],
+    queryFn: () => listEntity<Cabinet>("/cabinets", { page: 1, page_size: PAGE_SIZE, include_deleted: showDeleted })
   });
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["manufacturers"] });
-    queryClient.invalidateQueries({ queryKey: ["locations"] });
-    queryClient.invalidateQueries({ queryKey: ["equipment-types"] });
-    queryClient.invalidateQueries({ queryKey: ["warehouses"] });
-    queryClient.invalidateQueries({ queryKey: ["cabinets"] });
+    queryClient.invalidateQueries({ queryKey: ["manufacturers", showDeleted] });
+    queryClient.invalidateQueries({ queryKey: ["locations", showDeleted] });
+    queryClient.invalidateQueries({ queryKey: ["equipment-types", showDeleted] });
+    queryClient.invalidateQueries({ queryKey: ["warehouses", showDeleted] });
+    queryClient.invalidateQueries({ queryKey: ["cabinets", showDeleted] });
   };
 
   const createMutation = useMutation({
@@ -798,10 +805,20 @@ export default function DictionariesPage() {
         <Tab label="Номенклатура" />
         <Tab label="Склады" />
         <Tab label="Шкафы" />
-      </Tabs>
+            </Tabs>
+      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+        <FormControlLabel
+          control={<Switch checked={showDeleted} onChange={(event) => setShowDeleted(event.target.checked)} />}
+          label="Показывать удаленные"
+        />
+      </Box>
       {renderSection()}
       {dialog && <EntityDialog state={dialog} onClose={() => setDialog(null)} />}
     </Box>
   );
 }
+
+
+
+
 

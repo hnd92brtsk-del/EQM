@@ -63,6 +63,7 @@ export default function CabinetItemsPage() {
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  const parseSelectValue = (value: string | number) => (value === "" ? "" : Number(value));
   const cabinetsQuery = useQuery({
     queryKey: ["cabinets"],
     queryFn: () => listEntity<Cabinet>("/cabinets", { page: 1, page_size: PAGE_SIZE })
@@ -183,7 +184,7 @@ export default function CabinetItemsPage() {
             <Select
               label="Шкаф"
               value={cabinetId}
-              onChange={(event) => setCabinetId(event.target.value as number)}
+              onChange={(event) => setCabinetId(parseSelectValue(event.target.value))}
             >
               {cabinetsQuery.data?.items.map((cabinet) => (
                 <MenuItem key={cabinet.id} value={cabinet.id}>
@@ -233,7 +234,7 @@ export default function CabinetItemsPage() {
               <Select
                 label="Склад"
                 value={warehouseId}
-                onChange={(event) => setWarehouseId(event.target.value as number)}
+                onChange={(event) => setWarehouseId(parseSelectValue(event.target.value))}
               >
                 {warehousesQuery.data?.items.map((warehouse) => (
                   <MenuItem key={warehouse.id} value={warehouse.id}>
@@ -249,7 +250,7 @@ export default function CabinetItemsPage() {
             <Select
               label="Тип оборудования"
               value={equipmentTypeId}
-              onChange={(event) => setEquipmentTypeId(event.target.value as number)}
+              onChange={(event) => setEquipmentTypeId(parseSelectValue(event.target.value))}
             >
               {equipmentTypesQuery.data?.items.map((item) => (
                 <MenuItem key={item.id} value={item.id}>
@@ -297,3 +298,4 @@ export default function CabinetItemsPage() {
     </Box>
   );
 }
+

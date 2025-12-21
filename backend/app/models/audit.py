@@ -1,4 +1,5 @@
-﻿from sqlalchemy import String, JSON, ForeignKey, Integer
+﻿from sqlalchemy import String, ForeignKey, Integer
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin
@@ -12,6 +13,8 @@ class AuditLog(Base, TimestampMixin):
     action: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
     entity: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
     entity_id: Mapped[int | None] = mapped_column(Integer, index=True)
-    before: Mapped[dict | None] = mapped_column(JSON)
-    after: Mapped[dict | None] = mapped_column(JSON)
-    meta: Mapped[dict | None] = mapped_column(JSON)
+    before: Mapped[dict | None] = mapped_column(JSONB)
+    after: Mapped[dict | None] = mapped_column(JSONB)
+    meta: Mapped[dict | None] = mapped_column(JSONB)
+
+

@@ -81,16 +81,18 @@ def update_warehouse(
 
     before = model_to_dict(warehouse)
 
+    data = payload.model_dump(exclude_unset=True)
+
     if payload.name is not None:
         warehouse.name = payload.name
-    if payload.location_id is not None:
-        if payload.location_id:
+    if "location_id" in data:
+        if data["location_id"]:
             location = db.scalar(
-                select(Location).where(Location.id == payload.location_id, Location.is_deleted == False)
+                select(Location).where(Location.id == data["location_id"], Location.is_deleted == False)
             )
             if not location:
                 raise HTTPException(status_code=404, detail="Location not found")
-        warehouse.location_id = payload.location_id
+        warehouse.location_id = data["location_id"]
     if payload.meta_data is not None:
         warehouse.meta_data = payload.meta_data
     if payload.is_deleted is not None:

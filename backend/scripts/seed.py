@@ -2,6 +2,12 @@
 from sqlalchemy import select
 from dotenv import load_dotenv
 
+import sys
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+sys.path.append(str(BASE_DIR))
+
 from app.db.session import SessionLocal
 from app.core.security import hash_password
 from app.models.security import User, UserRole
@@ -9,7 +15,7 @@ from app.models.core import Manufacturer, EquipmentType, Warehouse
 
 
 def run():
-    load_dotenv()
+    load_dotenv(BASE_DIR / ".env")
     db = SessionLocal()
     try:
         admin_username = os.getenv("SEED_ADMIN_USERNAME", "admin")
@@ -61,3 +67,6 @@ def run():
 
 if __name__ == "__main__":
     run()
+
+
+

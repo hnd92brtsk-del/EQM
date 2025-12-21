@@ -29,7 +29,7 @@ def upgrade():
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
     )
-    op.create_index("ix_users_username", "users", ["username"], unique=True)
+    op.create_index("ix_users_username", "users", ["username"], unique=False)
     op.create_index("ix_users_role", "users", ["role"], unique=False)
     op.create_index(
         "ix_users_username_active_unique",

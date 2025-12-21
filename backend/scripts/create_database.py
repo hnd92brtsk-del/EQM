@@ -3,6 +3,9 @@ import sys
 import psycopg2
 from psycopg2 import sql
 from dotenv import load_dotenv
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parents[1]
 
 
 def get_env(name: str, default: str | None = None) -> str:
@@ -14,7 +17,7 @@ def get_env(name: str, default: str | None = None) -> str:
 
 
 def main():
-    load_dotenv()
+    load_dotenv(BASE_DIR / ".env")
 
     host = os.getenv("DB_HOST", "localhost")
     port = os.getenv("DB_PORT", "5432")
@@ -74,3 +77,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+

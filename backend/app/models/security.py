@@ -15,7 +15,7 @@ class User(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    username: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    username: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[UserRole] = mapped_column(Enum(UserRole, name="user_role"), nullable=False, index=True)
     last_login_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
