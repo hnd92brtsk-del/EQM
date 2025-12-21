@@ -1,0 +1,59 @@
+﻿import { Routes, Route, Navigate } from "react-router-dom";
+import { Box, CircularProgress } from "@mui/material";
+
+import { useAuth } from "./context/AuthContext";
+import { AppLayout } from "./components/AppLayout";
+import LoginPage from "./pages/LoginPage";
+import DashboardPage from "./pages/DashboardPage";
+import DictionariesPage from "./pages/DictionariesPage";
+import CabinetItemsPage from "./pages/CabinetItemsPage";
+import MovementsPage from "./pages/MovementsPage";
+import UsersPage from "./pages/UsersPage";
+import SessionsPage from "./pages/SessionsPage";
+import AuditLogsPage from "./pages/AuditLogsPage";
+
+function RequireAuth({ children }: { children: JSX.Element }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", p: 6 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/*"
+        element={
+          <RequireAuth>
+            <AppLayout>
+              <Routes>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/dictionaries" element={<DictionariesPage />} />
+                <Route path="/cabinets" element={<CabinetItemsPage />} />
+                <Route path="/movements" element={<MovementsPage />} />
+                <Route path="/admin/users" element={<UsersPage />} />
+                <Route path="/admin/sessions" element={<SessionsPage />} />
+                <Route path="/admin/audit" element={<AuditLogsPage />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+            </AppLayout>
+          </RequireAuth>
+        }
+      />
+    </Routes>
+  );
+}
