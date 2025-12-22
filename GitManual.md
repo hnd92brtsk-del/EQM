@@ -402,6 +402,16 @@ git diff
 git diff --staged
 ```
 
----
+Лучший “страховочный” механизм: Git + теги
 
-Если хочешь — следующий практический шаг: я дам «сквозной сценарий» на твоём стеке (backend + frontend + Alembic), с примером ветки, коммитов и PR, как в реальной разработке.
+Перед каждым крупным шагом:
+
+git status
+git add .
+git commit -m "checkpoint: after prompt2 api contract"
+git tag checkpoint_prompt2
+
+
+Если Codex в новом контексте “сломает” проект:
+
+git reset --hard checkpoint_prompt2
