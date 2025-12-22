@@ -43,3 +43,15 @@ def require_roles(allowed: Iterable[UserRole]):
         return user
 
     return checker
+
+
+def require_read_access():
+    return require_roles([UserRole.admin, UserRole.engineer, UserRole.viewer])
+
+
+def require_write_access():
+    return require_roles([UserRole.admin, UserRole.engineer])
+
+
+def require_admin():
+    return require_roles([UserRole.admin])

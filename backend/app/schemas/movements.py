@@ -10,6 +10,7 @@ class MovementType(str, Enum):
     to_cabinet = "to_cabinet"
     from_cabinet = "from_cabinet"
     direct_to_cabinet = "direct_to_cabinet"
+    to_warehouse = "to_warehouse"
     writeoff = "writeoff"
     adjustment = "adjustment"
 
@@ -45,6 +46,9 @@ class MovementCreate(BaseModel):
         if mt == MovementType.direct_to_cabinet:
             if not self.to_cabinet_id:
                 raise ValueError("to_cabinet_id is required for direct_to_cabinet")
+        if mt == MovementType.to_warehouse:
+            if not self.to_warehouse_id:
+                raise ValueError("to_warehouse_id is required for to_warehouse")
         if mt == MovementType.writeoff:
             if not (self.from_warehouse_id or self.from_cabinet_id):
                 raise ValueError("from_warehouse_id or from_cabinet_id is required for writeoff")

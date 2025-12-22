@@ -2,13 +2,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 
-from app.core.dependencies import get_db, require_roles, get_current_user
+from app.core.dependencies import get_db, require_read_access, require_write_access
 from app.core.pagination import paginate
+from app.core.query import apply_sort
 from app.core.audit import add_audit_log, model_to_dict
 from app.models.movements import EquipmentMovement, MovementType
 from app.models.operations import WarehouseItem, CabinetItem
 from app.models.core import EquipmentType, Warehouse, Cabinet
-from app.models.security import User, UserRole
+from app.models.security import User
 from app.schemas.common import Pagination
 from app.schemas.movements import MovementOut, MovementCreate
 
@@ -68,12 +69,17 @@ def change_quantity(item, delta: int):
 def list_movements(
     page: int = 1,
     page_size: int = 50,
+    q: str | None = None,
+    sort: str | None = None,
     movement_type: MovementType | None = None,
     equipment_type_id: int | None = None,
     warehouse_id: int | None = None,
     cabinet_id: int | None = None,
+    performed_by_id: int | None = None,
+    created_at_from: datetime | None = None,
+    created_at_to: datetime | None = None,
     db=Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_read_access()),
 ):
     query = select(EquipmentMovement)
     if movement_type:
@@ -90,8 +96,21 @@ def list_movements(
             (EquipmentMovement.from_cabinet_id == cabinet_id)
             | (EquipmentMovement.to_cabinet_id == cabinet_id)
         )
+    if performed_by_id:
+        query = query.where(EquipmentMovement.performed_by_id == performed_by_id)
+    if created_at_from:
+        query = query.where(EquipmentMovement.created_at >= created_at_from)
+    if created_at_to:
+        query = query.where(EquipmentMovement.created_at <= created_at_to)
+    if q:
+        query = query.where(
+            (EquipmentMovement.reference.ilike(f"%{q}%"))
+            | (EquipmentMovement.comment.ilike(f"%{q}%"))
+        )
 
-    total, items = paginate(query.order_by(EquipmentMovement.id.desc()), db, page, page_size)
+    query = apply_sort(query, EquipmentMovement, sort) if sort else query.order_by(EquipmentMovement.id.desc())
+
+    total, items = paginate(query, db, page, page_size)
     return Pagination(items=items, page=page, page_size=page_size, total=total)
 
 
@@ -99,7 +118,7 @@ def list_movements(
 def create_movement(
     payload: MovementCreate,
     db=Depends(get_db),
-    current_user: User = Depends(require_roles([UserRole.admin, UserRole.engineer])),
+    current_user: User = Depends(require_write_access()),
 ):
     equipment_type = db.scalar(
         select(EquipmentType).where(EquipmentType.id == payload.equipment_type_id, EquipmentType.is_deleted == False)
@@ -146,6 +165,9 @@ def create_movement(
     )
 
     if movement.movement_type == MovementType.inbound:
+        to_item = get_or_create_warehouse_item(db, payload.to_warehouse_id, payload.equipment_type_id, True)
+        change_quantity(to_item, payload.quantity)
+    elif movement.movement_type == MovementType.to_warehouse:
         to_item = get_or_create_warehouse_item(db, payload.to_warehouse_id, payload.equipment_type_id, True)
         change_quantity(to_item, payload.quantity)
     elif movement.movement_type == MovementType.transfer:
@@ -203,7 +225,7 @@ def create_movement(
     add_audit_log(
         db,
         actor_id=current_user.id,
-        action="CREATE",
+        action="MOVEMENT",
         entity="equipment_movements",
         entity_id=movement.id,
         before=None,

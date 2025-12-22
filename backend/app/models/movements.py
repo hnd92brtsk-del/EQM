@@ -11,6 +11,7 @@ class MovementType(enum.Enum):
     to_cabinet = "to_cabinet"
     from_cabinet = "from_cabinet"
     direct_to_cabinet = "direct_to_cabinet"
+    to_warehouse = "to_warehouse"
     writeoff = "writeoff"
     adjustment = "adjustment"
 
@@ -42,3 +43,5 @@ class EquipmentMovement(Base, TimestampMixin):
     __table_args__ = (
         CheckConstraint("quantity > 0", name="ck_equipment_movements_qty_positive"),
     )
+
+

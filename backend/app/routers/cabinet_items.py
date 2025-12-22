@@ -1,12 +1,16 @@
-﻿from fastapi import APIRouter, Depends
+﻿from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 
-from app.core.dependencies import get_db, get_current_user
+from app.core.dependencies import get_db, require_read_access, require_write_access
 from app.core.pagination import paginate
+from app.core.query import apply_sort, apply_date_filters
+from app.core.audit import add_audit_log, model_to_dict
 from app.models.operations import CabinetItem
+from app.models.core import Cabinet, EquipmentType
 from app.models.security import User
 from app.schemas.common import Pagination
-from app.schemas.cabinet_items import CabinetItemOut
+from app.schemas.cabinet_items import CabinetItemOut, CabinetItemCreate, CabinetItemUpdate
 
 router = APIRouter()
 
@@ -15,19 +19,205 @@ router = APIRouter()
 def list_cabinet_items(
     page: int = 1,
     page_size: int = 50,
+    q: str | None = None,
+    sort: str | None = None,
+    is_deleted: bool | None = None,
+    include_deleted: bool = False,
     cabinet_id: int | None = None,
     equipment_type_id: int | None = None,
-    include_deleted: bool = False,
+    created_at_from: datetime | None = None,
+    created_at_to: datetime | None = None,
+    updated_at_from: datetime | None = None,
+    updated_at_to: datetime | None = None,
     db=Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_read_access()),
 ):
     query = select(CabinetItem)
-    if not include_deleted:
-        query = query.where(CabinetItem.is_deleted == False)
+    if is_deleted is None:
+        if not include_deleted:
+            query = query.where(CabinetItem.is_deleted == False)
+    else:
+        query = query.where(CabinetItem.is_deleted == is_deleted)
     if cabinet_id:
         query = query.where(CabinetItem.cabinet_id == cabinet_id)
     if equipment_type_id:
         query = query.where(CabinetItem.equipment_type_id == equipment_type_id)
+    if q and q.isdigit():
+        query = query.where(
+            (CabinetItem.cabinet_id == int(q)) | (CabinetItem.equipment_type_id == int(q))
+        )
 
-    total, items = paginate(query.order_by(CabinetItem.id), db, page, page_size)
+    query = apply_date_filters(query, CabinetItem, created_at_from, created_at_to, updated_at_from, updated_at_to)
+    query = apply_sort(query, CabinetItem, sort)
+
+    total, items = paginate(query, db, page, page_size)
     return Pagination(items=items, page=page, page_size=page_size, total=total)
+
+
+@router.get("/{item_id}", response_model=CabinetItemOut)
+def get_cabinet_item(
+    item_id: int,
+    include_deleted: bool = False,
+    db=Depends(get_db),
+    user: User = Depends(require_read_access()),
+):
+    query = select(CabinetItem).where(CabinetItem.id == item_id)
+    if not include_deleted:
+        query = query.where(CabinetItem.is_deleted == False)
+    item = db.scalar(query)
+    if not item:
+        raise HTTPException(status_code=404, detail="Cabinet item not found")
+    return item
+
+
+@router.post("/", response_model=CabinetItemOut)
+def create_cabinet_item(
+    payload: CabinetItemCreate,
+    db=Depends(get_db),
+    current_user: User = Depends(require_write_access()),
+):
+    cabinet = db.scalar(select(Cabinet).where(Cabinet.id == payload.cabinet_id, Cabinet.is_deleted == False))
+    if not cabinet:
+        raise HTTPException(status_code=404, detail="Cabinet not found")
+    equipment = db.scalar(
+        select(EquipmentType).where(EquipmentType.id == payload.equipment_type_id, EquipmentType.is_deleted == False)
+    )
+    if not equipment:
+        raise HTTPException(status_code=404, detail="Equipment type not found")
+
+    item = db.scalar(
+        select(CabinetItem).where(
+            CabinetItem.cabinet_id == payload.cabinet_id,
+            CabinetItem.equipment_type_id == payload.equipment_type_id,
+        )
+    )
+    action = "CREATE"
+    before = None
+    if item:
+        before = model_to_dict(item)
+        item.quantity = payload.quantity
+        item.is_deleted = False
+        item.deleted_at = None
+        item.deleted_by_id = None
+        action = "UPDATE"
+    else:
+        item = CabinetItem(
+            cabinet_id=payload.cabinet_id,
+            equipment_type_id=payload.equipment_type_id,
+            quantity=payload.quantity,
+        )
+        db.add(item)
+    db.flush()
+
+    add_audit_log(
+        db,
+        actor_id=current_user.id,
+        action=action,
+        entity="cabinet_items",
+        entity_id=item.id,
+        before=before,
+        after=model_to_dict(item),
+    )
+
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.patch("/{item_id}", response_model=CabinetItemOut)
+def update_cabinet_item(
+    item_id: int,
+    payload: CabinetItemUpdate,
+    db=Depends(get_db),
+    current_user: User = Depends(require_write_access()),
+):
+    item = db.scalar(select(CabinetItem).where(CabinetItem.id == item_id))
+    if not item:
+        raise HTTPException(status_code=404, detail="Cabinet item not found")
+
+    before = model_to_dict(item)
+    if payload.quantity is not None:
+        item.quantity = payload.quantity
+
+    add_audit_log(
+        db,
+        actor_id=current_user.id,
+        action="UPDATE",
+        entity="cabinet_items",
+        entity_id=item.id,
+        before=before,
+        after=model_to_dict(item),
+    )
+
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.put("/{item_id}", response_model=CabinetItemOut)
+def update_cabinet_item_legacy(
+    item_id: int,
+    payload: CabinetItemUpdate,
+    db=Depends(get_db),
+    current_user: User = Depends(require_write_access()),
+):
+    return update_cabinet_item(item_id, payload, db, current_user)
+
+
+@router.delete("/{item_id}")
+def delete_cabinet_item(
+    item_id: int,
+    db=Depends(get_db),
+    current_user: User = Depends(require_write_access()),
+):
+    item = db.scalar(select(CabinetItem).where(CabinetItem.id == item_id))
+    if not item:
+        raise HTTPException(status_code=404, detail="Cabinet item not found")
+
+    before = model_to_dict(item)
+    item.is_deleted = True
+    item.deleted_at = datetime.utcnow()
+    item.deleted_by_id = current_user.id
+
+    add_audit_log(
+        db,
+        actor_id=current_user.id,
+        action="DELETE",
+        entity="cabinet_items",
+        entity_id=item.id,
+        before=before,
+        after=model_to_dict(item),
+    )
+
+    db.commit()
+    return {"status": "ok"}
+
+
+@router.post("/{item_id}/restore", response_model=CabinetItemOut)
+def restore_cabinet_item(
+    item_id: int,
+    db=Depends(get_db),
+    current_user: User = Depends(require_write_access()),
+):
+    item = db.scalar(select(CabinetItem).where(CabinetItem.id == item_id))
+    if not item:
+        raise HTTPException(status_code=404, detail="Cabinet item not found")
+
+    before = model_to_dict(item)
+    item.is_deleted = False
+    item.deleted_at = None
+    item.deleted_by_id = None
+
+    add_audit_log(
+        db,
+        actor_id=current_user.id,
+        action="RESTORE",
+        entity="cabinet_items",
+        entity_id=item.id,
+        before=before,
+        after=model_to_dict(item),
+    )
+
+    db.commit()
+    db.refresh(item)
+    return item
