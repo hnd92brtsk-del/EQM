@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import { getMe, login as apiLogin, logout as apiLogout } from "../api/auth";
 import { setToken, getToken } from "../api/client";

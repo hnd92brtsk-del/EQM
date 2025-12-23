@@ -33,12 +33,12 @@ import { useAuth } from "../context/AuthContext";
 const pageSizeOptions = [10, 20, 50, 100];
 
 const sortOptions = [
-  { value: "username", label: "По логину (А-Я)" },
-  { value: "-username", label: "По логину (Я-А)" },
-  { value: "role", label: "По роли (А-Я)" },
-  { value: "-role", label: "По роли (Я-А)" },
-  { value: "created_at", label: "По дате создания (старые)" },
-  { value: "-created_at", label: "По дате создания (новые)" }
+  { value: "username", label: "РџРѕ Р»РѕРіРёРЅСѓ (Рђ-РЇ)" },
+  { value: "-username", label: "РџРѕ Р»РѕРіРёРЅСѓ (РЇ-Рђ)" },
+  { value: "role", label: "РџРѕ СЂРѕР»Рё (Рђ-РЇ)" },
+  { value: "-role", label: "РџРѕ СЂРѕР»Рё (РЇ-Рђ)" },
+  { value: "created_at", label: "РџРѕ РґР°С‚Рµ СЃРѕР·РґР°РЅРёСЏ (СЃС‚Р°СЂС‹Рµ)" },
+  { value: "-created_at", label: "РџРѕ РґР°С‚Рµ СЃРѕР·РґР°РЅРёСЏ (РЅРѕРІС‹Рµ)" }
 ];
 
 type User = {
@@ -85,7 +85,7 @@ export default function UsersPage() {
       setErrorMessage(
         usersQuery.error instanceof Error
           ? usersQuery.error.message
-          : "Ошибка загрузки пользователей"
+          : "РћС€РёР±РєР° Р·Р°РіСЂСѓР·РєРё РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№"
       );
     }
   }, [usersQuery.error]);
@@ -94,28 +94,28 @@ export default function UsersPage() {
     mutationFn: (payload: any) => createEntity("/users", payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка создания пользователя")
+      setErrorMessage(error instanceof Error ? error.message : "РћС€РёР±РєР° СЃРѕР·РґР°РЅРёСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ")
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: any }) => updateEntity("/users", id, payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка обновления пользователя")
+      setErrorMessage(error instanceof Error ? error.message : "РћС€РёР±РєР° РѕР±РЅРѕРІР»РµРЅРёСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ")
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteEntity("/users", id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка удаления пользователя")
+      setErrorMessage(error instanceof Error ? error.message : "РћС€РёР±РєР° СѓРґР°Р»РµРЅРёСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ")
   });
 
   const restoreMutation = useMutation({
     mutationFn: (id: number) => restoreEntity("/users", id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка восстановления пользователя")
+      setErrorMessage(error instanceof Error ? error.message : "РћС€РёР±РєР° РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ")
   });
 
   const resetForm = () => {
@@ -126,19 +126,19 @@ export default function UsersPage() {
 
   const columns = useMemo<ColumnDef<User>[]>(() => {
     const base: ColumnDef<User>[] = [
-      { header: "Логин", accessorKey: "username" },
-      { header: "Роль", accessorKey: "role" },
+      { header: "Р›РѕРіРёРЅ", accessorKey: "username" },
+      { header: "Р РѕР»СЊ", accessorKey: "role" },
       {
-        header: "Статус",
+        header: "РЎС‚Р°С‚СѓСЃ",
         cell: ({ row }) => (
-          <span className="status-pill">{row.original.is_deleted ? "Удален" : "Активен"}</span>
+          <span className="status-pill">{row.original.is_deleted ? "РЈРґР°Р»РµРЅ" : "РђРєС‚РёРІРµРЅ"}</span>
         )
       }
     ];
 
     if (canWrite) {
       base.push({
-        header: "Действия",
+        header: "Р”РµР№СЃС‚РІРёСЏ",
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
             <Button
@@ -152,7 +152,7 @@ export default function UsersPage() {
                 setDialogOpen(true);
               }}
             >
-              Изменить
+              РР·РјРµРЅРёС‚СЊ
             </Button>
             <Button
               size="small"
@@ -164,7 +164,7 @@ export default function UsersPage() {
                   : deleteMutation.mutate(row.original.id)
               }
             >
-              {row.original.is_deleted ? "Восстановить" : "Удалить"}
+              {row.original.is_deleted ? "Р’РѕСЃСЃС‚Р°РЅРѕРІРёС‚СЊ" : "РЈРґР°Р»РёС‚СЊ"}
             </Button>
           </Box>
         )
@@ -176,7 +176,7 @@ export default function UsersPage() {
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">Пользователи</Typography>
+      <Typography variant="h4">РџРѕР»СЊР·РѕРІР°С‚РµР»Рё</Typography>
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Box
@@ -187,7 +187,7 @@ export default function UsersPage() {
             }}
           >
             <TextField
-              label="Поиск"
+              label="РџРѕРёСЃРє"
               value={q}
               onChange={(event) => {
                 setQ(event.target.value);
@@ -197,8 +197,8 @@ export default function UsersPage() {
             />
 
             <FormControl fullWidth>
-              <InputLabel>Сортировка</InputLabel>
-              <Select label="Сортировка" value={sort} onChange={(event) => setSort(event.target.value)}>
+              <InputLabel>РЎРѕСЂС‚РёСЂРѕРІРєР°</InputLabel>
+              <Select label="РЎРѕСЂС‚РёСЂРѕРІРєР°" value={sort} onChange={(event) => setSort(event.target.value)}>
                 {sortOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
@@ -208,16 +208,16 @@ export default function UsersPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Роль</InputLabel>
+              <InputLabel>Р РѕР»СЊ</InputLabel>
               <Select
-                label="Роль"
+                label="Р РѕР»СЊ"
                 value={roleFilter}
                 onChange={(event) => {
                   setRoleFilter(event.target.value as User["role"] | "");
                   setPage(1);
                 }}
               >
-                <MenuItem value="">Все</MenuItem>
+                <MenuItem value="">Р’СЃРµ</MenuItem>
                 <MenuItem value="admin">admin</MenuItem>
                 <MenuItem value="engineer">engineer</MenuItem>
                 <MenuItem value="viewer">viewer</MenuItem>
@@ -236,7 +236,7 @@ export default function UsersPage() {
                   }}
                 />
               }
-              label="Показывать удаленных"
+              label="РџРѕРєР°Р·С‹РІР°С‚СЊ СѓРґР°Р»РµРЅРЅС‹С…"
             />
             <Box sx={{ flexGrow: 1 }} />
             {canWrite && (
@@ -249,7 +249,7 @@ export default function UsersPage() {
                   setDialogOpen(true);
                 }}
               >
-                Добавить
+                Р”РѕР±Р°РІРёС‚СЊ
               </Button>
             )}
           </Box>
@@ -272,25 +272,25 @@ export default function UsersPage() {
 
       {canWrite && (
         <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
-          <DialogTitle>{editUser ? "Изменить пользователя" : "Новый пользователь"}</DialogTitle>
+          <DialogTitle>{editUser ? "РР·РјРµРЅРёС‚СЊ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ" : "РќРѕРІС‹Р№ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ"}</DialogTitle>
           <DialogContent sx={{ display: "grid", gap: 2, mt: 1 }}>
             <TextField
-              label="Логин"
+              label="Р›РѕРіРёРЅ"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               disabled={Boolean(editUser)}
               fullWidth
             />
             <TextField
-              label="Пароль"
+              label="РџР°СЂРѕР»СЊ"
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               fullWidth
             />
             <FormControl fullWidth>
-              <InputLabel>Роль</InputLabel>
-              <Select label="Роль" value={role} onChange={(event) => setRole(event.target.value as User["role"])}>
+              <InputLabel>Р РѕР»СЊ</InputLabel>
+              <Select label="Р РѕР»СЊ" value={role} onChange={(event) => setRole(event.target.value as User["role"])}>
                 <MenuItem value="admin">admin</MenuItem>
                 <MenuItem value="engineer">engineer</MenuItem>
                 <MenuItem value="viewer">viewer</MenuItem>
@@ -298,7 +298,7 @@ export default function UsersPage() {
             </FormControl>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setDialogOpen(false)}>Отмена</Button>
+            <Button onClick={() => setDialogOpen(false)}>РћС‚РјРµРЅР°</Button>
             <Button
               variant="contained"
               onClick={() => {
@@ -316,7 +316,7 @@ export default function UsersPage() {
                 setDialogOpen(false);
               }}
             >
-              Сохранить
+              РЎРѕС…СЂР°РЅРёС‚СЊ
             </Button>
           </DialogActions>
         </Dialog>
