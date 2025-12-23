@@ -1,13 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Box,
-  Button,
   Card,
   CardContent,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   FormControl,
   InputLabel,
   MenuItem,
@@ -16,70 +11,61 @@ import {
   TextField,
   Typography
 } from "@mui/material";
-import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import { ColumnDef } from "@tanstack/react-table";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import { DataTable } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
-import { listEntity, updateEntity } from "../api/entities";
-import { useAuth } from "../context/AuthContext";
+import { listEntity } from "../api/entities";
 
 const sortOptions = [
-  { value: "-created_at", label: "?? ???? (?????)" },
-  { value: "created_at", label: "?? ???? (??????)" },
+  { value: "-last_updated", label: "?? ?????????? (?????)" },
+  { value: "last_updated", label: "?? ?????????? (??????)" },
   { value: "-quantity", label: "?? ?????????? (????????)" },
   { value: "quantity", label: "?? ?????????? (???????????)" }
 ];
 
 const pageSizeOptions = [10, 20, 50, 100];
 
-type CabinetItem = {
+type WarehouseItem = {
   id: number;
-  cabinet_id: number;
+  warehouse_id: number;
   equipment_type_id: number;
   quantity: number;
+  last_updated?: string;
 };
 
-type Cabinet = { id: number; name: string };
+type Warehouse = { id: number; name: string };
 
 type EquipmentType = { id: number; name: string };
 
-export default function CabinetItemsPage() {
-  const { user } = useAuth();
-  const canWrite = user?.role === "admin" || user?.role === "engineer";
-  const queryClient = useQueryClient();
-
+export default function WarehouseItemsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [q, setQ] = useState("");
-  const [sort, setSort] = useState("-created_at");
-  const [cabinetFilter, setCabinetFilter] = useState<number | "">("");
+  const [sort, setSort] = useState("-last_updated");
+  const [warehouseFilter, setWarehouseFilter] = useState<number | "">("");
   const [equipmentFilter, setEquipmentFilter] = useState<number | "">("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const [editOpen, setEditOpen] = useState(false);
-  const [editItem, setEditItem] = useState<CabinetItem | null>(null);
-  const [editQuantity, setEditQuantity] = useState(0);
-
   const itemsQuery = useQuery({
-    queryKey: ["cabinet-items", page, pageSize, q, sort, cabinetFilter, equipmentFilter],
+    queryKey: ["warehouse-items", page, pageSize, q, sort, warehouseFilter, equipmentFilter],
     queryFn: () =>
-      listEntity<CabinetItem>("/cabinet-items", {
+      listEntity<WarehouseItem>("/warehouse-items", {
         page,
         page_size: pageSize,
         q: q || undefined,
         sort: sort || undefined,
         filters: {
-          cabinet_id: cabinetFilter || undefined,
+          warehouse_id: warehouseFilter || undefined,
           equipment_type_id: equipmentFilter || undefined
         }
       })
   });
 
-  const cabinetsQuery = useQuery({
-    queryKey: ["cabinets-options"],
-    queryFn: () => listEntity<Cabinet>("/cabinets", { page: 1, page_size: 200 })
+  const warehousesQuery = useQuery({
+    queryKey: ["warehouses-options"],
+    queryFn: () => listEntity<Warehouse>("/warehouses", { page: 1, page_size: 200 })
   });
 
   const equipmentTypesQuery = useQuery({
@@ -92,24 +78,16 @@ export default function CabinetItemsPage() {
       setErrorMessage(
         itemsQuery.error instanceof Error
           ? itemsQuery.error.message
-          : "?????? ???????? ??????? ??????"
+          : "?????? ???????? ????????? ???????"
       );
     }
   }, [itemsQuery.error]);
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, quantity }: { id: number; quantity: number }) =>
-      updateEntity("/cabinet-items", id, { quantity }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cabinet-items"] }),
-    onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "?????? ?????????? ??????????")
-  });
-
-  const cabinetMap = useMemo(() => {
+  const warehouseMap = useMemo(() => {
     const map = new Map<number, string>();
-    cabinetsQuery.data?.items.forEach((item) => map.set(item.id, item.name));
+    warehousesQuery.data?.items.forEach((item) => map.set(item.id, item.name));
     return map;
-  }, [cabinetsQuery.data?.items]);
+  }, [warehousesQuery.data?.items]);
 
   const equipmentMap = useMemo(() => {
     const map = new Map<number, string>();
@@ -117,45 +95,26 @@ export default function CabinetItemsPage() {
     return map;
   }, [equipmentTypesQuery.data?.items]);
 
-  const columns = useMemo<ColumnDef<CabinetItem>[]>(() => {
-    const base: ColumnDef<CabinetItem>[] = [
+  const columns = useMemo<ColumnDef<WarehouseItem>[]>(
+    () => [
       {
-        header: "????",
-        cell: ({ row }) => cabinetMap.get(row.original.cabinet_id) || row.original.cabinet_id
+        header: "?????",
+        cell: ({ row }) => warehouseMap.get(row.original.warehouse_id) || row.original.warehouse_id
       },
       {
         header: "????????????",
         cell: ({ row }) =>
           equipmentMap.get(row.original.equipment_type_id) || row.original.equipment_type_id
       },
-      { header: "??????????", accessorKey: "quantity" }
-    ];
-
-    if (canWrite) {
-      base.push({
-        header: "????????",
-        cell: ({ row }) => (
-          <Button
-            size="small"
-            startIcon={<EditRoundedIcon />}
-            onClick={() => {
-              setEditItem(row.original);
-              setEditQuantity(row.original.quantity);
-              setEditOpen(true);
-            }}
-          >
-            ????????
-          </Button>
-        )
-      });
-    }
-
-    return base;
-  }, [cabinetMap, canWrite, equipmentMap]);
+      { header: "??????????", accessorKey: "quantity" },
+      { header: "?????????", accessorKey: "last_updated" }
+    ],
+    [equipmentMap, warehouseMap]
+  );
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">??????? ??????</Typography>
+      <Typography variant="h4">????????? ???????</Typography>
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Box
@@ -187,18 +146,18 @@ export default function CabinetItemsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>????</InputLabel>
+              <InputLabel>?????</InputLabel>
               <Select
-                label="????"
-                value={cabinetFilter}
+                label="?????"
+                value={warehouseFilter}
                 onChange={(event) => {
                   const value = event.target.value;
-                  setCabinetFilter(value === "" ? "" : Number(value));
+                  setWarehouseFilter(value === "" ? "" : Number(value));
                   setPage(1);
                 }}
               >
                 <MenuItem value="">???</MenuItem>
-                {cabinetsQuery.data?.items.map((item) => (
+                {warehousesQuery.data?.items.map((item) => (
                   <MenuItem key={item.id} value={item.id}>
                     {item.name}
                   </MenuItem>
@@ -242,37 +201,6 @@ export default function CabinetItemsPage() {
           />
         </CardContent>
       </Card>
-
-      {canWrite && (
-        <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs">
-          <DialogTitle>???????? ??????????</DialogTitle>
-          <DialogContent sx={{ display: "grid", gap: 2, mt: 1 }}>
-            <TextField
-              label="??????????"
-              type="number"
-              value={editQuantity}
-              onChange={(event) => setEditQuantity(Number(event.target.value))}
-              inputProps={{ min: 0 }}
-              fullWidth
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setEditOpen(false)}>??????</Button>
-            <Button
-              variant="contained"
-              onClick={() => {
-                if (editItem) {
-                  updateMutation.mutate({ id: editItem.id, quantity: editQuantity });
-                }
-                setEditOpen(false);
-              }}
-            >
-              ?????????
-            </Button>
-          </DialogActions>
-        </Dialog>
-      )}
-
       <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage(null)} />
     </Box>
   );

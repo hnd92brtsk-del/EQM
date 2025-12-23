@@ -19,6 +19,8 @@ import SwapHorizRoundedIcon from "@mui/icons-material/SwapHorizRounded";
 import AdminPanelSettingsRoundedIcon from "@mui/icons-material/AdminPanelSettingsRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
+import SettingsInputComponentRoundedIcon from "@mui/icons-material/SettingsInputComponentRounded";
+import SignalCellularAltRoundedIcon from "@mui/icons-material/SignalCellularAltRounded";
 import { NavLink } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
@@ -26,18 +28,20 @@ import { useAuth } from "../context/AuthContext";
 const drawerWidth = 240;
 
 const navItems = [
-  { label: "Дашборд", to: "/dashboard", icon: <DashboardRoundedIcon /> },
-  { label: "Производители", to: "/dictionaries/manufacturers", icon: <StorageRoundedIcon /> },
-  { label: "Локации", to: "/dictionaries/locations", icon: <StorageRoundedIcon /> },
-  { label: "Номенклатура", to: "/dictionaries/equipment-types", icon: <StorageRoundedIcon /> },
-  { label: "Шкафы", to: "/cabinets", icon: <Inventory2RoundedIcon /> },
-  { label: "Движения", to: "/movements", icon: <SwapHorizRoundedIcon /> }
+  { label: "???????", to: "/dashboard", icon: <DashboardRoundedIcon /> },
+  { label: "??????", to: "/warehouses", icon: <StorageRoundedIcon /> },
+  { label: "????????? ???????", to: "/warehouse-items", icon: <StorageRoundedIcon /> },
+  { label: "?????", to: "/cabinets", icon: <Inventory2RoundedIcon /> },
+  { label: "??????? ??????", to: "/cabinet-items", icon: <Inventory2RoundedIcon /> },
+  { label: "????????", to: "/movements", icon: <SwapHorizRoundedIcon /> },
+  { label: "I/O ???????", to: "/io-signals", icon: <SignalCellularAltRoundedIcon /> },
+  { label: "???????????", to: "/dictionaries", icon: <SettingsInputComponentRoundedIcon /> }
 ];
 
 const adminItems = [
-  { label: "Пользователи", to: "/admin/users" },
-  { label: "Сессии", to: "/admin/sessions" },
-  { label: "Аудит", to: "/admin/audit" }
+  { label: "????????????", to: "/admin/users" },
+  { label: "??????", to: "/admin/sessions" },
+  { label: "?????", to: "/admin/audit" }
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -111,23 +115,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <MenuRoundedIcon />
           </IconButton>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            {user ? `Привет, ${user.username}` : "EQM"}
+            {user ? `??????, ${user.username}` : "EQM"}
           </Typography>
-          <Button
-            color="inherit"
-            startIcon={<LogoutRoundedIcon />}
-            onClick={logout}
-          >
-            Выйти
+          <Button color="inherit" startIcon={<LogoutRoundedIcon />} onClick={logout}>
+            ?????
           </Button>
         </Toolbar>
       </AppBar>
 
       <Box sx={{ display: "flex", flex: 1 }}>
-        <Box
-          component="nav"
-          sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
-        >
+        <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}>
           <Drawer
             variant="temporary"
             open={mobileOpen}

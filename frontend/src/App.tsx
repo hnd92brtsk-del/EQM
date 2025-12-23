@@ -8,8 +8,12 @@ import DashboardPage from "./pages/DashboardPage";
 import ManufacturersPage from "./pages/ManufacturersPage";
 import LocationsPage from "./pages/LocationsPage";
 import EquipmentTypesPage from "./pages/EquipmentTypesPage";
+import WarehousesPage from "./pages/WarehousesPage";
+import WarehouseItemsPage from "./pages/WarehouseItemsPage";
+import CabinetsPage from "./pages/CabinetsPage";
 import CabinetItemsPage from "./pages/CabinetItemsPage";
 import MovementsPage from "./pages/MovementsPage";
+import IOSignalsPage from "./pages/IOSignalsPage";
 import UsersPage from "./pages/UsersPage";
 import SessionsPage from "./pages/SessionsPage";
 import AuditLogsPage from "./pages/AuditLogsPage";
@@ -48,8 +52,12 @@ export default function App() {
                 <Route path="/dictionaries/manufacturers" element={<ManufacturersPage />} />
                 <Route path="/dictionaries/locations" element={<LocationsPage />} />
                 <Route path="/dictionaries/equipment-types" element={<EquipmentTypesPage />} />
-                <Route path="/cabinets" element={<CabinetItemsPage />} />
+                <Route path="/warehouses" element={<WarehousesPage />} />
+                <Route path="/warehouse-items" element={<WarehouseItemsPage />} />
+                <Route path="/cabinets" element={<CabinetsPage />} />
+                <Route path="/cabinet-items" element={<CabinetItemsPage />} />
                 <Route path="/movements" element={<MovementsPage />} />
+                <Route path="/io-signals" element={<IOSignalsPage />} />
                 <Route path="/admin/users" element={<UsersPage />} />
                 <Route path="/admin/sessions" element={<SessionsPage />} />
                 <Route path="/admin/audit" element={<AuditLogsPage />} />
