@@ -27,7 +27,9 @@ const drawerWidth = 240;
 
 const navItems = [
   { label: "Дашборд", to: "/dashboard", icon: <DashboardRoundedIcon /> },
-  { label: "Справочники", to: "/dictionaries", icon: <StorageRoundedIcon /> },
+  { label: "Производители", to: "/dictionaries/manufacturers", icon: <StorageRoundedIcon /> },
+  { label: "Локации", to: "/dictionaries/locations", icon: <StorageRoundedIcon /> },
+  { label: "Номенклатура", to: "/dictionaries/equipment-types", icon: <StorageRoundedIcon /> },
   { label: "Шкафы", to: "/cabinets", icon: <Inventory2RoundedIcon /> },
   { label: "Движения", to: "/movements", icon: <SwapHorizRoundedIcon /> }
 ];

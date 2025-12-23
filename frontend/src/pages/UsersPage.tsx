@@ -1,4 +1,4 @@
-п»їimport { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -9,9 +9,12 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  FormControlLabel,
   InputLabel,
   MenuItem,
   Select,
+  Switch,
+  TablePagination,
   TextField,
   Typography
 } from "@mui/material";
@@ -23,10 +26,20 @@ import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { DataTable } from "../components/DataTable";
-import { createEntity, listEntity, updateEntity } from "../api/entities";
+import { ErrorSnackbar } from "../components/ErrorSnackbar";
+import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 
-const PAGE_SIZE = 200;
+const pageSizeOptions = [10, 20, 50, 100];
+
+const sortOptions = [
+  { value: "username", label: "По логину (А-Я)" },
+  { value: "-username", label: "По логину (Я-А)" },
+  { value: "role", label: "По роли (А-Я)" },
+  { value: "-role", label: "По роли (Я-А)" },
+  { value: "created_at", label: "По дате создания (старые)" },
+  { value: "-created_at", label: "По дате создания (новые)" }
+];
 
 type User = {
   id: number;
@@ -37,26 +50,72 @@ type User = {
 
 export default function UsersPage() {
   const { user } = useAuth();
+  const canWrite = user?.role === "admin";
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<User["role"]>("engineer");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState("-created_at");
+  const [roleFilter, setRoleFilter] = useState<User["role"] | "">("");
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const usersQuery = useQuery({
-    queryKey: ["users"],
-    queryFn: () => listEntity<User>("/users", { page: 1, page_size: PAGE_SIZE, include_deleted: true })
+    queryKey: ["users", page, pageSize, q, sort, roleFilter, showDeleted],
+    queryFn: () =>
+      listEntity<User>("/users", {
+        page,
+        page_size: pageSize,
+        q: q || undefined,
+        sort: sort || undefined,
+        is_deleted: showDeleted ? true : false,
+        filters: {
+          role: roleFilter || undefined
+        }
+      })
   });
+
+  useEffect(() => {
+    if (usersQuery.error) {
+      setErrorMessage(
+        usersQuery.error instanceof Error
+          ? usersQuery.error.message
+          : "Ошибка загрузки пользователей"
+      );
+    }
+  }, [usersQuery.error]);
 
   const createMutation = useMutation({
     mutationFn: (payload: any) => createEntity("/users", payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+    onError: (error) =>
+      setErrorMessage(error instanceof Error ? error.message : "Ошибка создания пользователя")
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: any }) => updateEntity("/users", id, payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+    onError: (error) =>
+      setErrorMessage(error instanceof Error ? error.message : "Ошибка обновления пользователя")
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteEntity("/users", id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+    onError: (error) =>
+      setErrorMessage(error instanceof Error ? error.message : "Ошибка удаления пользователя")
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: (id: number) => restoreEntity("/users", id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+    onError: (error) =>
+      setErrorMessage(error instanceof Error ? error.message : "Ошибка восстановления пользователя")
   });
 
   const resetForm = () => {
@@ -65,20 +124,23 @@ export default function UsersPage() {
     setRole("engineer");
   };
 
-  const columns = useMemo<ColumnDef<User>[]>(
-    () => [
-      { header: "Р›РѕРіРёРЅ", accessorKey: "username" },
-      { header: "Р РѕР»СЊ", accessorKey: "role" },
+  const columns = useMemo<ColumnDef<User>[]>(() => {
+    const base: ColumnDef<User>[] = [
+      { header: "Логин", accessorKey: "username" },
+      { header: "Роль", accessorKey: "role" },
       {
-        header: "РЎС‚Р°С‚СѓСЃ",
+        header: "Статус",
         cell: ({ row }) => (
-          <span className="status-pill">{row.original.is_deleted ? "РЈРґР°Р»РµРЅ" : "РђРєС‚РёРІРµРЅ"}</span>
+          <span className="status-pill">{row.original.is_deleted ? "Удален" : "Активен"}</span>
         )
-      },
-      {
-        header: "Р”РµР№СЃС‚РІРёСЏ",
+      }
+    ];
+
+    if (canWrite) {
+      base.push({
+        header: "Действия",
         cell: ({ row }) => (
-          <Box sx={{ display: "flex", gap: 1 }}>
+          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
             <Button
               size="small"
               startIcon={<EditRoundedIcon />}
@@ -90,102 +152,176 @@ export default function UsersPage() {
                 setDialogOpen(true);
               }}
             >
-              РР·РјРµРЅРёС‚СЊ
+              Изменить
             </Button>
             <Button
               size="small"
               color={row.original.is_deleted ? "success" : "error"}
               startIcon={row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />}
               onClick={() =>
-                updateMutation.mutate({ id: row.original.id, payload: { is_deleted: !row.original.is_deleted } })
+                row.original.is_deleted
+                  ? restoreMutation.mutate(row.original.id)
+                  : deleteMutation.mutate(row.original.id)
               }
             >
-              {row.original.is_deleted ? "Р’РѕСЃСЃС‚Р°РЅРѕРІРёС‚СЊ" : "РЈРґР°Р»РёС‚СЊ"}
+              {row.original.is_deleted ? "Восстановить" : "Удалить"}
             </Button>
           </Box>
         )
-      }
-    ],
-    [updateMutation]
-  );
+      });
+    }
 
-  if (user?.role !== "admin") {
-    return <Typography>РќРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ РїСЂР°РІ.</Typography>;
-  }
+    return base;
+  }, [canWrite, deleteMutation, restoreMutation]);
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">РџРѕР»СЊР·РѕРІР°С‚РµР»Рё</Typography>
+      <Typography variant="h4">Пользователи</Typography>
       <Card>
-        <CardContent>
-          <Box className="table-toolbar">
-            <Typography variant="h6">РЎРїРёСЃРѕРє РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№</Typography>
-            <Box sx={{ flexGrow: 1 }} />
-            <Button
-              variant="contained"
-              startIcon={<AddRoundedIcon />}
-              onClick={() => {
-                setEditUser(null);
-                resetForm();
-                setDialogOpen(true);
+        <CardContent sx={{ display: "grid", gap: 2 }}>
+          <Box
+            sx={{
+              display: "grid",
+              gap: 2,
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))"
+            }}
+          >
+            <TextField
+              label="Поиск"
+              value={q}
+              onChange={(event) => {
+                setQ(event.target.value);
+                setPage(1);
               }}
-            >
-              Р”РѕР±Р°РІРёС‚СЊ
-            </Button>
+              fullWidth
+            />
+
+            <FormControl fullWidth>
+              <InputLabel>Сортировка</InputLabel>
+              <Select label="Сортировка" value={sort} onChange={(event) => setSort(event.target.value)}>
+                {sortOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel>Роль</InputLabel>
+              <Select
+                label="Роль"
+                value={roleFilter}
+                onChange={(event) => {
+                  setRoleFilter(event.target.value as User["role"] | "");
+                  setPage(1);
+                }}
+              >
+                <MenuItem value="">Все</MenuItem>
+                <MenuItem value="admin">admin</MenuItem>
+                <MenuItem value="engineer">engineer</MenuItem>
+                <MenuItem value="viewer">viewer</MenuItem>
+              </Select>
+            </FormControl>
           </Box>
+
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showDeleted}
+                  onChange={(event) => {
+                    setShowDeleted(event.target.checked);
+                    setPage(1);
+                  }}
+                />
+              }
+              label="Показывать удаленных"
+            />
+            <Box sx={{ flexGrow: 1 }} />
+            {canWrite && (
+              <Button
+                variant="contained"
+                startIcon={<AddRoundedIcon />}
+                onClick={() => {
+                  setEditUser(null);
+                  resetForm();
+                  setDialogOpen(true);
+                }}
+              >
+                Добавить
+              </Button>
+            )}
+          </Box>
+
           <DataTable data={usersQuery.data?.items || []} columns={columns} />
+          <TablePagination
+            component="div"
+            count={usersQuery.data?.total || 0}
+            page={page - 1}
+            onPageChange={(_, value) => setPage(value + 1)}
+            rowsPerPage={pageSize}
+            onRowsPerPageChange={(event) => {
+              setPageSize(Number(event.target.value));
+              setPage(1);
+            }}
+            rowsPerPageOptions={pageSizeOptions}
+          />
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{editUser ? "РР·РјРµРЅРёС‚СЊ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ" : "РќРѕРІС‹Р№ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ"}</DialogTitle>
-        <DialogContent sx={{ display: "grid", gap: 2, mt: 1 }}>
-          <TextField
-            label="Р›РѕРіРёРЅ"
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            disabled={Boolean(editUser)}
-            fullWidth
-          />
-          <TextField
-            label="РџР°СЂРѕР»СЊ"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            fullWidth
-          />
-          <FormControl fullWidth>
-            <InputLabel>Р РѕР»СЊ</InputLabel>
-            <Select label="Р РѕР»СЊ" value={role} onChange={(event) => setRole(event.target.value as User["role"])}>
-              <MenuItem value="admin">admin</MenuItem>
-              <MenuItem value="engineer">engineer</MenuItem>
-              <MenuItem value="viewer">viewer</MenuItem>
-            </Select>
-          </FormControl>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>РћС‚РјРµРЅР°</Button>
-          <Button
-            variant="contained"
-            onClick={() => {
-              if (editUser) {
-                updateMutation.mutate({
-                  id: editUser.id,
-                  payload: {
-                    role,
-                    password: password || undefined
-                  }
-                });
-              } else {
-                createMutation.mutate({ username, password, role });
-              }
-              setDialogOpen(false);
-            }}
-          >
-            РЎРѕС…СЂР°РЅРёС‚СЊ
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {canWrite && (
+        <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
+          <DialogTitle>{editUser ? "Изменить пользователя" : "Новый пользователь"}</DialogTitle>
+          <DialogContent sx={{ display: "grid", gap: 2, mt: 1 }}>
+            <TextField
+              label="Логин"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              disabled={Boolean(editUser)}
+              fullWidth
+            />
+            <TextField
+              label="Пароль"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              fullWidth
+            />
+            <FormControl fullWidth>
+              <InputLabel>Роль</InputLabel>
+              <Select label="Роль" value={role} onChange={(event) => setRole(event.target.value as User["role"])}>
+                <MenuItem value="admin">admin</MenuItem>
+                <MenuItem value="engineer">engineer</MenuItem>
+                <MenuItem value="viewer">viewer</MenuItem>
+              </Select>
+            </FormControl>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDialogOpen(false)}>Отмена</Button>
+            <Button
+              variant="contained"
+              onClick={() => {
+                if (editUser) {
+                  updateMutation.mutate({
+                    id: editUser.id,
+                    payload: {
+                      role,
+                      password: password || undefined
+                    }
+                  });
+                } else {
+                  createMutation.mutate({ username, password, role });
+                }
+                setDialogOpen(false);
+              }}
+            >
+              Сохранить
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
+      <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage(null)} />
     </Box>
   );
 }

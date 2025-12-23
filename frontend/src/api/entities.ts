@@ -19,7 +19,8 @@ export function buildQuery(params: Record<string, string | number | boolean | un
 }
 
 export async function listEntity<T>(path: string, params: Record<string, any>) {
-  const qs = buildQuery(params);
+  const { filters, ...rest } = params;
+  const qs = buildQuery({ ...rest, ...(filters || {}) });
   return apiFetch<Pagination<T>>(`${path}${qs}`);
 }
 
@@ -29,4 +30,12 @@ export async function createEntity<T>(path: string, payload: any) {
 
 export async function updateEntity<T>(path: string, id: number, payload: any) {
   return apiFetch<T>(`${path}/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+}
+
+export async function deleteEntity(path: string, id: number) {
+  return apiFetch<void>(`${path}/${id}`, { method: "DELETE" });
+}
+
+export async function restoreEntity(path: string, id: number) {
+  return apiFetch<void>(`${path}/${id}/restore`, { method: "POST" });
 }

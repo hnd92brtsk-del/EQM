@@ -5,7 +5,9 @@ import { useAuth } from "./context/AuthContext";
 import { AppLayout } from "./components/AppLayout";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
-import DictionariesPage from "./pages/DictionariesPage";
+import ManufacturersPage from "./pages/ManufacturersPage";
+import LocationsPage from "./pages/LocationsPage";
+import EquipmentTypesPage from "./pages/EquipmentTypesPage";
 import CabinetItemsPage from "./pages/CabinetItemsPage";
 import MovementsPage from "./pages/MovementsPage";
 import UsersPage from "./pages/UsersPage";
@@ -42,7 +44,10 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/dictionaries" element={<DictionariesPage />} />
+                <Route path="/dictionaries" element={<Navigate to="/dictionaries/manufacturers" replace />} />
+                <Route path="/dictionaries/manufacturers" element={<ManufacturersPage />} />
+                <Route path="/dictionaries/locations" element={<LocationsPage />} />
+                <Route path="/dictionaries/equipment-types" element={<EquipmentTypesPage />} />
                 <Route path="/cabinets" element={<CabinetItemsPage />} />
                 <Route path="/movements" element={<MovementsPage />} />
                 <Route path="/admin/users" element={<UsersPage />} />
