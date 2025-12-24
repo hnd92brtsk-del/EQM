@@ -24,6 +24,7 @@ import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
@@ -49,6 +50,7 @@ type User = {
 };
 
 export default function UsersPage() {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const canWrite = user?.role === "admin";
   const queryClient = useQueryClient();
@@ -138,7 +140,7 @@ export default function UsersPage() {
 
     if (canWrite) {
       base.push({
-        header: "Действия",
+        header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
             <Button
@@ -152,7 +154,7 @@ export default function UsersPage() {
                 setDialogOpen(true);
               }}
             >
-              Изменить
+              {t("actions.edit")}
             </Button>
             <Button
               size="small"
@@ -164,7 +166,7 @@ export default function UsersPage() {
                   : deleteMutation.mutate(row.original.id)
               }
             >
-              {row.original.is_deleted ? "Восстановить" : "Удалить"}
+              {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
             </Button>
           </Box>
         )
@@ -172,11 +174,11 @@ export default function UsersPage() {
     }
 
     return base;
-  }, [canWrite, deleteMutation, restoreMutation]);
+  }, [canWrite, deleteMutation, restoreMutation, t, i18n.language]);
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">Пользователи</Typography>
+      <Typography variant="h4">{t("pages.users")}</Typography>
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Box
@@ -187,7 +189,7 @@ export default function UsersPage() {
             }}
           >
             <TextField
-              label="Поиск"
+              label={t("actions.search")}
               value={q}
               onChange={(event) => {
                 setQ(event.target.value);
@@ -249,7 +251,7 @@ export default function UsersPage() {
                   setDialogOpen(true);
                 }}
               >
-                Добавить
+                {t("actions.add")}
               </Button>
             )}
           </Box>
@@ -272,7 +274,7 @@ export default function UsersPage() {
 
       {canWrite && (
         <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
-          <DialogTitle>{editUser ? "Изменить пользователя" : "Новый пользователь"}</DialogTitle>
+          <DialogTitle>{editUser ? t("actions.edit") : t("actions.add")}</DialogTitle>
           <DialogContent sx={{ display: "grid", gap: 2, mt: 1 }}>
             <TextField
               label="Логин"
@@ -298,7 +300,7 @@ export default function UsersPage() {
             </FormControl>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setDialogOpen(false)}>Отмена</Button>
+            <Button onClick={() => setDialogOpen(false)}>{t("actions.cancel")}</Button>
             <Button
               variant="contained"
               onClick={() => {
@@ -316,7 +318,7 @@ export default function UsersPage() {
                 setDialogOpen(false);
               }}
             >
-              Сохранить
+              {t("actions.save")}
             </Button>
           </DialogActions>
         </Dialog>

@@ -20,6 +20,7 @@ import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
@@ -73,6 +74,7 @@ const sortOptions = [
 const pageSizeOptions = [10, 20, 50, 100];
 
 export default function IOSignalsPage() {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const canWrite = user?.role === "admin" || user?.role === "engineer";
   const queryClient = useQueryClient();
@@ -217,7 +219,7 @@ export default function IOSignalsPage() {
 
     if (canWrite) {
       base.push({
-        header: "Действия",
+        header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
             <Button
@@ -280,7 +282,7 @@ export default function IOSignalsPage() {
                 })
               }
             >
-              Изменить
+              {t("actions.edit")}
             </Button>
             <Button
               size="small"
@@ -294,7 +296,7 @@ export default function IOSignalsPage() {
                   : deleteMutation.mutate(row.original.id)
               }
             >
-              {row.original.is_deleted ? "Восстановить" : "Удалить"}
+              {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
             </Button>
           </Box>
         )
@@ -302,11 +304,20 @@ export default function IOSignalsPage() {
     }
 
     return base;
-  }, [cabinetItemMap, cabinetItemsQuery.data?.items, canWrite, deleteMutation, restoreMutation, updateMutation]);
+  }, [
+    cabinetItemMap,
+    cabinetItemsQuery.data?.items,
+    canWrite,
+    deleteMutation,
+    restoreMutation,
+    updateMutation,
+    t,
+    i18n.language
+  ]);
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">I/O сигналы</Typography>
+      <Typography variant="h4">{t("pages.ioSignals")}</Typography>
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Box
@@ -317,7 +328,7 @@ export default function IOSignalsPage() {
             }}
           >
             <TextField
-              label="Поиск"
+              label={t("actions.search")}
               value={q}
               onChange={(event) => {
                 setQ(event.target.value);
@@ -479,7 +490,7 @@ export default function IOSignalsPage() {
                   })
                 }
               >
-                Добавить
+                {t("actions.add")}
               </Button>
             )}
           </Box>

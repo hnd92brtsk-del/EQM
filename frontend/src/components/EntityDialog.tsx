@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Button,
   Checkbox,
@@ -33,6 +34,7 @@ export type DialogState = {
 
 export function EntityDialog({ state, onClose }: { state: DialogState; onClose: () => void }) {
   const [values, setValues] = useState(state.values);
+  const { t } = useTranslation();
 
   useEffect(() => {
     setValues(state.values);
@@ -55,7 +57,7 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
                   }
                 >
                   <MenuItem value="">
-                    <em>Не выбрано</em>
+                    <em>{t("actions.notSelected")}</em>
                   </MenuItem>
                   {field.options?.map((option) => (
                     <MenuItem key={option.value} value={option.value}>
@@ -107,9 +109,9 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
         })}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Отмена</Button>
+        <Button onClick={onClose}>{t("actions.cancel")}</Button>
         <Button onClick={() => state.onSave(values)} variant="contained">
-          Сохранить
+          {t("actions.save")}
         </Button>
       </DialogActions>
     </Dialog>

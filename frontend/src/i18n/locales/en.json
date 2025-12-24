@@ -1,0 +1,69 @@
+{
+  "app": {
+    "title": "EQM",
+    "greeting": "Hi, {{name}}"
+  },
+  "nav": {
+    "dashboard": "Overview",
+    "dictionaries": "Dictionaries",
+    "warehouses": "Warehouses",
+    "warehouseItems": "Warehouse Items",
+    "cabinets": "Cabinets",
+    "cabinetItems": "Cabinet Items",
+    "movements": "Movements",
+    "ioSignals": "I/O Signals"
+  },
+  "admin": {
+    "title": "Admin",
+    "users": "Users",
+    "sessions": "Sessions",
+    "audit": "Audit Logs"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "label": "Theme"
+  },
+  "language": {
+    "label": "Language",
+    "ru": "RU",
+    "en": "EN"
+  },
+  "auth": {
+    "loginTitle": "Sign in to EQM",
+    "loginHint": "Use admin/admin12345 for the first login.",
+    "username": "Username",
+    "password": "Password",
+    "signIn": "Sign in",
+    "invalidCredentials": "Invalid username or password"
+  },
+  "actions": {
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "restore": "Restore",
+    "save": "Save",
+    "cancel": "Cancel",
+    "logout": "Sign out",
+    "search": "Search",
+    "filters": "Filters",
+    "actions": "Actions",
+    "notSelected": "Not selected"
+  },
+  "pages": {
+    "dashboard": "Overview",
+    "users": "Users",
+    "dictionaries": "Dictionaries",
+    "warehouses": "Warehouses",
+    "cabinets": "Cabinets",
+    "warehouseItems": "Warehouse Items",
+    "cabinetItems": "Cabinet Items",
+    "movements": "Movements",
+    "ioSignals": "I/O Signals",
+    "auditLogs": "Audit Logs",
+    "sessions": "Sessions"
+  },
+  "common": {
+    "noAccess": "Not enough permissions."
+  }
+}

@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { ColumnDef } from "@tanstack/react-table";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
@@ -38,6 +39,7 @@ type AuditLog = {
 };
 
 export default function AuditLogsPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const canView = user?.role === "admin" || user?.role === "engineer";
 
@@ -91,12 +93,12 @@ export default function AuditLogsPage() {
   );
 
   if (!canView) {
-    return <Typography>Недостаточно прав.</Typography>;
+    return <Typography>{t("common.noAccess")}</Typography>;
   }
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">Аудит</Typography>
+      <Typography variant="h4">{t("pages.auditLogs")}</Typography>
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Box
@@ -107,7 +109,7 @@ export default function AuditLogsPage() {
             }}
           >
             <TextField
-              label="Поиск"
+              label={t("actions.search")}
               value={q}
               onChange={(event) => {
                 setQ(event.target.value);

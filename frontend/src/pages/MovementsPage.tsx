@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
@@ -56,6 +57,7 @@ type Warehouse = { id: number; name: string };
 type Cabinet = { id: number; name: string };
 
 export default function MovementsPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const canWrite = user?.role === "admin" || user?.role === "engineer";
   const queryClient = useQueryClient();
@@ -277,7 +279,7 @@ export default function MovementsPage() {
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">Перемещения</Typography>
+      <Typography variant="h4">{t("pages.movements")}</Typography>
 
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
@@ -434,7 +436,7 @@ export default function MovementsPage() {
             }}
           >
             <TextField
-              label="Поиск"
+              label={t("actions.search")}
               value={q}
               onChange={(event) => {
                 setQ(event.target.value);

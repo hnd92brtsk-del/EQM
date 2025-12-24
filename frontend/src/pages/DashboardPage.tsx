@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import { ColumnDef } from "@tanstack/react-table";
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
+import { useTranslation } from "react-i18next";
 
 import { apiFetch } from "../api/client";
 import { listEntity } from "../api/entities";
@@ -172,6 +173,7 @@ async function safeFetchAllPages<T>(path: string, params: Record<string, any> = 
 }
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const [actionsSearch, setActionsSearch] = useState("");
   const [loginsSearch, setLoginsSearch] = useState("");
   const fallbackRef = useRef<Promise<{
@@ -572,7 +574,7 @@ export default function DashboardPage() {
 
   return (
     <Box sx={{ display: "grid", gap: 3 }}>
-      <Typography variant="h4">Обзор</Typography>
+      <Typography variant="h4">{t("pages.dashboard")}</Typography>
 
       <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 2 }}>
         {[
@@ -737,7 +739,7 @@ export default function DashboardPage() {
           <CardContent sx={{ display: "grid", gap: 2 }}>
             <Typography variant="h6">Последние действия</Typography>
             <TextField
-              label="Поиск"
+              label={t("actions.search")}
               value={actionsSearch}
               onChange={(event) => setActionsSearch(event.target.value)}
               fullWidth
@@ -766,7 +768,7 @@ export default function DashboardPage() {
           <CardContent sx={{ display: "grid", gap: 2 }}>
             <Typography variant="h6">Последние логины</Typography>
             <TextField
-              label="Поиск"
+              label={t("actions.search")}
               value={loginsSearch}
               onChange={(event) => setLoginsSearch(event.target.value)}
               fullWidth

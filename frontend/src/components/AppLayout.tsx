@@ -1,14 +1,17 @@
-﻿import React from "react";
+import React, { useMemo } from "react";
 import {
   AppBar,
   Box,
   Drawer,
   IconButton,
+  ToggleButton,
+  ToggleButtonGroup,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
   Toolbar,
+  Tooltip,
   Typography,
   Button
 } from "@mui/material";
@@ -21,39 +24,51 @@ import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import SettingsInputComponentRoundedIcon from "@mui/icons-material/SettingsInputComponentRounded";
 import SignalCellularAltRoundedIcon from "@mui/icons-material/SignalCellularAltRounded";
+import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
+import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import { NavLink } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 import { useAuth } from "../context/AuthContext";
+import { useThemeMode } from "../context/ThemeContext";
 
 const drawerWidth = 240;
 
-const navItems = [
-  { label: "Дашборд", to: "/dashboard", icon: <DashboardRoundedIcon /> },
-  { label: "Склады", to: "/warehouses", icon: <StorageRoundedIcon /> },
-  { label: "Складские позиции", to: "/warehouse-items", icon: <StorageRoundedIcon /> },
-  { label: "Шкафы", to: "/cabinets", icon: <Inventory2RoundedIcon /> },
-  { label: "Шкафные позиции", to: "/cabinet-items", icon: <Inventory2RoundedIcon /> },
-  { label: "Перемещения", to: "/movements", icon: <SwapHorizRoundedIcon /> },
-  { label: "I/O сигналы", to: "/io-signals", icon: <SignalCellularAltRoundedIcon /> },
-  { label: "Справочники", to: "/dictionaries", icon: <SettingsInputComponentRoundedIcon /> }
-];
-
-const adminItems = [
-  { label: "Пользователи", to: "/admin/users" },
-  { label: "Сессии", to: "/admin/sessions" },
-  { label: "Аудит", to: "/admin/audit" }
-];
-
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
+  const { t, i18n } = useTranslation();
+  const { mode, toggleTheme } = useThemeMode();
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
   const toggleDrawer = () => setMobileOpen((prev) => !prev);
 
+  const navItems = useMemo(
+    () => [
+      { label: t("nav.dashboard"), to: "/dashboard", icon: <DashboardRoundedIcon /> },
+      { label: t("nav.warehouses"), to: "/warehouses", icon: <StorageRoundedIcon /> },
+      { label: t("nav.warehouseItems"), to: "/warehouse-items", icon: <StorageRoundedIcon /> },
+      { label: t("nav.cabinets"), to: "/cabinets", icon: <Inventory2RoundedIcon /> },
+      { label: t("nav.cabinetItems"), to: "/cabinet-items", icon: <Inventory2RoundedIcon /> },
+      { label: t("nav.movements"), to: "/movements", icon: <SwapHorizRoundedIcon /> },
+      { label: t("nav.ioSignals"), to: "/io-signals", icon: <SignalCellularAltRoundedIcon /> },
+      { label: t("nav.dictionaries"), to: "/dictionaries", icon: <SettingsInputComponentRoundedIcon /> }
+    ],
+    [t, i18n.language]
+  );
+
+  const adminItems = useMemo(
+    () => [
+      { label: t("admin.users"), to: "/admin/users" },
+      { label: t("admin.sessions"), to: "/admin/sessions" },
+      { label: t("admin.audit"), to: "/admin/audit" }
+    ],
+    [t, i18n.language]
+  );
+
   const drawer = (
     <Box sx={{ p: 2 }}>
       <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
-        EQM
+        {t("app.title")}
       </Typography>
       <List>
         {navItems.map((item) => (
@@ -76,7 +91,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {user?.role === "admin" && (
         <Box sx={{ mt: 3 }}>
           <Typography variant="overline" color="text.secondary">
-            Admin
+            {t("admin.title")}
           </Typography>
           <List>
             {adminItems.map((item) => (
@@ -115,10 +130,26 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <MenuRoundedIcon />
           </IconButton>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            {user ? `Привет, ${user.username}` : "EQM"}
+            {user ? t("app.greeting", { name: user.username }) : t("app.title")}
           </Typography>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={i18n.language}
+            onChange={(_, value) => value && i18n.changeLanguage(value)}
+            aria-label={t("language.label")}
+            sx={{ backgroundColor: "rgba(255, 255, 255, 0.08)", borderRadius: 2 }}
+          >
+            <ToggleButton value="ru">{t("language.ru")}</ToggleButton>
+            <ToggleButton value="en">{t("language.en")}</ToggleButton>
+          </ToggleButtonGroup>
+          <Tooltip title={t(mode === "light" ? "theme.dark" : "theme.light")}>
+            <IconButton color="inherit" onClick={toggleTheme}>
+              {mode === "light" ? <DarkModeRoundedIcon /> : <LightModeRoundedIcon />}
+            </IconButton>
+          </Tooltip>
           <Button color="inherit" startIcon={<LogoutRoundedIcon />} onClick={logout}>
-            Выйти
+            {t("actions.logout")}
           </Button>
         </Toolbar>
       </AppBar>
@@ -157,4 +188,3 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     </Box>
   );
 }
-

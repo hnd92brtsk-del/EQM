@@ -19,6 +19,7 @@ import {
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
@@ -46,6 +47,7 @@ type Cabinet = { id: number; name: string };
 type EquipmentType = { id: number; name: string };
 
 export default function CabinetItemsPage() {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const canWrite = user?.role === "admin" || user?.role === "engineer";
   const queryClient = useQueryClient();
@@ -133,7 +135,7 @@ export default function CabinetItemsPage() {
 
     if (canWrite) {
       base.push({
-        header: "Действия",
+        header: t("actions.actions"),
         cell: ({ row }) => (
           <Button
             size="small"
@@ -144,18 +146,18 @@ export default function CabinetItemsPage() {
               setEditOpen(true);
             }}
           >
-            Изменить
+            {t("actions.edit")}
           </Button>
         )
       });
     }
 
     return base;
-  }, [cabinetMap, canWrite, equipmentMap]);
+  }, [cabinetMap, canWrite, equipmentMap, t, i18n.language]);
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">Шкафные позиции</Typography>
+      <Typography variant="h4">{t("pages.cabinetItems")}</Typography>
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Box
@@ -166,7 +168,7 @@ export default function CabinetItemsPage() {
             }}
           >
             <TextField
-              label="Поиск"
+              label={t("actions.search")}
               value={q}
               onChange={(event) => {
                 setQ(event.target.value);
@@ -245,7 +247,7 @@ export default function CabinetItemsPage() {
 
       {canWrite && (
         <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs">
-          <DialogTitle>Изменить количество</DialogTitle>
+          <DialogTitle>{t("actions.edit")}</DialogTitle>
           <DialogContent sx={{ display: "grid", gap: 2, mt: 1 }}>
             <TextField
               label="Количество"
@@ -257,7 +259,7 @@ export default function CabinetItemsPage() {
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setEditOpen(false)}>Отмена</Button>
+            <Button onClick={() => setEditOpen(false)}>{t("actions.cancel")}</Button>
             <Button
               variant="contained"
               onClick={() => {
@@ -267,7 +269,7 @@ export default function CabinetItemsPage() {
                 setEditOpen(false);
               }}
             >
-              Сохранить
+              {t("actions.save")}
             </Button>
           </DialogActions>
         </Dialog>

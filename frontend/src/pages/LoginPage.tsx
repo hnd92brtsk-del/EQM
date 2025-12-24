@@ -10,10 +10,12 @@ import {
   Alert
 } from "@mui/material";
 import LoginRoundedIcon from "@mui/icons-material/LoginRounded";
+import { useTranslation } from "react-i18next";
 
 import { useAuth } from "../context/AuthContext";
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const { login } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
@@ -29,7 +31,7 @@ export default function LoginPage() {
       await login(username, password);
       navigate("/dashboard", { replace: true });
     } catch (err) {
-      setError("Неверный логин или пароль");
+      setError(t("auth.invalidCredentials"));
     } finally {
       setLoading(false);
     }
@@ -45,24 +47,24 @@ export default function LoginPage() {
         p: 2
       }}
     >
-      <Card sx={{ maxWidth: 420, width: "100%" }}>
+        <Card sx={{ maxWidth: 420, width: "100%" }}>
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Typography variant="h5" className="card-title">
-            Вход в EQM
+            {t("auth.loginTitle")}
           </Typography>
           <Typography color="text.secondary">
-            Используйте admin/admin12345 для первого входа.
+            {t("auth.loginHint")}
           </Typography>
           {error && <Alert severity="error">{error}</Alert>}
           <Box component="form" onSubmit={handleSubmit} sx={{ display: "grid", gap: 2 }}>
             <TextField
-              label="Логин"
+              label={t("auth.username")}
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               required
             />
             <TextField
-              label="Пароль"
+              label={t("auth.password")}
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
@@ -74,7 +76,7 @@ export default function LoginPage() {
               startIcon={<LoginRoundedIcon />}
               disabled={loading}
             >
-              Войти
+              {t("auth.signIn")}
             </Button>
           </Box>
         </CardContent>

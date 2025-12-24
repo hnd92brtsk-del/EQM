@@ -26,6 +26,7 @@ import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
 import { createEntity, listEntity, updateEntity } from "../api/entities";
@@ -70,6 +71,7 @@ type DialogState = {
 
 function EntityDialog({ state, onClose }: { state: DialogState; onClose: () => void }) {
   const [values, setValues] = useState(state.values);
+  const { t } = useTranslation();
 
   useEffect(() => {
     setValues(state.values);
@@ -92,7 +94,7 @@ function EntityDialog({ state, onClose }: { state: DialogState; onClose: () => v
                   }
                 >
                   <MenuItem value="">
-                    <em>Не выбрано</em>
+                    <em>{t("actions.notSelected")}</em>
                   </MenuItem>
                   {field.options?.map((option) => (
                     <MenuItem key={option.value} value={option.value}>
@@ -139,9 +141,9 @@ function EntityDialog({ state, onClose }: { state: DialogState; onClose: () => v
         })}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Отмена</Button>
+        <Button onClick={onClose}>{t("actions.cancel")}</Button>
         <Button onClick={() => state.onSave(values)} variant="contained">
-          Сохранить
+          {t("actions.save")}
         </Button>
       </DialogActions>
     </Dialog>
@@ -149,6 +151,7 @@ function EntityDialog({ state, onClose }: { state: DialogState; onClose: () => v
 }
 
 export default function DictionariesPage() {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const canEdit = user?.role === "admin" || user?.role === "engineer";
   const queryClient = useQueryClient();
@@ -212,7 +215,7 @@ export default function DictionariesPage() {
         )
       },
       {
-        header: "Действия",
+        header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1 }}>
             <Button
@@ -239,7 +242,7 @@ export default function DictionariesPage() {
               }
               disabled={!canEdit}
             >
-              Изменить
+              {t("actions.edit")}
             </Button>
             <Button
               size="small"
@@ -254,13 +257,13 @@ export default function DictionariesPage() {
               }
               disabled={!canEdit}
             >
-              {row.original.is_deleted ? "Восстановить" : "Удалить"}
+              {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
             </Button>
           </Box>
         )
       }
     ],
-    [canEdit, updateMutation]
+    [canEdit, updateMutation, t, i18n.language]
   );
 
   const locationColumns = useMemo<ColumnDef<Location>[]>(
@@ -274,7 +277,7 @@ export default function DictionariesPage() {
         )
       },
       {
-        header: "Действия",
+        header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1 }}>
             <Button
@@ -310,7 +313,7 @@ export default function DictionariesPage() {
               }
               disabled={!canEdit}
             >
-              Изменить
+              {t("actions.edit")}
             </Button>
             <Button
               size="small"
@@ -325,13 +328,13 @@ export default function DictionariesPage() {
               }
               disabled={!canEdit}
             >
-              {row.original.is_deleted ? "Восстановить" : "Удалить"}
+              {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
             </Button>
           </Box>
         )
       }
     ],
-    [canEdit, locationsQuery.data?.items, updateMutation]
+    [canEdit, locationsQuery.data?.items, updateMutation, t, i18n.language]
   );
 
   const equipmentColumns = useMemo<ColumnDef<EquipmentType>[]>(
@@ -351,7 +354,7 @@ export default function DictionariesPage() {
         )
       },
       {
-        header: "Действия",
+        header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1 }}>
             <Button
@@ -396,7 +399,7 @@ export default function DictionariesPage() {
               }
               disabled={!canEdit}
             >
-              Изменить
+              {t("actions.edit")}
             </Button>
             <Button
               size="small"
@@ -411,13 +414,13 @@ export default function DictionariesPage() {
               }
               disabled={!canEdit}
             >
-              {row.original.is_deleted ? "Восстановить" : "Удалить"}
+              {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
             </Button>
           </Box>
         )
       }
     ],
-    [canEdit, manufacturersQuery.data?.items, updateMutation]
+    [canEdit, manufacturersQuery.data?.items, updateMutation, t, i18n.language]
   );
 
   const warehouseColumns = useMemo<ColumnDef<Warehouse>[]>(
@@ -431,7 +434,7 @@ export default function DictionariesPage() {
         )
       },
       {
-        header: "Действия",
+        header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1 }}>
             <Button
@@ -467,7 +470,7 @@ export default function DictionariesPage() {
               }
               disabled={!canEdit}
             >
-              Изменить
+              {t("actions.edit")}
             </Button>
             <Button
               size="small"
@@ -482,13 +485,13 @@ export default function DictionariesPage() {
               }
               disabled={!canEdit}
             >
-              {row.original.is_deleted ? "Восстановить" : "Удалить"}
+              {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
             </Button>
           </Box>
         )
       }
     ],
-    [canEdit, locationsQuery.data?.items, updateMutation]
+    [canEdit, locationsQuery.data?.items, updateMutation, t, i18n.language]
   );
 
   const cabinetColumns = useMemo<ColumnDef<Cabinet>[]>(
@@ -502,7 +505,7 @@ export default function DictionariesPage() {
         )
       },
       {
-        header: "Действия",
+        header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1 }}>
             <Button
@@ -538,7 +541,7 @@ export default function DictionariesPage() {
               }
               disabled={!canEdit}
             >
-              Изменить
+              {t("actions.edit")}
             </Button>
             <Button
               size="small"
@@ -553,13 +556,13 @@ export default function DictionariesPage() {
               }
               disabled={!canEdit}
             >
-              {row.original.is_deleted ? "Восстановить" : "Удалить"}
+              {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
             </Button>
           </Box>
         )
       }
     ],
-    [canEdit, locationsQuery.data?.items, updateMutation]
+    [canEdit, locationsQuery.data?.items, updateMutation, t, i18n.language]
   );
 
   const renderSection = () => {
@@ -590,7 +593,7 @@ export default function DictionariesPage() {
                   })
                 }
               >
-                Добавить
+                {t("actions.add")}
               </Button>
             </Box>
             <DataTable data={manufacturersQuery.data?.items || []} columns={manufacturerColumns} />
@@ -638,7 +641,7 @@ export default function DictionariesPage() {
                   })
                 }
               >
-                Добавить
+                {t("actions.add")}
               </Button>
             </Box>
             <DataTable data={locationsQuery.data?.items || []} columns={locationColumns} />
@@ -692,7 +695,7 @@ export default function DictionariesPage() {
                   })
                 }
               >
-                Добавить
+                {t("actions.add")}
               </Button>
             </Box>
             <DataTable data={equipmentTypesQuery.data?.items || []} columns={equipmentColumns} />
@@ -740,7 +743,7 @@ export default function DictionariesPage() {
                   })
                 }
               >
-                Добавить
+                {t("actions.add")}
               </Button>
             </Box>
             <DataTable data={warehousesQuery.data?.items || []} columns={warehouseColumns} />
@@ -787,7 +790,7 @@ export default function DictionariesPage() {
                 })
               }
             >
-              Добавить
+              {t("actions.add")}
             </Button>
           </Box>
           <DataTable data={cabinetsQuery.data?.items || []} columns={cabinetColumns} />
@@ -798,7 +801,7 @@ export default function DictionariesPage() {
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">Справочники</Typography>
+      <Typography variant="h4">{t("pages.dictionaries")}</Typography>
       <Tabs value={tab} onChange={(_, value) => setTab(value)}>
         <Tab label="Производители" />
         <Tab label="Локации" />
@@ -817,8 +820,4 @@ export default function DictionariesPage() {
     </Box>
   );
 }
-
-
-
-
 

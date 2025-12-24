@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { ColumnDef } from "@tanstack/react-table";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
@@ -40,6 +41,7 @@ type Warehouse = { id: number; name: string };
 type EquipmentType = { id: number; name: string };
 
 export default function WarehouseItemsPage() {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [q, setQ] = useState("");
@@ -114,7 +116,7 @@ export default function WarehouseItemsPage() {
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">Складские позиции</Typography>
+      <Typography variant="h4">{t("pages.warehouseItems")}</Typography>
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Box
@@ -125,7 +127,7 @@ export default function WarehouseItemsPage() {
             }}
           >
             <TextField
-              label="Поиск"
+              label={t("actions.search")}
               value={q}
               onChange={(event) => {
                 setQ(event.target.value);

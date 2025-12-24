@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { ColumnDef } from "@tanstack/react-table";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
@@ -39,6 +40,7 @@ type Session = {
 };
 
 export default function SessionsPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const canView = user?.role === "admin";
 
@@ -90,12 +92,12 @@ export default function SessionsPage() {
   );
 
   if (!canView) {
-    return <Typography>Недостаточно прав.</Typography>;
+    return <Typography>{t("common.noAccess")}</Typography>;
   }
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">Сессии</Typography>
+      <Typography variant="h4">{t("pages.sessions")}</Typography>
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Box
@@ -106,7 +108,7 @@ export default function SessionsPage() {
             }}
           >
             <TextField
-              label="Поиск"
+              label={t("actions.search")}
               value={q}
               onChange={(event) => {
                 setQ(event.target.value);

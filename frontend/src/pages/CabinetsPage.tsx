@@ -20,6 +20,7 @@ import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
@@ -47,6 +48,7 @@ const sortOptions = [
 const pageSizeOptions = [10, 20, 50, 100];
 
 export default function CabinetsPage() {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const canWrite = user?.role === "admin" || user?.role === "engineer";
   const queryClient = useQueryClient();
@@ -155,7 +157,7 @@ export default function CabinetsPage() {
 
     if (canWrite) {
       base.push({
-        header: "Действия",
+        header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
             <Button
@@ -193,7 +195,7 @@ export default function CabinetsPage() {
                 })
               }
             >
-              Изменить
+              {t("actions.edit")}
             </Button>
             <Button
               size="small"
@@ -207,7 +209,7 @@ export default function CabinetsPage() {
                   : deleteMutation.mutate(row.original.id)
               }
             >
-              {row.original.is_deleted ? "Восстановить" : "Удалить"}
+              {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
             </Button>
           </Box>
         )
@@ -215,11 +217,20 @@ export default function CabinetsPage() {
     }
 
     return base;
-  }, [canWrite, deleteMutation, locationMap, locationsQuery.data?.items, restoreMutation, updateMutation]);
+  }, [
+    canWrite,
+    deleteMutation,
+    locationMap,
+    locationsQuery.data?.items,
+    restoreMutation,
+    updateMutation,
+    t,
+    i18n.language
+  ]);
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">Шкафы</Typography>
+      <Typography variant="h4">{t("pages.cabinets")}</Typography>
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Box
@@ -230,7 +241,7 @@ export default function CabinetsPage() {
             }}
           >
             <TextField
-              label="Поиск"
+              label={t("actions.search")}
               value={q}
               onChange={(event) => {
                 setQ(event.target.value);
@@ -318,7 +329,7 @@ export default function CabinetsPage() {
                   })
                 }
               >
-                Добавить
+                {t("actions.add")}
               </Button>
             )}
           </Box>

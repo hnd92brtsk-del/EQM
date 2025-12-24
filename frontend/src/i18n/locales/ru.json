@@ -1,0 +1,69 @@
+{
+  "app": {
+    "title": "EQM",
+    "greeting": "Привет, {{name}}"
+  },
+  "nav": {
+    "dashboard": "Обзор",
+    "dictionaries": "Справочники",
+    "warehouses": "Склады",
+    "warehouseItems": "Складские позиции",
+    "cabinets": "Шкафы",
+    "cabinetItems": "Шкафные позиции",
+    "movements": "Перемещения",
+    "ioSignals": "I/O сигналы"
+  },
+  "admin": {
+    "title": "Admin",
+    "users": "Пользователи",
+    "sessions": "Сессии",
+    "audit": "Аудит"
+  },
+  "theme": {
+    "light": "Светлая",
+    "dark": "Темная",
+    "label": "Тема"
+  },
+  "language": {
+    "label": "Язык",
+    "ru": "RU",
+    "en": "EN"
+  },
+  "auth": {
+    "loginTitle": "Вход в EQM",
+    "loginHint": "Используйте admin/admin12345 для первого входа.",
+    "username": "Логин",
+    "password": "Пароль",
+    "signIn": "Войти",
+    "invalidCredentials": "Неверный логин или пароль"
+  },
+  "actions": {
+    "add": "Добавить",
+    "edit": "Изменить",
+    "delete": "Удалить",
+    "restore": "Восстановить",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "logout": "Выйти",
+    "search": "Поиск",
+    "filters": "Фильтры",
+    "actions": "Действия",
+    "notSelected": "Не выбрано"
+  },
+  "pages": {
+    "dashboard": "Обзор",
+    "users": "Пользователи",
+    "dictionaries": "Справочники",
+    "warehouses": "Склады",
+    "cabinets": "Шкафы",
+    "warehouseItems": "Складские позиции",
+    "cabinetItems": "Шкафные позиции",
+    "movements": "Перемещения",
+    "ioSignals": "I/O сигналы",
+    "auditLogs": "Аудит",
+    "sessions": "Сессии"
+  },
+  "common": {
+    "noAccess": "Недостаточно прав."
+  }
+}
