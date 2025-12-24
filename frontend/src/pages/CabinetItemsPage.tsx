@@ -26,10 +26,10 @@ import { listEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 
 const sortOptions = [
-  { value: "-created_at", label: "?? ???? (?????)" },
-  { value: "created_at", label: "?? ???? (??????)" },
-  { value: "-quantity", label: "?? ?????????? (????????)" },
-  { value: "quantity", label: "?? ?????????? (???????????)" }
+  { value: "-created_at", label: "По дате (новые)" },
+  { value: "created_at", label: "По дате (старые)" },
+  { value: "-quantity", label: "По количеству (убыванию)" },
+  { value: "quantity", label: "По количеству (возрастанию)" }
 ];
 
 const pageSizeOptions = [10, 20, 50, 100];
@@ -92,7 +92,7 @@ export default function CabinetItemsPage() {
       setErrorMessage(
         itemsQuery.error instanceof Error
           ? itemsQuery.error.message
-          : "?????? ???????? ??????? ??????"
+          : "Ошибка загрузки шкафных позиций"
       );
     }
   }, [itemsQuery.error]);
@@ -102,7 +102,7 @@ export default function CabinetItemsPage() {
       updateEntity("/cabinet-items", id, { quantity }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cabinet-items"] }),
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "?????? ?????????? ??????????")
+      setErrorMessage(error instanceof Error ? error.message : "Ошибка обновления количества")
   });
 
   const cabinetMap = useMemo(() => {
@@ -120,20 +120,20 @@ export default function CabinetItemsPage() {
   const columns = useMemo<ColumnDef<CabinetItem>[]>(() => {
     const base: ColumnDef<CabinetItem>[] = [
       {
-        header: "????",
+        header: "Шкаф",
         cell: ({ row }) => cabinetMap.get(row.original.cabinet_id) || row.original.cabinet_id
       },
       {
-        header: "????????????",
+        header: "Номенклатура",
         cell: ({ row }) =>
           equipmentMap.get(row.original.equipment_type_id) || row.original.equipment_type_id
       },
-      { header: "??????????", accessorKey: "quantity" }
+      { header: "Количество", accessorKey: "quantity" }
     ];
 
     if (canWrite) {
       base.push({
-        header: "????????",
+        header: "Действия",
         cell: ({ row }) => (
           <Button
             size="small"
@@ -144,7 +144,7 @@ export default function CabinetItemsPage() {
               setEditOpen(true);
             }}
           >
-            ????????
+            Изменить
           </Button>
         )
       });
@@ -155,7 +155,7 @@ export default function CabinetItemsPage() {
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">??????? ??????</Typography>
+      <Typography variant="h4">Шкафные позиции</Typography>
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Box
@@ -166,7 +166,7 @@ export default function CabinetItemsPage() {
             }}
           >
             <TextField
-              label="?????"
+              label="Поиск"
               value={q}
               onChange={(event) => {
                 setQ(event.target.value);
@@ -176,8 +176,8 @@ export default function CabinetItemsPage() {
             />
 
             <FormControl fullWidth>
-              <InputLabel>??????????</InputLabel>
-              <Select label="??????????" value={sort} onChange={(event) => setSort(event.target.value)}>
+              <InputLabel>Сортировка</InputLabel>
+              <Select label="Сортировка" value={sort} onChange={(event) => setSort(event.target.value)}>
                 {sortOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
@@ -187,9 +187,9 @@ export default function CabinetItemsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>????</InputLabel>
+              <InputLabel>Шкаф</InputLabel>
               <Select
-                label="????"
+                label="Шкаф"
                 value={cabinetFilter}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -197,7 +197,7 @@ export default function CabinetItemsPage() {
                   setPage(1);
                 }}
               >
-                <MenuItem value="">???</MenuItem>
+                <MenuItem value="">Все</MenuItem>
                 {cabinetsQuery.data?.items.map((item) => (
                   <MenuItem key={item.id} value={item.id}>
                     {item.name}
@@ -207,9 +207,9 @@ export default function CabinetItemsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>????????????</InputLabel>
+              <InputLabel>Номенклатура</InputLabel>
               <Select
-                label="????????????"
+                label="Номенклатура"
                 value={equipmentFilter}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -245,10 +245,10 @@ export default function CabinetItemsPage() {
 
       {canWrite && (
         <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs">
-          <DialogTitle>???????? ??????????</DialogTitle>
+          <DialogTitle>Изменить количество</DialogTitle>
           <DialogContent sx={{ display: "grid", gap: 2, mt: 1 }}>
             <TextField
-              label="??????????"
+              label="Количество"
               type="number"
               value={editQuantity}
               onChange={(event) => setEditQuantity(Number(event.target.value))}
@@ -257,7 +257,7 @@ export default function CabinetItemsPage() {
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setEditOpen(false)}>??????</Button>
+            <Button onClick={() => setEditOpen(false)}>Отмена</Button>
             <Button
               variant="contained"
               onClick={() => {
@@ -267,7 +267,7 @@ export default function CabinetItemsPage() {
                 setEditOpen(false);
               }}
             >
-              ?????????
+              Сохранить
             </Button>
           </DialogActions>
         </Dialog>

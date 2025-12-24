@@ -106,3 +106,131 @@ Frontend будет доступен: `http://localhost:5173`
 - Seed выполняется без ошибок
 - Backend доступен на `http://localhost:8000`
 - Frontend доступен на `http://localhost:5173`
+
+```
+EQM
+├─ AGENTS_CONTEXT.md
+├─ Architecture.md
+├─ backend
+│  ├─ alembic
+│  │  ├─ env.py
+│  │  └─ versions
+│  │     ├─ 0001_initial.py
+│  │     ├─ 0002_align_architecture.py
+│  │     └─ 0003_add_to_warehouse_movement.py
+│  ├─ alembic.ini
+│  ├─ app
+│  │  ├─ core
+│  │  │  ├─ audit.py
+│  │  │  ├─ config.py
+│  │  │  ├─ dependencies.py
+│  │  │  ├─ pagination.py
+│  │  │  ├─ query.py
+│  │  │  └─ security.py
+│  │  ├─ db
+│  │  │  ├─ base.py
+│  │  │  ├─ session.py
+│  │  │  └─ __init__.py
+│  │  ├─ main.py
+│  │  ├─ models
+│  │  │  ├─ attachments.py
+│  │  │  ├─ audit.py
+│  │  │  ├─ core.py
+│  │  │  ├─ io.py
+│  │  │  ├─ movements.py
+│  │  │  ├─ operations.py
+│  │  │  ├─ security.py
+│  │  │  ├─ sessions.py
+│  │  │  └─ __init__.py
+│  │  ├─ routers
+│  │  │  ├─ audit_logs.py
+│  │  │  ├─ auth.py
+│  │  │  ├─ cabinets.py
+│  │  │  ├─ cabinet_items.py
+│  │  │  ├─ dashboard.py
+│  │  │  ├─ equipment_types.py
+│  │  │  ├─ io_signals.py
+│  │  │  ├─ locations.py
+│  │  │  ├─ manufacturers.py
+│  │  │  ├─ movements.py
+│  │  │  ├─ sessions.py
+│  │  │  ├─ users.py
+│  │  │  ├─ warehouses.py
+│  │  │  ├─ warehouse_items.py
+│  │  │  └─ __init__.py
+│  │  ├─ schemas
+│  │  │  ├─ audit_logs.py
+│  │  │  ├─ auth.py
+│  │  │  ├─ cabinets.py
+│  │  │  ├─ cabinet_items.py
+│  │  │  ├─ common.py
+│  │  │  ├─ dashboard.py
+│  │  │  ├─ equipment_types.py
+│  │  │  ├─ io_signals.py
+│  │  │  ├─ locations.py
+│  │  │  ├─ manufacturers.py
+│  │  │  ├─ movements.py
+│  │  │  ├─ sessions.py
+│  │  │  ├─ users.py
+│  │  │  ├─ warehouses.py
+│  │  │  └─ warehouse_items.py
+│  │  └─ __init__.py
+│  ├─ requirements.txt
+│  └─ scripts
+│     ├─ create_database.py
+│     └─ seed.py
+├─ Checklist.md
+├─ frontend
+│  ├─ index.html
+│  ├─ package-lock.json
+│  ├─ package.json
+│  ├─ src
+│  │  ├─ api
+│  │  │  ├─ auth.ts
+│  │  │  ├─ client.ts
+│  │  │  └─ entities.ts
+│  │  ├─ App.tsx
+│  │  ├─ components
+│  │  │  ├─ AppLayout.tsx
+│  │  │  ├─ DataTable.tsx
+│  │  │  ├─ DictionariesTabs.tsx
+│  │  │  ├─ EntityDialog.tsx
+│  │  │  └─ ErrorSnackbar.tsx
+│  │  ├─ context
+│  │  │  └─ AuthContext.tsx
+│  │  ├─ main.tsx
+│  │  ├─ pages
+│  │  │  ├─ AuditLogsPage.tsx
+│  │  │  ├─ CabinetItemsPage.tsx
+│  │  │  ├─ CabinetsPage.tsx
+│  │  │  ├─ DashboardPage.tsx
+│  │  │  ├─ DictionariesPage.tsx
+│  │  │  ├─ EquipmentTypesPage.tsx
+│  │  │  ├─ IOSignalsPage.tsx
+│  │  │  ├─ LocationsPage.tsx
+│  │  │  ├─ LoginPage.tsx
+│  │  │  ├─ ManufacturersPage.tsx
+│  │  │  ├─ MovementsPage.tsx
+│  │  │  ├─ SessionsPage.tsx
+│  │  │  ├─ UsersPage.tsx
+│  │  │  ├─ WarehouseItemsPage.tsx
+│  │  │  └─ WarehousesPage.tsx
+│  │  ├─ styles.css
+│  │  ├─ utils
+│  │  └─ vite-env.d.ts
+│  ├─ tsconfig.json
+│  ├─ tsconfig.node.json
+│  ├─ tsconfig.node.tsbuildinfo
+│  ├─ tsconfig.tsbuildinfo
+│  ├─ vite.config.d.ts
+│  ├─ vite.config.js
+│  └─ vite.config.ts
+├─ GitManual.md
+├─ package-lock.json
+├─ README.md
+└─ START_PROMPT_FOR_CODEX v1.0.md
+
+```
+
+## Encoding
+- Frontend source files should be UTF-8 (preferably without BOM).

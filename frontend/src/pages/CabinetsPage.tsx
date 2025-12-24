@@ -38,10 +38,10 @@ type Cabinet = {
 type Location = { id: number; name: string };
 
 const sortOptions = [
-  { value: "name", label: "?? ???????? (?-?)" },
-  { value: "-name", label: "?? ???????? (?-?)" },
-  { value: "created_at", label: "?? ???? ???????? (??????)" },
-  { value: "-created_at", label: "?? ???? ???????? (?????)" }
+  { value: "name", label: "По названию (А-Я)" },
+  { value: "-name", label: "По названию (Я-А)" },
+  { value: "created_at", label: "По дате создания (старые)" },
+  { value: "-created_at", label: "По дате создания (новые)" }
 ];
 
 const pageSizeOptions = [10, 20, 50, 100];
@@ -90,7 +90,7 @@ export default function CabinetsPage() {
       setErrorMessage(
         cabinetsQuery.error instanceof Error
           ? cabinetsQuery.error.message
-          : "?????? ???????? ??????"
+          : "Ошибка загрузки шкафов"
       );
     }
   }, [cabinetsQuery.error]);
@@ -110,7 +110,7 @@ export default function CabinetsPage() {
       createEntity("/cabinets", payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "?????? ???????? ?????")
+      setErrorMessage(error instanceof Error ? error.message : "Ошибка создания шкафа")
   });
 
   const updateMutation = useMutation({
@@ -118,44 +118,44 @@ export default function CabinetsPage() {
       updateEntity("/cabinets", id, payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "?????? ?????????? ?????")
+      setErrorMessage(error instanceof Error ? error.message : "Ошибка обновления шкафа")
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteEntity("/cabinets", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "?????? ???????? ?????")
+      setErrorMessage(error instanceof Error ? error.message : "Ошибка удаления шкафа")
   });
 
   const restoreMutation = useMutation({
     mutationFn: (id: number) => restoreEntity("/cabinets", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "?????? ?????????????? ?????")
+      setErrorMessage(error instanceof Error ? error.message : "Ошибка восстановления шкафа")
   });
 
   const columns = useMemo<ColumnDef<Cabinet>[]>(() => {
     const base: ColumnDef<Cabinet>[] = [
-      { header: "????????", accessorKey: "name" },
+      { header: "Название", accessorKey: "name" },
       {
-        header: "???????",
+        header: "Локация",
         cell: ({ row }) =>
           row.original.location_id
             ? locationMap.get(row.original.location_id) || row.original.location_id
             : "-"
       },
       {
-        header: "??????",
+        header: "Статус",
         cell: ({ row }) => (
-          <span className="status-pill">{row.original.is_deleted ? "???????" : "???????"}</span>
+          <span className="status-pill">{row.original.is_deleted ? "Удалено" : "Активно"}</span>
         )
       }
     ];
 
     if (canWrite) {
       base.push({
-        header: "????????",
+        header: "Действия",
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
             <Button
@@ -164,12 +164,12 @@ export default function CabinetsPage() {
               onClick={() =>
                 setDialog({
                   open: true,
-                  title: "????",
+                  title: "Шкаф",
                   fields: [
-                    { name: "name", label: "????????", type: "text" },
+                    { name: "name", label: "Название", type: "text" },
                     {
                       name: "location_id",
-                      label: "???????",
+                      label: "Локация",
                       type: "select",
                       options:
                         locationsQuery.data?.items.map((loc) => ({
@@ -193,7 +193,7 @@ export default function CabinetsPage() {
                 })
               }
             >
-              ????????
+              Изменить
             </Button>
             <Button
               size="small"
@@ -207,7 +207,7 @@ export default function CabinetsPage() {
                   : deleteMutation.mutate(row.original.id)
               }
             >
-              {row.original.is_deleted ? "????????????" : "???????"}
+              {row.original.is_deleted ? "Восстановить" : "Удалить"}
             </Button>
           </Box>
         )
@@ -219,7 +219,7 @@ export default function CabinetsPage() {
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">?????</Typography>
+      <Typography variant="h4">Шкафы</Typography>
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Box
@@ -230,7 +230,7 @@ export default function CabinetsPage() {
             }}
           >
             <TextField
-              label="?????"
+              label="Поиск"
               value={q}
               onChange={(event) => {
                 setQ(event.target.value);
@@ -240,8 +240,8 @@ export default function CabinetsPage() {
             />
 
             <FormControl fullWidth>
-              <InputLabel>??????????</InputLabel>
-              <Select label="??????????" value={sort} onChange={(event) => setSort(event.target.value)}>
+              <InputLabel>Сортировка</InputLabel>
+              <Select label="Сортировка" value={sort} onChange={(event) => setSort(event.target.value)}>
                 {sortOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
@@ -251,9 +251,9 @@ export default function CabinetsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>???????</InputLabel>
+              <InputLabel>Локация</InputLabel>
               <Select
-                label="???????"
+                label="Локация"
                 value={locationFilter}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -261,7 +261,7 @@ export default function CabinetsPage() {
                   setPage(1);
                 }}
               >
-                <MenuItem value="">???</MenuItem>
+                <MenuItem value="">Все</MenuItem>
                 {locationsQuery.data?.items.map((loc) => (
                   <MenuItem key={loc.id} value={loc.id}>
                     {loc.name}
@@ -282,7 +282,7 @@ export default function CabinetsPage() {
                   }}
                 />
               }
-              label="?????????? ?????????"
+              label="Показывать удаленные"
             />
             <Box sx={{ flexGrow: 1 }} />
             {canWrite && (
@@ -292,12 +292,12 @@ export default function CabinetsPage() {
                 onClick={() =>
                   setDialog({
                     open: true,
-                    title: "????? ????",
+                    title: "Новый шкаф",
                     fields: [
-                      { name: "name", label: "????????", type: "text" },
+                      { name: "name", label: "Название", type: "text" },
                       {
                         name: "location_id",
-                        label: "???????",
+                        label: "Локация",
                         type: "select",
                         options:
                           locationsQuery.data?.items.map((loc) => ({
@@ -318,7 +318,7 @@ export default function CabinetsPage() {
                   })
                 }
               >
-                ????????
+                Добавить
               </Button>
             )}
           </Box>

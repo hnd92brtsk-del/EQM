@@ -10,7 +10,7 @@ sys.path.append(str(BASE_DIR))
 load_dotenv(BASE_DIR / ".env")
 
 from app.db.session import SessionLocal
-from app.core.security import hash_password
+from app.core.security import hash_password, verify_password
 from app.models.security import User, UserRole
 from app.models.core import Manufacturer, EquipmentType, Warehouse
 
@@ -28,6 +28,15 @@ def run():
                 role=UserRole.admin,
             )
             db.add(admin)
+        else:
+            if admin.is_deleted:
+                admin.is_deleted = False
+                admin.deleted_at = None
+                admin.deleted_by_id = None
+            if admin.role != UserRole.admin:
+                admin.role = UserRole.admin
+            if not verify_password(admin_password, admin.password_hash):
+                admin.password_hash = hash_password(admin_password)
 
         siemens = db.scalar(
             select(Manufacturer).where(Manufacturer.name == "Siemens", Manufacturer.is_deleted == False)

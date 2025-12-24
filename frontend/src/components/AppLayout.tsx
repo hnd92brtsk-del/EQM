@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   AppBar,
   Box,
@@ -28,20 +28,20 @@ import { useAuth } from "../context/AuthContext";
 const drawerWidth = 240;
 
 const navItems = [
-  { label: "???????", to: "/dashboard", icon: <DashboardRoundedIcon /> },
-  { label: "??????", to: "/warehouses", icon: <StorageRoundedIcon /> },
-  { label: "????????? ???????", to: "/warehouse-items", icon: <StorageRoundedIcon /> },
-  { label: "?????", to: "/cabinets", icon: <Inventory2RoundedIcon /> },
-  { label: "??????? ??????", to: "/cabinet-items", icon: <Inventory2RoundedIcon /> },
-  { label: "????????", to: "/movements", icon: <SwapHorizRoundedIcon /> },
-  { label: "I/O ???????", to: "/io-signals", icon: <SignalCellularAltRoundedIcon /> },
-  { label: "???????????", to: "/dictionaries", icon: <SettingsInputComponentRoundedIcon /> }
+  { label: "Дашборд", to: "/dashboard", icon: <DashboardRoundedIcon /> },
+  { label: "Склады", to: "/warehouses", icon: <StorageRoundedIcon /> },
+  { label: "Складские позиции", to: "/warehouse-items", icon: <StorageRoundedIcon /> },
+  { label: "Шкафы", to: "/cabinets", icon: <Inventory2RoundedIcon /> },
+  { label: "Шкафные позиции", to: "/cabinet-items", icon: <Inventory2RoundedIcon /> },
+  { label: "Перемещения", to: "/movements", icon: <SwapHorizRoundedIcon /> },
+  { label: "I/O сигналы", to: "/io-signals", icon: <SignalCellularAltRoundedIcon /> },
+  { label: "Справочники", to: "/dictionaries", icon: <SettingsInputComponentRoundedIcon /> }
 ];
 
 const adminItems = [
-  { label: "????????????", to: "/admin/users" },
-  { label: "??????", to: "/admin/sessions" },
-  { label: "?????", to: "/admin/audit" }
+  { label: "Пользователи", to: "/admin/users" },
+  { label: "Сессии", to: "/admin/sessions" },
+  { label: "Аудит", to: "/admin/audit" }
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -115,10 +115,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <MenuRoundedIcon />
           </IconButton>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            {user ? `??????, ${user.username}` : "EQM"}
+            {user ? `Привет, ${user.username}` : "EQM"}
           </Typography>
           <Button color="inherit" startIcon={<LogoutRoundedIcon />} onClick={logout}>
-            ?????
+            Выйти
           </Button>
         </Toolbar>
       </AppBar>
@@ -157,3 +157,4 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     </Box>
   );
 }
+

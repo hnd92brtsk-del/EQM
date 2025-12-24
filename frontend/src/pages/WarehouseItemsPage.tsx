@@ -19,10 +19,10 @@ import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { listEntity } from "../api/entities";
 
 const sortOptions = [
-  { value: "-last_updated", label: "?? ?????????? (?????)" },
-  { value: "last_updated", label: "?? ?????????? (??????)" },
-  { value: "-quantity", label: "?? ?????????? (????????)" },
-  { value: "quantity", label: "?? ?????????? (???????????)" }
+  { value: "-last_updated", label: "По обновлению (новые)" },
+  { value: "last_updated", label: "По обновлению (старые)" },
+  { value: "-quantity", label: "По количеству (убыванию)" },
+  { value: "quantity", label: "По количеству (возрастанию)" }
 ];
 
 const pageSizeOptions = [10, 20, 50, 100];
@@ -78,7 +78,7 @@ export default function WarehouseItemsPage() {
       setErrorMessage(
         itemsQuery.error instanceof Error
           ? itemsQuery.error.message
-          : "?????? ???????? ????????? ???????"
+          : "Ошибка загрузки складских позиций"
       );
     }
   }, [itemsQuery.error]);
@@ -98,23 +98,23 @@ export default function WarehouseItemsPage() {
   const columns = useMemo<ColumnDef<WarehouseItem>[]>(
     () => [
       {
-        header: "?????",
+        header: "Склад",
         cell: ({ row }) => warehouseMap.get(row.original.warehouse_id) || row.original.warehouse_id
       },
       {
-        header: "????????????",
+        header: "Номенклатура",
         cell: ({ row }) =>
           equipmentMap.get(row.original.equipment_type_id) || row.original.equipment_type_id
       },
-      { header: "??????????", accessorKey: "quantity" },
-      { header: "?????????", accessorKey: "last_updated" }
+      { header: "Количество", accessorKey: "quantity" },
+      { header: "Обновлено", accessorKey: "last_updated" }
     ],
     [equipmentMap, warehouseMap]
   );
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">????????? ???????</Typography>
+      <Typography variant="h4">Складские позиции</Typography>
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Box
@@ -125,7 +125,7 @@ export default function WarehouseItemsPage() {
             }}
           >
             <TextField
-              label="?????"
+              label="Поиск"
               value={q}
               onChange={(event) => {
                 setQ(event.target.value);
@@ -135,8 +135,8 @@ export default function WarehouseItemsPage() {
             />
 
             <FormControl fullWidth>
-              <InputLabel>??????????</InputLabel>
-              <Select label="??????????" value={sort} onChange={(event) => setSort(event.target.value)}>
+              <InputLabel>Сортировка</InputLabel>
+              <Select label="Сортировка" value={sort} onChange={(event) => setSort(event.target.value)}>
                 {sortOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
@@ -146,9 +146,9 @@ export default function WarehouseItemsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>?????</InputLabel>
+              <InputLabel>Склад</InputLabel>
               <Select
-                label="?????"
+                label="Склад"
                 value={warehouseFilter}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -156,7 +156,7 @@ export default function WarehouseItemsPage() {
                   setPage(1);
                 }}
               >
-                <MenuItem value="">???</MenuItem>
+                <MenuItem value="">Все</MenuItem>
                 {warehousesQuery.data?.items.map((item) => (
                   <MenuItem key={item.id} value={item.id}>
                     {item.name}
@@ -166,9 +166,9 @@ export default function WarehouseItemsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>????????????</InputLabel>
+              <InputLabel>Номенклатура</InputLabel>
               <Select
-                label="????????????"
+                label="Номенклатура"
                 value={equipmentFilter}
                 onChange={(event) => {
                   const value = event.target.value;
