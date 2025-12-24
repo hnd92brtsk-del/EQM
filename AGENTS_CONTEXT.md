@@ -290,4 +290,42 @@ npm run dev
 
 ---
 
+## 9) Последний коммит (автоматическая синхронизация)
+
+Ниже — краткая автогенерируемая заметка о последнем коммите в репозитории, чтобы поддерживать актуальность контекста.
+
+- **Commit:** 4622fccc526465bae4cb4d15f406b1ad4a0fb85e
+- **Author:** hnd92brtsk-del
+- **Date:** Wed Dec 24 16:24:57 2025 +0900
+- **Subject:** Refactor translations and labels in various pages for better clarity and consistency
+- **Body (summary):** Updated labels and error messages in several frontend pages for clearer Russian descriptions; improved sorting/search labels; added `.editorconfig` and initialized `package-lock.json`.
+- **Files changed (name/status):**
+   - A  .editorconfig
+   - M  README.md
+   - M  backend/app/core/config.py
+   - M  backend/app/core/security.py
+   - M  backend/requirements.txt
+   - M  backend/scripts/seed.py
+   - M  frontend/src/components/AppLayout.tsx
+   - M  frontend/src/pages/CabinetItemsPage.tsx
+   - M  frontend/src/pages/CabinetsPage.tsx
+   - M  frontend/src/pages/IOSignalsPage.tsx
+   - M  frontend/src/pages/MovementsPage.tsx
+   - M  frontend/src/pages/WarehouseItemsPage.tsx
+   - M  frontend/src/pages/WarehousesPage.tsx
+   - A  package-lock.json
+
+Команды быстрого просмотра/проверки изменений:
+
+```powershell
+cd D:\Projects\WEB\EQM
+git show 4622fccc526465bae4cb4d15f406b1ad4a0fb85e --name-status
+git --no-pager diff --staged --name-only
+```
+
+Риски / миграции:
+
+- Из изменений видно только правки UI/текстов и конфигурации (`.editorconfig`, `package-lock.json`). Миграции БД не добавлялись — дополнительных Alembic миграций не требуется.
+- Проверить, что изменения в `backend/app/core/security.py` и `backend/app/core/config.py` не нарушают RBAC/авторизацию (быстрая ручная проверка через `uvicorn` и Swagger рекомендована).
+
 **Конец документа**
