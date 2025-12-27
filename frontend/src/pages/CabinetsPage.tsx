@@ -21,6 +21,7 @@ import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 
 import { DataTable } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
@@ -49,6 +50,7 @@ const pageSizeOptions = [10, 20, 50, 100];
 
 export default function CabinetsPage() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const canWrite = user?.role === "admin" || user?.role === "engineer";
   const queryClient = useQueryClient();
@@ -155,66 +157,72 @@ export default function CabinetsPage() {
       }
     ];
 
-    if (canWrite) {
-      base.push({
-        header: t("actions.actions"),
-        cell: ({ row }) => (
-          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <Button
-              size="small"
-              startIcon={<EditRoundedIcon />}
-              onClick={() =>
-                setDialog({
-                  open: true,
-                  title: "Шкаф",
-                  fields: [
-                    { name: "name", label: "Название", type: "text" },
-                    {
-                      name: "location_id",
-                      label: "Локация",
-                      type: "select",
-                      options:
-                        locationsQuery.data?.items.map((loc) => ({
-                          label: loc.name,
-                          value: loc.id
-                        })) || []
+    base.push({
+      header: t("actions.actions"),
+      cell: ({ row }) => (
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+          <Button size="small" onClick={() => navigate(`/cabinets/${row.original.id}/composition`)}>
+            Открыть состав
+          </Button>
+          {canWrite && (
+            <>
+              <Button
+                size="small"
+                startIcon={<EditRoundedIcon />}
+                onClick={() =>
+                  setDialog({
+                    open: true,
+                    title: "Редактировать шкаф",
+                    fields: [
+                      { name: "name", label: "Название", type: "text" },
+                      {
+                        name: "location_id",
+                        label: "Локация",
+                        type: "select",
+                        options:
+                          locationsQuery.data?.items.map((loc) => ({
+                            label: loc.name,
+                            value: loc.id
+                          })) || []
+                      }
+                    ],
+                    values: row.original,
+                    onSave: (values) => {
+                      const locationId =
+                        values.location_id === "" || values.location_id === undefined
+                          ? null
+                          : Number(values.location_id);
+                      updateMutation.mutate({
+                        id: row.original.id,
+                        payload: { name: values.name, location_id: locationId }
+                      });
+                      setDialog(null);
                     }
-                  ],
-                  values: row.original,
-                  onSave: (values) => {
-                    const locationId =
-                      values.location_id === "" || values.location_id === undefined
-                        ? null
-                        : Number(values.location_id);
-                    updateMutation.mutate({
-                      id: row.original.id,
-                      payload: { name: values.name, location_id: locationId }
-                    });
-                    setDialog(null);
-                  }
-                })
-              }
-            >
-              {t("actions.edit")}
-            </Button>
-            <Button
-              size="small"
-              color={row.original.is_deleted ? "success" : "error"}
-              startIcon={
-                row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />
-              }
-              onClick={() =>
-                row.original.is_deleted
-                  ? restoreMutation.mutate(row.original.id)
-                  : deleteMutation.mutate(row.original.id)
-              }
-            >
-              {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
-            </Button>
-          </Box>
-        )
-      });
-    }
+                  })
+                }
+              >
+                {t("actions.edit")}
+              </Button>
+              <Button
+                size="small"
+                color={row.original.is_deleted ? "success" : "error"}
+                startIcon={
+                  row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />
+                }
+                onClick={() =>
+                  row.original.is_deleted
+                    ? restoreMutation.mutate(row.original.id)
+                    : deleteMutation.mutate(row.original.id)
+                }
+              >
+                {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
+              </Button>
+            </>
+          )}
+        </Box>
+      )
+    });
+
 
     return base;
   }, [
@@ -222,6 +230,7 @@ export default function CabinetsPage() {
     deleteMutation,
     locationMap,
     locationsQuery.data?.items,
+    navigate,
     restoreMutation,
     updateMutation,
     t,

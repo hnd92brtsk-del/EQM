@@ -17,6 +17,8 @@ import IOSignalsPage from "./pages/IOSignalsPage";
 import UsersPage from "./pages/UsersPage";
 import SessionsPage from "./pages/SessionsPage";
 import AuditLogsPage from "./pages/AuditLogsPage";
+import DclPage from "./pages/DclPage";
+import CabinetCompositionPage from "./pages/CabinetCompositionPage";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
@@ -56,8 +58,10 @@ export default function App() {
                 <Route path="/warehouse-items" element={<WarehouseItemsPage />} />
                 <Route path="/cabinets" element={<CabinetsPage />} />
                 <Route path="/cabinet-items" element={<CabinetItemsPage />} />
+                <Route path="/cabinets/:id/composition" element={<CabinetCompositionPage />} />
                 <Route path="/movements" element={<MovementsPage />} />
                 <Route path="/io-signals" element={<IOSignalsPage />} />
+                <Route path="/engineering/dcl" element={<DclPage />} />
                 <Route path="/admin/users" element={<UsersPage />} />
                 <Route path="/admin/sessions" element={<SessionsPage />} />
                 <Route path="/admin/audit" element={<AuditLogsPage />} />

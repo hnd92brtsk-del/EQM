@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Box,
+  Button,
   Card,
   CardContent,
   FormControl,
@@ -12,12 +13,13 @@ import {
   Typography
 } from "@mui/material";
 import { ColumnDef } from "@tanstack/react-table";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
+import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
-import { listEntity } from "../api/entities";
+import { createEntity, listEntity } from "../api/entities";
 
 const sortOptions = [
   { value: "-last_updated", label: "По обновлению (новые)" },
@@ -39,15 +41,18 @@ type WarehouseItem = {
 type Warehouse = { id: number; name: string };
 
 type EquipmentType = { id: number; name: string };
+type Cabinet = { id: number; name: string };
 
 export default function WarehouseItemsPage() {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("-last_updated");
   const [warehouseFilter, setWarehouseFilter] = useState<number | "">("");
   const [equipmentFilter, setEquipmentFilter] = useState<number | "">("");
+  const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const itemsQuery = useQuery({
@@ -75,6 +80,11 @@ export default function WarehouseItemsPage() {
     queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: 200 })
   });
 
+  const cabinetsQuery = useQuery({
+    queryKey: ["cabinets-options"],
+    queryFn: () => listEntity<Cabinet>("/cabinets", { page: 1, page_size: 200 })
+  });
+
   useEffect(() => {
     if (itemsQuery.error) {
       setErrorMessage(
@@ -96,6 +106,159 @@ export default function WarehouseItemsPage() {
     equipmentTypesQuery.data?.items.forEach((item) => map.set(item.id, item.name));
     return map;
   }, [equipmentTypesQuery.data?.items]);
+
+  const movementMutation = useMutation({
+    mutationFn: (payload: any) => createEntity("/movements", payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["warehouse-items"] });
+      queryClient.invalidateQueries({ queryKey: ["cabinet-items"] });
+      queryClient.invalidateQueries({ queryKey: ["movements"] });
+      setDialog(null);
+    },
+    onError: (error) => {
+      if (error instanceof Error && /not found|404/i.test(error.message)) {
+        setErrorMessage("Not implemented");
+        return;
+      }
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Не удалось выполнить действие. Попробуйте снова."
+      );
+    }
+  });
+
+  const openToWarehouseDialog = () => {
+    setDialog({
+      open: true,
+      title: "На склад",
+      fields: [
+        {
+          name: "equipment_type_id",
+          label: "Оборудование",
+          type: "select",
+          options:
+            equipmentTypesQuery.data?.items.map((item) => ({
+              label: item.name,
+              value: item.id
+            })) || []
+        },
+        {
+          name: "to_warehouse_id",
+          label: "Склад",
+          type: "select",
+          options:
+            warehousesQuery.data?.items.map((item) => ({
+              label: item.name,
+              value: item.id
+            })) || []
+        },
+        { name: "quantity", label: "Количество", type: "number" },
+        { name: "is_accounted", label: "Учет", type: "checkbox" },
+        { name: "comment", label: "Комментарий", type: "text" }
+      ],
+      values: {
+        equipment_type_id: "",
+        to_warehouse_id: "",
+        quantity: 1,
+        is_accounted: true,
+        comment: ""
+      },
+      onSave: (values) => {
+        const equipmentTypeId = values.equipment_type_id ? Number(values.equipment_type_id) : 0;
+        const warehouseId = values.to_warehouse_id ? Number(values.to_warehouse_id) : 0;
+        const quantity = Number(values.quantity);
+
+        if (!equipmentTypeId || !warehouseId || !Number.isFinite(quantity) || quantity < 1) {
+          setErrorMessage("Заполните обязательные поля.");
+          return;
+        }
+
+        movementMutation.mutate({
+          movement_type: "to_warehouse",
+          equipment_type_id: equipmentTypeId,
+          to_warehouse_id: warehouseId,
+          quantity,
+          is_accounted: Boolean(values.is_accounted),
+          comment: values.comment || undefined
+        });
+      }
+    });
+  };
+
+  const openToCabinetDialog = () => {
+    setDialog({
+      open: true,
+      title: "Со склада в шкаф",
+      fields: [
+        {
+          name: "equipment_type_id",
+          label: "Оборудование",
+          type: "select",
+          options:
+            equipmentTypesQuery.data?.items.map((item) => ({
+              label: item.name,
+              value: item.id
+            })) || []
+        },
+        {
+          name: "from_warehouse_id",
+          label: "Со склада",
+          type: "select",
+          options:
+            warehousesQuery.data?.items.map((item) => ({
+              label: item.name,
+              value: item.id
+            })) || []
+        },
+        {
+          name: "to_cabinet_id",
+          label: "В шкаф",
+          type: "select",
+          options:
+            cabinetsQuery.data?.items.map((item) => ({
+              label: item.name,
+              value: item.id
+            })) || []
+        },
+        { name: "quantity", label: "Количество", type: "number" },
+        { name: "comment", label: "Комментарий", type: "text" }
+      ],
+      values: {
+        equipment_type_id: "",
+        from_warehouse_id: "",
+        to_cabinet_id: "",
+        quantity: 1,
+        comment: ""
+      },
+      onSave: (values) => {
+        const equipmentTypeId = values.equipment_type_id ? Number(values.equipment_type_id) : 0;
+        const fromWarehouseId = values.from_warehouse_id ? Number(values.from_warehouse_id) : 0;
+        const toCabinetId = values.to_cabinet_id ? Number(values.to_cabinet_id) : 0;
+        const quantity = Number(values.quantity);
+
+        if (
+          !equipmentTypeId ||
+          !fromWarehouseId ||
+          !toCabinetId ||
+          !Number.isFinite(quantity) ||
+          quantity < 1
+        ) {
+          setErrorMessage("Заполните обязательные поля.");
+          return;
+        }
+
+        movementMutation.mutate({
+          movement_type: "to_cabinet",
+          equipment_type_id: equipmentTypeId,
+          from_warehouse_id: fromWarehouseId,
+          to_cabinet_id: toCabinetId,
+          quantity,
+          comment: values.comment || undefined
+        });
+      }
+    });
+  };
 
   const columns = useMemo<ColumnDef<WarehouseItem>[]>(
     () => [
@@ -188,6 +351,15 @@ export default function WarehouseItemsPage() {
             </FormControl>
           </Box>
 
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+            <Button variant="contained" onClick={openToWarehouseDialog}>
+              На склад
+            </Button>
+            <Button variant="contained" onClick={openToCabinetDialog}>
+              Со склада в шкаф
+            </Button>
+          </Box>
+
           <DataTable data={itemsQuery.data?.items || []} columns={columns} />
           <TablePagination
             component="div"
@@ -203,6 +375,7 @@ export default function WarehouseItemsPage() {
           />
         </CardContent>
       </Card>
+      {dialog && <EntityDialog state={dialog} onClose={() => setDialog(null)} />}
       <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage(null)} />
     </Box>
   );

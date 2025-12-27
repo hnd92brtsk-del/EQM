@@ -18,7 +18,6 @@ import {
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
 import StorageRoundedIcon from "@mui/icons-material/StorageRounded";
-import SwapHorizRoundedIcon from "@mui/icons-material/SwapHorizRounded";
 import AdminPanelSettingsRoundedIcon from "@mui/icons-material/AdminPanelSettingsRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
@@ -42,27 +41,48 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const toggleDrawer = () => setMobileOpen((prev) => !prev);
 
-  const navItems = useMemo(
+  const navSections = useMemo(
     () => [
-      { label: t("nav.dashboard"), to: "/dashboard", icon: <DashboardRoundedIcon /> },
-      { label: t("nav.warehouses"), to: "/warehouses", icon: <StorageRoundedIcon /> },
-      { label: t("nav.warehouseItems"), to: "/warehouse-items", icon: <StorageRoundedIcon /> },
-      { label: t("nav.cabinets"), to: "/cabinets", icon: <Inventory2RoundedIcon /> },
-      { label: t("nav.cabinetItems"), to: "/cabinet-items", icon: <Inventory2RoundedIcon /> },
-      { label: t("nav.movements"), to: "/movements", icon: <SwapHorizRoundedIcon /> },
-      { label: t("nav.ioSignals"), to: "/io-signals", icon: <SignalCellularAltRoundedIcon /> },
-      { label: t("nav.dictionaries"), to: "/dictionaries", icon: <SettingsInputComponentRoundedIcon /> }
+      {
+        title: null,
+        items: [{ label: "Overview", to: "/dashboard", icon: <DashboardRoundedIcon /> }]
+      },
+      {
+        title: "Оборудование",
+        items: [{ label: "Складские позиции", to: "/warehouse-items", icon: <StorageRoundedIcon /> }]
+      },
+      {
+        title: "Шкафы",
+        items: [{ label: "Шкафные позиции", to: "/cabinet-items", icon: <Inventory2RoundedIcon /> }]
+      },
+      {
+        title: "Engineering",
+        items: [
+          { label: "IO Signals", to: "/io-signals", icon: <SignalCellularAltRoundedIcon /> },
+          { label: "DCL", to: "/engineering/dcl", icon: <SettingsInputComponentRoundedIcon /> }
+        ]
+      },
+      {
+        title: "Dictionaries",
+        items: [
+          { label: "Warehouses", to: "/warehouses", icon: <StorageRoundedIcon /> },
+          { label: "Cabinets", to: "/cabinets", icon: <Inventory2RoundedIcon /> },
+          { label: "Manufacturers", to: "/dictionaries/manufacturers", icon: <SettingsInputComponentRoundedIcon /> },
+          { label: "Nomenclature", to: "/dictionaries/equipment-types", icon: <SettingsInputComponentRoundedIcon /> },
+          { label: "Locations", to: "/dictionaries/locations", icon: <SettingsInputComponentRoundedIcon /> }
+        ]
+      }
     ],
-    [t, i18n.language]
+    []
   );
 
   const adminItems = useMemo(
     () => [
-      { label: t("admin.users"), to: "/admin/users" },
-      { label: t("admin.sessions"), to: "/admin/sessions" },
-      { label: t("admin.audit"), to: "/admin/audit" }
+      { label: "Users", to: "/admin/users" },
+      { label: "Sessions", to: "/admin/sessions" },
+      { label: "Audit Logs", to: "/admin/audit" }
     ],
-    [t, i18n.language]
+    []
   );
 
   const drawer = (
@@ -71,27 +91,40 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         {t("app.title")}
       </Typography>
       <List>
-        {navItems.map((item) => (
-          <ListItemButton
-            key={item.to}
-            component={NavLink}
-            to={item.to}
-            sx={{
-              borderRadius: 2,
-              mb: 0.5,
-              "&.active": { backgroundColor: "rgba(30, 58, 95, 0.12)" }
-            }}
-          >
-            <ListItemIcon>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.label} />
-          </ListItemButton>
+        {navSections.map((section) => (
+          <Box key={section.title ?? "overview"}>
+            {section.title && (
+              <Typography
+                variant="overline"
+                color="text.secondary"
+                sx={{ display: "block", mt: 2, mb: 0.5, px: 2 }}
+              >
+                {section.title}
+              </Typography>
+            )}
+            {section.items.map((item) => (
+              <ListItemButton
+                key={item.to}
+                component={NavLink}
+                to={item.to}
+                sx={{
+                  borderRadius: 2,
+                  mb: 0.5,
+                  "&.active": { backgroundColor: "rgba(30, 58, 95, 0.12)" }
+                }}
+              >
+                <ListItemIcon>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.label} />
+              </ListItemButton>
+            ))}
+          </Box>
         ))}
       </List>
 
       {user?.role === "admin" && (
         <Box sx={{ mt: 3 }}>
           <Typography variant="overline" color="text.secondary">
-            {t("admin.title")}
+            Admin
           </Typography>
           <List>
             {adminItems.map((item) => (
