@@ -10,6 +10,7 @@ class EquipmentTypeOut(EntityBase, SoftDeleteFields):
     equipment_category_id: int | None = None
     is_channel_forming: bool
     channel_count: int
+    unit_price_rub: float | None = None
     meta_data: Optional[Dict[str, Any]] = None
 
 
@@ -20,6 +21,7 @@ class EquipmentTypeCreate(BaseModel):
     equipment_category_id: int | None = None
     is_channel_forming: bool = False
     channel_count: int = Field(default=0, ge=0)
+    unit_price_rub: float | None = Field(default=None, ge=0)
     meta_data: Optional[Dict[str, Any]] = None
 
 
@@ -29,5 +31,6 @@ class EquipmentTypeUpdate(BaseModel):
     equipment_category_id: int | None = None
     is_channel_forming: bool | None = None
     channel_count: int | None = Field(default=None, ge=0)
+    unit_price_rub: float | None = Field(default=None, ge=0)
     meta_data: Optional[Dict[str, Any]] = None
     is_deleted: bool | None = None

@@ -13,6 +13,15 @@ from app.schemas.equipment_types import EquipmentTypeOut, EquipmentTypeCreate, E
 
 router = APIRouter()
 
+def merge_unit_price(meta_data: dict | None, unit_price_rub: float | None, fields_set: set[str] | None) -> dict | None:
+    result = dict(meta_data or {})
+    if fields_set is None or "unit_price_rub" in fields_set:
+        if unit_price_rub is None:
+            result.pop("unit_price_rub", None)
+        else:
+            result["unit_price_rub"] = unit_price_rub
+    return result or None
+
 
 @router.get("/", response_model=Pagination[EquipmentTypeOut])
 def list_equipment_types(
@@ -101,7 +110,7 @@ def create_equipment_type(
         equipment_category_id=payload.equipment_category_id,
         is_channel_forming=payload.is_channel_forming,
         channel_count=payload.channel_count,
-        meta_data=payload.meta_data,
+        meta_data=merge_unit_price(payload.meta_data, payload.unit_price_rub, None),
     )
     db.add(equipment)
     db.flush()
@@ -160,8 +169,11 @@ def update_equipment_type(
         equipment.is_channel_forming = payload.is_channel_forming
     if payload.channel_count is not None:
         equipment.channel_count = payload.channel_count
-    if payload.meta_data is not None:
-        equipment.meta_data = payload.meta_data
+    meta_data_provided = "meta_data" in payload.__fields_set__
+    unit_price_provided = "unit_price_rub" in payload.__fields_set__
+    if meta_data_provided or unit_price_provided:
+        base_meta = payload.meta_data if meta_data_provided else equipment.meta_data
+        equipment.meta_data = merge_unit_price(base_meta, payload.unit_price_rub, payload.__fields_set__)
 
     add_audit_log(
         db,

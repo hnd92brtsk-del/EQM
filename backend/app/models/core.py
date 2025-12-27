@@ -74,6 +74,18 @@ class EquipmentType(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
         back_populates="nomenclatures"
     )
 
+    @property
+    def unit_price_rub(self) -> float | None:
+        if not self.meta_data:
+            return None
+        value = self.meta_data.get("unit_price_rub")
+        if value is None:
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
 
 Index(
     "ix_equipment_types_nomenclature_active_unique",
