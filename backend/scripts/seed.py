@@ -12,7 +12,7 @@ load_dotenv(BASE_DIR / ".env")
 from app.db.session import SessionLocal
 from app.core.security import hash_password, verify_password
 from app.models.security import User, UserRole
-from app.models.core import Manufacturer, EquipmentType, Warehouse
+from app.models.core import Manufacturer, EquipmentType, EquipmentCategory, Warehouse
 
 
 def run():
@@ -67,6 +67,28 @@ def run():
                 meta_data={"unit_price_rub": 100000},
             )
             db.add(et)
+
+        category_names = [
+            "ПЛК",
+            "Реле",
+            "HMI",
+            "Блок питания",
+            "Преобразователь",
+            "Программируемое реле",
+        ]
+        for name in category_names:
+            category = db.scalar(
+                select(EquipmentCategory).where(
+                    EquipmentCategory.name == name
+                )
+            )
+            if not category:
+                category = EquipmentCategory(name=name)
+                db.add(category)
+            elif category.is_deleted:
+                category.is_deleted = False
+                category.deleted_at = None
+                category.deleted_by_id = None
 
         db.commit()
         print("Seed completed.")

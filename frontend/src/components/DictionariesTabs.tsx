@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 const tabs = [
   { label: "Производители", to: "/dictionaries/manufacturers" },
   { label: "Локации", to: "/dictionaries/locations" },
+  { label: "Типы оборудования", to: "/dictionaries/equipment-categories" },
   { label: "Номенклатура", to: "/dictionaries/equipment-types" }
 ];
 

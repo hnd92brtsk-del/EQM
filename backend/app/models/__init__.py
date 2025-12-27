@@ -1,6 +1,6 @@
 ﻿from app.models.security import User, UserRole
 from app.models.sessions import UserSession
-from app.models.core import Manufacturer, Location, EquipmentType, Warehouse, Cabinet
+from app.models.core import Manufacturer, Location, EquipmentCategory, EquipmentType, Warehouse, Cabinet
 from app.models.operations import WarehouseItem, CabinetItem
 from app.models.io import IOSignal, SignalType, MeasurementType
 from app.models.movements import EquipmentMovement, MovementType
@@ -13,6 +13,7 @@ __all__ = [
     "UserSession",
     "Manufacturer",
     "Location",
+    "EquipmentCategory",
     "EquipmentType",
     "Warehouse",
     "Cabinet",

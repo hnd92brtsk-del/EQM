@@ -6,7 +6,7 @@ from app.core.dependencies import get_db, require_read_access, require_write_acc
 from app.core.pagination import paginate
 from app.core.query import apply_search, apply_sort, apply_date_filters
 from app.core.audit import add_audit_log, model_to_dict
-from app.models.core import EquipmentType, Manufacturer
+from app.models.core import EquipmentType, Manufacturer, EquipmentCategory
 from app.models.security import User
 from app.schemas.common import Pagination
 from app.schemas.equipment_types import EquipmentTypeOut, EquipmentTypeCreate, EquipmentTypeUpdate
@@ -75,6 +75,16 @@ def create_equipment_type(
     if not manufacturer:
         raise HTTPException(status_code=404, detail="Manufacturer not found")
 
+    if payload.equipment_category_id is not None:
+        category = db.scalar(
+            select(EquipmentCategory).where(
+                EquipmentCategory.id == payload.equipment_category_id,
+                EquipmentCategory.is_deleted == False,
+            )
+        )
+        if not category:
+            raise HTTPException(status_code=404, detail="Equipment category not found")
+
     existing = db.scalar(
         select(EquipmentType).where(
             EquipmentType.nomenclature_number == payload.nomenclature_number,
@@ -88,6 +98,7 @@ def create_equipment_type(
         name=payload.name,
         nomenclature_number=payload.nomenclature_number,
         manufacturer_id=payload.manufacturer_id,
+        equipment_category_id=payload.equipment_category_id,
         is_channel_forming=payload.is_channel_forming,
         channel_count=payload.channel_count,
         meta_data=payload.meta_data,
@@ -132,6 +143,19 @@ def update_equipment_type(
         if not manufacturer:
             raise HTTPException(status_code=404, detail="Manufacturer not found")
         equipment.manufacturer_id = payload.manufacturer_id
+    if "equipment_category_id" in payload.__fields_set__:
+        if payload.equipment_category_id is None:
+            equipment.equipment_category_id = None
+        else:
+            category = db.scalar(
+                select(EquipmentCategory).where(
+                    EquipmentCategory.id == payload.equipment_category_id,
+                    EquipmentCategory.is_deleted == False,
+                )
+            )
+            if not category:
+                raise HTTPException(status_code=404, detail="Equipment category not found")
+            equipment.equipment_category_id = payload.equipment_category_id
     if payload.is_channel_forming is not None:
         equipment.is_channel_forming = payload.is_channel_forming
     if payload.channel_count is not None:

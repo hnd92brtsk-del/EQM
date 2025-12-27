@@ -7,6 +7,7 @@ from app.routers import (
     users,
     manufacturers,
     locations,
+    equipment_categories,
     equipment_types,
     warehouses,
     cabinets,
@@ -35,6 +36,8 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(manufacturers.router, prefix="/api/v1/manufacturers", tags=["manufacturers"])
 app.include_router(locations.router, prefix="/api/v1/locations", tags=["locations"])
+app.include_router(equipment_categories.router, prefix="/api/v1/equipment-categories", tags=["equipment-categories"])
+app.include_router(equipment_categories.router, prefix="/api/v1/equipment_categories", tags=["equipment-categories"])
 app.include_router(equipment_types.router, prefix="/api/v1/equipment-types", tags=["equipment-types"])
 app.include_router(warehouses.router, prefix="/api/v1/warehouses", tags=["warehouses"])
 app.include_router(cabinets.router, prefix="/api/v1/cabinets", tags=["cabinets"])

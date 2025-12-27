@@ -2,6 +2,7 @@
 from app.routers import users
 from app.routers import manufacturers
 from app.routers import locations
+from app.routers import equipment_categories
 from app.routers import equipment_types
 from app.routers import warehouses
 from app.routers import cabinets
@@ -18,6 +19,7 @@ __all__ = [
     "users",
     "manufacturers",
     "locations",
+    "equipment_categories",
     "equipment_types",
     "warehouses",
     "cabinets",

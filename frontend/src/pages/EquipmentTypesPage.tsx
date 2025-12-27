@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -33,6 +34,7 @@ type EquipmentType = {
   name: string;
   nomenclature_number: string;
   manufacturer_id: number;
+  equipment_category_id?: number | null;
   is_channel_forming: boolean;
   channel_count: number;
   unit_price_rub?: number | null;
@@ -41,6 +43,7 @@ type EquipmentType = {
 };
 
 type Manufacturer = { id: number; name: string };
+type EquipmentCategory = { id: number; name: string };
 
 const sortOptions = [
   { value: "name", label: "По названию (А-Я)" },
@@ -104,6 +107,16 @@ export default function EquipmentTypesPage() {
       })
   });
 
+  const equipmentCategoriesQuery = useQuery({
+    queryKey: ["equipment-categories-options"],
+    queryFn: () =>
+      listEntity<EquipmentCategory>("/equipment-categories", {
+        page: 1,
+        page_size: 200,
+        is_deleted: false
+      })
+  });
+
   useEffect(() => {
     if (equipmentQuery.error) {
       setErrorMessage(
@@ -120,9 +133,16 @@ export default function EquipmentTypesPage() {
     return map;
   }, [manufacturersQuery.data?.items]);
 
+  const equipmentCategoryMap = useMemo(() => {
+    const map = new Map<number, string>();
+    equipmentCategoriesQuery.data?.items.forEach((item) => map.set(item.id, item.name));
+    return map;
+  }, [equipmentCategoriesQuery.data?.items]);
+
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["equipment-types"] });
     queryClient.invalidateQueries({ queryKey: ["manufacturers-options"] });
+    queryClient.invalidateQueries({ queryKey: ["equipment-categories-options"] });
   };
 
   const createMutation = useMutation({
@@ -162,6 +182,36 @@ export default function EquipmentTypesPage() {
         header: "Производитель",
         cell: ({ row }) =>
           manufacturerMap.get(row.original.manufacturer_id) || row.original.manufacturer_id
+      },
+      {
+        header: "Тип оборудования",
+        cell: ({ row }) => {
+          const currentId = row.original.equipment_category_id;
+          if (!canWrite) {
+            return currentId ? equipmentCategoryMap.get(currentId) || currentId : "-";
+          }
+          const options = equipmentCategoriesQuery.data?.items || [];
+          const currentOption =
+            options.find((option) => option.id === currentId) || null;
+          return (
+            <Autocomplete
+              options={options}
+              value={currentOption}
+              onChange={(_, option) =>
+                updateMutation.mutate({
+                  id: row.original.id,
+                  payload: { equipment_category_id: option ? option.id : null }
+                })
+              }
+              getOptionLabel={(option) => option.name}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              renderInput={(params) => (
+                <TextField {...params} variant="standard" placeholder="Не выбрано" />
+              )}
+              size="small"
+            />
+          );
+        }
       },
       {
         header: "Каналы",
@@ -208,6 +258,16 @@ export default function EquipmentTypesPage() {
                           value: m.id
                         })) || []
                     },
+                    {
+                      name: "equipment_category_id",
+                      label: "Тип оборудования",
+                      type: "select",
+                      options:
+                        equipmentCategoriesQuery.data?.items.map((category) => ({
+                          label: category.name,
+                          value: category.id
+                        })) || []
+                    },
                     { name: "is_channel_forming", label: "Каналообразующее", type: "checkbox" },
                     { name: "channel_count", label: "Кол-во каналов", type: "number" },
                     { name: "unit_price_rub", label: "Цена, RUB", type: "number" }
@@ -218,12 +278,17 @@ export default function EquipmentTypesPage() {
                       values.manufacturer_id === "" || values.manufacturer_id === undefined
                         ? undefined
                         : Number(values.manufacturer_id);
+                    const equipmentCategoryId =
+                      values.equipment_category_id === "" || values.equipment_category_id === undefined
+                        ? undefined
+                        : Number(values.equipment_category_id);
                     updateMutation.mutate({
                       id: row.original.id,
                       payload: {
                         name: values.name,
                         nomenclature_number: values.nomenclature_number,
                         manufacturer_id: manufacturerId,
+                        equipment_category_id: equipmentCategoryId,
                         is_channel_forming: values.is_channel_forming,
                         channel_count: values.channel_count,
                         unit_price_rub: values.unit_price_rub === "" ? undefined : values.unit_price_rub
@@ -259,6 +324,8 @@ export default function EquipmentTypesPage() {
   }, [
     canWrite,
     deleteMutation,
+    equipmentCategoryMap,
+    equipmentCategoriesQuery.data?.items,
     manufacturerMap,
     manufacturersQuery.data?.items,
     restoreMutation,
@@ -372,6 +439,16 @@ export default function EquipmentTypesPage() {
                             value: m.id
                           })) || []
                       },
+                    {
+                      name: "equipment_category_id",
+                      label: "Тип оборудования",
+                      type: "select",
+                      options:
+                        equipmentCategoriesQuery.data?.items.map((category) => ({
+                          label: category.name,
+                          value: category.id
+                        })) || []
+                    },
                       { name: "is_channel_forming", label: "Каналообразующее", type: "checkbox" },
                       { name: "channel_count", label: "Кол-во каналов", type: "number" },
                       { name: "unit_price_rub", label: "Цена, RUB", type: "number" }
@@ -380,6 +457,7 @@ export default function EquipmentTypesPage() {
                       name: "",
                       nomenclature_number: "",
                       manufacturer_id: "",
+                      equipment_category_id: "",
                       is_channel_forming: false,
                       channel_count: 0,
                       unit_price_rub: ""
@@ -393,6 +471,7 @@ export default function EquipmentTypesPage() {
                         name: values.name,
                         nomenclature_number: values.nomenclature_number,
                         manufacturer_id: manufacturerId,
+                        equipment_category_id: equipmentCategoryId,
                         is_channel_forming: values.is_channel_forming,
                         channel_count: values.channel_count,
                         unit_price_rub: values.unit_price_rub === "" ? undefined : values.unit_price_rub

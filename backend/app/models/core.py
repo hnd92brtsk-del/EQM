@@ -21,6 +21,25 @@ Index(
 )
 
 
+class EquipmentCategory(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
+    __tablename__ = "equipment_categories"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+
+    nomenclatures: Mapped[list["EquipmentType"]] = relationship(
+        back_populates="equipment_category"
+    )
+
+
+Index(
+    "ix_equipment_categories_name_active_unique",
+    EquipmentCategory.name,
+    unique=True,
+    postgresql_where=(EquipmentCategory.is_deleted == False),
+)
+
+
 class Location(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     __tablename__ = "locations"
 
@@ -43,11 +62,17 @@ class EquipmentType(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     manufacturer_id: Mapped[int] = mapped_column(
         ForeignKey("manufacturers.id"), index=True, nullable=False
     )
+    equipment_category_id: Mapped[int | None] = mapped_column(
+        ForeignKey("equipment_categories.id"), index=True
+    )
     is_channel_forming: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
     channel_count: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)
     meta_data: Mapped[dict | None] = mapped_column(JSONB)
 
     manufacturer: Mapped[Manufacturer] = relationship()
+    equipment_category: Mapped[EquipmentCategory | None] = relationship(
+        back_populates="nomenclatures"
+    )
 
 
 Index(
