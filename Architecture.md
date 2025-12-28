@@ -1,7 +1,7 @@
 # Architecture (ТЗ / System Design)
 
 Версия документа: 0.1 (19.12.2025)  
-Технологический стек: **PostgreSQL 16.3**, **FastAPI (Python 3.12.10)**, **SQLAlchemy 2.x**, **Alembic**, **React (Node 24.12.0, npm 11.6.2)**.  
+Технологический стек: **PostgreSQL 16.3**, **FastAPI (Python 3.12.10)**, **SQLAlchemy 2.x**, **Alembic**, **Pydantic 2.x**, **React 18.3 + Vite 5 + TypeScript 5.6**, **MUI 5**, **TanStack Query 5 / Table 8**, **Recharts 2**, **i18next** (Node 24.12.0, npm 11.6.2).  
 Среда развёртывания: **локальная сеть (on‑prem)**, несколько одновременных пользователей, HTTPS.
 
 ---
@@ -19,6 +19,7 @@ Web‑приложение для:
 
 ### 1.2. Ключевые сущности (из приложенного описания)
 - manufacturers (производители)
+- equipment_categories (типы оборудования)
 - locations (иерархия локаций)
 - equipment_types (номенклатура/каталог типов оборудования)
 - warehouses (склады)
@@ -143,7 +144,8 @@ class UserSession(Base, TimestampMixin):
 
 ```python
 # app/models/core.py
-from sqlalchemy import String, Integer, Boolean, JSON, ForeignKey, Index
+from sqlalchemy import String, Integer, Boolean, ForeignKey, Index
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 class Manufacturer(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
@@ -154,6 +156,17 @@ class Manufacturer(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
 
 Index("ix_manufacturers_name_active_unique", Manufacturer.name, unique=True,
       postgresql_where=(Manufacturer.is_deleted == False))
+
+
+class EquipmentCategory(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
+    __tablename__ = "equipment_categories"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+
+    nomenclatures: Mapped[list["EquipmentType"]] = relationship(back_populates="equipment_category")
+
+Index("ix_equipment_categories_name_active_unique", EquipmentCategory.name, unique=True,
+      postgresql_where=(EquipmentCategory.is_deleted == False))
 
 
 class Location(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
@@ -170,11 +183,17 @@ class EquipmentType(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     nomenclature_number: Mapped[str] = mapped_column(String(100), nullable=False)
     manufacturer_id: Mapped[int] = mapped_column(ForeignKey("manufacturers.id"), index=True, nullable=False)
+    equipment_category_id: Mapped[int | None] = mapped_column(
+        ForeignKey("equipment_categories.id"), index=True
+    )
     is_channel_forming: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
     channel_count: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)
-    meta_data: Mapped[dict | None] = mapped_column(JSON)  # JSONB in Postgres
+    meta_data: Mapped[dict | None] = mapped_column(JSONB)
 
     manufacturer: Mapped[Manufacturer] = relationship()
+    equipment_category: Mapped[EquipmentCategory | None] = relationship(
+        back_populates="nomenclatures"
+    )
 
 Index("ix_equipment_types_nomenclature_active_unique", EquipmentType.nomenclature_number, unique=True,
       postgresql_where=(EquipmentType.is_deleted == False))
@@ -185,7 +204,7 @@ class Warehouse(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id", ondelete="SET NULL"), index=True)
-    meta_data: Mapped[dict | None] = mapped_column(JSON)
+    meta_data: Mapped[dict | None] = mapped_column(JSONB)
 
     location: Mapped[Location | None] = relationship()
 
@@ -195,7 +214,7 @@ class Cabinet(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)  # ШУ-12
     location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id", ondelete="SET NULL"), index=True)
-    meta_data: Mapped[dict | None] = mapped_column(JSON)
+    meta_data: Mapped[dict | None] = mapped_column(JSONB)
 
     location: Mapped[Location | None] = relationship()
 ```
@@ -296,10 +315,12 @@ from sqlalchemy.orm import Mapped, mapped_column
 import enum
 
 class MovementType(enum.Enum):
-    inbound = "inbound"            # приход на склад
+    inbound = "inbound"            # приход на склад (внешний источник)
     transfer = "transfer"          # склад -> склад
     to_cabinet = "to_cabinet"      # склад -> шкаф
     from_cabinet = "from_cabinet"  # шкаф -> склад
+    direct_to_cabinet = "direct_to_cabinet"  # напрямую в шкаф
+    to_warehouse = "to_warehouse"  # зачисление на склад без источника
     writeoff = "writeoff"          # списание
     adjustment = "adjustment"      # инвентаризация/корректировка
 
@@ -437,6 +458,14 @@ Query: `user_id`, `from`, `to`, `page`, `page_size`
 - запрет циклов `parent_id` (родитель не может быть потомком),
 - при delete: `ondelete=SET NULL` для ссылок, либо запрет удаления если используется (выбирается политикой).
 
+#### Equipment Categories
+- `GET /api/v1/equipment-categories`
+- `GET /api/v1/equipment-categories/{id}`
+- `POST /api/v1/equipment-categories`
+- `PUT /api/v1/equipment-categories/{id}`
+- `DELETE /api/v1/equipment-categories/{id}`
+- `POST /api/v1/equipment-categories/{id}/restore`
+
 #### Equipment Types
 - `GET /api/v1/equipment-types`
 - `GET /api/v1/equipment-types/{id}`
@@ -444,7 +473,6 @@ Query: `user_id`, `from`, `to`, `page`, `page_size`
 - `PUT /api/v1/equipment-types/{id}`
 - `DELETE /api/v1/equipment-types/{id}`
 - `POST /api/v1/equipment-types/{id}/restore`
-- `POST /api/v1/equipment-types/{id}/attachments` (multipart)
 
 ---
 
@@ -452,16 +480,21 @@ Query: `user_id`, `from`, `to`, `page`, `page_size`
 
 #### Warehouses
 - `GET /api/v1/warehouses`
+- `GET /api/v1/warehouses/{id}`
 - `POST /api/v1/warehouses`
 - `PUT /api/v1/warehouses/{id}`
 - `DELETE /api/v1/warehouses/{id}`
+- `POST /api/v1/warehouses/{id}/restore`
 
 #### Warehouse items (остатки)
 - `GET /api/v1/warehouse-items`
-  - filters: `warehouse_id`, `equipment_type_id`, `quantity_gt`, `quantity_lt`
+  - filters: `warehouse_id`, `equipment_type_id`, `manufacturer_id`, `equipment_category_id`,
+    `unit_price_rub_min`, `unit_price_rub_max`, `created_at_from/to`, `updated_at_from/to`, `q`, `include_deleted`
+- `GET /api/v1/warehouse-items/{id}`
 - `POST /api/v1/warehouse-items` (создание начального остатка; обычно через movements)
 - `PUT /api/v1/warehouse-items/{id}`
 - `DELETE /api/v1/warehouse-items/{id}`
+- `POST /api/v1/warehouse-items/{id}/restore`
 
 Рекомендуемый путь: изменять остатки **только** через endpoints движений.
 
@@ -471,16 +504,20 @@ Query: `user_id`, `from`, `to`, `page`, `page_size`
 
 #### Cabinets
 - `GET /api/v1/cabinets`
+- `GET /api/v1/cabinets/{id}`
 - `POST /api/v1/cabinets`
 - `PUT /api/v1/cabinets/{id}`
 - `DELETE /api/v1/cabinets/{id}`
+- `POST /api/v1/cabinets/{id}/restore`
 
 #### Cabinet items
 - `GET /api/v1/cabinet-items`
   - filters: `cabinet_id`, `equipment_type_id`
+- `GET /api/v1/cabinet-items/{id}`
 - `POST /api/v1/cabinet-items`
 - `PUT /api/v1/cabinet-items/{id}`
 - `DELETE /api/v1/cabinet-items/{id}`
+- `POST /api/v1/cabinet-items/{id}/restore`
 
 ---
 
@@ -490,6 +527,7 @@ Query: `user_id`, `from`, `to`, `page`, `page_size`
 - `POST /api/v1/io-signals`
 - `PUT /api/v1/io-signals/{id}`
 - `DELETE /api/v1/io-signals/{id}`
+- `POST /api/v1/io-signals/{id}/restore`
 
 Валидации:
 - `cabinet_component_id` должен ссылаться на `cabinet_items`, где `equipment_type.is_channel_forming = true` (как указано в вашем файле).
@@ -498,7 +536,7 @@ Query: `user_id`, `from`, `to`, `page`, `page_size`
 
 ### 4.7. Movements (операции прихода/перемещения/списания)
 - `GET /api/v1/movements`
-  - filters: `movement_type`, `equipment_type_id`, `performed_by_id`, `from_*`, `to_*`, `created_at_from/to`
+  - filters: `movement_type`, `equipment_type_id`, `warehouse_id`, `cabinet_id`, `performed_by_id`, `created_at_from/to`, `q`
 - `POST /api/v1/movements`
 Request (пример transfer склад→шкаф):
 ```json
@@ -525,48 +563,28 @@ Response: movement + пересчитанные остатки.
 
 ### 4.9. Dashboards (Overview)
 
-**GET** `/api/v1/dashboard/equipment-by-type`  
-Возвращает распределение по типам (donut):
-```json
-[{ "equipment_type_id": 10, "name": "ПЛК", "quantity": 120, "percent": 0.10 }]
-```
-
-**GET** `/api/v1/dashboard/equipment-by-warehouse`  
-Источник: сумма `warehouse_items.quantity` по складам:
-```json
-[{ "warehouse_id": 1, "warehouse": "Склад 1", "quantity": 134 }]
-```
-
-**GET** `/api/v1/dashboard/metrics`  
-Возвращает 2.1.3:
+**GET** `/api/v1/dashboard`  
+Возвращает агрегаты для Overview:
 ```json
 {
-  "cabinets_total": 345,
-  "plc_total": 234,
-  "relay_total": 110,
-  "io_stations_total": 210,
-  "other_channel_forming_total": 54,
-  "signals_total": 7448
+  "metrics": {
+    "cabinets_total": 345,
+    "equipment_types_total": 120,
+    "warehouse_items_total": 560,
+    "cabinet_items_total": 410,
+    "signals_total": 7448
+  },
+  "equipment_by_type": [
+    { "equipment_type_id": 10, "name": "ПЛК", "quantity": 120, "percent": 10.0 }
+  ],
+  "equipment_by_warehouse": [
+    { "warehouse_id": 1, "warehouse": "Склад 1", "quantity": 134 }
+  ]
 }
 ```
-Примечание: `signals_total` = count(io_signals) с учётом is_deleted=false.
-
-**GET** `/api/v1/dashboard/recent-equipment-actions`  
-Берётся из `equipment_movements` + `users` (2.1.4).
-
-**GET** `/api/v1/dashboard/recent-logins`  
-Берётся из `user_sessions` (2.1.5).
-
-**GET** `/api/v1/dashboard/accounting-status`  
-Если нужен donut “Учтено/Не учтено”, требуется поле статуса на уровне **движений** или **инвентаризационных записей**.  
-Рекомендуемая реализация: добавить в `equipment_movements.meta` признак `accounting_status`, либо отдельную таблицу `inventory_batches`.
-
-**GET** `/api/v1/dashboard/cost-by-type`  
-Требует цены. В текущей схеме цена предполагается внутри `equipment_types.meta_data` (например `{"price_rub": 10000}`) либо отдельное поле `unit_price`.  
-Ответ:
-```json
-[{ "equipment_type_id": 10, "name": "ПЛК", "total_cost_rub": 4300000 }]
-```
+Примечания:
+- `equipment_by_type.quantity` = сумма по складам и шкафам.
+- `signals_total` = count(io_signals) с учётом is_deleted=false.
 
 ---
 
@@ -621,13 +639,15 @@ Response: movement + пересчитанные остатки.
 ### 6.2. Валидации и бизнес‑правила
 - `warehouse_items.quantity >= 0`, `cabinet_items.quantity >= 0`.
 - Поддерживаются **два независимых сценария наполнения шкафов**:
-  1. **Из склада** — через движения оборудования:
-     - движение “to_cabinet” уменьшает остаток на складе и увеличивает состав шкафа;
+  1. **Из склада** - через движения оборудования:
+     - движение "to_cabinet" уменьшает остаток на складе и увеличивает состав шкафа;
      - запрещено выполнение операции при недостаточном остатке на складе.
   2. **Непосредственно из номенклатуры (без склада)**:
      - шкаф может быть наполнен оборудованием напрямую из `equipment_types`;
      - при таком сценарии `warehouse_items` **не затрагиваются**;
      - операция фиксируется как отдельный тип движения (см. ниже).
+- Тип движения `to_warehouse` используется для ручного зачисления на склад без источника (увеличивает `warehouse_items`).
+- Для `adjustment` backend принимает **ровно одну цель** (from_* или to_*), иначе возвращает 400.
 - Запрет списания (write-off) при недостаточном остатке применяется **только** к операциям,
   которые используют склад или шкаф как источник.
 - Все изменения состава шкафов и складов должны выполняться в транзакции и логироваться.
@@ -637,7 +657,7 @@ Response: movement + пересчитанные остатки.
 - `direct_to_cabinet` — добавление оборудования в шкаф напрямую из номенклатуры.
 
 Бизнес-правила для `direct_to_cabinet`:
-- обязательно указаны: `equipment_type_id`, `cabinet_id`, `quantity`;
+- обязательно указаны: `equipment_type_id`, `to_cabinet_id`, `quantity`;
 - поля `from_warehouse_id`, `to_warehouse_id`, `from_cabinet_id` — `NULL`;
 - операция **не изменяет** `warehouse_items`;
 - операция увеличивает `cabinet_items.quantity`;
@@ -659,13 +679,14 @@ Response: movement + пересчитанные остатки.
 
 ## 7. Требования к Frontend (расширено)
 
-- React + TypeScript (рекомендуется), React Router, состояние: TanStack Query.
-- Таблицы: TanStack Table / AG Grid community (по выбору).
-- UI kit: MUI / AntD / shadcn/ui (по выбору), единый дизайн‑токены.
-- Графики: Recharts / ECharts.
-- Авторизация: хранение токена безопасно (предпочтительно httpOnly cookie при возможности).
-- Обработка ошибок: toast + error boundary.
-- Локализация: RU (подготовить i18n‑слой, даже если одна локаль).
+- React 18 + TypeScript + Vite, React Router, состояние: TanStack Query.
+- Таблицы: TanStack Table.
+- UI kit: MUI (единые дизайн-токены).
+- Графики: Recharts.
+- Авторизация: хранение токена в localStorage + Bearer (как в текущей реализации).
+- Обработка ошибок: toast/snackbar + error boundary (частично).
+- Локализация: i18next, RU/EN, хранение выбора в localStorage.
+- Темы: light/dark через MUI ThemeProvider, хранение выбора в localStorage.
 
 ---
 
@@ -699,11 +720,10 @@ Response: movement + пересчитанные остатки.
 2) Добавить таблицу `inventory_batches` (если нужно вести инвентаризации/партии).
 
 ### 8.4. Коллизия: цена для дашборда стоимости
-Дашборд 2.1.7 требует “общую стоимость по типам”. В схеме цена не определена.
+Дашборд 2.1.7 требует "общую стоимость по типам". В схеме цена не определена.
 
-**Исправление:**
-- Добавить `unit_price_rub` (Numeric) в `equipment_types` **или** хранить в `meta_data.price_rub`.  
-- Для точности расчётов предпочтительнее явное поле `unit_price_rub NUMERIC(14,2)` + валюта.
+**Текущая реализация:**
+- Цена хранится в `equipment_types.meta_data.unit_price_rub` и отдаётся в DTO как `unit_price_rub`.
 
 ### 8.5. Soft delete + уникальность
 Справочники должны поддерживать “удалена, но хранится” и при этом иметь уникальные поля (`manufacturer.name`, `equipment_types.nomenclature_number`).
@@ -758,45 +778,24 @@ Response: movement + пересчитанные остатки.
 ## 11. Дополнительные требования (расширение ТЗ)
 
 ### 11.1. Мультиязычность (i18n)
-- Приложение должно поддерживать **как минимум два языка интерфейса**:  
-  - Русский (RU) — язык по умолчанию  
-  - Английский (EN)
-- Переключение языка должно быть доступно **во время работы приложения**, без перезагрузки страницы.
-- Выбранный язык должен сохраняться:
-  - в настройках пользователя (в БД),
-  - и/или в localStorage (fallback).
-- Все текстовые ресурсы (UI, ошибки, tooltips, системные сообщения) должны быть вынесены в i18n‑слой.
-- Backend должен поддерживать локализацию сообщений валидации и ошибок (Accept-Language).
+- Реализовано через `react-i18next` (RU/EN).
+- Переключение языка доступно в верхней панели без перезагрузки.
+- Хранение выбора: localStorage (`eqm.lang`).
+- Backend локализацию сообщений пока не поддерживает.
 
 ### 11.2. Темы оформления (Light / Dark mode)
-- Приложение должно поддерживать **светлую и тёмную тему**.
-- Переключение темы должно происходить **динамически**, без перезагрузки.
-- Выбор темы должен сохраняться:
-  - в профиле пользователя,
-  - либо в localStorage.
-- Дизайн должен учитывать:
-  - достаточную контрастность (WCAG AA),
-  - корректное отображение графиков и таблиц в обеих темах.
-- Компоненты UI должны использовать дизайн‑токены (colors, spacing), а не “жёстко заданные” цвета.
+- Реализовано через MUI ThemeProvider (light/dark).
+- Переключение темы доступно в верхней панели.
+- Хранение выбора: localStorage (`eqm.theme`), с учётом `prefers-color-scheme` при первом запуске.
 
 ### 11.3. Навигация и меню
-- Меню приложения должно быть:
-  - минималистичным,
-  - вертикальным,
-  - с возможностью сворачивания (collapsed mode).
-- Референс по логике и структуре: **chat.openai.com**:
-  - слева — основная навигация,
-  - активный пункт явно подсвечен,
-  - поддержка иконок + текст.
-- Меню должно поддерживать:
-  - вложенные пункты (Warehouses → Items → Movements),
-  - скрытие пунктов, недоступных по роли.
-- Верхняя панель:
-  - текущий пользователь (username),
-  - роль,
-  - кнопки: Language, Theme, Logout.
+- Реализовано: вертикальный Drawer (permanent на desktop, temporary на mobile).
+- Навигация с иконками, активный пункт подсвечен.
+- Пункты Admin показываются только для роли admin.
+- Верхняя панель: приветствие пользователя, переключатели языка и темы, кнопка Logout.
 
 ### 11.4. Пользовательские настройки
+- Статус: не реализовано (планируется).
 - Добавить раздел **User Settings**:
   - язык интерфейса,
   - тема оформления,
@@ -954,27 +953,27 @@ Response: movement + пересчитанные остатки.
 **Цель:** получить минимально рабочую систему учёта.
 
 Backend:
-- [ ] Auth (login/logout, роли)
-- [ ] Users, Sessions
-- [ ] Manufacturers, Locations
-- [ ] Equipment Types
-- [ ] Warehouses, Warehouse Items
-- [ ] Cabinets, Cabinet Items
-- [ ] Movements (inbound, transfer)
-- [ ] Audit logging
-- [ ] Alembic migrations
+- [x] Auth (login/logout, роли)
+- [x] Users, Sessions
+- [x] Manufacturers, Locations
+- [x] Equipment Types
+- [x] Warehouses, Warehouse Items
+- [x] Cabinets, Cabinet Items
+- [x] Movements (inbound, transfer)
+- [x] Audit logging
+- [x] Alembic migrations
 
 Frontend:
-- [ ] Login page
-- [ ] Layout + меню
-- [ ] Таблицы (CRUD) без расширенной кастомизации
-- [ ] Role-based UI
-- [ ] Базовые формы
+- [x] Login page
+- [x] Layout + меню
+- [x] Таблицы (CRUD) без расширенной кастомизации
+- [x] Role-based UI
+- [x] Базовые формы
 
 DB:
-- [ ] PostgreSQL schema
-- [ ] Индексы
-- [ ] Seed-данные
+- [x] PostgreSQL schema
+- [x] Индексы
+- [x] Seed-данные
 
 ---
 
@@ -982,20 +981,20 @@ DB:
 **Цель:** полноценное использование инженерами.
 
 Backend:
-- [ ] I/O Signals
-- [ ] Write-off / adjustment movements
-- [ ] Dashboard endpoints
+- [x] I/O Signals
+- [x] Write-off / adjustment movements
+- [x] Dashboard endpoints
 - [ ] Export CSV/XLSX
 - [ ] Optimistic locking
 - [ ] Backup scripts
 
 Frontend:
-- [ ] Overview dashboards
-- [ ] Фильтры, поиск, пагинация
-- [ ] Dark / Light theme
-- [ ] RU / EN
+- [x] Overview dashboards
+- [x] Фильтры, поиск, пагинация
+- [x] Dark / Light theme
+- [x] RU / EN
 - [ ] Notifications
-- [ ] History (audit UI)
+- [x] History (audit UI)
 
 UX:
 - [ ] Tooltips
@@ -1101,6 +1100,7 @@ project-root/
           users.py
           manufacturers.py
           locations.py
+          equipment_categories.py
           equipment_types.py
           warehouses.py
           warehouse_items.py
@@ -1109,6 +1109,7 @@ project-root/
           io_signals.py
           movements.py
           audit_logs.py
+          sessions.py
           dashboard.py
       core/
         __init__.py
@@ -1136,6 +1137,7 @@ project-root/
         users.py
         manufacturers.py
         locations.py
+        equipment_categories.py
         equipment_types.py
         warehouses.py
         warehouse_items.py
@@ -1156,6 +1158,7 @@ project-root/
         base.py
         manufacturers.py
         locations.py
+        equipment_categories.py
         equipment_types.py
         warehouses.py
         warehouse_items.py
@@ -1546,7 +1549,7 @@ class UserUpdate(BaseModel):
     is_deleted: bool | None = None
 ```
 
-### 19.4. Dictionaries: Manufacturers / Equipment Types
+### 19.4. Dictionaries: Manufacturers / Equipment Categories / Equipment Types
 ```python
 # app/schemas/manufacturers.py
 from pydantic import BaseModel, Field
@@ -1563,6 +1566,23 @@ class ManufacturerCreate(BaseModel):
 class ManufacturerUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     country: str | None = Field(default=None, min_length=1, max_length=100)
+    is_deleted: bool | None = None
+```
+
+```python
+# app/schemas/equipment_categories.py
+from pydantic import BaseModel, Field
+from .common import EntityBase, SoftDeleteFields
+
+class EquipmentCategoryOut(EntityBase, SoftDeleteFields):
+    name: str
+
+class EquipmentCategoryCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+
+class EquipmentCategoryUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    is_deleted: bool | None = None
 ```
 
 ```python
@@ -1575,24 +1595,31 @@ class EquipmentTypeOut(EntityBase, SoftDeleteFields):
     name: str
     nomenclature_number: str
     manufacturer_id: int
+    equipment_category_id: int | None = None
     is_channel_forming: bool
     channel_count: int
+    unit_price_rub: float | None = None
     meta_data: Optional[Dict[str, Any]] = None
 
 class EquipmentTypeCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     nomenclature_number: str = Field(min_length=1, max_length=100)
     manufacturer_id: int
+    equipment_category_id: int | None = None
     is_channel_forming: bool = False
     channel_count: int = Field(default=0, ge=0)
+    unit_price_rub: float | None = Field(default=None, ge=0)
     meta_data: Optional[Dict[str, Any]] = None
 
 class EquipmentTypeUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     manufacturer_id: int | None = None
+    equipment_category_id: int | None = None
     is_channel_forming: bool | None = None
     channel_count: int | None = Field(default=None, ge=0)
+    unit_price_rub: float | None = Field(default=None, ge=0)
     meta_data: Optional[Dict[str, Any]] = None
+    is_deleted: bool | None = None
 ```
 
 ### 19.5. Movements (ключевой бизнес-эндпоинт)
@@ -1609,6 +1636,7 @@ class MovementType(str, Enum):
     to_cabinet = "to_cabinet"
     from_cabinet = "from_cabinet"
     direct_to_cabinet = "direct_to_cabinet"
+    to_warehouse = "to_warehouse"
     writeoff = "writeoff"
     adjustment = "adjustment"
 
@@ -1640,9 +1668,18 @@ class MovementCreate(BaseModel):
         if mt == MovementType.from_cabinet:
             if not self.from_cabinet_id or not self.to_warehouse_id:
                 raise ValueError("from_cabinet_id and to_warehouse_id are required for from_cabinet")
+        if mt == MovementType.direct_to_cabinet:
+            if not self.to_cabinet_id:
+                raise ValueError("to_cabinet_id is required for direct_to_cabinet")
+        if mt == MovementType.to_warehouse:
+            if not self.to_warehouse_id:
+                raise ValueError("to_warehouse_id is required for to_warehouse")
         if mt == MovementType.writeoff:
             if not (self.from_warehouse_id or self.from_cabinet_id):
                 raise ValueError("from_warehouse_id or from_cabinet_id is required for writeoff")
+        if mt == MovementType.adjustment:
+            if not (self.from_warehouse_id or self.from_cabinet_id or self.to_warehouse_id or self.to_cabinet_id):
+                raise ValueError("from_* or to_* is required for adjustment")
         return self
 
 class MovementOut(EntityBase):
@@ -1677,11 +1714,15 @@ class EquipmentByWarehouseItem(BaseModel):
 
 class MetricsOut(BaseModel):
     cabinets_total: int
-    plc_total: int
-    relay_total: int
-    io_stations_total: int
-    other_channel_forming_total: int
+    equipment_types_total: int
+    warehouse_items_total: int
+    cabinet_items_total: int
     signals_total: int
+
+class DashboardOut(BaseModel):
+    metrics: MetricsOut
+    equipment_by_type: List[EquipmentByTypeItem]
+    equipment_by_warehouse: List[EquipmentByWarehouseItem]
 ```
 
 ---
@@ -1779,4 +1820,3 @@ UX-логика:
 - Response: `{ "warehouse_id": 1, "equipment_type_id": 10, "available_quantity": 12 }`
 
 Оба варианта совместимы с текущей архитектурой.
-
