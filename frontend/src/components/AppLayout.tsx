@@ -68,7 +68,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           { label: "Warehouses", to: "/warehouses", icon: <StorageRoundedIcon /> },
           { label: "Cabinets", to: "/cabinets", icon: <Inventory2RoundedIcon /> },
           { label: "Manufacturers", to: "/dictionaries/manufacturers", icon: <SettingsInputComponentRoundedIcon /> },
-          { label: "???? ????????????", to: "/dictionaries/equipment-categories", icon: <SettingsInputComponentRoundedIcon /> },
+          { label: "\u0422\u0438\u043f\u044b \u043e\u0431\u043e\u0440\u0443\u0434\u043e\u0432\u0430\u043d\u0438\u044f", to: "/dictionaries/equipment-categories", icon: <SettingsInputComponentRoundedIcon /> },
           { label: "Nomenclature", to: "/dictionaries/equipment-types", icon: <SettingsInputComponentRoundedIcon /> },
           { label: "Locations", to: "/dictionaries/locations", icon: <SettingsInputComponentRoundedIcon /> }
         ]

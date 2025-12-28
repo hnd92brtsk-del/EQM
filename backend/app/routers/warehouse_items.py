@@ -1,13 +1,14 @@
 ﻿from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, cast, Numeric
+from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import get_db, require_read_access, require_write_access
 from app.core.pagination import paginate
-from app.core.query import apply_sort, apply_date_filters
+from app.core.query import apply_sort, apply_date_filters, apply_search
 from app.core.audit import add_audit_log, model_to_dict
 from app.models.operations import WarehouseItem
-from app.models.core import Warehouse, EquipmentType
+from app.models.core import Warehouse, EquipmentType, Manufacturer, EquipmentCategory
 from app.models.security import User
 from app.schemas.common import Pagination
 from app.schemas.warehouse_items import WarehouseItemOut, WarehouseItemCreate, WarehouseItemUpdate
@@ -25,6 +26,10 @@ def list_warehouse_items(
     include_deleted: bool = False,
     warehouse_id: int | None = None,
     equipment_type_id: int | None = None,
+    manufacturer_id: int | None = None,
+    equipment_category_id: int | None = None,
+    unit_price_rub_min: float | None = None,
+    unit_price_rub_max: float | None = None,
     created_at_from: datetime | None = None,
     created_at_to: datetime | None = None,
     updated_at_from: datetime | None = None,
@@ -32,7 +37,16 @@ def list_warehouse_items(
     db=Depends(get_db),
     user: User = Depends(require_read_access()),
 ):
-    query = select(WarehouseItem)
+    query = (
+        select(WarehouseItem)
+        .join(EquipmentType, WarehouseItem.equipment_type_id == EquipmentType.id)
+        .outerjoin(Manufacturer, EquipmentType.manufacturer_id == Manufacturer.id)
+        .outerjoin(EquipmentCategory, EquipmentType.equipment_category_id == EquipmentCategory.id)
+        .options(
+            selectinload(WarehouseItem.equipment_type).selectinload(EquipmentType.manufacturer),
+            selectinload(WarehouseItem.equipment_type).selectinload(EquipmentType.equipment_category),
+        )
+    )
     if is_deleted is None:
         if not include_deleted:
             query = query.where(WarehouseItem.is_deleted == False)
@@ -42,13 +56,43 @@ def list_warehouse_items(
         query = query.where(WarehouseItem.warehouse_id == warehouse_id)
     if equipment_type_id:
         query = query.where(WarehouseItem.equipment_type_id == equipment_type_id)
-    if q and q.isdigit():
-        query = query.where(
-            (WarehouseItem.warehouse_id == int(q)) | (WarehouseItem.equipment_type_id == int(q))
-        )
+    if manufacturer_id:
+        query = query.where(EquipmentType.manufacturer_id == manufacturer_id)
+    if equipment_category_id:
+        query = query.where(EquipmentType.equipment_category_id == equipment_category_id)
+
+    unit_price_expr = cast(EquipmentType.meta_data["unit_price_rub"].astext, Numeric)
+    if unit_price_rub_min is not None:
+        query = query.where(unit_price_expr >= unit_price_rub_min)
+    if unit_price_rub_max is not None:
+        query = query.where(unit_price_expr <= unit_price_rub_max)
+
+    if q:
+        if q.isdigit():
+            query = query.where(
+                (WarehouseItem.warehouse_id == int(q)) | (WarehouseItem.equipment_type_id == int(q))
+            )
+        else:
+            query = apply_search(
+                query,
+                q,
+                [EquipmentType.name, Manufacturer.name, EquipmentCategory.name],
+            )
 
     query = apply_date_filters(query, WarehouseItem, created_at_from, created_at_to, updated_at_from, updated_at_to)
-    query = apply_sort(query, WarehouseItem, sort)
+    if sort:
+        sort_field = sort.lstrip("-")
+        sort_map = {
+            "equipment_type_name": EquipmentType.name,
+            "equipment_category_name": EquipmentCategory.name,
+            "manufacturer_name": Manufacturer.name,
+            "unit_price_rub": unit_price_expr,
+        }
+        if sort_field in sort_map:
+            column = sort_map[sort_field]
+            query = query.order_by(column.desc() if sort.startswith("-") else column.asc())
+        else:
+            query = apply_sort(query, WarehouseItem, sort)
 
     total, items = paginate(query, db, page, page_size)
     return Pagination(items=items, page=page, page_size=page_size, total=total)

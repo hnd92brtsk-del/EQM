@@ -24,6 +24,26 @@ class WarehouseItem(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
         UniqueConstraint("warehouse_id", "equipment_type_id", name="uq_warehouse_items_wh_eqtype"),
     )
 
+    @property
+    def equipment_type_name(self) -> str | None:
+        return self.equipment_type.name if self.equipment_type else None
+
+    @property
+    def equipment_category_name(self) -> str | None:
+        if not self.equipment_type or not self.equipment_type.equipment_category:
+            return None
+        return self.equipment_type.equipment_category.name
+
+    @property
+    def manufacturer_name(self) -> str | None:
+        if not self.equipment_type or not self.equipment_type.manufacturer:
+            return None
+        return self.equipment_type.manufacturer.name
+
+    @property
+    def unit_price_rub(self) -> float | None:
+        return self.equipment_type.unit_price_rub if self.equipment_type else None
+
 
 class CabinetItem(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     __tablename__ = "cabinet_items"
@@ -41,3 +61,13 @@ class CabinetItem(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     __table_args__ = (
         UniqueConstraint("cabinet_id", "equipment_type_id", name="uq_cabinet_items_cb_eqtype"),
     )
+
+    @property
+    def equipment_type_name(self) -> str | None:
+        return self.equipment_type.name if self.equipment_type else None
+
+    @property
+    def manufacturer_name(self) -> str | None:
+        if not self.equipment_type or not self.equipment_type.manufacturer:
+            return None
+        return self.equipment_type.manufacturer.name

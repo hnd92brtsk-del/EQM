@@ -6,6 +6,8 @@ class CabinetItemOut(EntityBase, SoftDeleteFields):
     cabinet_id: int
     equipment_type_id: int
     quantity: int
+    equipment_type_name: str | None = None
+    manufacturer_name: str | None = None
 
 
 class CabinetItemCreate(BaseModel):

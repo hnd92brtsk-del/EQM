@@ -1,13 +1,14 @@
 ﻿from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import get_db, require_read_access, require_write_access
 from app.core.pagination import paginate
-from app.core.query import apply_sort, apply_date_filters
+from app.core.query import apply_sort, apply_date_filters, apply_search
 from app.core.audit import add_audit_log, model_to_dict
 from app.models.operations import CabinetItem
-from app.models.core import Cabinet, EquipmentType
+from app.models.core import Cabinet, EquipmentType, Manufacturer
 from app.models.security import User
 from app.schemas.common import Pagination
 from app.schemas.cabinet_items import CabinetItemOut, CabinetItemCreate, CabinetItemUpdate
@@ -25,6 +26,7 @@ def list_cabinet_items(
     include_deleted: bool = False,
     cabinet_id: int | None = None,
     equipment_type_id: int | None = None,
+    manufacturer_id: int | None = None,
     created_at_from: datetime | None = None,
     created_at_to: datetime | None = None,
     updated_at_from: datetime | None = None,
@@ -32,7 +34,14 @@ def list_cabinet_items(
     db=Depends(get_db),
     user: User = Depends(require_read_access()),
 ):
-    query = select(CabinetItem)
+    query = (
+        select(CabinetItem)
+        .join(EquipmentType, CabinetItem.equipment_type_id == EquipmentType.id)
+        .outerjoin(Manufacturer, EquipmentType.manufacturer_id == Manufacturer.id)
+        .options(
+            selectinload(CabinetItem.equipment_type).selectinload(EquipmentType.manufacturer),
+        )
+    )
     if is_deleted is None:
         if not include_deleted:
             query = query.where(CabinetItem.is_deleted == False)
@@ -42,13 +51,28 @@ def list_cabinet_items(
         query = query.where(CabinetItem.cabinet_id == cabinet_id)
     if equipment_type_id:
         query = query.where(CabinetItem.equipment_type_id == equipment_type_id)
-    if q and q.isdigit():
-        query = query.where(
-            (CabinetItem.cabinet_id == int(q)) | (CabinetItem.equipment_type_id == int(q))
-        )
+    if manufacturer_id:
+        query = query.where(EquipmentType.manufacturer_id == manufacturer_id)
+    if q:
+        if q.isdigit():
+            query = query.where(
+                (CabinetItem.cabinet_id == int(q)) | (CabinetItem.equipment_type_id == int(q))
+            )
+        else:
+            query = apply_search(query, q, [EquipmentType.name, Manufacturer.name])
 
     query = apply_date_filters(query, CabinetItem, created_at_from, created_at_to, updated_at_from, updated_at_to)
-    query = apply_sort(query, CabinetItem, sort)
+    if sort:
+        sort_field = sort.lstrip("-")
+        sort_map = {
+            "equipment_type_name": EquipmentType.name,
+            "manufacturer_name": Manufacturer.name,
+        }
+        if sort_field in sort_map:
+            column = sort_map[sort_field]
+            query = query.order_by(column.desc() if sort.startswith("-") else column.asc())
+        else:
+            query = apply_sort(query, CabinetItem, sort)
 
     total, items = paginate(query, db, page, page_size)
     return Pagination(items=items, page=page, page_size=page_size, total=total)

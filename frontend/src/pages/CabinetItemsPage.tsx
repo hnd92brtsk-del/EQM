@@ -9,28 +9,36 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  FormControlLabel,
   InputLabel,
   MenuItem,
   Select,
+  Switch,
   TablePagination,
   TextField,
   Typography
 } from "@mui/material";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
+import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
+import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
-import { listEntity, updateEntity } from "../api/entities";
+import { deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 
 const sortOptions = [
   { value: "-created_at", label: "По дате (новые)" },
   { value: "created_at", label: "По дате (старые)" },
   { value: "-quantity", label: "По количеству (убыванию)" },
-  { value: "quantity", label: "По количеству (возрастанию)" }
+  { value: "quantity", label: "По количеству (возрастанию)" },
+  { value: 'equipment_type_name', label: 'Equipment (A-Z)' },
+  { value: '-equipment_type_name', label: 'Equipment (Z-A)' },
+  { value: 'manufacturer_name', label: 'Manufacturer (A-Z)' },
+  { value: '-manufacturer_name', label: 'Manufacturer (Z-A)' },
 ];
 
 const pageSizeOptions = [10, 20, 50, 100];
@@ -40,11 +48,15 @@ type CabinetItem = {
   cabinet_id: number;
   equipment_type_id: number;
   quantity: number;
+  is_deleted: boolean;
+  equipment_type_name?: string | null;
+  manufacturer_name?: string | null;
 };
 
 type Cabinet = { id: number; name: string };
 
 type EquipmentType = { id: number; name: string };
+type Manufacturer = { id: number; name: string };
 
 export default function CabinetItemsPage() {
   const { t, i18n } = useTranslation();
@@ -58,6 +70,8 @@ export default function CabinetItemsPage() {
   const [sort, setSort] = useState("-created_at");
   const [cabinetFilter, setCabinetFilter] = useState<number | "">("");
   const [equipmentFilter, setEquipmentFilter] = useState<number | "">("");
+  const [manufacturerFilter, setManufacturerFilter] = useState<number | "">("");
+  const [showDeleted, setShowDeleted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [editOpen, setEditOpen] = useState(false);
@@ -65,7 +79,17 @@ export default function CabinetItemsPage() {
   const [editQuantity, setEditQuantity] = useState(0);
 
   const itemsQuery = useQuery({
-    queryKey: ["cabinet-items", page, pageSize, q, sort, cabinetFilter, equipmentFilter],
+    queryKey: [
+      "cabinet-items",
+      page,
+      pageSize,
+      q,
+      sort,
+      cabinetFilter,
+      equipmentFilter,
+      manufacturerFilter,
+      showDeleted
+    ],
     queryFn: () =>
       listEntity<CabinetItem>("/cabinet-items", {
         page,
@@ -74,8 +98,10 @@ export default function CabinetItemsPage() {
         sort: sort || undefined,
         filters: {
           cabinet_id: cabinetFilter || undefined,
-          equipment_type_id: equipmentFilter || undefined
-        }
+          equipment_type_id: equipmentFilter || undefined,
+          manufacturer_id: manufacturerFilter || undefined
+        },
+        is_deleted: showDeleted ? true : false
       })
   });
 
@@ -89,6 +115,11 @@ export default function CabinetItemsPage() {
     queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: 200 })
   });
 
+  const manufacturersQuery = useQuery({
+    queryKey: ["manufacturers-options"],
+    queryFn: () => listEntity<Manufacturer>("/manufacturers", { page: 1, page_size: 200 })
+  });
+
   useEffect(() => {
     if (itemsQuery.error) {
       setErrorMessage(
@@ -98,6 +129,25 @@ export default function CabinetItemsPage() {
       );
     }
   }, [itemsQuery.error]);
+
+
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["cabinet-items"] });
+  };
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteEntity("/cabinet-items", id),
+    onSuccess: refresh,
+    onError: (error) =>
+      setErrorMessage(error instanceof Error ? error.message : "Failed to delete cabinet item")
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: (id: number) => restoreEntity("/cabinet-items", id),
+    onSuccess: refresh,
+    onError: (error) =>
+      setErrorMessage(error instanceof Error ? error.message : "Failed to restore cabinet item")
+  });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, quantity }: { id: number; quantity: number }) =>
@@ -122,38 +172,60 @@ export default function CabinetItemsPage() {
   const columns = useMemo<ColumnDef<CabinetItem>[]>(() => {
     const base: ColumnDef<CabinetItem>[] = [
       {
-        header: "Шкаф",
+        header: "Cabinet",
         cell: ({ row }) => cabinetMap.get(row.original.cabinet_id) || row.original.cabinet_id
       },
       {
-        header: "Номенклатура",
+        header: "Equipment",
         cell: ({ row }) =>
-          equipmentMap.get(row.original.equipment_type_id) || row.original.equipment_type_id
+          row.original.equipment_type_name ||
+          equipmentMap.get(row.original.equipment_type_id) ||
+          row.original.equipment_type_id
       },
-      { header: "Количество", accessorKey: "quantity" }
+      {
+        header: "Manufacturer",
+        cell: ({ row }) => row.original.manufacturer_name || "-"
+      },
+      { header: "Quantity", accessorKey: "quantity" }
     ];
 
     if (canWrite) {
       base.push({
-        header: t("actions.actions"),
+        header: "Actions",
         cell: ({ row }) => (
-          <Button
-            size="small"
-            startIcon={<EditRoundedIcon />}
-            onClick={() => {
-              setEditItem(row.original);
-              setEditQuantity(row.original.quantity);
-              setEditOpen(true);
-            }}
-          >
-            {t("actions.edit")}
-          </Button>
+          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+            <Button
+              size="small"
+              startIcon={<EditRoundedIcon />}
+              onClick={() => {
+                setEditItem(row.original);
+                setEditQuantity(row.original.quantity);
+                setEditOpen(true);
+              }}
+            >
+              {t("actions.edit")}
+            </Button>
+            <Button
+              size="small"
+              color={row.original.is_deleted ? "success" : "error"}
+              startIcon={
+                row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />
+              }
+              onClick={() =>
+                row.original.is_deleted
+                  ? restoreMutation.mutate(row.original.id)
+                  : deleteMutation.mutate(row.original.id)
+              }
+            >
+              {row.original.is_deleted ? "Restore" : "Delete"}
+            </Button>
+          </Box>
         )
       });
     }
 
     return base;
-  }, [cabinetMap, canWrite, equipmentMap, t, i18n.language]);
+  }, [cabinetMap, canWrite, deleteMutation, equipmentMap, restoreMutation, t, i18n.language]);
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
@@ -227,6 +299,42 @@ export default function CabinetItemsPage() {
                 ))}
               </Select>
             </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel>Manufacturer</InputLabel>
+              <Select
+                label="Manufacturer"
+                value={manufacturerFilter}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setManufacturerFilter(value === "" ? "" : Number(value));
+                  setPage(1);
+                }}
+              >
+                <MenuItem value="">All</MenuItem>
+                {manufacturersQuery.data?.items.map((item) => (
+                  <MenuItem key={item.id} value={item.id}>
+                    {item.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+          </Box>
+
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showDeleted}
+                  onChange={(event) => {
+                    setShowDeleted(event.target.checked);
+                    setPage(1);
+                  }}
+                />
+              }
+              label="Show deleted"
+            />
           </Box>
 
           <DataTable data={itemsQuery.data?.items || []} columns={columns} />

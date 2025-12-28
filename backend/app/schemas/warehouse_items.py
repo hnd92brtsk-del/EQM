@@ -6,6 +6,10 @@ class WarehouseItemOut(EntityBase, SoftDeleteFields):
     warehouse_id: int
     equipment_type_id: int
     quantity: int
+    equipment_type_name: str | None = None
+    equipment_category_name: str | None = None
+    manufacturer_name: str | None = None
+    unit_price_rub: float | None = None
 
 
 class WarehouseItemCreate(BaseModel):

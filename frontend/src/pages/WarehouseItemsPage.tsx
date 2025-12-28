@@ -5,13 +5,18 @@ import {
   Card,
   CardContent,
   FormControl,
+  FormControlLabel,
   InputLabel,
   MenuItem,
   Select,
+  Switch,
   TablePagination,
   TextField,
   Typography
 } from "@mui/material";
+import EditRoundedIcon from "@mui/icons-material/EditRounded";
+import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
+import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -19,13 +24,22 @@ import { useTranslation } from "react-i18next";
 import { DataTable } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
-import { createEntity, listEntity } from "../api/entities";
+import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
+import { useAuth } from "../context/AuthContext";
 
 const sortOptions = [
   { value: "-last_updated", label: "По обновлению (новые)" },
   { value: "last_updated", label: "По обновлению (старые)" },
   { value: "-quantity", label: "По количеству (убыванию)" },
-  { value: "quantity", label: "По количеству (возрастанию)" }
+  { value: "quantity", label: "По количеству (возрастанию)" },
+  { value: 'equipment_type_name', label: 'Equipment (A-Z)' },
+  { value: '-equipment_type_name', label: 'Equipment (Z-A)' },
+  { value: 'equipment_category_name', label: 'Equipment type (A-Z)' },
+  { value: '-equipment_category_name', label: 'Equipment type (Z-A)' },
+  { value: 'manufacturer_name', label: 'Manufacturer (A-Z)' },
+  { value: '-manufacturer_name', label: 'Manufacturer (Z-A)' },
+  { value: 'unit_price_rub', label: 'Price (low-high)' },
+  { value: '-unit_price_rub', label: 'Price (high-low)' },
 ];
 
 const pageSizeOptions = [10, 20, 50, 100];
@@ -36,15 +50,24 @@ type WarehouseItem = {
   equipment_type_id: number;
   quantity: number;
   last_updated?: string;
+  is_deleted: boolean;
+  equipment_type_name?: string | null;
+  equipment_category_name?: string | null;
+  manufacturer_name?: string | null;
+  unit_price_rub?: number | null;
 };
 
 type Warehouse = { id: number; name: string };
 
 type EquipmentType = { id: number; name: string };
+type EquipmentCategory = { id: number; name: string };
+type Manufacturer = { id: number; name: string };
 type Cabinet = { id: number; name: string };
 
 export default function WarehouseItemsPage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const canWrite = user?.role === "admin" || user?.role === "engineer";
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -52,11 +75,29 @@ export default function WarehouseItemsPage() {
   const [sort, setSort] = useState("-last_updated");
   const [warehouseFilter, setWarehouseFilter] = useState<number | "">("");
   const [equipmentFilter, setEquipmentFilter] = useState<number | "">("");
+  const [manufacturerFilter, setManufacturerFilter] = useState<number | "">("");
+  const [equipmentCategoryFilter, setEquipmentCategoryFilter] = useState<number | "">("");
+  const [priceMin, setPriceMin] = useState("");
+  const [priceMax, setPriceMax] = useState("");
+  const [showDeleted, setShowDeleted] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const itemsQuery = useQuery({
-    queryKey: ["warehouse-items", page, pageSize, q, sort, warehouseFilter, equipmentFilter],
+    queryKey: [
+      "warehouse-items",
+      page,
+      pageSize,
+      q,
+      sort,
+      warehouseFilter,
+      equipmentFilter,
+      manufacturerFilter,
+      equipmentCategoryFilter,
+      priceMin,
+      priceMax,
+      showDeleted
+    ],
     queryFn: () =>
       listEntity<WarehouseItem>("/warehouse-items", {
         page,
@@ -65,8 +106,13 @@ export default function WarehouseItemsPage() {
         sort: sort || undefined,
         filters: {
           warehouse_id: warehouseFilter || undefined,
-          equipment_type_id: equipmentFilter || undefined
-        }
+          equipment_type_id: equipmentFilter || undefined,
+          manufacturer_id: manufacturerFilter || undefined,
+          equipment_category_id: equipmentCategoryFilter || undefined,
+          unit_price_rub_min: priceMin ? Number(priceMin) : undefined,
+          unit_price_rub_max: priceMax ? Number(priceMax) : undefined
+        },
+        is_deleted: showDeleted ? true : false
       })
   });
 
@@ -78,6 +124,16 @@ export default function WarehouseItemsPage() {
   const equipmentTypesQuery = useQuery({
     queryKey: ["equipment-types-options"],
     queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: 200 })
+  });
+
+  const equipmentCategoriesQuery = useQuery({
+    queryKey: ["equipment-categories-options"],
+    queryFn: () => listEntity<EquipmentCategory>("/equipment-categories", { page: 1, page_size: 200 })
+  });
+
+  const manufacturersQuery = useQuery({
+    queryKey: ["manufacturers-options"],
+    queryFn: () => listEntity<Manufacturer>("/manufacturers", { page: 1, page_size: 200 })
   });
 
   const cabinetsQuery = useQuery({
@@ -94,6 +150,33 @@ export default function WarehouseItemsPage() {
       );
     }
   }, [itemsQuery.error]);
+
+
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["warehouse-items"] });
+  };
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Partial<WarehouseItem> }) =>
+      updateEntity("/warehouse-items", id, payload),
+    onSuccess: refresh,
+    onError: (error) =>
+      setErrorMessage(error instanceof Error ? error.message : "Failed to update warehouse item")
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteEntity("/warehouse-items", id),
+    onSuccess: refresh,
+    onError: (error) =>
+      setErrorMessage(error instanceof Error ? error.message : "Failed to delete warehouse item")
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: (id: number) => restoreEntity("/warehouse-items", id),
+    onSuccess: refresh,
+    onError: (error) =>
+      setErrorMessage(error instanceof Error ? error.message : "Failed to restore warehouse item")
+  });
 
   const warehouseMap = useMemo(() => {
     const map = new Map<number, string>();
@@ -260,22 +343,85 @@ export default function WarehouseItemsPage() {
     });
   };
 
-  const columns = useMemo<ColumnDef<WarehouseItem>[]>(
-    () => [
+  const columns = useMemo<ColumnDef<WarehouseItem>[]>(() => {
+    const base: ColumnDef<WarehouseItem>[] = [
       {
-        header: "Склад",
+        header: "Warehouse",
         cell: ({ row }) => warehouseMap.get(row.original.warehouse_id) || row.original.warehouse_id
       },
       {
-        header: "Номенклатура",
+        header: "Equipment",
         cell: ({ row }) =>
-          equipmentMap.get(row.original.equipment_type_id) || row.original.equipment_type_id
+          row.original.equipment_type_name ||
+          equipmentMap.get(row.original.equipment_type_id) ||
+          row.original.equipment_type_id
       },
-      { header: "Количество", accessorKey: "quantity" },
-      { header: "Обновлено", accessorKey: "last_updated" }
-    ],
-    [equipmentMap, warehouseMap]
-  );
+      {
+        header: "Equipment type",
+        cell: ({ row }) => row.original.equipment_category_name || "-"
+      },
+      {
+        header: "Manufacturer",
+        cell: ({ row }) => row.original.manufacturer_name || "-"
+      },
+      {
+        header: "Price, RUB",
+        cell: ({ row }) =>
+          row.original.unit_price_rub === null || row.original.unit_price_rub === undefined
+            ? "-"
+            : row.original.unit_price_rub
+      },
+      { header: "Quantity", accessorKey: "quantity" },
+      { header: "Updated", accessorKey: "last_updated" }
+    ];
+
+    if (canWrite) {
+      base.push({
+        header: "Actions",
+        cell: ({ row }) => (
+          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+            <Button
+              size="small"
+              startIcon={<EditRoundedIcon />}
+              onClick={() =>
+                setDialog({
+                  open: true,
+                  title: "Edit warehouse item",
+                  fields: [{ name: "quantity", label: "Quantity", type: "number" }],
+                  values: { quantity: row.original.quantity },
+                  onSave: (values) => {
+                    updateMutation.mutate({
+                      id: row.original.id,
+                      payload: { quantity: values.quantity }
+                    });
+                    setDialog(null);
+                  }
+                })
+              }
+            >
+              Edit
+            </Button>
+            <Button
+              size="small"
+              color={row.original.is_deleted ? "success" : "error"}
+              startIcon={
+                row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />
+              }
+              onClick={() =>
+                row.original.is_deleted
+                  ? restoreMutation.mutate(row.original.id)
+                  : deleteMutation.mutate(row.original.id)
+              }
+            >
+              {row.original.is_deleted ? "Restore" : "Delete"}
+            </Button>
+          </Box>
+        )
+      });
+    }
+
+    return base;
+  }, [canWrite, deleteMutation, equipmentMap, restoreMutation, updateMutation, warehouseMap]);
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
@@ -349,6 +495,84 @@ export default function WarehouseItemsPage() {
                 ))}
               </Select>
             </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel>Manufacturer</InputLabel>
+              <Select
+                label="Manufacturer"
+                value={manufacturerFilter}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setManufacturerFilter(value === "" ? "" : Number(value));
+                  setPage(1);
+                }}
+              >
+                <MenuItem value="">All</MenuItem>
+                {manufacturersQuery.data?.items.map((item) => (
+                  <MenuItem key={item.id} value={item.id}>
+                    {item.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel>Equipment category</InputLabel>
+              <Select
+                label="Equipment category"
+                value={equipmentCategoryFilter}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setEquipmentCategoryFilter(value === "" ? "" : Number(value));
+                  setPage(1);
+                }}
+              >
+                <MenuItem value="">All</MenuItem>
+                {equipmentCategoriesQuery.data?.items.map((item) => (
+                  <MenuItem key={item.id} value={item.id}>
+                    {item.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <TextField
+              label="Price min"
+              type="number"
+              value={priceMin}
+              onChange={(event) => {
+                setPriceMin(event.target.value);
+                setPage(1);
+              }}
+              fullWidth
+            />
+
+            <TextField
+              label="Price max"
+              type="number"
+              value={priceMax}
+              onChange={(event) => {
+                setPriceMax(event.target.value);
+                setPage(1);
+              }}
+              fullWidth
+            />
+
+          </Box>
+
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showDeleted}
+                  onChange={(event) => {
+                    setShowDeleted(event.target.checked);
+                    setPage(1);
+                  }}
+                />
+              }
+              label="Show deleted"
+            />
           </Box>
 
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
