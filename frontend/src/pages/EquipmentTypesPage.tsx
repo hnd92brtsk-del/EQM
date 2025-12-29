@@ -463,20 +463,33 @@ export default function EquipmentTypesPage() {
                       unit_price_rub: ""
                     },
                     onSave: (values) => {
-                      const manufacturerId =
-                        values.manufacturer_id === "" || values.manufacturer_id === undefined
-                          ? undefined
-                          : Number(values.manufacturer_id);
-                      createMutation.mutate({
-                        name: values.name,
-                        nomenclature_number: values.nomenclature_number,
-                        manufacturer_id: manufacturerId,
-                        equipment_category_id: equipmentCategoryId,
-                        is_channel_forming: values.is_channel_forming,
-                        channel_count: values.channel_count,
-                        unit_price_rub: values.unit_price_rub === "" ? undefined : values.unit_price_rub
-                      });
-                      setDialog(null);
+                      try {
+                        const manufacturerId =
+                          values.manufacturer_id === "" || values.manufacturer_id === undefined
+                            ? undefined
+                            : Number(values.manufacturer_id);
+                        const equipmentCategoryId =
+                          values.equipment_category_id === "" ||
+                          values.equipment_category_id === undefined
+                            ? undefined
+                            : Number(values.equipment_category_id);
+                        createMutation.mutate({
+                          name: values.name,
+                          nomenclature_number: values.nomenclature_number,
+                          manufacturer_id: manufacturerId,
+                          equipment_category_id: equipmentCategoryId,
+                          is_channel_forming: values.is_channel_forming,
+                          channel_count: values.channel_count,
+                          unit_price_rub: values.unit_price_rub === "" ? undefined : values.unit_price_rub
+                        });
+                        setDialog(null);
+                      } catch (error) {
+                        setErrorMessage(
+                          error instanceof Error
+                            ? error.message
+                            : "Failed to create equipment type"
+                        );
+                      }
                     }
                   })
                 }

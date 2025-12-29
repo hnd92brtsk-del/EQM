@@ -27,6 +27,7 @@ class MovementCreate(BaseModel):
 
     reference: Optional[str] = Field(default=None, max_length=200)
     comment: Optional[str] = Field(default=None, max_length=1000)
+    is_accounted: Optional[bool] = None
 
     @model_validator(mode="after")
     def validate_targets(self):

@@ -140,6 +140,7 @@ def create_warehouse_item(
     if item:
         before = model_to_dict(item)
         item.quantity = payload.quantity
+        item.is_accounted = payload.is_accounted
         item.is_deleted = False
         item.deleted_at = None
         item.deleted_by_id = None
@@ -149,6 +150,7 @@ def create_warehouse_item(
             warehouse_id=payload.warehouse_id,
             equipment_type_id=payload.equipment_type_id,
             quantity=payload.quantity,
+            is_accounted=payload.is_accounted,
         )
         db.add(item)
     db.flush()
@@ -182,6 +184,8 @@ def update_warehouse_item(
     before = model_to_dict(item)
     if payload.quantity is not None:
         item.quantity = payload.quantity
+    if payload.is_accounted is not None:
+        item.is_accounted = payload.is_accounted
 
     add_audit_log(
         db,

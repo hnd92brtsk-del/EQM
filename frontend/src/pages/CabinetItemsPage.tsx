@@ -186,7 +186,8 @@ export default function CabinetItemsPage() {
         header: "Manufacturer",
         cell: ({ row }) => row.original.manufacturer_name || "-"
       },
-      { header: "Quantity", accessorKey: "quantity" }
+      { header: "Quantity", accessorKey: "quantity" },
+      { header: "Удалено", cell: ({ row }) => (row.original.is_deleted ? "Да" : "Нет") }
     ];
 
     if (canWrite) {

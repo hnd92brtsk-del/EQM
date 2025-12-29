@@ -28,8 +28,8 @@ import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } f
 import { useAuth } from "../context/AuthContext";
 
 const sortOptions = [
-  { value: "-last_updated", label: "По обновлению (новые)" },
-  { value: "last_updated", label: "По обновлению (старые)" },
+  { value: "-updated_at", label: "По обновлению (новые)" },
+  { value: "updated_at", label: "По обновлению (старые)" },
   { value: "-quantity", label: "По количеству (убыванию)" },
   { value: "quantity", label: "По количеству (возрастанию)" },
   { value: 'equipment_type_name', label: 'Equipment (A-Z)' },
@@ -49,7 +49,9 @@ type WarehouseItem = {
   warehouse_id: number;
   equipment_type_id: number;
   quantity: number;
-  last_updated?: string;
+  is_accounted: boolean;
+  created_at?: string;
+  updated_at?: string;
   is_deleted: boolean;
   equipment_type_name?: string | null;
   equipment_category_name?: string | null;
@@ -72,7 +74,7 @@ export default function WarehouseItemsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [q, setQ] = useState("");
-  const [sort, setSort] = useState("-last_updated");
+  const [sort, setSort] = useState("-updated_at");
   const [warehouseFilter, setWarehouseFilter] = useState<number | "">("");
   const [equipmentFilter, setEquipmentFilter] = useState<number | "">("");
   const [manufacturerFilter, setManufacturerFilter] = useState<number | "">("");
@@ -343,6 +345,20 @@ export default function WarehouseItemsPage() {
     });
   };
 
+  const formatDateTime = (value?: string) => {
+    if (!value) {
+      return "—";
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return "—";
+    }
+    const pad = (num: number) => String(num).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(
+      date.getHours()
+    )}:${pad(date.getMinutes())}`;
+  };
+
   const columns = useMemo<ColumnDef<WarehouseItem>[]>(() => {
     const base: ColumnDef<WarehouseItem>[] = [
       {
@@ -372,7 +388,15 @@ export default function WarehouseItemsPage() {
             : row.original.unit_price_rub
       },
       { header: "Quantity", accessorKey: "quantity" },
-      { header: "Updated", accessorKey: "last_updated" }
+      {
+        header: "Учёт",
+        cell: ({ row }) => (row.original.is_accounted ? "Учтено" : "Не учтено")
+      },
+      { header: "Удалено", cell: ({ row }) => (row.original.is_deleted ? "Да" : "Нет") },
+      {
+        header: "Updated",
+        cell: ({ row }) => formatDateTime(row.original.updated_at || row.original.created_at)
+      }
     ];
 
     if (canWrite) {
@@ -387,12 +411,21 @@ export default function WarehouseItemsPage() {
                 setDialog({
                   open: true,
                   title: "Edit warehouse item",
-                  fields: [{ name: "quantity", label: "Quantity", type: "number" }],
-                  values: { quantity: row.original.quantity },
+                  fields: [
+                    { name: "quantity", label: "Quantity", type: "number" },
+                    { name: "is_accounted", label: "Учёт", type: "checkbox" }
+                  ],
+                  values: {
+                    quantity: row.original.quantity,
+                    is_accounted: row.original.is_accounted
+                  },
                   onSave: (values) => {
                     updateMutation.mutate({
                       id: row.original.id,
-                      payload: { quantity: values.quantity }
+                      payload: {
+                        quantity: values.quantity,
+                        is_accounted: Boolean(values.is_accounted)
+                      }
                     });
                     setDialog(null);
                   }

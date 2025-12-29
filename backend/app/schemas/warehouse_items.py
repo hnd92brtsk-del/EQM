@@ -6,6 +6,7 @@ class WarehouseItemOut(EntityBase, SoftDeleteFields):
     warehouse_id: int
     equipment_type_id: int
     quantity: int
+    is_accounted: bool
     equipment_type_name: str | None = None
     equipment_category_name: str | None = None
     manufacturer_name: str | None = None
@@ -16,8 +17,10 @@ class WarehouseItemCreate(BaseModel):
     warehouse_id: int
     equipment_type_id: int
     quantity: int = Field(ge=0)
+    is_accounted: bool = True
 
 
 class WarehouseItemUpdate(BaseModel):
     quantity: int | None = Field(default=None, ge=0)
+    is_accounted: bool | None = None
     is_deleted: bool | None = None

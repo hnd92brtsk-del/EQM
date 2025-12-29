@@ -169,6 +169,8 @@ def create_movement(
         change_quantity(to_item, payload.quantity)
     elif movement.movement_type == MovementType.to_warehouse:
         to_item = get_or_create_warehouse_item(db, payload.to_warehouse_id, payload.equipment_type_id, True)
+        if payload.is_accounted is not None:
+            to_item.is_accounted = payload.is_accounted
         change_quantity(to_item, payload.quantity)
     elif movement.movement_type == MovementType.transfer:
         from_item = get_or_create_warehouse_item(db, payload.from_warehouse_id, payload.equipment_type_id, True)
