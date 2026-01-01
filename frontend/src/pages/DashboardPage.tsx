@@ -1,7 +1,6 @@
-import { useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Alert,
   Box,
   Card,
   CardContent,
@@ -10,44 +9,38 @@ import {
   Typography
 } from "@mui/material";
 import { ColumnDef } from "@tanstack/react-table";
-import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { useTranslation } from "react-i18next";
 
 import { apiFetch } from "../api/client";
 import { listEntity } from "../api/entities";
 import { DataTable } from "../components/DataTable";
+import { ErrorSnackbar } from "../components/ErrorSnackbar";
 
-type EquipmentByTypeItem = {
-  equipment_type_id: number;
+type DonutQtyItem = {
   name: string;
-  quantity: number;
-  percent?: number;
+  qty: number;
 };
 
-type EquipmentByWarehouseItem = {
-  warehouse_id: number;
-  warehouse: string;
-  quantity: number;
-};
-
-type MetricsOut = {
-  cabinets_total: number;
-  plc_total: number;
-  relay_total: number;
-  io_stations_total: number;
-  other_channel_forming_total: number;
-  signals_total: number;
-};
-
-type AccountingStatusItem = {
-  label: string;
-  count: number;
-};
-
-type CostByTypeItem = {
-  equipment_type_id: number;
+type DonutValueItem = {
   name: string;
-  total_cost_rub: number;
+  value_rub: number;
+};
+
+type DashboardOverview = {
+  kpis: {
+    total_cabinets: number;
+    total_plc_in_cabinets: number;
+    total_plc_in_warehouses: number;
+    total_channels: number;
+    total_warehouse_value_rub: number;
+  };
+  donuts: {
+    by_category: DonutQtyItem[];
+    by_warehouse_qty: DonutQtyItem[];
+    accounted_vs_not: DonutQtyItem[];
+    by_warehouse_value: DonutValueItem[];
+  };
 };
 
 type EquipmentAction = {
@@ -71,31 +64,6 @@ type RecentLogin = {
   end_reason?: string | null;
 };
 
-type EquipmentType = {
-  id: number;
-  name: string;
-  is_channel_forming?: boolean;
-  channel_count?: number;
-  meta_data?: Record<string, unknown> | null;
-};
-
-type WarehouseItem = {
-  id: number;
-  warehouse_id: number;
-  equipment_type_id: number;
-  quantity: number;
-};
-
-type CabinetItem = {
-  id: number;
-  cabinet_id: number;
-  equipment_type_id: number;
-  quantity: number;
-};
-
-type Warehouse = { id: number; name: string };
-type Cabinet = { id: number; name: string };
-type IOSignal = { id: number };
 type AuditLog = {
   id: number;
   actor_id: number;
@@ -104,6 +72,7 @@ type AuditLog = {
   entity_id?: number | null;
   created_at?: string;
 };
+
 type Session = {
   id: number;
   user_id: number;
@@ -111,6 +80,7 @@ type Session = {
   ended_at?: string | null;
   end_reason?: string | null;
 };
+
 type User = { id: number; username: string };
 
 const CHART_COLORS = ["#1E3A5F", "#D97B41", "#7BA3C1", "#F0B37E", "#9BBF8B", "#C8D4E3"];
@@ -125,26 +95,6 @@ const shouldFallback = (error: unknown) => {
 };
 
 const normalizeText = (value: string | undefined | null) => (value ?? "").toLowerCase();
-
-const getUnitPrice = (meta: Record<string, unknown> | null | undefined): number => {
-  if (!meta) {
-    return 0;
-  }
-  const candidates = ["unit_price_rub", "price_rub", "unit_price", "price"];
-  for (const key of candidates) {
-    const value = meta[key];
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value;
-    }
-    if (typeof value === "string") {
-      const parsed = Number(value);
-      if (!Number.isNaN(parsed)) {
-        return parsed;
-      }
-    }
-  }
-  return 0;
-};
 
 async function fetchAllPages<T>(path: string, params: Record<string, any> = {}) {
   let page = 1;
@@ -176,224 +126,29 @@ export default function DashboardPage() {
   const { t } = useTranslation();
   const [actionsSearch, setActionsSearch] = useState("");
   const [loginsSearch, setLoginsSearch] = useState("");
-  const fallbackRef = useRef<Promise<{
-    equipmentTypes: EquipmentType[];
-    warehouseItems: WarehouseItem[];
-    cabinetItems: CabinetItem[];
-    warehouses: Warehouse[];
-    cabinets: Cabinet[];
-    ioSignals: IOSignal[];
-    users: User[];
-  }> | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const fallbackRef = useRef<Promise<{ users: User[] }> | null>(null);
 
   const getFallbackData = () => {
     if (!fallbackRef.current) {
       fallbackRef.current = (async () => {
-        const [equipmentTypes, warehouseItems, cabinetItems, warehouses, cabinets, ioSignals] =
-          await Promise.all([
-            safeFetchAllPages<EquipmentType>("/equipment-types"),
-            safeFetchAllPages<WarehouseItem>("/warehouse-items"),
-            safeFetchAllPages<CabinetItem>("/cabinet-items"),
-            safeFetchAllPages<Warehouse>("/warehouses"),
-            safeFetchAllPages<Cabinet>("/cabinets"),
-            safeFetchAllPages<IOSignal>("/io-signals")
-          ]);
-
-        let users: User[] = [];
-        users = await safeFetchAllPages<User>("/users");
-
-        return {
-          equipmentTypes,
-          warehouseItems,
-          cabinetItems,
-          warehouses,
-          cabinets,
-          ioSignals,
-          users
-        };
+        const users = await safeFetchAllPages<User>("/users");
+        return { users };
       })();
     }
     return fallbackRef.current;
   };
 
-  const equipmentByTypeQuery = useQuery({
-    queryKey: ["dashboard", "equipment-by-type"],
-    queryFn: async () => {
-      try {
-        return await apiFetch<EquipmentByTypeItem[]>("/dashboard/equipment-by-type");
-      } catch (error) {
-        if (!shouldFallback(error)) {
-          throw error;
-        }
-        const fallback = await getFallbackData();
-        const totals = new Map<number, number>();
-        [...fallback.warehouseItems, ...fallback.cabinetItems].forEach((item) => {
-          totals.set(item.equipment_type_id, (totals.get(item.equipment_type_id) || 0) + item.quantity);
-        });
-        const totalQuantity = Array.from(totals.values()).reduce((sum, value) => sum + value, 0);
-        return fallback.equipmentTypes
-          .map((item) => ({
-            equipment_type_id: item.id,
-            name: item.name,
-            quantity: totals.get(item.id) || 0,
-            percent: totalQuantity ? (totals.get(item.id) || 0) / totalQuantity : 0
-          }))
-          .filter((item) => item.quantity > 0);
-      }
-    }
+  const overviewQuery = useQuery({
+    queryKey: ["dashboard", "overview"],
+    queryFn: async () => apiFetch<DashboardOverview>("/dashboard/overview")
   });
 
-  const equipmentByWarehouseQuery = useQuery({
-    queryKey: ["dashboard", "equipment-by-warehouse"],
-    queryFn: async () => {
-      try {
-        return await apiFetch<EquipmentByWarehouseItem[]>("/dashboard/equipment-by-warehouse");
-      } catch (error) {
-        if (!shouldFallback(error)) {
-          throw error;
-        }
-        const fallback = await getFallbackData();
-        const totals = new Map<number, number>();
-        fallback.warehouseItems.forEach((item) => {
-          totals.set(item.warehouse_id, (totals.get(item.warehouse_id) || 0) + item.quantity);
-        });
-        const warehouseMap = new Map<number, string>();
-        fallback.warehouses.forEach((warehouse) => warehouseMap.set(warehouse.id, warehouse.name));
-        return Array.from(totals.entries()).map(([warehouseId, quantity]) => ({
-          warehouse_id: warehouseId,
-          warehouse: warehouseMap.get(warehouseId) || `Склад ${warehouseId}`,
-          quantity
-        }));
-      }
+  useEffect(() => {
+    if (overviewQuery.error) {
+      setErrorMessage("Не удалось загрузить данные дашборда. Проверьте /api/v1/dashboard/overview.");
     }
-  });
-
-  const metricsQuery = useQuery({
-    queryKey: ["dashboard", "metrics"],
-    queryFn: async () => {
-      try {
-        return await apiFetch<MetricsOut>("/dashboard/metrics");
-      } catch (error) {
-        if (!shouldFallback(error)) {
-          throw error;
-        }
-        const fallback = await getFallbackData();
-        const totals = new Map<number, number>();
-        [...fallback.warehouseItems, ...fallback.cabinetItems].forEach((item) => {
-          totals.set(item.equipment_type_id, (totals.get(item.equipment_type_id) || 0) + item.quantity);
-        });
-
-        let plcTotal = 0;
-        let relayTotal = 0;
-        let ioStationsTotal = 0;
-        let otherChannelFormingTotal = 0;
-
-        fallback.equipmentTypes.forEach((item) => {
-          const name = normalizeText(item.name);
-          const quantity = totals.get(item.id) || 0;
-          const isPlc = name.includes("plc") || name.includes("плк");
-          const isRelay = name.includes("relay") || name.includes("реле");
-          const isIoStation =
-            name.includes("io") ||
-            name.includes("i/o") ||
-            name.includes("ввода") ||
-            name.includes("вывода") ||
-            name.includes("станц");
-
-          if (isPlc) {
-            plcTotal += quantity;
-            return;
-          }
-          if (isRelay) {
-            relayTotal += quantity;
-            return;
-          }
-          if (isIoStation) {
-            ioStationsTotal += quantity;
-            return;
-          }
-          if (item.is_channel_forming) {
-            otherChannelFormingTotal += quantity;
-          }
-        });
-
-        return {
-          cabinets_total: fallback.cabinets.length,
-          plc_total: plcTotal,
-          relay_total: relayTotal,
-          io_stations_total: ioStationsTotal,
-          other_channel_forming_total: otherChannelFormingTotal,
-          signals_total: fallback.ioSignals.length
-        };
-      }
-    }
-  });
-
-  const accountingStatusQuery = useQuery({
-    queryKey: ["dashboard", "accounting-status"],
-    queryFn: async () => {
-      try {
-        const result = await apiFetch<unknown>("/dashboard/accounting-status");
-        if (Array.isArray(result)) {
-          return result
-            .map((item) => ({
-              label: String((item as any).label ?? (item as any).name ?? "Статус"),
-              count: Number((item as any).count ?? (item as any).quantity ?? 0)
-            }))
-            .filter((item) => Number.isFinite(item.count));
-        }
-        if (result && typeof result === "object") {
-          const accounted = Number((result as any).accounted ?? (result as any).accounted_total ?? 0);
-          const unaccounted = Number((result as any).unaccounted ?? (result as any).unaccounted_total ?? 0);
-          return [
-            { label: "Учтено", count: Number.isFinite(accounted) ? accounted : 0 },
-            { label: "Не учтено", count: Number.isFinite(unaccounted) ? unaccounted : 0 }
-          ];
-        }
-        return [
-          { label: "Учтено", count: 0 },
-          { label: "Не учтено", count: 0 }
-        ];
-      } catch (error) {
-        if (!shouldFallback(error)) {
-          throw error;
-        }
-        return [
-          { label: "Учтено", count: 0 },
-          { label: "Не учтено", count: 0 }
-        ];
-      }
-    }
-  });
-
-  const costByTypeQuery = useQuery({
-    queryKey: ["dashboard", "cost-by-type"],
-    queryFn: async () => {
-      try {
-        return await apiFetch<CostByTypeItem[]>("/dashboard/cost-by-type");
-      } catch (error) {
-        if (!shouldFallback(error)) {
-          throw error;
-        }
-        const fallback = await getFallbackData();
-        const totals = new Map<number, number>();
-        [...fallback.warehouseItems, ...fallback.cabinetItems].forEach((item) => {
-          totals.set(item.equipment_type_id, (totals.get(item.equipment_type_id) || 0) + item.quantity);
-        });
-        return fallback.equipmentTypes
-          .map((item) => {
-            const quantity = totals.get(item.id) || 0;
-            const price = getUnitPrice(item.meta_data || undefined);
-            return {
-              equipment_type_id: item.id,
-              name: item.name,
-              total_cost_rub: quantity * price
-            };
-          })
-          .sort((a, b) => b.total_cost_rub - a.total_cost_rub);
-      }
-    }
-  });
+  }, [overviewQuery.error]);
 
   const recentActionsQuery = useQuery({
     queryKey: ["dashboard", "recent-actions"],
@@ -524,7 +279,7 @@ export default function DashboardPage() {
         cell: ({ row }) => row.original.action || row.original.movement_type || "-"
       },
       {
-        header: "Сущность",
+        header: "Объект",
         cell: ({ row }) =>
           row.original.equipment_type ||
           row.original.entity ||
@@ -535,7 +290,7 @@ export default function DashboardPage() {
         cell: ({ row }) => row.original.username || row.original.actor_id || "-"
       },
       {
-        header: "Время",
+        header: "Дата",
         cell: ({ row }) => row.original.created_at || "-"
       }
     ],
@@ -549,11 +304,11 @@ export default function DashboardPage() {
         cell: ({ row }) => row.original.username || row.original.user_id || "-"
       },
       {
-        header: "Начало",
+        header: "Вход",
         cell: ({ row }) => row.original.started_at || "-"
       },
       {
-        header: "Окончание",
+        header: "Выход",
         cell: ({ row }) => row.original.ended_at || "-"
       },
       {
@@ -564,47 +319,52 @@ export default function DashboardPage() {
     []
   );
 
-  const accountingData =
-    accountingStatusQuery.data && accountingStatusQuery.data.length > 0
-      ? accountingStatusQuery.data
-      : [
-          { label: "Учтено", count: 0 },
-          { label: "Не учтено", count: 0 }
-        ];
+  const kpis = overviewQuery.data?.kpis ?? {
+    total_cabinets: 0,
+    total_plc_in_cabinets: 0,
+    total_plc_in_warehouses: 0,
+    total_channels: 0,
+    total_warehouse_value_rub: 0
+  };
+
+  const donuts = overviewQuery.data?.donuts ?? {
+    by_category: [],
+    by_warehouse_qty: [],
+    accounted_vs_not: [],
+    by_warehouse_value: []
+  };
 
   return (
     <Box sx={{ display: "grid", gap: 3 }}>
+      <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage(null)} />
       <Typography variant="h4">{t("pages.dashboard")}</Typography>
 
       <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 2 }}>
-        {[
-          { label: "Шкафы", value: metricsQuery.data?.cabinets_total ?? 0 },
-          { label: "ПЛК", value: metricsQuery.data?.plc_total ?? 0 },
-          { label: "Реле", value: metricsQuery.data?.relay_total ?? 0 },
-          { label: "I/O станции", value: metricsQuery.data?.io_stations_total ?? 0 },
-          { label: "Другие канал.", value: metricsQuery.data?.other_channel_forming_total ?? 0 },
-          { label: "Сигналы", value: metricsQuery.data?.signals_total ?? 0 }
-        ].map((item) => (
-          <Card key={item.label}>
-            <CardContent>
-              <Typography color="text.secondary">{item.label}</Typography>
-              {metricsQuery.isLoading ? (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
-                  <CircularProgress size={20} />
-                  <Typography variant="body2" color="text.secondary">
-                    Загрузка
-                  </Typography>
-                </Box>
-              ) : metricsQuery.error ? (
-                <Typography variant="body2" color="error">
-                  Ошибка
-                </Typography>
-              ) : (
-                <Typography variant="h5">{item.value}</Typography>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+        {
+          [
+            { label: "Всего шкафов", value: kpis.total_cabinets },
+            { label: "Всего ПЛК в шкафах", value: kpis.total_plc_in_cabinets },
+            { label: "Всего ПЛК на складах", value: kpis.total_plc_in_warehouses },
+            { label: "Всего каналов", value: kpis.total_channels },
+            { label: "Всего оборудования на сумму", value: kpis.total_warehouse_value_rub }
+          ].map((item) => (
+            <Card key={item.label}>
+              <CardContent>
+                <Typography color="text.secondary">{item.label}</Typography>
+                {overviewQuery.isLoading ? (
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
+                    <CircularProgress size={20} />
+                    <Typography variant="body2" color="text.secondary">
+                      Загрузка
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Typography variant="h5">{item.value}</Typography>
+                )}
+              </CardContent>
+            </Card>
+          ))
+        }
       </Box>
 
       <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 2 }}>
@@ -613,22 +373,20 @@ export default function DashboardPage() {
             <Typography variant="h6" sx={{ mb: 2 }}>
               Распределение по типам
             </Typography>
-            {equipmentByTypeQuery.isLoading ? (
+            {overviewQuery.isLoading ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CircularProgress size={20} />
                 <Typography variant="body2" color="text.secondary">
-                  Загрузка данных
+                  Загрузка
                 </Typography>
               </Box>
-            ) : equipmentByTypeQuery.error ? (
-              <Alert severity="error">Ошибка загрузки распределения по типам.</Alert>
-            ) : (equipmentByTypeQuery.data || []).length === 0 ? (
+            ) : donuts.by_category.length === 0 ? (
               <Typography color="text.secondary">Нет данных</Typography>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
-                  <Pie data={equipmentByTypeQuery.data || []} dataKey="quantity" nameKey="name" outerRadius={90}>
-                    {(equipmentByTypeQuery.data || []).map((_, index) => (
+                  <Pie data={donuts.by_category} dataKey="qty" nameKey="name" outerRadius={90}>
+                    {donuts.by_category.map((_, index) => (
                       <Cell key={`type-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
                   </Pie>
@@ -644,31 +402,24 @@ export default function DashboardPage() {
             <Typography variant="h6" sx={{ mb: 2 }}>
               Остатки по складам
             </Typography>
-            {equipmentByWarehouseQuery.isLoading ? (
+            {overviewQuery.isLoading ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CircularProgress size={20} />
                 <Typography variant="body2" color="text.secondary">
-                  Загрузка данных
+                  Загрузка
                 </Typography>
               </Box>
-            ) : equipmentByWarehouseQuery.error ? (
-              <Alert severity="error">Ошибка загрузки остатков по складам.</Alert>
-            ) : (equipmentByWarehouseQuery.data || []).length === 0 ? (
+            ) : donuts.by_warehouse_qty.length === 0 ? (
               <Typography color="text.secondary">Нет данных</Typography>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
-                  <Pie
-                    data={equipmentByWarehouseQuery.data || []}
-                    dataKey="quantity"
-                    nameKey="warehouse"
-                    outerRadius={90}
-                  >
-                    {(equipmentByWarehouseQuery.data || []).map((_, index) => (
+                  <Pie data={donuts.by_warehouse_qty} dataKey="qty" nameKey="name" outerRadius={90}>
+                    {donuts.by_warehouse_qty.map((_, index) => (
                       <Cell key={`warehouse-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip formatter={(value) => [`${value} единиц`, ""]} />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -678,22 +429,22 @@ export default function DashboardPage() {
         <Card>
           <CardContent>
             <Typography variant="h6" sx={{ mb: 2 }}>
-              Учтено / не учтено
+              Учтено / Не учтено
             </Typography>
-            {accountingStatusQuery.isLoading ? (
+            {overviewQuery.isLoading ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CircularProgress size={20} />
                 <Typography variant="body2" color="text.secondary">
-                  Загрузка данных
+                  Загрузка
                 </Typography>
               </Box>
-            ) : accountingStatusQuery.error ? (
-              <Alert severity="error">Ошибка загрузки статуса учета.</Alert>
+            ) : donuts.accounted_vs_not.length === 0 ? (
+              <Typography color="text.secondary">Нет данных</Typography>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
-                  <Pie data={accountingData} dataKey="count" nameKey="label" outerRadius={90}>
-                    {accountingData.map((_, index) => (
+                  <Pie data={donuts.accounted_vs_not} dataKey="qty" nameKey="name" outerRadius={90}>
+                    {donuts.accounted_vs_not.map((_, index) => (
                       <Cell key={`accounting-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
                   </Pie>
@@ -707,27 +458,27 @@ export default function DashboardPage() {
         <Card>
           <CardContent>
             <Typography variant="h6" sx={{ mb: 2 }}>
-              Стоимость по типам
+              Стоимость по складам
             </Typography>
-            {costByTypeQuery.isLoading ? (
+            {overviewQuery.isLoading ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CircularProgress size={20} />
                 <Typography variant="body2" color="text.secondary">
-                  Загрузка данных
+                  Загрузка
                 </Typography>
               </Box>
-            ) : costByTypeQuery.error ? (
-              <Alert severity="error">Ошибка загрузки стоимости по типам.</Alert>
-            ) : (costByTypeQuery.data || []).length === 0 ? (
+            ) : donuts.by_warehouse_value.length === 0 ? (
               <Typography color="text.secondary">Нет данных</Typography>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={costByTypeQuery.data || []}>
-                  <XAxis dataKey="name" hide />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="total_cost_rub" fill="#1E3A5F" />
-                </BarChart>
+                <PieChart>
+                  <Pie data={donuts.by_warehouse_value} dataKey="value_rub" nameKey="name" outerRadius={90}>
+                    {donuts.by_warehouse_value.map((_, index) => (
+                      <Cell key={`warehouse-value-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => [`${value} ₽`, ""]} />
+                </PieChart>
               </ResponsiveContainer>
             )}
           </CardContent>
@@ -748,18 +499,20 @@ export default function DashboardPage() {
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CircularProgress size={20} />
                 <Typography variant="body2" color="text.secondary">
-                  Загрузка действий
+                  Загрузка
                 </Typography>
               </Box>
             ) : recentActionsQuery.error ? (
-              <Alert severity="error">Ошибка загрузки действий.</Alert>
+              <Typography variant="body2" color="error">
+                Не удалось загрузить действия.
+              </Typography>
             ) : actionRows.length === 0 ? (
               <Typography color="text.secondary">Нет данных</Typography>
             ) : (
               <DataTable data={actionRows} columns={actionColumns} />
             )}
             <Typography variant="caption" color="text.secondary">
-              Показаны последние {MAX_TABLE_ROWS} записей по дате.
+              Показано последних {MAX_TABLE_ROWS} записей.
             </Typography>
           </CardContent>
         </Card>
@@ -777,18 +530,20 @@ export default function DashboardPage() {
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CircularProgress size={20} />
                 <Typography variant="body2" color="text.secondary">
-                  Загрузка логинов
+                  Загрузка
                 </Typography>
               </Box>
             ) : recentLoginsQuery.error ? (
-              <Alert severity="error">Ошибка загрузки логинов.</Alert>
+              <Typography variant="body2" color="error">
+                Не удалось загрузить логины.
+              </Typography>
             ) : loginRows.length === 0 ? (
               <Typography color="text.secondary">Нет данных</Typography>
             ) : (
               <DataTable data={loginRows} columns={loginColumns} />
             )}
             <Typography variant="caption" color="text.secondary">
-              Показаны последние {MAX_TABLE_ROWS} записей по дате.
+              Показано последних {MAX_TABLE_ROWS} записей.
             </Typography>
           </CardContent>
         </Card>

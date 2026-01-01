@@ -27,3 +27,33 @@ class DashboardOut(BaseModel):
     metrics: MetricsOut
     equipment_by_type: List[EquipmentByTypeItem]
     equipment_by_warehouse: List[EquipmentByWarehouseItem]
+
+
+class DonutQtyItem(BaseModel):
+    name: str
+    qty: int
+
+
+class DonutValueItem(BaseModel):
+    name: str
+    value_rub: float
+
+
+class DashboardKpisOut(BaseModel):
+    total_cabinets: int
+    total_plc_in_cabinets: int
+    total_plc_in_warehouses: int
+    total_channels: int
+    total_warehouse_value_rub: float
+
+
+class DashboardDonutsOut(BaseModel):
+    by_category: List[DonutQtyItem]
+    by_warehouse_qty: List[DonutQtyItem]
+    accounted_vs_not: List[DonutQtyItem]
+    by_warehouse_value: List[DonutValueItem]
+
+
+class DashboardOverviewOut(BaseModel):
+    kpis: DashboardKpisOut
+    donuts: DashboardDonutsOut

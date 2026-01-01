@@ -1,12 +1,22 @@
 ﻿from fastapi import APIRouter, Depends
-from sqlalchemy import select, func
+from sqlalchemy import select, func, cast, Float, and_, or_
 
 from app.core.dependencies import get_db, get_current_user
 from app.models.core import Cabinet, EquipmentType, Warehouse
 from app.models.operations import WarehouseItem, CabinetItem
 from app.models.io import IOSignal
 from app.models.security import User
-from app.schemas.dashboard import DashboardOut, MetricsOut, EquipmentByTypeItem, EquipmentByWarehouseItem
+from app.schemas.dashboard import (
+    DashboardOut,
+    MetricsOut,
+    EquipmentByTypeItem,
+    EquipmentByWarehouseItem,
+    DashboardOverviewOut,
+    DashboardKpisOut,
+    DashboardDonutsOut,
+    DonutQtyItem,
+    DonutValueItem,
+)
 
 router = APIRouter()
 
@@ -108,3 +118,162 @@ def get_dashboard(db=Depends(get_db), user: User = Depends(get_current_user)):
         equipment_by_type=equipment_by_type,
         equipment_by_warehouse=equipment_by_warehouse,
     )
+
+
+@router.get("/overview", response_model=DashboardOverviewOut)
+def get_dashboard_overview(db=Depends(get_db), user: User = Depends(get_current_user)):
+    price_expr = func.coalesce(
+        cast(EquipmentType.meta_data["unit_price_rub"].astext, Float), 0.0
+    )
+
+    total_cabinets = db.scalar(
+        select(func.count()).select_from(Cabinet).where(Cabinet.is_deleted == False)
+    ) or 0
+
+    total_plc_in_cabinets = db.scalar(
+        select(func.coalesce(func.sum(CabinetItem.quantity), 0))
+        .join(EquipmentType, CabinetItem.equipment_type_id == EquipmentType.id)
+        .where(
+            CabinetItem.is_deleted == False,
+            EquipmentType.is_deleted == False,
+            EquipmentType.is_channel_forming == True,
+        )
+    ) or 0
+
+    total_plc_in_warehouses = db.scalar(
+        select(func.coalesce(func.sum(WarehouseItem.quantity), 0))
+        .join(EquipmentType, WarehouseItem.equipment_type_id == EquipmentType.id)
+        .where(
+            WarehouseItem.is_deleted == False,
+            EquipmentType.is_deleted == False,
+            EquipmentType.is_channel_forming == True,
+        )
+    ) or 0
+
+    total_channels = db.scalar(
+        select(func.coalesce(func.sum(CabinetItem.quantity * EquipmentType.channel_count), 0))
+        .join(EquipmentType, CabinetItem.equipment_type_id == EquipmentType.id)
+        .where(
+            CabinetItem.is_deleted == False,
+            EquipmentType.is_deleted == False,
+            EquipmentType.is_channel_forming == True,
+        )
+    ) or 0
+
+    total_warehouse_value_rub = db.scalar(
+        select(func.coalesce(func.sum(WarehouseItem.quantity * price_expr), 0))
+        .join(EquipmentType, WarehouseItem.equipment_type_id == EquipmentType.id)
+        .where(
+            WarehouseItem.is_deleted == False,
+            EquipmentType.is_deleted == False,
+        )
+    ) or 0.0
+
+    by_category_rows = db.execute(
+        select(
+            EquipmentType.name,
+            func.coalesce(func.sum(WarehouseItem.quantity), 0).label("qty"),
+        )
+        .join(EquipmentType, WarehouseItem.equipment_type_id == EquipmentType.id)
+        .where(
+            WarehouseItem.is_deleted == False,
+            EquipmentType.is_deleted == False,
+        )
+        .group_by(EquipmentType.name)
+        .order_by(EquipmentType.name)
+    ).all()
+
+    by_category = [
+        DonutQtyItem(name=row.name, qty=row.qty or 0)
+        for row in by_category_rows
+        if (row.qty or 0) > 0
+    ]
+
+    by_warehouse_qty_rows = db.execute(
+        select(
+            Warehouse.name,
+            func.coalesce(func.sum(WarehouseItem.quantity), 0).label("qty"),
+        )
+        .select_from(Warehouse)
+        .join(
+            WarehouseItem,
+            and_(
+                WarehouseItem.warehouse_id == Warehouse.id,
+                WarehouseItem.is_deleted == False,
+            ),
+            isouter=True,
+        )
+        .where(Warehouse.is_deleted == False)
+        .group_by(Warehouse.name)
+        .order_by(Warehouse.name)
+    ).all()
+
+    by_warehouse_qty = [
+        DonutQtyItem(name=row.name, qty=row.qty or 0) for row in by_warehouse_qty_rows
+    ]
+
+    accounted_rows = db.execute(
+        select(
+            WarehouseItem.is_accounted,
+            func.coalesce(func.sum(WarehouseItem.quantity), 0).label("qty"),
+        )
+        .where(WarehouseItem.is_deleted == False)
+        .group_by(WarehouseItem.is_accounted)
+    ).all()
+
+    accounted_map = {bool(row.is_accounted): row.qty or 0 for row in accounted_rows}
+    accounted_vs_not = [
+        DonutQtyItem(name="Учтено", qty=accounted_map.get(True, 0)),
+        DonutQtyItem(name="Не учтено", qty=accounted_map.get(False, 0)),
+    ]
+
+    by_warehouse_value_rows = db.execute(
+        select(
+            Warehouse.name,
+            func.coalesce(func.sum(WarehouseItem.quantity * price_expr), 0).label(
+                "value_rub"
+            ),
+        )
+        .select_from(Warehouse)
+        .join(
+            WarehouseItem,
+            and_(
+                WarehouseItem.warehouse_id == Warehouse.id,
+                WarehouseItem.is_deleted == False,
+            ),
+            isouter=True,
+        )
+        .join(
+            EquipmentType,
+            EquipmentType.id == WarehouseItem.equipment_type_id,
+            isouter=True,
+        )
+        .where(
+            Warehouse.is_deleted == False,
+            or_(EquipmentType.is_deleted == False, EquipmentType.id == None),
+        )
+        .group_by(Warehouse.name)
+        .order_by(Warehouse.name)
+    ).all()
+
+    by_warehouse_value = [
+        DonutValueItem(name=row.name, value_rub=float(row.value_rub or 0))
+        for row in by_warehouse_value_rows
+    ]
+
+    kpis = DashboardKpisOut(
+        total_cabinets=total_cabinets,
+        total_plc_in_cabinets=total_plc_in_cabinets,
+        total_plc_in_warehouses=total_plc_in_warehouses,
+        total_channels=total_channels,
+        total_warehouse_value_rub=float(total_warehouse_value_rub or 0),
+    )
+
+    donuts = DashboardDonutsOut(
+        by_category=by_category,
+        by_warehouse_qty=by_warehouse_qty,
+        accounted_vs_not=accounted_vs_not,
+        by_warehouse_value=by_warehouse_value,
+    )
+
+    return DashboardOverviewOut(kpis=kpis, donuts=donuts)
