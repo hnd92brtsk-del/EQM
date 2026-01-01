@@ -100,6 +100,30 @@
     },
     "units": "единиц"
   },
+  "menu": {
+    "root": "Menu",
+    "overview": "Overview",
+    "equipment": "Equipment",
+    "warehouse_items": "Warehouse Items",
+    "cabinets": "Cabinets",
+    "movements": "Movements",
+    "cabinets_group": "Cabinets",
+    "cabinet_items": "Cabinet Items",
+    "cabinet_composition": "Cabinet Composition",
+    "engineering": "Engineering",
+    "io_signals": "IO Signals",
+    "dcl": "DCL",
+    "dictionaries": "Dictionaries",
+    "warehouses": "Warehouses",
+    "manufacturers": "Manufacturers",
+    "nomenclature": "Nomenclature",
+    "locations": "Locations",
+    "equipment_categories": "Equipment Categories",
+    "admin": "Admin",
+    "admin_users": "Users",
+    "admin_sessions": "Sessions",
+    "admin_audit": "Audit Logs"
+  },
   "common": {
     "noAccess": "Недостаточно прав."
   }

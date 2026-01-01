@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+﻿import React, { useMemo } from "react";
 import {
   AppBar,
   Box,
@@ -17,12 +17,8 @@ import {
 } from "@mui/material";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
-import StorageRoundedIcon from "@mui/icons-material/StorageRounded";
-import AdminPanelSettingsRoundedIcon from "@mui/icons-material/AdminPanelSettingsRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
-import SettingsInputComponentRoundedIcon from "@mui/icons-material/SettingsInputComponentRounded";
-import SignalCellularAltRoundedIcon from "@mui/icons-material/SignalCellularAltRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import { NavLink } from "react-router-dom";
@@ -30,6 +26,8 @@ import { useTranslation } from "react-i18next";
 
 import { useAuth } from "../context/AuthContext";
 import { useThemeMode } from "../context/ThemeContext";
+import { Breadcrumbs } from "./Breadcrumbs";
+import { isAllowedForRole, navTree } from "../navigation/nav";
 
 const drawerWidth = 240;
 
@@ -41,50 +39,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const toggleDrawer = () => setMobileOpen((prev) => !prev);
 
-  const navSections = useMemo(
-    () => [
-      {
-        title: null,
-        items: [{ label: "Overview", to: "/dashboard", icon: <DashboardRoundedIcon /> }]
-      },
-      {
-        title: "Оборудование",
-        items: [{ label: "Складские позиции", to: "/warehouse-items", icon: <StorageRoundedIcon /> }]
-      },
-      {
-        title: "Шкафы",
-        items: [{ label: "Шкафные позиции", to: "/cabinet-items", icon: <Inventory2RoundedIcon /> }]
-      },
-      {
-        title: "Engineering",
-        items: [
-          { label: "IO Signals", to: "/io-signals", icon: <SignalCellularAltRoundedIcon /> },
-          { label: "DCL", to: "/engineering/dcl", icon: <SettingsInputComponentRoundedIcon /> }
-        ]
-      },
-      {
-        title: "Dictionaries",
-        items: [
-          { label: "Warehouses", to: "/warehouses", icon: <StorageRoundedIcon /> },
-          { label: "Cabinets", to: "/cabinets", icon: <Inventory2RoundedIcon /> },
-          { label: "Manufacturers", to: "/dictionaries/manufacturers", icon: <SettingsInputComponentRoundedIcon /> },
-          { label: "\u0422\u0438\u043f\u044b \u043e\u0431\u043e\u0440\u0443\u0434\u043e\u0432\u0430\u043d\u0438\u044f", to: "/dictionaries/equipment-categories", icon: <SettingsInputComponentRoundedIcon /> },
-          { label: "Nomenclature", to: "/dictionaries/equipment-types", icon: <SettingsInputComponentRoundedIcon /> },
-          { label: "Locations", to: "/dictionaries/locations", icon: <SettingsInputComponentRoundedIcon /> }
-        ]
-      }
-    ],
-    []
-  );
-
-  const adminItems = useMemo(
-    () => [
-      { label: "Users", to: "/admin/users" },
-      { label: "Sessions", to: "/admin/sessions" },
-      { label: "Audit Logs", to: "/admin/audit" }
-    ],
-    []
-  );
+  const navSections = useMemo(() => navTree, []);
 
   const drawer = (
     <Box sx={{ p: 2 }}>
@@ -92,62 +47,71 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         {t("app.title")}
       </Typography>
       <List>
-        {navSections.map((section) => (
-          <Box key={section.title ?? "overview"}>
-            {section.title && (
-              <Typography
-                variant="overline"
-                color="text.secondary"
-                sx={{ display: "block", mt: 2, mb: 0.5, px: 2 }}
-              >
-                {section.title}
-              </Typography>
-            )}
-            {section.items.map((item) => (
-              <ListItemButton
-                key={item.to}
-                component={NavLink}
-                to={item.to}
-                sx={{
-                  borderRadius: 2,
-                  mb: 0.5,
-                  "&.active": { backgroundColor: "rgba(30, 58, 95, 0.12)" }
-                }}
-              >
-                <ListItemIcon>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.label} />
-              </ListItemButton>
-            ))}
-          </Box>
-        ))}
+        {navSections
+          .filter((section) => isAllowedForRole(section, user?.role))
+          .map((section) => {
+            const children =
+              section.children?.filter(
+                (item) => isAllowedForRole(item, user?.role) && item.showInMenu !== false
+              ) ?? [];
+            if (section.path && section.showInMenu !== false) {
+              const SectionIcon = section.icon ?? DashboardRoundedIcon;
+              return (
+                <Box key={section.id}>
+                  <ListItemButton
+                    component={NavLink}
+                    to={section.path}
+                    sx={{
+                      borderRadius: 2,
+                      mb: 0.5,
+                      "&.active": { backgroundColor: "rgba(30, 58, 95, 0.12)" }
+                    }}
+                  >
+                    <ListItemIcon>
+                      <SectionIcon />
+                    </ListItemIcon>
+                    <ListItemText primary={t(section.labelKey)} />
+                  </ListItemButton>
+                </Box>
+              );
+            }
+            if (children.length === 0) {
+              return null;
+            }
+            return (
+              <Box key={section.id}>
+                <Typography
+                  variant="overline"
+                  color="text.secondary"
+                  sx={{ display: "block", mt: 2, mb: 0.5, px: 2 }}
+                >
+                  {t(section.labelKey)}
+                </Typography>
+                {children.map((item) => {
+                  const ItemIcon = item.icon ?? Inventory2RoundedIcon;
+                  return (
+                  <ListItemButton
+                    key={item.id}
+                    component={NavLink}
+                    to={item.path || "#"}
+                    sx={{
+                      borderRadius: 2,
+                      mb: 0.5,
+                      "&.active": { backgroundColor: "rgba(30, 58, 95, 0.12)" }
+                    }}
+                    disabled={!item.path}
+                  >
+                    <ListItemIcon>
+                      <ItemIcon />
+                    </ListItemIcon>
+                    <ListItemText primary={t(item.labelKey)} />
+                  </ListItemButton>
+                  );
+                })}
+              </Box>
+            );
+          })}
       </List>
-
-      {user?.role === "admin" && (
-        <Box sx={{ mt: 3 }}>
-          <Typography variant="overline" color="text.secondary">
-            Admin
-          </Typography>
-          <List>
-            {adminItems.map((item) => (
-              <ListItemButton
-                key={item.to}
-                component={NavLink}
-                to={item.to}
-                sx={{
-                  borderRadius: 2,
-                  mb: 0.5,
-                  "&.active": { backgroundColor: "rgba(30, 58, 95, 0.12)" }
-                }}
-              >
-                <ListItemIcon>
-                  <AdminPanelSettingsRoundedIcon />
-                </ListItemIcon>
-                <ListItemText primary={item.label} />
-              </ListItemButton>
-            ))}
-          </List>
-        </Box>
-      )}
     </Box>
   );
 
@@ -216,7 +180,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         <Box component="main" sx={{ flexGrow: 1 }}>
           <Toolbar />
-          <Box className="app-content">{children}</Box>
+          <Box className="app-content">
+            <Breadcrumbs />
+            {children}
+          </Box>
         </Box>
       </Box>
     </Box>
