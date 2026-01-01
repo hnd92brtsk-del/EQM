@@ -63,6 +63,43 @@
     "auditLogs": "Аудит",
     "sessions": "Сессии"
   },
+  "dashboard": {
+    "kpis": {
+      "total_cabinets": "Всего шкафов",
+      "total_plc_in_cabinets": "Всего ПЛК в шкафах",
+      "total_plc_in_warehouses": "Всего ПЛК на складах",
+      "total_channels": "Всего каналов",
+      "total_warehouse_value_rub": "Всего оборудования на сумму"
+    },
+    "titles": {
+      "by_type": "Распределение по типам",
+      "by_warehouse_qty": "Остатки по складам",
+      "accounted_vs_not": "Учтено / Не учтено",
+      "by_warehouse_value": "Стоимость по складам",
+      "recent_actions": "Последние действия",
+      "recent_logins": "Последние логины"
+    },
+    "columns": {
+      "action": "Действие",
+      "entity": "Объект",
+      "user": "Пользователь",
+      "date": "Дата",
+      "login": "Вход",
+      "logout": "Выход",
+      "reason": "Причина"
+    },
+    "common": {
+      "loading": "Загрузка",
+      "no_data": "Нет данных",
+      "last_rows": "Показано последних {{count}} записей"
+    },
+    "errors": {
+      "overview": "Не удалось загрузить данные дашборда. Проверьте /api/v1/dashboard/overview.",
+      "actions": "Не удалось загрузить действия.",
+      "logins": "Не удалось загрузить логины."
+    },
+    "units": "единиц"
+  },
   "common": {
     "noAccess": "Недостаточно прав."
   }

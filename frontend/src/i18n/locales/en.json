@@ -63,6 +63,43 @@
     "auditLogs": "Audit Logs",
     "sessions": "Sessions"
   },
+  "dashboard": {
+    "kpis": {
+      "total_cabinets": "Total cabinets",
+      "total_plc_in_cabinets": "Total PLCs in cabinets",
+      "total_plc_in_warehouses": "Total PLCs in warehouses",
+      "total_channels": "Total channels",
+      "total_warehouse_value_rub": "Total equipment value"
+    },
+    "titles": {
+      "by_type": "Distribution by type",
+      "by_warehouse_qty": "Stock by warehouse",
+      "accounted_vs_not": "Accounted / Not accounted",
+      "by_warehouse_value": "Value by warehouse",
+      "recent_actions": "Recent actions",
+      "recent_logins": "Recent logins"
+    },
+    "columns": {
+      "action": "Action",
+      "entity": "Entity",
+      "user": "User",
+      "date": "Date",
+      "login": "Login",
+      "logout": "Logout",
+      "reason": "Reason"
+    },
+    "common": {
+      "loading": "Loading",
+      "no_data": "No data",
+      "last_rows": "Showing last {{count}} records"
+    },
+    "errors": {
+      "overview": "Failed to load dashboard overview. Check /api/v1/dashboard/overview.",
+      "actions": "Failed to load actions.",
+      "logins": "Failed to load logins."
+    },
+    "units": "units"
+  },
   "common": {
     "noAccess": "Not enough permissions."
   }

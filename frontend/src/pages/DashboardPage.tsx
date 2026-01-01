@@ -123,7 +123,7 @@ async function safeFetchAllPages<T>(path: string, params: Record<string, any> = 
 }
 
 export default function DashboardPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [actionsSearch, setActionsSearch] = useState("");
   const [loginsSearch, setLoginsSearch] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -146,9 +146,23 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (overviewQuery.error) {
-      setErrorMessage("Не удалось загрузить данные дашборда. Проверьте /api/v1/dashboard/overview.");
+      setErrorMessage(t("dashboard.errors.overview"));
     }
-  }, [overviewQuery.error]);
+  }, [overviewQuery.error, t]);
+
+  const numberFormatter = useMemo(
+    () => new Intl.NumberFormat(i18n.language),
+    [i18n.language]
+  );
+  const currencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(i18n.language, {
+        style: "currency",
+        currency: "RUB",
+        maximumFractionDigits: 0
+      }),
+    [i18n.language]
+  );
 
   const recentActionsQuery = useQuery({
     queryKey: ["dashboard", "recent-actions"],
@@ -275,48 +289,48 @@ export default function DashboardPage() {
   const actionColumns = useMemo<ColumnDef<EquipmentAction>[]>(
     () => [
       {
-        header: "Действие",
+        header: t("dashboard.columns.action"),
         cell: ({ row }) => row.original.action || row.original.movement_type || "-"
       },
       {
-        header: "Объект",
+        header: t("dashboard.columns.entity"),
         cell: ({ row }) =>
           row.original.equipment_type ||
           row.original.entity ||
           (row.original.entity_id ? `ID ${row.original.entity_id}` : "-")
       },
       {
-        header: "Пользователь",
+        header: t("dashboard.columns.user"),
         cell: ({ row }) => row.original.username || row.original.actor_id || "-"
       },
       {
-        header: "Дата",
+        header: t("dashboard.columns.date"),
         cell: ({ row }) => row.original.created_at || "-"
       }
     ],
-    []
+    [t]
   );
 
   const loginColumns = useMemo<ColumnDef<RecentLogin>[]>(
     () => [
       {
-        header: "Пользователь",
+        header: t("dashboard.columns.user"),
         cell: ({ row }) => row.original.username || row.original.user_id || "-"
       },
       {
-        header: "Вход",
+        header: t("dashboard.columns.login"),
         cell: ({ row }) => row.original.started_at || "-"
       },
       {
-        header: "Выход",
+        header: t("dashboard.columns.logout"),
         cell: ({ row }) => row.original.ended_at || "-"
       },
       {
-        header: "Причина",
+        header: t("dashboard.columns.reason"),
         cell: ({ row }) => row.original.end_reason || "-"
       }
     ],
-    []
+    [t]
   );
 
   const kpis = overviewQuery.data?.kpis ?? {
@@ -342,11 +356,26 @@ export default function DashboardPage() {
       <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 2 }}>
         {
           [
-            { label: "Всего шкафов", value: kpis.total_cabinets },
-            { label: "Всего ПЛК в шкафах", value: kpis.total_plc_in_cabinets },
-            { label: "Всего ПЛК на складах", value: kpis.total_plc_in_warehouses },
-            { label: "Всего каналов", value: kpis.total_channels },
-            { label: "Всего оборудования на сумму", value: kpis.total_warehouse_value_rub }
+            {
+              label: t("dashboard.kpis.total_cabinets"),
+              value: numberFormatter.format(kpis.total_cabinets)
+            },
+            {
+              label: t("dashboard.kpis.total_plc_in_cabinets"),
+              value: numberFormatter.format(kpis.total_plc_in_cabinets)
+            },
+            {
+              label: t("dashboard.kpis.total_plc_in_warehouses"),
+              value: numberFormatter.format(kpis.total_plc_in_warehouses)
+            },
+            {
+              label: t("dashboard.kpis.total_channels"),
+              value: numberFormatter.format(kpis.total_channels)
+            },
+            {
+              label: t("dashboard.kpis.total_warehouse_value_rub"),
+              value: currencyFormatter.format(kpis.total_warehouse_value_rub)
+            }
           ].map((item) => (
             <Card key={item.label}>
               <CardContent>
@@ -355,7 +384,7 @@ export default function DashboardPage() {
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
                     <CircularProgress size={20} />
                     <Typography variant="body2" color="text.secondary">
-                      Загрузка
+                      {t("dashboard.common.loading")}
                     </Typography>
                   </Box>
                 ) : (
@@ -371,17 +400,17 @@ export default function DashboardPage() {
         <Card>
           <CardContent>
             <Typography variant="h6" sx={{ mb: 2 }}>
-              Распределение по типам
+              {t("dashboard.titles.by_type")}
             </Typography>
             {overviewQuery.isLoading ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CircularProgress size={20} />
                 <Typography variant="body2" color="text.secondary">
-                  Загрузка
+                  {t("dashboard.common.loading")}
                 </Typography>
               </Box>
             ) : donuts.by_category.length === 0 ? (
-              <Typography color="text.secondary">Нет данных</Typography>
+              <Typography color="text.secondary">{t("dashboard.common.no_data")}</Typography>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
@@ -390,7 +419,12 @@ export default function DashboardPage() {
                       <Cell key={`type-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip
+                    formatter={(value, _name, props) => [
+                      numberFormatter.format(Number(value)),
+                      props.payload?.name ?? ""
+                    ]}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -400,17 +434,17 @@ export default function DashboardPage() {
         <Card>
           <CardContent>
             <Typography variant="h6" sx={{ mb: 2 }}>
-              Остатки по складам
+              {t("dashboard.titles.by_warehouse_qty")}
             </Typography>
             {overviewQuery.isLoading ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CircularProgress size={20} />
                 <Typography variant="body2" color="text.secondary">
-                  Загрузка
+                  {t("dashboard.common.loading")}
                 </Typography>
               </Box>
             ) : donuts.by_warehouse_qty.length === 0 ? (
-              <Typography color="text.secondary">Нет данных</Typography>
+              <Typography color="text.secondary">{t("dashboard.common.no_data")}</Typography>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
@@ -419,7 +453,12 @@ export default function DashboardPage() {
                       <Cell key={`warehouse-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => [`${value} единиц`, ""]} />
+                  <Tooltip
+                    formatter={(value, _name, props) => [
+                      `${numberFormatter.format(Number(value))} ${t("dashboard.units")}`,
+                      props.payload?.name ?? ""
+                    ]}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -429,17 +468,17 @@ export default function DashboardPage() {
         <Card>
           <CardContent>
             <Typography variant="h6" sx={{ mb: 2 }}>
-              Учтено / Не учтено
+              {t("dashboard.titles.accounted_vs_not")}
             </Typography>
             {overviewQuery.isLoading ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CircularProgress size={20} />
                 <Typography variant="body2" color="text.secondary">
-                  Загрузка
+                  {t("dashboard.common.loading")}
                 </Typography>
               </Box>
             ) : donuts.accounted_vs_not.length === 0 ? (
-              <Typography color="text.secondary">Нет данных</Typography>
+              <Typography color="text.secondary">{t("dashboard.common.no_data")}</Typography>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
@@ -448,7 +487,12 @@ export default function DashboardPage() {
                       <Cell key={`accounting-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip
+                    formatter={(value, _name, props) => [
+                      numberFormatter.format(Number(value)),
+                      props.payload?.name ?? ""
+                    ]}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -458,17 +502,17 @@ export default function DashboardPage() {
         <Card>
           <CardContent>
             <Typography variant="h6" sx={{ mb: 2 }}>
-              Стоимость по складам
+              {t("dashboard.titles.by_warehouse_value")}
             </Typography>
             {overviewQuery.isLoading ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CircularProgress size={20} />
                 <Typography variant="body2" color="text.secondary">
-                  Загрузка
+                  {t("dashboard.common.loading")}
                 </Typography>
               </Box>
             ) : donuts.by_warehouse_value.length === 0 ? (
-              <Typography color="text.secondary">Нет данных</Typography>
+              <Typography color="text.secondary">{t("dashboard.common.no_data")}</Typography>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
@@ -477,7 +521,12 @@ export default function DashboardPage() {
                       <Cell key={`warehouse-value-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => [`${value} ₽`, ""]} />
+                  <Tooltip
+                    formatter={(value, _name, props) => [
+                      currencyFormatter.format(Number(value)),
+                      props.payload?.name ?? ""
+                    ]}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -488,7 +537,7 @@ export default function DashboardPage() {
       <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 2 }}>
         <Card>
           <CardContent sx={{ display: "grid", gap: 2 }}>
-            <Typography variant="h6">Последние действия</Typography>
+            <Typography variant="h6">{t("dashboard.titles.recent_actions")}</Typography>
             <TextField
               label={t("actions.search")}
               value={actionsSearch}
@@ -499,27 +548,27 @@ export default function DashboardPage() {
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CircularProgress size={20} />
                 <Typography variant="body2" color="text.secondary">
-                  Загрузка
+                  {t("dashboard.common.loading")}
                 </Typography>
               </Box>
             ) : recentActionsQuery.error ? (
               <Typography variant="body2" color="error">
-                Не удалось загрузить действия.
+                {t("dashboard.errors.actions")}
               </Typography>
             ) : actionRows.length === 0 ? (
-              <Typography color="text.secondary">Нет данных</Typography>
+              <Typography color="text.secondary">{t("dashboard.common.no_data")}</Typography>
             ) : (
               <DataTable data={actionRows} columns={actionColumns} />
             )}
             <Typography variant="caption" color="text.secondary">
-              Показано последних {MAX_TABLE_ROWS} записей.
+              {t("dashboard.common.last_rows", { count: MAX_TABLE_ROWS })}
             </Typography>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent sx={{ display: "grid", gap: 2 }}>
-            <Typography variant="h6">Последние логины</Typography>
+            <Typography variant="h6">{t("dashboard.titles.recent_logins")}</Typography>
             <TextField
               label={t("actions.search")}
               value={loginsSearch}
@@ -530,20 +579,20 @@ export default function DashboardPage() {
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CircularProgress size={20} />
                 <Typography variant="body2" color="text.secondary">
-                  Загрузка
+                  {t("dashboard.common.loading")}
                 </Typography>
               </Box>
             ) : recentLoginsQuery.error ? (
               <Typography variant="body2" color="error">
-                Не удалось загрузить логины.
+                {t("dashboard.errors.logins")}
               </Typography>
             ) : loginRows.length === 0 ? (
-              <Typography color="text.secondary">Нет данных</Typography>
+              <Typography color="text.secondary">{t("dashboard.common.no_data")}</Typography>
             ) : (
               <DataTable data={loginRows} columns={loginColumns} />
             )}
             <Typography variant="caption" color="text.secondary">
-              Показано последних {MAX_TABLE_ROWS} записей.
+              {t("dashboard.common.last_rows", { count: MAX_TABLE_ROWS })}
             </Typography>
           </CardContent>
         </Card>
