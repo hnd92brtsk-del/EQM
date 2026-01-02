@@ -6,28 +6,22 @@ import {
   IconButton,
   ToggleButton,
   ToggleButtonGroup,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
   Toolbar,
   Tooltip,
   Typography,
   Button
 } from "@mui/material";
-import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
-import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
-import { NavLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { useAuth } from "../context/AuthContext";
 import { useThemeMode } from "../context/ThemeContext";
 import { Breadcrumbs } from "./Breadcrumbs";
-import { isAllowedForRole, navTree } from "../navigation/nav";
+import { navTree } from "../navigation/nav";
+import { SidebarNavTree, useAutoOpenGroups } from "./SidebarNavTree";
 
 const drawerWidth = 240;
 
@@ -40,78 +34,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const toggleDrawer = () => setMobileOpen((prev) => !prev);
 
   const navSections = useMemo(() => navTree, []);
+  const { openGroups, setOpenGroups } = useAutoOpenGroups(navSections, user?.role);
 
   const drawer = (
     <Box sx={{ p: 2 }}>
       <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
         {t("app.title")}
       </Typography>
-      <List>
-        {navSections
-          .filter((section) => isAllowedForRole(section, user?.role))
-          .map((section) => {
-            const children =
-              section.children?.filter(
-                (item) => isAllowedForRole(item, user?.role) && item.showInMenu !== false
-              ) ?? [];
-            if (section.path && section.showInMenu !== false) {
-              const SectionIcon = section.icon ?? DashboardRoundedIcon;
-              return (
-                <Box key={section.id}>
-                  <ListItemButton
-                    component={NavLink}
-                    to={section.path}
-                    sx={{
-                      borderRadius: 2,
-                      mb: 0.5,
-                      "&.active": { backgroundColor: "rgba(30, 58, 95, 0.12)" }
-                    }}
-                  >
-                    <ListItemIcon>
-                      <SectionIcon />
-                    </ListItemIcon>
-                    <ListItemText primary={t(section.labelKey)} />
-                  </ListItemButton>
-                </Box>
-              );
-            }
-            if (children.length === 0) {
-              return null;
-            }
-            return (
-              <Box key={section.id}>
-                <Typography
-                  variant="overline"
-                  color="text.secondary"
-                  sx={{ display: "block", mt: 2, mb: 0.5, px: 2 }}
-                >
-                  {t(section.labelKey)}
-                </Typography>
-                {children.map((item) => {
-                  const ItemIcon = item.icon ?? Inventory2RoundedIcon;
-                  return (
-                  <ListItemButton
-                    key={item.id}
-                    component={NavLink}
-                    to={item.path || "#"}
-                    sx={{
-                      borderRadius: 2,
-                      mb: 0.5,
-                      "&.active": { backgroundColor: "rgba(30, 58, 95, 0.12)" }
-                    }}
-                    disabled={!item.path}
-                  >
-                    <ListItemIcon>
-                      <ItemIcon />
-                    </ListItemIcon>
-                    <ListItemText primary={t(item.labelKey)} />
-                  </ListItemButton>
-                  );
-                })}
-              </Box>
-            );
-          })}
-      </List>
+      <SidebarNavTree
+        items={navSections}
+        role={user?.role}
+        openGroups={openGroups}
+        setOpenGroups={setOpenGroups}
+      />
     </Box>
   );
 
