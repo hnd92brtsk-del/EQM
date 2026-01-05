@@ -13,9 +13,15 @@ class SignalType(enum.Enum):
 
 
 class MeasurementType(enum.Enum):
-    mA_4_20 = "4-20mA"
-    v_0_10 = "0-10V"
-    other = "other"
+    mA_4_20_ai = "4-20mA (AI)"
+    mA_0_20_ai = "0-20mA (AI)"
+    v_0_10_ai = "0-10V (AI)"
+    pt100_rtd_ai = "Pt100 (RTD AI)"
+    pt1000_rtd_ai = "Pt1000 (RTD AI)"
+    m50_rtd_ai = "M50 (RTD AI)"
+    v_24_di = "24V (DI)"
+    v_220_di = "220V (DI)"
+    mA_8_16_di = "8-16mA (DI)"
 
 
 class IOSignal(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):

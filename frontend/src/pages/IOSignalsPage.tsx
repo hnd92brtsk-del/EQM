@@ -61,9 +61,15 @@ const signalTypeOptions = [
 ];
 
 const measurementOptions = [
-  { value: "4-20mA", label: "4-20mA" },
-  { value: "0-10V", label: "0-10V" },
-  { value: "other", label: "other" }
+  { value: "4-20mA (AI)", label: "4-20mA (AI)" },
+  { value: "0-20mA (AI)", label: "0-20mA (AI)" },
+  { value: "0-10V (AI)", label: "0-10V (AI)" },
+  { value: "Pt100 (RTD AI)", label: "Pt100 (RTD AI)" },
+  { value: "Pt1000 (RTD AI)", label: "Pt1000 (RTD AI)" },
+  { value: "M50 (RTD AI)", label: "M50 (RTD AI)" },
+  { value: "24V (DI)", label: "24V (DI)" },
+  { value: "220V (DI)", label: "220V (DI)" },
+  { value: "8-16mA (DI)", label: "8-16mA (DI)" }
 ];
 
 const sortOptions = [
@@ -468,7 +474,7 @@ export default function IOSignalsPage() {
                       signal_name: "",
                       plc_channel_address: "",
                       signal_type: "AI",
-                      measurement_type: "4-20mA",
+                      measurement_type: "4-20mA (AI)",
                       terminal_connection: "",
                       sensor_range: "",
                       engineering_units: ""
