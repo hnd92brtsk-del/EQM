@@ -67,6 +67,12 @@ function buildTree(locations: Location[]): LocationNode[] {
   return roots;
 }
 
+function sortTree(nodes: LocationNode[]): LocationNode[] {
+  return nodes
+    .map((node) => ({ ...node, children: sortTree(node.children) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 function filterTree(nodes: LocationNode[], query: string): LocationNode[] {
   if (!query.trim()) {
     return nodes;
@@ -107,8 +113,13 @@ export default function LocationsPage() {
     }
   }, [locationsQuery.error]);
 
-  const tree = useMemo(() => buildTree(locationsQuery.data || []), [locationsQuery.data]);
+  const tree = useMemo(() => sortTree(buildTree(locationsQuery.data || [])), [locationsQuery.data]);
   const filteredTree = useMemo(() => filterTree(tree, q), [tree, q]);
+  const locationMap = useMemo(() => {
+    const map = new Map<number, Location>();
+    (locationsQuery.data || []).forEach((loc) => map.set(loc.id, loc));
+    return map;
+  }, [locationsQuery.data]);
 
   const parentOptions = useMemo(() => {
     const options = (locationsQuery.data || []).map((loc) => ({
@@ -216,10 +227,25 @@ export default function LocationsPage() {
     });
   };
 
+  const buildBreadcrumb = (nodeId: number) => {
+    const parts: string[] = [];
+    let current = locationMap.get(nodeId);
+    while (current && current.parent_id) {
+      const parent = locationMap.get(current.parent_id);
+      if (!parent) {
+        break;
+      }
+      parts.unshift(parent.name);
+      current = parent;
+    }
+    return parts.join(" / ");
+  };
+
   const renderNode = (node: LocationNode, level: number) => {
     const hasChildren = node.children.length > 0;
     const expanded = expandedIds.has(node.id);
     const forceExpand = q.trim().length > 0;
+    const breadcrumb = buildBreadcrumb(node.id);
 
     return (
       <Box key={node.id} sx={{ display: "grid", gap: 0.5 }}>
@@ -231,10 +257,17 @@ export default function LocationsPage() {
           ) : (
             <Box sx={{ width: 32 }} />
           )}
-          <Typography sx={{ fontWeight: 500 }}>
-            {node.name}
-            {node.is_deleted ? " (deleted)" : ""}
-          </Typography>
+          <Box sx={{ display: "grid" }}>
+            <Typography sx={{ fontWeight: 500 }}>
+              {node.name}
+              {node.is_deleted ? " (deleted)" : ""}
+            </Typography>
+            {breadcrumb ? (
+              <Typography variant="body2" color="text.secondary">
+                {breadcrumb}
+              </Typography>
+            ) : null}
+          </Box>
           <Box sx={{ flexGrow: 1 }} />
           {canWrite && (
             <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
