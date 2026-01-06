@@ -1,10 +1,5 @@
 import type { SvgIconComponent } from "@mui/icons-material";
-import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
-import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
-import StorageRoundedIcon from "@mui/icons-material/StorageRounded";
-import AdminPanelSettingsRoundedIcon from "@mui/icons-material/AdminPanelSettingsRounded";
-import SettingsInputComponentRoundedIcon from "@mui/icons-material/SettingsInputComponentRounded";
-import SignalCellularAltRoundedIcon from "@mui/icons-material/SignalCellularAltRounded";
+import { AdminGearIcon, CabinetIcon, IndexIcon, NumbersSignalIcon, WarehouseIcon } from "../icons";
 
 export type NavRole = "viewer" | "engineer" | "admin";
 
@@ -27,7 +22,7 @@ export const navTree: NavItem[] = [
     labelRu: "Обзор",
     labelEn: "Overview",
     path: "/dashboard",
-    icon: DashboardRoundedIcon,
+    icon: IndexIcon,
     roles: ["viewer", "engineer", "admin"]
   },
   {
@@ -43,7 +38,7 @@ export const navTree: NavItem[] = [
         labelRu: "Складские позиции",
         labelEn: "Warehouse Items",
         path: "/warehouse-items",
-        icon: StorageRoundedIcon,
+        icon: WarehouseIcon,
         roles: ["viewer", "engineer", "admin"]
       },
       {
@@ -52,7 +47,7 @@ export const navTree: NavItem[] = [
         labelRu: "Cabinets",
         labelEn: "Cabinets",
         path: "/cabinets",
-        icon: Inventory2RoundedIcon,
+        icon: CabinetIcon,
         roles: ["viewer", "engineer", "admin"]
       },
       {
@@ -79,7 +74,7 @@ export const navTree: NavItem[] = [
         labelRu: "Шкафные позиции",
         labelEn: "Cabinet Items",
         path: "/cabinet-items",
-        icon: Inventory2RoundedIcon,
+        icon: CabinetIcon,
         roles: ["viewer", "engineer", "admin"]
       },
       {
@@ -106,7 +101,7 @@ export const navTree: NavItem[] = [
         labelRu: "IO Signals",
         labelEn: "IO Signals",
         path: "/io-signals",
-        icon: SignalCellularAltRoundedIcon,
+        icon: NumbersSignalIcon,
         roles: ["viewer", "engineer", "admin"]
       },
       {
@@ -115,7 +110,7 @@ export const navTree: NavItem[] = [
         labelRu: "DCL",
         labelEn: "DCL",
         path: "/engineering/dcl",
-        icon: SettingsInputComponentRoundedIcon,
+        icon: NumbersSignalIcon,
         roles: ["viewer", "engineer", "admin"]
       }
     ]
@@ -133,7 +128,7 @@ export const navTree: NavItem[] = [
         labelRu: "Warehouses",
         labelEn: "Warehouses",
         path: "/warehouses",
-        icon: StorageRoundedIcon,
+        icon: WarehouseIcon,
         roles: ["viewer", "engineer", "admin"]
       },
       {
@@ -142,7 +137,7 @@ export const navTree: NavItem[] = [
         labelRu: "Manufacturers",
         labelEn: "Manufacturers",
         path: "/dictionaries/manufacturers",
-        icon: SettingsInputComponentRoundedIcon,
+        icon: IndexIcon,
         roles: ["viewer", "engineer", "admin"]
       },
       {
@@ -151,7 +146,7 @@ export const navTree: NavItem[] = [
         labelRu: "Номенклатура",
         labelEn: "Nomenclature",
         path: "/dictionaries/equipment-types",
-        icon: SettingsInputComponentRoundedIcon,
+        icon: IndexIcon,
         roles: ["viewer", "engineer", "admin"]
       },
       {
@@ -160,7 +155,7 @@ export const navTree: NavItem[] = [
         labelRu: "Locations",
         labelEn: "Locations",
         path: "/dictionaries/locations",
-        icon: SettingsInputComponentRoundedIcon,
+        icon: IndexIcon,
         roles: ["viewer", "engineer", "admin"]
       },
       {
@@ -187,7 +182,7 @@ export const navTree: NavItem[] = [
         labelRu: "Users",
         labelEn: "Users",
         path: "/admin/users",
-        icon: AdminPanelSettingsRoundedIcon,
+        icon: AdminGearIcon,
         roles: ["admin"]
       },
       {
@@ -196,7 +191,7 @@ export const navTree: NavItem[] = [
         labelRu: "Sessions",
         labelEn: "Sessions",
         path: "/admin/sessions",
-        icon: AdminPanelSettingsRoundedIcon,
+        icon: AdminGearIcon,
         roles: ["admin"]
       },
       {
@@ -205,7 +200,7 @@ export const navTree: NavItem[] = [
         labelRu: "Audit Logs",
         labelEn: "Audit Logs",
         path: "/admin/audit",
-        icon: AdminPanelSettingsRoundedIcon,
+        icon: AdminGearIcon,
         roles: ["admin"]
       }
     ]
