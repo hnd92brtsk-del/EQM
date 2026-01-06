@@ -1,5 +1,6 @@
 import type { SvgIconComponent } from "@mui/icons-material";
 import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
+import PeopleOutlineRoundedIcon from "@mui/icons-material/PeopleOutlineRounded";
 import { AdminGearIcon, CabinetIcon, IndexIcon, NumbersSignalIcon, WarehouseIcon } from "../icons";
 
 export type NavRole = "viewer" | "engineer" | "admin";
@@ -24,6 +25,15 @@ export const navTree: NavItem[] = [
     labelEn: "Overview",
     path: "/dashboard",
     icon: IndexIcon,
+    roles: ["viewer", "engineer", "admin"]
+  },
+  {
+    id: "personnel",
+    labelKey: "menu.personnel",
+    labelRu: "Персонал",
+    labelEn: "Personnel",
+    path: "/personnel",
+    icon: PeopleOutlineRoundedIcon,
     roles: ["viewer", "engineer", "admin"]
   },
   {

@@ -20,6 +20,18 @@ export const getHelpSections = (t: TFunction): HelpSection[] => [
     )
   },
   {
+    id: "personnel",
+    title: t("menu.personnel"),
+    content: (
+      <Box sx={{ display: "grid", gap: 1 }}>
+        <Typography variant="body1">{t("help.personnel_overview")}</Typography>
+        <Typography variant="body2" color="text.secondary">
+          {t("help.personnel_details")}
+        </Typography>
+      </Box>
+    )
+  },
+  {
     id: "equipment-warehouse-items",
     title: `${t("menu.equipment")} / ${t("menu.warehouse_items")}`,
     content: (

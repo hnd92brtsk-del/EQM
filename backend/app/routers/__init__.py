@@ -13,6 +13,7 @@ from app.routers import movements
 from app.routers import audit_logs
 from app.routers import sessions
 from app.routers import dashboard
+from app.routers import personnel
 
 __all__ = [
     "auth",

@@ -61,6 +61,7 @@
     "movements": "Movements",
     "ioSignals": "I/O Signals",
     "help": "Help",
+    "personnel": "Personnel",
     "auditLogs": "Audit Logs",
     "sessions": "Sessions"
   },
@@ -124,7 +125,12 @@
     "admin_users": "Users",
     "admin_sessions": "Sessions",
     "admin_audit": "Audit Logs",
-    "help": "Help"
+    "help": "Help",
+    "personnel": "Personnel"
+  },
+  "help": {
+    "personnel_overview": "Personnel is available in the left sidebar. The list supports search, filters, and sorting; admins can add, edit, delete, and restore records.",
+    "personnel_details": "Opening a row shows the Personnel card with profile fields, photo upload, competencies, training with expiry warnings and reminder offsets, and notes."
   },
   "common": {
     "noAccess": "Not enough permissions."

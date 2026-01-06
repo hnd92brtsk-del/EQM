@@ -9,11 +9,14 @@ This document explains how to maintain the Help section in EQM.
   update the relevant help section description.
 - Keep the help content focused on UI actions, navigation, and page nesting.
   Avoid business logic details.
+  When a new field or action is introduced (such as Personnel reminders),
+  add a short description to the matching help section.
 
 ## Files to update
 - `frontend/src/pages/helpSections.tsx`: Section titles and descriptions.
 - `frontend/src/i18n/locales/en.json` and `frontend/src/i18n/locales/ru.json`: Labels such as `menu.help` and `pages.help`.
 - `frontend/src/navigation/nav.ts`: The help entry (hidden from sidebar).
+  If you add a new module like Personnel, add its section text under the `help` keys in i18n.
 
 ## Checkpoints
 - Table of contents anchors must match section `id` values.

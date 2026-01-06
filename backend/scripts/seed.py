@@ -12,7 +12,7 @@ load_dotenv(BASE_DIR / ".env")
 from app.db.session import SessionLocal
 from app.core.security import hash_password, verify_password
 from app.models.security import User, UserRole
-from app.models.core import Manufacturer, EquipmentType, EquipmentCategory, Warehouse
+from app.models.core import Manufacturer, EquipmentType, EquipmentCategory, Warehouse, Personnel
 
 
 def run():
@@ -91,6 +91,17 @@ def run():
                 category.deleted_by_id = None
 
         db.commit()
+        existing_personnel = db.scalar(select(Personnel).limit(1))
+        if not existing_personnel:
+            person = Personnel(
+                first_name="Иван",
+                last_name="Иванов",
+                position="Инженер",
+                department="АСУ",
+                organisation="EQM Demo"
+            )
+            db.add(person)
+            db.commit()
         print("Seed completed.")
     finally:
         db.close()

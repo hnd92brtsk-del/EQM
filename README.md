@@ -368,3 +368,5 @@ EQM
 └─ START_PROMPT_FOR_CODEX v1.0.md
 
 ```
+
+Personnel module: staff profiles, competencies, and training records.
