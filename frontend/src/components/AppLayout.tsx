@@ -15,7 +15,9 @@ import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
+import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
 import { useThemeMode } from "../context/ThemeContext";
@@ -30,6 +32,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { t, i18n } = useTranslation();
   const { mode, toggleTheme } = useThemeMode();
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const navigate = useNavigate();
 
   const toggleDrawer = () => setMobileOpen((prev) => !prev);
 
@@ -79,6 +82,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <Tooltip title={t(mode === "light" ? "theme.dark" : "theme.light")}>
             <IconButton color="inherit" onClick={toggleTheme}>
               {mode === "light" ? <DarkModeRoundedIcon /> : <LightModeRoundedIcon />}
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={t("menu.help")}>
+            <IconButton color="inherit" onClick={() => navigate("/help")}>
+              <HelpOutlineRoundedIcon />
             </IconButton>
           </Tooltip>
           <Button color="inherit" startIcon={<LogoutRoundedIcon />} onClick={logout}>

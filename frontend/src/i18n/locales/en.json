@@ -60,6 +60,7 @@
     "cabinetItems": "Cabinet Items",
     "movements": "Movements",
     "ioSignals": "I/O Signals",
+    "help": "Help",
     "auditLogs": "Audit Logs",
     "sessions": "Sessions"
   },
@@ -122,7 +123,8 @@
     "admin": "Admin",
     "admin_users": "Users",
     "admin_sessions": "Sessions",
-    "admin_audit": "Audit Logs"
+    "admin_audit": "Audit Logs",
+    "help": "Help"
   },
   "common": {
     "noAccess": "Not enough permissions."

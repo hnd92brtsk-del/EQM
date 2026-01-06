@@ -61,7 +61,8 @@
     "movements": "Перемещения",
     "ioSignals": "I/O сигналы",
     "auditLogs": "Аудит",
-    "sessions": "Сессии"
+    "sessions": "Сессии",
+    "help": "Помощь"
   },
   "dashboard": {
     "kpis": {
@@ -122,7 +123,8 @@
     "admin": "Admin",
     "admin_users": "Users",
     "admin_sessions": "Sessions",
-    "admin_audit": "Audit Logs"
+    "admin_audit": "Audit Logs",
+    "help": "Помощь"
   },
   "common": {
     "noAccess": "Недостаточно прав."
