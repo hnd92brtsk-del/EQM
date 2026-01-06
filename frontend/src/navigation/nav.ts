@@ -42,11 +42,11 @@ export const navTree: NavItem[] = [
         roles: ["viewer", "engineer", "admin"]
       },
       {
-        id: "cabinets",
-        labelKey: "menu.cabinets",
-        labelRu: "Cabinets",
-        labelEn: "Cabinets",
-        path: "/cabinets",
+        id: "cabinet-items",
+        labelKey: "menu.cabinet_items",
+        labelRu: "Шкафные позиции",
+        labelEn: "Cabinet Items",
+        path: "/cabinet-items",
         icon: CabinetIcon,
         roles: ["viewer", "engineer", "admin"]
       },
@@ -69,11 +69,11 @@ export const navTree: NavItem[] = [
     roles: ["viewer", "engineer", "admin"],
     children: [
       {
-        id: "cabinet-items",
-        labelKey: "menu.cabinet_items",
-        labelRu: "Шкафные позиции",
-        labelEn: "Cabinet Items",
-        path: "/cabinet-items",
+        id: "cabinets",
+        labelKey: "menu.cabinets",
+        labelRu: "Cabinets",
+        labelEn: "Cabinets",
+        path: "/cabinets",
         icon: CabinetIcon,
         roles: ["viewer", "engineer", "admin"]
       },
