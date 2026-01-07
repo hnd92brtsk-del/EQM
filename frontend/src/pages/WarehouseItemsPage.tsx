@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Box,
-  Button,
-  Card,
+  Box,Card,
   CardContent,
   FormControl,
   FormControlLabel,
@@ -24,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { DataTable } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
+import { AppButton } from "../components/ui/AppButton";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 
@@ -404,7 +403,7 @@ export default function WarehouseItemsPage() {
         header: "Actions",
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <Button
+            <AppButton
               size="small"
               startIcon={<EditRoundedIcon />}
               onClick={() =>
@@ -433,8 +432,8 @@ export default function WarehouseItemsPage() {
               }
             >
               Edit
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               size="small"
               color={row.original.is_deleted ? "success" : "error"}
               startIcon={
@@ -447,7 +446,7 @@ export default function WarehouseItemsPage() {
               }
             >
               {row.original.is_deleted ? "Restore" : "Delete"}
-            </Button>
+            </AppButton>
           </Box>
         )
       });
@@ -609,12 +608,12 @@ export default function WarehouseItemsPage() {
           </Box>
 
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-            <Button variant="contained" onClick={openToWarehouseDialog}>
+            <AppButton variant="contained" onClick={openToWarehouseDialog}>
               На склад
-            </Button>
-            <Button variant="contained" onClick={openToCabinetDialog}>
+            </AppButton>
+            <AppButton variant="contained" onClick={openToCabinetDialog}>
               Со склада в шкаф
-            </Button>
+            </AppButton>
           </Box>
 
           <DataTable data={itemsQuery.data?.items || []} columns={columns} />
@@ -637,3 +636,6 @@ export default function WarehouseItemsPage() {
     </Box>
   );
 }
+
+
+

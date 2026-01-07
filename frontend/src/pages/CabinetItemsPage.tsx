@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Box,
-  Button,
-  Card,
+  Box,Card,
   CardContent,
   Dialog,
   DialogActions,
@@ -29,6 +27,7 @@ import { DataTable } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
+import { AppButton } from "../components/ui/AppButton";
 
 const sortOptions = [
   { value: "-created_at", label: "По дате (новые)" },
@@ -195,7 +194,7 @@ export default function CabinetItemsPage() {
         header: "Actions",
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <Button
+            <AppButton
               size="small"
               startIcon={<EditRoundedIcon />}
               onClick={() => {
@@ -205,8 +204,8 @@ export default function CabinetItemsPage() {
               }}
             >
               {t("actions.edit")}
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               size="small"
               color={row.original.is_deleted ? "success" : "error"}
               startIcon={
@@ -219,7 +218,7 @@ export default function CabinetItemsPage() {
               }
             >
               {row.original.is_deleted ? "Restore" : "Delete"}
-            </Button>
+            </AppButton>
           </Box>
         )
       });
@@ -368,8 +367,8 @@ export default function CabinetItemsPage() {
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setEditOpen(false)}>{t("actions.cancel")}</Button>
-            <Button
+            <AppButton onClick={() => setEditOpen(false)}>{t("actions.cancel")}</AppButton>
+            <AppButton
               variant="contained"
               onClick={() => {
                 if (editItem) {
@@ -379,7 +378,7 @@ export default function CabinetItemsPage() {
               }}
             >
               {t("actions.save")}
-            </Button>
+            </AppButton>
           </DialogActions>
         </Dialog>
       )}
@@ -388,3 +387,6 @@ export default function CabinetItemsPage() {
     </Box>
   );
 }
+
+
+

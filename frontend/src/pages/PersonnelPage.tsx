@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Box,
-  Button,
-  Card,
+  Box,Card,
   CardContent,
   FormControl,
   FormControlLabel,
@@ -36,6 +34,7 @@ import {
   updatePersonnel
 } from "../api/personnel";
 import { useAuth } from "../context/AuthContext";
+import { AppButton } from "../components/ui/AppButton";
 
 type UserOption = { id: number; username: string };
 
@@ -147,11 +146,11 @@ export default function PersonnelPage() {
       {
         header: "Full name",
         cell: ({ row }) => (
-          <Button size="small" onClick={() => navigate(`/personnel/${row.original.id}`)}>
+          <AppButton size="small" onClick={() => navigate(`/personnel/${row.original.id}`)}>
             {[row.original.last_name, row.original.first_name, row.original.middle_name]
               .filter(Boolean)
               .join(" ")}
-          </Button>
+          </AppButton>
         )
       },
       { header: "Position", accessorKey: "position" },
@@ -175,7 +174,7 @@ export default function PersonnelPage() {
         header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <Button
+            <AppButton
               size="small"
               startIcon={<EditRoundedIcon />}
               onClick={() =>
@@ -209,8 +208,8 @@ export default function PersonnelPage() {
               }
             >
               {t("actions.edit")}
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               size="small"
               color={row.original.is_deleted ? "success" : "error"}
               startIcon={row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />}
@@ -221,7 +220,7 @@ export default function PersonnelPage() {
               }
             >
               {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
-            </Button>
+            </AppButton>
           </Box>
         )
       });
@@ -306,7 +305,7 @@ export default function PersonnelPage() {
             )}
             <Box sx={{ flexGrow: 1 }} />
             {canWrite && (
-              <Button
+              <AppButton
                 variant="contained"
                 startIcon={<AddRoundedIcon />}
                 onClick={() =>
@@ -344,7 +343,7 @@ export default function PersonnelPage() {
                 }
               >
                 {t("actions.add")}
-              </Button>
+              </AppButton>
             )}
           </Box>
 
@@ -369,3 +368,6 @@ export default function PersonnelPage() {
     </Box>
   );
 }
+
+
+

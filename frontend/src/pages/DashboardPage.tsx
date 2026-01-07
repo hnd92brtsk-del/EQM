@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Box,
@@ -83,7 +83,16 @@ type Session = {
 
 type User = { id: number; username: string };
 
-const CHART_COLORS = ["#1E3A5F", "#D97B41", "#7BA3C1", "#F0B37E", "#9BBF8B", "#C8D4E3"];
+const CHART_COLORS = [
+  "#00c49a",
+  "#2ba3ff",
+  "#f4a300",
+  "#14e0b0",
+  "#6ac5ff",
+  "#ffbf3c",
+  "#0aa37f",
+  "#1f78d1"
+];
 const MAX_TABLE_ROWS = 10;
 const PAGE_SIZE = 200;
 
@@ -120,6 +129,43 @@ async function safeFetchAllPages<T>(path: string, params: Record<string, any> = 
   } catch {
     return [];
   }
+}
+
+type KpiCardProps = {
+  label: string;
+  value: string;
+  color: string;
+  loading?: boolean;
+};
+
+function KpiCard({ label, value, color, loading }: KpiCardProps) {
+  return (
+    <Card>
+      <CardContent sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
+        <Box
+          sx={{
+            width: 6,
+            height: 44,
+            borderRadius: 8,
+            backgroundColor: color
+          }}
+        />
+        <Box sx={{ display: "grid", gap: 0.5 }}>
+          <Typography color="text.secondary">{label}</Typography>
+          {loading ? (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.5 }}>
+              <CircularProgress size={20} />
+              <Typography variant="body2" color="text.secondary">
+                {value}
+              </Typography>
+            </Box>
+          ) : (
+            <Typography variant="h5">{value}</Typography>
+          )}
+        </Box>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function DashboardPage() {
@@ -164,7 +210,7 @@ export default function DashboardPage() {
     [i18n.language]
   );
 
-  const recentActionsQuery = useQuery({
+  const recentActionsQuery = useQuery<EquipmentAction[]>({
     queryKey: ["dashboard", "recent-actions"],
     queryFn: async () => {
       try {
@@ -191,7 +237,7 @@ export default function DashboardPage() {
             const entity = normalizeText(item.entity);
             return entity.includes("equipment") || entity.includes("movement");
           })
-          .map((item) => ({
+          .map<EquipmentAction>((item) => ({
             id: item.id,
             action: item.action,
             entity: item.entity,
@@ -354,46 +400,41 @@ export default function DashboardPage() {
       <Typography variant="h4">{t("pages.dashboard")}</Typography>
 
       <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 2 }}>
-        {
-          [
-            {
-              label: t("dashboard.kpis.total_cabinets"),
-              value: numberFormatter.format(kpis.total_cabinets)
-            },
-            {
-              label: t("dashboard.kpis.total_plc_in_cabinets"),
-              value: numberFormatter.format(kpis.total_plc_in_cabinets)
-            },
-            {
-              label: t("dashboard.kpis.total_plc_in_warehouses"),
-              value: numberFormatter.format(kpis.total_plc_in_warehouses)
-            },
-            {
-              label: t("dashboard.kpis.total_channels"),
-              value: numberFormatter.format(kpis.total_channels)
-            },
-            {
-              label: t("dashboard.kpis.total_warehouse_value_rub"),
-              value: currencyFormatter.format(kpis.total_warehouse_value_rub)
-            }
-          ].map((item) => (
-            <Card key={item.label}>
-              <CardContent>
-                <Typography color="text.secondary">{item.label}</Typography>
-                {overviewQuery.isLoading ? (
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
-                    <CircularProgress size={20} />
-                    <Typography variant="body2" color="text.secondary">
-                      {t("dashboard.common.loading")}
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Typography variant="h5">{item.value}</Typography>
-                )}
-              </CardContent>
-            </Card>
-          ))
-        }
+        {[
+          {
+            label: t("dashboard.kpis.total_cabinets"),
+            value: numberFormatter.format(kpis.total_cabinets),
+            color: "#00c49a"
+          },
+          {
+            label: t("dashboard.kpis.total_plc_in_cabinets"),
+            value: numberFormatter.format(kpis.total_plc_in_cabinets),
+            color: "#2ba3ff"
+          },
+          {
+            label: t("dashboard.kpis.total_plc_in_warehouses"),
+            value: numberFormatter.format(kpis.total_plc_in_warehouses),
+            color: "#f4a300"
+          },
+          {
+            label: t("dashboard.kpis.total_channels"),
+            value: numberFormatter.format(kpis.total_channels),
+            color: "#14e0b0"
+          },
+          {
+            label: t("dashboard.kpis.total_warehouse_value_rub"),
+            value: currencyFormatter.format(kpis.total_warehouse_value_rub),
+            color: "#6ac5ff"
+          }
+        ].map((item) => (
+          <KpiCard
+            key={item.label}
+            label={item.label}
+            value={overviewQuery.isLoading ? t("dashboard.common.loading") : item.value}
+            color={item.color}
+            loading={overviewQuery.isLoading}
+          />
+        ))}
       </Box>
 
       <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 2 }}>
@@ -414,7 +455,7 @@ export default function DashboardPage() {
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
-                  <Pie data={donuts.by_category} dataKey="qty" nameKey="name" outerRadius={90}>
+                  <Pie data={donuts.by_category} dataKey="qty" nameKey="name" outerRadius={90} innerRadius={58}>
                     {donuts.by_category.map((_, index) => (
                       <Cell key={`type-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
@@ -448,7 +489,7 @@ export default function DashboardPage() {
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
-                  <Pie data={donuts.by_warehouse_qty} dataKey="qty" nameKey="name" outerRadius={90}>
+                  <Pie data={donuts.by_warehouse_qty} dataKey="qty" nameKey="name" outerRadius={90} innerRadius={58}>
                     {donuts.by_warehouse_qty.map((_, index) => (
                       <Cell key={`warehouse-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
@@ -482,7 +523,7 @@ export default function DashboardPage() {
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
-                  <Pie data={donuts.accounted_vs_not} dataKey="qty" nameKey="name" outerRadius={90}>
+                  <Pie data={donuts.accounted_vs_not} dataKey="qty" nameKey="name" outerRadius={90} innerRadius={58}>
                     {donuts.accounted_vs_not.map((_, index) => (
                       <Cell key={`accounting-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
@@ -516,7 +557,7 @@ export default function DashboardPage() {
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
-                  <Pie data={donuts.by_warehouse_value} dataKey="value_rub" nameKey="name" outerRadius={90}>
+                  <Pie data={donuts.by_warehouse_value} dataKey="value_rub" nameKey="name" outerRadius={90} innerRadius={58}>
                     {donuts.by_warehouse_value.map((_, index) => (
                       <Cell key={`warehouse-value-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
@@ -600,3 +641,4 @@ export default function DashboardPage() {
     </Box>
   );
 }
+

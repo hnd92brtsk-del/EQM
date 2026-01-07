@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Box,
-  Button,
-  Card,
+  Box,Card,
   CardContent,
   Dialog,
   DialogActions,
@@ -44,6 +42,7 @@ import {
   uploadPersonnelPhoto
 } from "../api/personnel";
 import { useAuth } from "../context/AuthContext";
+import { AppButton } from "../components/ui/AppButton";
 
 type DialogState = {
   open: boolean;
@@ -216,7 +215,7 @@ export default function PersonnelDetailsPage() {
         header: "Actions",
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <Button
+            <AppButton
               size="small"
               startIcon={<EditRoundedIcon />}
               onClick={() =>
@@ -250,8 +249,8 @@ export default function PersonnelDetailsPage() {
               }
             >
               Edit
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               size="small"
               color={row.original.is_deleted ? "success" : "error"}
               startIcon={row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />}
@@ -262,8 +261,8 @@ export default function PersonnelDetailsPage() {
               }
             >
               {row.original.is_deleted ? "Restore" : "Delete"}
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               size="small"
               onClick={() =>
                 setAttachmentDialog({
@@ -274,7 +273,7 @@ export default function PersonnelDetailsPage() {
               }
             >
               Attachment
-            </Button>
+            </AppButton>
           </Box>
         )
       });
@@ -319,7 +318,7 @@ export default function PersonnelDetailsPage() {
         header: "Actions",
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <Button
+            <AppButton
               size="small"
               startIcon={<EditRoundedIcon />}
               onClick={() =>
@@ -353,8 +352,8 @@ export default function PersonnelDetailsPage() {
               }
             >
               Edit
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               size="small"
               color={row.original.is_deleted ? "success" : "error"}
               startIcon={row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />}
@@ -365,8 +364,8 @@ export default function PersonnelDetailsPage() {
               }
             >
               {row.original.is_deleted ? "Restore" : "Delete"}
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               size="small"
               onClick={() =>
                 setAttachmentDialog({
@@ -377,7 +376,7 @@ export default function PersonnelDetailsPage() {
               }
             >
               Attachment
-            </Button>
+            </AppButton>
           </Box>
         )
       });
@@ -474,7 +473,7 @@ export default function PersonnelDetailsPage() {
                   )}
                 </Box>
                 {canWrite && (
-                  <Button
+                  <AppButton
                     variant="outlined"
                     component="label"
                   >
@@ -495,7 +494,7 @@ export default function PersonnelDetailsPage() {
                           );
                       }}
                     />
-                  </Button>
+                  </AppButton>
                 )}
               </Box>
               <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
@@ -541,12 +540,12 @@ export default function PersonnelDetailsPage() {
             </Box>
             {canWrite && (
               <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <Button
+                <AppButton
                   variant="contained"
                   onClick={() => updatePersonnelMutation.mutate(buildProfilePayload())}
                 >
                   Save profile
-                </Button>
+                </AppButton>
               </Box>
             )}
           </CardContent>
@@ -558,7 +557,7 @@ export default function PersonnelDetailsPage() {
           <CardContent sx={{ display: "grid", gap: 2 }}>
             {canWrite && (
               <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <Button
+                <AppButton
                   variant="contained"
                   startIcon={<AddRoundedIcon />}
                   onClick={() =>
@@ -595,7 +594,7 @@ export default function PersonnelDetailsPage() {
                   }
                 >
                   Add competency
-                </Button>
+                </AppButton>
               </Box>
             )}
             <DataTable data={personnelQuery.data.competencies || []} columns={competencyColumns} />
@@ -608,7 +607,7 @@ export default function PersonnelDetailsPage() {
           <CardContent sx={{ display: "grid", gap: 2 }}>
             {canWrite && (
               <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <Button
+                <AppButton
                   variant="contained"
                   startIcon={<AddRoundedIcon />}
                   onClick={() =>
@@ -645,7 +644,7 @@ export default function PersonnelDetailsPage() {
                   }
                 >
                   Add training
-                </Button>
+                </AppButton>
               </Box>
             )}
             <DataTable data={personnelQuery.data.trainings || []} columns={trainingColumns} />
@@ -667,9 +666,9 @@ export default function PersonnelDetailsPage() {
             />
             {canWrite && (
               <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <Button variant="contained" onClick={() => updatePersonnelMutation.mutate({ notes: profileState.notes })}>
+                <AppButton variant="contained" onClick={() => updatePersonnelMutation.mutate({ notes: profileState.notes })}>
                   Save notes
-                </Button>
+                </AppButton>
               </Box>
             )}
           </CardContent>
@@ -718,7 +717,7 @@ export default function PersonnelDetailsPage() {
                 )
               }
             />
-            <Button component="label" variant="outlined">
+            <AppButton component="label" variant="outlined">
               Upload attachment
               <input
                 hidden
@@ -729,16 +728,16 @@ export default function PersonnelDetailsPage() {
                   )
                 }
               />
-            </Button>
+            </AppButton>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setCompetencyDialog(null)}>Cancel</Button>
-            <Button
+            <AppButton onClick={() => setCompetencyDialog(null)}>Cancel</AppButton>
+            <AppButton
               variant="contained"
               onClick={() => competencyDialog.onSave(competencyDialog.values, competencyDialog.values.file)}
             >
               Save
-            </Button>
+            </AppButton>
           </DialogActions>
         </Dialog>
       )}
@@ -790,7 +789,7 @@ export default function PersonnelDetailsPage() {
                 )
               }
             />
-            <Button component="label" variant="outlined">
+            <AppButton component="label" variant="outlined">
               Upload attachment
               <input
                 hidden
@@ -801,16 +800,16 @@ export default function PersonnelDetailsPage() {
                   )
                 }
               />
-            </Button>
+            </AppButton>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setTrainingDialog(null)}>Cancel</Button>
-            <Button
+            <AppButton onClick={() => setTrainingDialog(null)}>Cancel</AppButton>
+            <AppButton
               variant="contained"
               onClick={() => trainingDialog.onSave(trainingDialog.values, trainingDialog.values.file)}
             >
               Save
-            </Button>
+            </AppButton>
           </DialogActions>
         </Dialog>
       )}
@@ -824,7 +823,7 @@ export default function PersonnelDetailsPage() {
               attachmentListQuery.data.map((attachment) => (
                 <Box key={attachment.id} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <Typography sx={{ flexGrow: 1 }}>{attachment.filename}</Typography>
-                  <Button
+                  <AppButton
                     size="small"
                     onClick={async () => {
                       try {
@@ -839,7 +838,7 @@ export default function PersonnelDetailsPage() {
                     }}
                   >
                     Download
-                  </Button>
+                  </AppButton>
                 </Box>
               ))
             ) : (
@@ -847,7 +846,7 @@ export default function PersonnelDetailsPage() {
             )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setAttachmentDialog(null)}>Close</Button>
+            <AppButton onClick={() => setAttachmentDialog(null)}>Close</AppButton>
           </DialogActions>
         </Dialog>
       )}
@@ -856,3 +855,6 @@ export default function PersonnelDetailsPage() {
     </Box>
   );
 }
+
+
+

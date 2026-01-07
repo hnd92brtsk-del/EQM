@@ -1,4 +1,5 @@
 import { createTheme, type PaletteMode } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 
 export function createAppTheme(mode: PaletteMode) {
   const isDark = mode === "dark";
@@ -6,15 +7,16 @@ export function createAppTheme(mode: PaletteMode) {
   return createTheme({
     palette: {
       mode,
-      primary: { main: "#1E3A5F" },
-      secondary: { main: "#D97B41" },
+      primary: { main: isDark ? "#f4a300" : "#f4a300" },
+      secondary: { main: isDark ? "#2ba3ff" : "#2ba3ff" },
+      success: { main: isDark ? "#00c49a" : "#00c49a" },
       background: {
-        default: isDark ? "#0F131A" : "#F3F0EA",
-        paper: isDark ? "#151B26" : "#FFFFFF"
+        default: isDark ? "#0f141b" : "#f5f7fb",
+        paper: isDark ? "#16202c" : "#FFFFFF"
       },
       text: {
-        primary: isDark ? "#E6EEF8" : "#1F2A44",
-        secondary: isDark ? "#A8B3C7" : "#5C6B82"
+        primary: isDark ? "#e6eef8" : "#1c2430",
+        secondary: isDark ? "#8c98ab" : "#7b8797"
       }
     },
     typography: {
@@ -24,6 +26,78 @@ export function createAppTheme(mode: PaletteMode) {
     },
     shape: {
       borderRadius: 14
+    },
+    components: {
+      MuiDrawer: {
+        styleOverrides: {
+          paper: {
+            backgroundColor: isDark ? "#101720" : "#101720",
+            borderRight: "1px solid rgba(255, 255, 255, 0.06)"
+          }
+        }
+      },
+      MuiListItemButton: {
+        styleOverrides: {
+          root: {
+            color: isDark ? "#e6eef8" : "#e6eef8",
+            "&.Mui-selected": {
+              backgroundColor: alpha(isDark ? "#f4a300" : "#f4a300", 0.12)
+            },
+            "&.Mui-selected:hover": {
+              backgroundColor: alpha(isDark ? "#f4a300" : "#f4a300", 0.18)
+            }
+          }
+        }
+      },
+      MuiListItemIcon: {
+        styleOverrides: {
+          root: {
+            color: isDark ? "#8c98ab" : "#8c98ab",
+            minWidth: 36
+          }
+        }
+      },
+      MuiButton: {
+        styleOverrides: {
+          root: {
+            textTransform: "none",
+            borderRadius: 12
+          },
+          containedPrimary: {
+            backgroundColor: isDark ? "#f4a300" : "#f4a300",
+            color: "#FFFFFF",
+            "&:hover": {
+              backgroundColor: isDark ? "#dc9300" : "#dc9300"
+            }
+          },
+          outlinedPrimary: {
+            borderColor: isDark ? "#f4a300" : "#f4a300",
+            color: isDark ? "#f4a300" : "#f4a300",
+            "&:hover": {
+              backgroundColor: alpha(isDark ? "#f4a300" : "#f4a300", 0.08),
+              borderColor: isDark ? "#f4a300" : "#f4a300"
+            }
+          },
+          textPrimary: {
+            color: isDark ? "#8c98ab" : "#7b8797",
+            "&:hover": {
+              color: isDark ? "#f4a300" : "#f4a300",
+              backgroundColor: alpha(isDark ? "#f4a300" : "#f4a300", 0.08)
+            }
+          }
+        }
+      },
+      MuiCard: {
+        styleOverrides: {
+          root: {
+            backgroundColor: isDark ? "#172230" : "#FFFFFF",
+            borderRadius: 16,
+            boxShadow: isDark
+              ? "0 10px 30px rgba(2, 14, 28, 0.35)"
+              : "0 8px 24px rgba(15, 23, 42, 0.08)"
+          }
+        }
+      }
     }
   });
 }

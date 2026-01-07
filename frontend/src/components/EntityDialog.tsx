@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Button,
   Checkbox,
   Dialog,
   DialogActions,
@@ -14,6 +13,7 @@ import {
   Select,
   TextField
 } from "@mui/material";
+import { AppButton } from "./ui/AppButton";
 
 export type FieldOption = { label: string; value: number | string };
 
@@ -109,11 +109,14 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
         })}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t("actions.cancel")}</Button>
-        <Button onClick={() => state.onSave(values)} variant="contained">
+        <AppButton onClick={onClose}>{t("actions.cancel")}</AppButton>
+        <AppButton onClick={() => state.onSave(values)} variant="contained">
           {t("actions.save")}
-        </Button>
+        </AppButton>
       </DialogActions>
     </Dialog>
   );
 }
+
+
+

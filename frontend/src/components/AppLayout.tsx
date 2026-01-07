@@ -1,4 +1,4 @@
-﻿import React, { useMemo } from "react";
+import React, { useMemo } from "react";
 import {
   AppBar,
   Box,
@@ -8,8 +8,7 @@ import {
   ToggleButtonGroup,
   Toolbar,
   Tooltip,
-  Typography,
-  Button
+  Typography
 } from "@mui/material";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
@@ -24,6 +23,7 @@ import { useThemeMode } from "../context/ThemeContext";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { navTree } from "../navigation/nav";
 import { SidebarNavTree, useAutoOpenGroups } from "./SidebarNavTree";
+import { AppButton } from "./ui/AppButton";
 
 const drawerWidth = 240;
 
@@ -89,9 +89,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <HelpOutlineRoundedIcon />
             </IconButton>
           </Tooltip>
-          <Button color="inherit" startIcon={<LogoutRoundedIcon />} onClick={logout}>
+          <AppButton color="inherit" startIcon={<LogoutRoundedIcon />} onClick={logout}>
             {t("actions.logout")}
-          </Button>
+          </AppButton>
         </Toolbar>
       </AppBar>
 
@@ -132,3 +132,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     </Box>
   );
 }
+
+
+

@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Box,
-  Button,
-  Card,
+  Box,Card,
   CardContent,
   Collapse,
   FormControlLabel,
@@ -25,6 +23,7 @@ import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, updateEntity, restoreEntity, Pagination } from "../api/entities";
 import { apiFetch } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { AppButton } from "../components/ui/AppButton";
 
 type Location = {
   id: number;
@@ -271,13 +270,13 @@ export default function LocationsPage() {
           <Box sx={{ flexGrow: 1 }} />
           {canWrite && (
             <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-              <Button size="small" onClick={() => openCreateDialog(node.id)}>
+              <AppButton size="small" onClick={() => openCreateDialog(node.id)}>
                 Add child
-              </Button>
-              <Button size="small" startIcon={<EditRoundedIcon />} onClick={() => openEditDialog(node)}>
+              </AppButton>
+              <AppButton size="small" startIcon={<EditRoundedIcon />} onClick={() => openEditDialog(node)}>
                 Edit
-              </Button>
-              <Button
+              </AppButton>
+              <AppButton
                 size="small"
                 color={node.is_deleted ? "success" : "error"}
                 startIcon={node.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />}
@@ -286,7 +285,7 @@ export default function LocationsPage() {
                 }
               >
                 {node.is_deleted ? "Restore" : "Delete"}
-              </Button>
+              </AppButton>
             </Box>
           )}
         </Box>
@@ -340,9 +339,9 @@ export default function LocationsPage() {
             />
             <Box sx={{ flexGrow: 1 }} />
             {canWrite && (
-              <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => openCreateDialog(null)}>
+              <AppButton variant="contained" startIcon={<AddRoundedIcon />} onClick={() => openCreateDialog(null)}>
                 Add root
-              </Button>
+              </AppButton>
             )}
           </Box>
 
@@ -355,3 +354,6 @@ export default function LocationsPage() {
     </Box>
   );
 }
+
+
+

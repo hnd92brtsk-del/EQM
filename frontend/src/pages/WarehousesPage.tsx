@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Box,
-  Button,
-  Card,
+  Box,Card,
   CardContent,
   FormControl,
   FormControlLabel,
@@ -27,6 +25,7 @@ import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
+import { AppButton } from "../components/ui/AppButton";
 
 type Warehouse = {
   id: number;
@@ -160,7 +159,7 @@ export default function WarehousesPage() {
         header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <Button
+            <AppButton
               size="small"
               startIcon={<EditRoundedIcon />}
               onClick={() =>
@@ -196,8 +195,8 @@ export default function WarehousesPage() {
               }
             >
               {t("actions.edit")}
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               size="small"
               color={row.original.is_deleted ? "success" : "error"}
               startIcon={
@@ -210,7 +209,7 @@ export default function WarehousesPage() {
               }
             >
               {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
-            </Button>
+            </AppButton>
           </Box>
         )
       });
@@ -297,7 +296,7 @@ export default function WarehousesPage() {
             />
             <Box sx={{ flexGrow: 1 }} />
             {canWrite && (
-              <Button
+              <AppButton
                 variant="contained"
                 startIcon={<AddRoundedIcon />}
                 onClick={() =>
@@ -330,7 +329,7 @@ export default function WarehousesPage() {
                 }
               >
                 {t("actions.add")}
-              </Button>
+              </AppButton>
             )}
           </Box>
 
@@ -355,3 +354,6 @@ export default function WarehousesPage() {
     </Box>
   );
 }
+
+
+

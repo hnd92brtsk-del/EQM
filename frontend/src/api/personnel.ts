@@ -1,5 +1,5 @@
 import { apiFetch, getApiUrl, getToken } from "./client";
-import { createEntity, deleteEntity, listEntity, updateEntity } from "./entities";
+import { createEntity, deleteEntity, listEntity } from "./entities";
 
 export type Personnel = {
   id: number;

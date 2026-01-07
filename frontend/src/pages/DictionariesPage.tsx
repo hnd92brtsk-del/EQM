@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Box,
-  Button,
-  Card,
+  Box,Card,
   CardContent,
   Dialog,
   DialogActions,
@@ -31,6 +29,7 @@ import { useTranslation } from "react-i18next";
 import { DataTable } from "../components/DataTable";
 import { createEntity, listEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
+import { AppButton } from "../components/ui/AppButton";
 
 const PAGE_SIZE = 200;
 
@@ -141,10 +140,10 @@ function EntityDialog({ state, onClose }: { state: DialogState; onClose: () => v
         })}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t("actions.cancel")}</Button>
-        <Button onClick={() => state.onSave(values)} variant="contained">
+        <AppButton onClick={onClose}>{t("actions.cancel")}</AppButton>
+        <AppButton onClick={() => state.onSave(values)} variant="contained">
           {t("actions.save")}
-        </Button>
+        </AppButton>
       </DialogActions>
     </Dialog>
   );
@@ -218,7 +217,7 @@ export default function DictionariesPage() {
         header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1 }}>
-            <Button
+            <AppButton
               size="small"
               startIcon={<EditRoundedIcon />}
               onClick={() =>
@@ -243,8 +242,8 @@ export default function DictionariesPage() {
               disabled={!canEdit}
             >
               {t("actions.edit")}
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               size="small"
               color={row.original.is_deleted ? "success" : "error"}
               startIcon={row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />}
@@ -258,7 +257,7 @@ export default function DictionariesPage() {
               disabled={!canEdit}
             >
               {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
-            </Button>
+            </AppButton>
           </Box>
         )
       }
@@ -280,7 +279,7 @@ export default function DictionariesPage() {
         header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1 }}>
-            <Button
+            <AppButton
               size="small"
               startIcon={<EditRoundedIcon />}
               onClick={() =>
@@ -314,8 +313,8 @@ export default function DictionariesPage() {
               disabled={!canEdit}
             >
               {t("actions.edit")}
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               size="small"
               color={row.original.is_deleted ? "success" : "error"}
               startIcon={row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />}
@@ -329,7 +328,7 @@ export default function DictionariesPage() {
               disabled={!canEdit}
             >
               {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
-            </Button>
+            </AppButton>
           </Box>
         )
       }
@@ -357,7 +356,7 @@ export default function DictionariesPage() {
         header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1 }}>
-            <Button
+            <AppButton
               size="small"
               startIcon={<EditRoundedIcon />}
               onClick={() =>
@@ -400,8 +399,8 @@ export default function DictionariesPage() {
               disabled={!canEdit}
             >
               {t("actions.edit")}
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               size="small"
               color={row.original.is_deleted ? "success" : "error"}
               startIcon={row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />}
@@ -415,7 +414,7 @@ export default function DictionariesPage() {
               disabled={!canEdit}
             >
               {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
-            </Button>
+            </AppButton>
           </Box>
         )
       }
@@ -437,7 +436,7 @@ export default function DictionariesPage() {
         header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1 }}>
-            <Button
+            <AppButton
               size="small"
               startIcon={<EditRoundedIcon />}
               onClick={() =>
@@ -471,8 +470,8 @@ export default function DictionariesPage() {
               disabled={!canEdit}
             >
               {t("actions.edit")}
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               size="small"
               color={row.original.is_deleted ? "success" : "error"}
               startIcon={row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />}
@@ -486,7 +485,7 @@ export default function DictionariesPage() {
               disabled={!canEdit}
             >
               {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
-            </Button>
+            </AppButton>
           </Box>
         )
       }
@@ -508,7 +507,7 @@ export default function DictionariesPage() {
         header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1 }}>
-            <Button
+            <AppButton
               size="small"
               startIcon={<EditRoundedIcon />}
               onClick={() =>
@@ -542,8 +541,8 @@ export default function DictionariesPage() {
               disabled={!canEdit}
             >
               {t("actions.edit")}
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               size="small"
               color={row.original.is_deleted ? "success" : "error"}
               startIcon={row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />}
@@ -557,7 +556,7 @@ export default function DictionariesPage() {
               disabled={!canEdit}
             >
               {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
-            </Button>
+            </AppButton>
           </Box>
         )
       }
@@ -573,7 +572,7 @@ export default function DictionariesPage() {
             <Box className="table-toolbar">
               <Typography variant="h6">Производители</Typography>
               <Box sx={{ flexGrow: 1 }} />
-              <Button
+              <AppButton
                 variant="contained"
                 startIcon={<AddRoundedIcon />}
                 disabled={!canEdit}
@@ -594,7 +593,7 @@ export default function DictionariesPage() {
                 }
               >
                 {t("actions.add")}
-              </Button>
+              </AppButton>
             </Box>
             <DataTable data={manufacturersQuery.data?.items || []} columns={manufacturerColumns} />
           </CardContent>
@@ -609,7 +608,7 @@ export default function DictionariesPage() {
             <Box className="table-toolbar">
               <Typography variant="h6">Локации</Typography>
               <Box sx={{ flexGrow: 1 }} />
-              <Button
+              <AppButton
                 variant="contained"
                 startIcon={<AddRoundedIcon />}
                 disabled={!canEdit}
@@ -642,7 +641,7 @@ export default function DictionariesPage() {
                 }
               >
                 {t("actions.add")}
-              </Button>
+              </AppButton>
             </Box>
             <DataTable data={locationsQuery.data?.items || []} columns={locationColumns} />
           </CardContent>
@@ -657,7 +656,7 @@ export default function DictionariesPage() {
             <Box className="table-toolbar">
               <Typography variant="h6">Номенклатура</Typography>
               <Box sx={{ flexGrow: 1 }} />
-              <Button
+              <AppButton
                 variant="contained"
                 startIcon={<AddRoundedIcon />}
                 disabled={!canEdit}
@@ -696,7 +695,7 @@ export default function DictionariesPage() {
                 }
               >
                 {t("actions.add")}
-              </Button>
+              </AppButton>
             </Box>
             <DataTable data={equipmentTypesQuery.data?.items || []} columns={equipmentColumns} />
           </CardContent>
@@ -711,7 +710,7 @@ export default function DictionariesPage() {
             <Box className="table-toolbar">
               <Typography variant="h6">Склады</Typography>
               <Box sx={{ flexGrow: 1 }} />
-              <Button
+              <AppButton
                 variant="contained"
                 startIcon={<AddRoundedIcon />}
                 disabled={!canEdit}
@@ -744,7 +743,7 @@ export default function DictionariesPage() {
                 }
               >
                 {t("actions.add")}
-              </Button>
+              </AppButton>
             </Box>
             <DataTable data={warehousesQuery.data?.items || []} columns={warehouseColumns} />
           </CardContent>
@@ -758,7 +757,7 @@ export default function DictionariesPage() {
           <Box className="table-toolbar">
             <Typography variant="h6">Шкафы</Typography>
             <Box sx={{ flexGrow: 1 }} />
-            <Button
+            <AppButton
               variant="contained"
               startIcon={<AddRoundedIcon />}
               disabled={!canEdit}
@@ -791,7 +790,7 @@ export default function DictionariesPage() {
               }
             >
               {t("actions.add")}
-            </Button>
+            </AppButton>
           </Box>
           <DataTable data={cabinetsQuery.data?.items || []} columns={cabinetColumns} />
         </CardContent>
@@ -820,4 +819,7 @@ export default function DictionariesPage() {
     </Box>
   );
 }
+
+
+
 

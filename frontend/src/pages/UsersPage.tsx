@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Box,
-  Button,
-  Card,
+  Box,Card,
   CardContent,
   Dialog,
   DialogActions,
@@ -28,6 +26,7 @@ import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
+import { AppButton } from "../components/ui/AppButton";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 
@@ -143,7 +142,7 @@ export default function UsersPage() {
         header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <Button
+            <AppButton
               size="small"
               startIcon={<EditRoundedIcon />}
               onClick={() => {
@@ -155,8 +154,8 @@ export default function UsersPage() {
               }}
             >
               {t("actions.edit")}
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               size="small"
               color={row.original.is_deleted ? "success" : "error"}
               startIcon={row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />}
@@ -167,7 +166,7 @@ export default function UsersPage() {
               }
             >
               {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
-            </Button>
+            </AppButton>
           </Box>
         )
       });
@@ -242,7 +241,7 @@ export default function UsersPage() {
             />
             <Box sx={{ flexGrow: 1 }} />
             {canWrite && (
-              <Button
+              <AppButton
                 variant="contained"
                 startIcon={<AddRoundedIcon />}
                 onClick={() => {
@@ -252,7 +251,7 @@ export default function UsersPage() {
                 }}
               >
                 {t("actions.add")}
-              </Button>
+              </AppButton>
             )}
           </Box>
 
@@ -300,8 +299,10 @@ export default function UsersPage() {
             </FormControl>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setDialogOpen(false)}>{t("actions.cancel")}</Button>
-            <Button
+            <AppButton variant="text" onClick={() => setDialogOpen(false)}>
+              {t("actions.cancel")}
+            </AppButton>
+            <AppButton
               variant="contained"
               onClick={() => {
                 if (editUser) {
@@ -319,7 +320,7 @@ export default function UsersPage() {
               }}
             >
               {t("actions.save")}
-            </Button>
+            </AppButton>
           </DialogActions>
         </Dialog>
       )}
@@ -327,3 +328,6 @@ export default function UsersPage() {
     </Box>
   );
 }
+
+
+

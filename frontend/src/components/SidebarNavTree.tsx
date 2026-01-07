@@ -7,6 +7,7 @@ import {
   ListItemIcon,
   ListItemText
 } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 import ExpandLessRoundedIcon from "@mui/icons-material/ExpandLessRounded";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
@@ -47,9 +48,9 @@ const isActivePath = (item: NavItem, pathname: string) => {
 
 const getItemLabel = (item: NavItem, t: (key: string) => string) => t(item.labelKey);
 
-const renderIcon = (item: NavItem, fallback: React.ElementType) => {
+const renderIcon = (item: NavItem, fallback: React.ElementType, color: string) => {
   const Icon = item.icon ?? fallback;
-  return <Icon />;
+  return <Icon sx={{ color }} />;
 };
 
 export function SidebarNavTree({
@@ -62,6 +63,7 @@ export function SidebarNavTree({
   const { pathname } = useLocation();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const theme = useTheme();
 
   const filteredItems = useMemo(
     () =>
@@ -87,6 +89,7 @@ export function SidebarNavTree({
         const hasChildren = Boolean(item.children && item.children.length > 0);
         const isActive = isActivePath(item, pathname);
         const isOpen = Boolean(openGroups[item.id]);
+        const iconColor = (isActive || isOpen) ? theme.palette.primary.main : theme.palette.text.secondary;
         const itemLabel = getItemLabel(item, t);
 
         if (hasChildren) {
@@ -100,7 +103,7 @@ export function SidebarNavTree({
                   pl: level * 2 + 2
                 }}
               >
-                <ListItemIcon>{renderIcon(item, DashboardRoundedIcon)}</ListItemIcon>
+                <ListItemIcon>{renderIcon(item, DashboardRoundedIcon, iconColor)}</ListItemIcon>
                 <ListItemText primary={itemLabel} />
                 {isOpen ? <ExpandLessRoundedIcon /> : <ExpandMoreRoundedIcon />}
               </ListItemButton>
@@ -131,11 +134,11 @@ export function SidebarNavTree({
               borderRadius: 2,
               mb: 0.5,
               pl: level * 2 + 2,
-              "&.active": { backgroundColor: "rgba(30, 58, 95, 0.12)" }
+              "&.active": { backgroundColor: alpha(theme.palette.primary.main, 0.12) }
             }}
             selected={isActive}
           >
-            <ListItemIcon>{renderIcon(item, Inventory2RoundedIcon)}</ListItemIcon>
+            <ListItemIcon>{renderIcon(item, Inventory2RoundedIcon, iconColor)}</ListItemIcon>
             <ListItemText primary={itemLabel} />
           </ListItemButton>
         );
@@ -165,3 +168,4 @@ export function useAutoOpenGroups(items: NavItem[], role?: NavRole) {
 
   return { openGroups, setOpenGroups };
 }
+

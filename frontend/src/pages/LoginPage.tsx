@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Box,
-  Button,
-  Card,
+  Box,Card,
   CardContent,
   TextField,
   Typography,
@@ -13,6 +11,7 @@ import LoginRoundedIcon from "@mui/icons-material/LoginRounded";
 import { useTranslation } from "react-i18next";
 
 import { useAuth } from "../context/AuthContext";
+import { AppButton } from "../components/ui/AppButton";
 
 export default function LoginPage() {
   const { t } = useTranslation();
@@ -70,19 +69,22 @@ export default function LoginPage() {
               onChange={(event) => setPassword(event.target.value)}
               required
             />
-            <Button
+            <AppButton
               type="submit"
               variant="contained"
               startIcon={<LoginRoundedIcon />}
               disabled={loading}
             >
               {t("auth.signIn")}
-            </Button>
+            </AppButton>
           </Box>
         </CardContent>
       </Card>
     </Box>
   );
 }
+
+
+
 
 

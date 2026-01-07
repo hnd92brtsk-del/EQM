@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Box,
-  Button,
-  Card,
+  Box,Card,
   CardContent,
   FormControl,
   FormControlLabel,
@@ -25,6 +23,7 @@ import { useTranslation } from "react-i18next";
 import { DataTable } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
+import { AppButton } from "../components/ui/AppButton";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 
@@ -228,7 +227,7 @@ export default function IOSignalsPage() {
         header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <Button
+            <AppButton
               size="small"
               startIcon={<EditRoundedIcon />}
               onClick={() =>
@@ -289,8 +288,8 @@ export default function IOSignalsPage() {
               }
             >
               {t("actions.edit")}
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               size="small"
               color={row.original.is_deleted ? "success" : "error"}
               startIcon={
@@ -303,7 +302,7 @@ export default function IOSignalsPage() {
               }
             >
               {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
-            </Button>
+            </AppButton>
           </Box>
         )
       });
@@ -429,7 +428,7 @@ export default function IOSignalsPage() {
             />
             <Box sx={{ flexGrow: 1 }} />
             {canWrite && (
-              <Button
+              <AppButton
                 variant="contained"
                 startIcon={<AddRoundedIcon />}
                 onClick={() =>
@@ -497,7 +496,7 @@ export default function IOSignalsPage() {
                 }
               >
                 {t("actions.add")}
-              </Button>
+              </AppButton>
             )}
           </Box>
 
@@ -522,3 +521,6 @@ export default function IOSignalsPage() {
     </Box>
   );
 }
+
+
+

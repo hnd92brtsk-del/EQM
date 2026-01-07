@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Box,
-  Button,
-  Card,
+  Box,Card,
   CardContent,
   FormControl,
   InputLabel,
@@ -21,6 +19,7 @@ import { DataTable } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, listEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
+import { AppButton } from "../components/ui/AppButton";
 
 const movementOptions = [
   { value: "to_warehouse", label: "На склад" },
@@ -417,9 +416,9 @@ export default function MovementsPage() {
 
           {canWrite && (
             <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-              <Button variant="contained" onClick={handleSubmit}>
+              <AppButton variant="contained" onClick={handleSubmit}>
                 Создать перемещение
-              </Button>
+              </AppButton>
             </Box>
           )}
         </CardContent>
@@ -615,3 +614,6 @@ export default function MovementsPage() {
     </Box>
   );
 }
+
+
+

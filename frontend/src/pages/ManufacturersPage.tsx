@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Box,
-  Button,
-  Card,
+  Box,Card,
   CardContent,
   FormControl,
   FormControlLabel,
@@ -27,6 +25,7 @@ import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
+import { AppButton } from "../components/ui/AppButton";
 
 type Manufacturer = {
   id: number;
@@ -136,7 +135,7 @@ export default function ManufacturersPage() {
         header: "Действия",
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <Button
+            <AppButton
               size="small"
               startIcon={<EditRoundedIcon />}
               onClick={() =>
@@ -159,8 +158,8 @@ export default function ManufacturersPage() {
               }
             >
               Изменить
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               size="small"
               color={row.original.is_deleted ? "success" : "error"}
               startIcon={
@@ -173,7 +172,7 @@ export default function ManufacturersPage() {
               }
             >
               {row.original.is_deleted ? "Восстановить" : "Удалить"}
-            </Button>
+            </AppButton>
           </Box>
         )
       });
@@ -257,7 +256,7 @@ export default function ManufacturersPage() {
             />
             <Box sx={{ flexGrow: 1 }} />
             {canWrite && (
-              <Button
+              <AppButton
                 variant="contained"
                 startIcon={<AddRoundedIcon />}
                 onClick={() =>
@@ -277,7 +276,7 @@ export default function ManufacturersPage() {
                 }
               >
                 Добавить
-              </Button>
+              </AppButton>
             )}
           </Box>
 
@@ -302,3 +301,6 @@ export default function ManufacturersPage() {
     </Box>
   );
 }
+
+
+

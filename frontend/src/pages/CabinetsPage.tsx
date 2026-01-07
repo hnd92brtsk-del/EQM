@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Box,
-  Button,
-  Card,
+  Box,Card,
   CardContent,
   FormControl,
   FormControlLabel,
@@ -28,6 +26,7 @@ import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
+import { AppButton } from "../components/ui/AppButton";
 
 type Cabinet = {
   id: number;
@@ -161,12 +160,12 @@ export default function CabinetsPage() {
       header: t("actions.actions"),
       cell: ({ row }) => (
         <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-          <Button size="small" onClick={() => navigate(`/cabinets/${row.original.id}/composition`)}>
+          <AppButton size="small" onClick={() => navigate(`/cabinets/${row.original.id}/composition`)}>
             Открыть состав
-          </Button>
+          </AppButton>
           {canWrite && (
             <>
-              <Button
+              <AppButton
                 size="small"
                 startIcon={<EditRoundedIcon />}
                 onClick={() =>
@@ -202,8 +201,8 @@ export default function CabinetsPage() {
                 }
               >
                 {t("actions.edit")}
-              </Button>
-              <Button
+              </AppButton>
+              <AppButton
                 size="small"
                 color={row.original.is_deleted ? "success" : "error"}
                 startIcon={
@@ -216,7 +215,7 @@ export default function CabinetsPage() {
                 }
               >
                 {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
-              </Button>
+              </AppButton>
             </>
           )}
         </Box>
@@ -306,7 +305,7 @@ export default function CabinetsPage() {
             />
             <Box sx={{ flexGrow: 1 }} />
             {canWrite && (
-              <Button
+              <AppButton
                 variant="contained"
                 startIcon={<AddRoundedIcon />}
                 onClick={() =>
@@ -339,7 +338,7 @@ export default function CabinetsPage() {
                 }
               >
                 {t("actions.add")}
-              </Button>
+              </AppButton>
             )}
           </Box>
 
@@ -364,3 +363,6 @@ export default function CabinetsPage() {
     </Box>
   );
 }
+
+
+
