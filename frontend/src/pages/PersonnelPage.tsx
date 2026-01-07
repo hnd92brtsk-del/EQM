@@ -87,9 +87,13 @@ export default function PersonnelPage() {
 
   useEffect(() => {
     if (personnelQuery.error) {
-      setErrorMessage(personnelQuery.error instanceof Error ? personnelQuery.error.message : "Failed to load personnel.");
+      setErrorMessage(
+        personnelQuery.error instanceof Error
+          ? personnelQuery.error.message
+          : t("errors.load_personnel_failed")
+      );
     }
-  }, [personnelQuery.error]);
+  }, [personnelQuery.error, t]);
 
   const userOptions = useMemo(
     () =>
@@ -105,7 +109,9 @@ export default function PersonnelPage() {
     mutationFn: (payload: Partial<Personnel>) => createPersonnel(payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to create personnel.")
+      setErrorMessage(
+        error instanceof Error ? error.message : t("errors.create_personnel_failed")
+      )
   });
 
   const updateMutation = useMutation({
@@ -113,21 +119,27 @@ export default function PersonnelPage() {
       updatePersonnel(id, payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to update personnel.")
+      setErrorMessage(
+        error instanceof Error ? error.message : t("errors.update_personnel_failed")
+      )
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deletePersonnel(id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to delete personnel.")
+      setErrorMessage(
+        error instanceof Error ? error.message : t("errors.delete_personnel_failed")
+      )
   });
 
   const restoreMutation = useMutation({
     mutationFn: (id: number) => restorePersonnel(id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to restore personnel.")
+      setErrorMessage(
+        error instanceof Error ? error.message : t("errors.restore_personnel_failed")
+      )
   });
 
   const columns = useMemo<ColumnDef<Personnel>[]>(() => {

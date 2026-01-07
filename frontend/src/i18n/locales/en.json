@@ -63,7 +63,8 @@
     "help": "Help",
     "personnel": "Personnel",
     "auditLogs": "Audit Logs",
-    "sessions": "Sessions"
+    "sessions": "Sessions",
+    "personnel_details": "Personnel details"
   },
   "dashboard": {
     "kpis": {
@@ -134,5 +135,24 @@
   },
   "common": {
     "noAccess": "Not enough permissions."
+  },
+  "errors": {
+    "load_personnel_failed": "Failed to load personnel.",
+    "create_personnel_failed": "Failed to create personnel.",
+    "update_personnel_failed": "Failed to update personnel.",
+    "delete_personnel_failed": "Failed to delete personnel.",
+    "restore_personnel_failed": "Failed to restore personnel.",
+    "create_competency_failed": "Failed to create competency.",
+    "update_competency_failed": "Failed to update competency.",
+    "create_training_failed": "Failed to create training.",
+    "update_training_failed": "Failed to update training.",
+    "delete_competency_failed": "Failed to delete competency.",
+    "restore_competency_failed": "Failed to restore competency.",
+    "delete_training_failed": "Failed to delete training.",
+    "restore_training_failed": "Failed to restore training.",
+    "no_attachment": "No attachment available.",
+    "attachment_upload_failed": "Failed to upload attachment.",
+    "attachment_download_failed": "Failed to download attachment.",
+    "photo_upload_failed": "Failed to upload photo."
   }
 }

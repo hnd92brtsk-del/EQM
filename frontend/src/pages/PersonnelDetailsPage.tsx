@@ -20,6 +20,7 @@ import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
@@ -64,6 +65,7 @@ export default function PersonnelDetailsPage() {
   const { id } = useParams();
   const personId = Number(id);
   const { user } = useAuth();
+  const { t } = useTranslation();
   const canWrite = user?.role === "admin";
   const queryClient = useQueryClient();
 
@@ -73,6 +75,11 @@ export default function PersonnelDetailsPage() {
   const [competencyDialog, setCompetencyDialog] = useState<DialogState | null>(null);
   const [trainingDialog, setTrainingDialog] = useState<DialogState | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [attachmentDialog, setAttachmentDialog] = useState<{
+    title: string;
+    entity: string;
+    entityId: number;
+  } | null>(null);
 
   const personnelQuery = useQuery({
     queryKey: ["personnel", personId],
@@ -82,6 +89,18 @@ export default function PersonnelDetailsPage() {
   const attachmentsQuery = useQuery({
     queryKey: ["personnel-attachments", personId],
     queryFn: () => listAttachments(personId, "personnel")
+  });
+
+  const attachmentListQuery = useQuery({
+    queryKey: [
+      "personnel-attachments",
+      personId,
+      attachmentDialog?.entity,
+      attachmentDialog?.entityId
+    ],
+    queryFn: () =>
+      listAttachments(personId, attachmentDialog!.entity, attachmentDialog!.entityId),
+    enabled: Boolean(attachmentDialog)
   });
 
   useEffect(() => {
@@ -104,9 +123,11 @@ export default function PersonnelDetailsPage() {
           const url = URL.createObjectURL(blob);
           setPhotoUrl(url);
         })
-        .catch((error) => setErrorMessage(error instanceof Error ? error.message : "Failed to load photo."));
+        .catch((error) =>
+          setErrorMessage(error instanceof Error ? error.message : t("errors.attachment_download_failed"))
+        );
     }
-  }, [attachmentsQuery.data]);
+  }, [attachmentsQuery.data, t]);
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["personnel", personId] });
@@ -117,14 +138,14 @@ export default function PersonnelDetailsPage() {
     mutationFn: (payload: Partial<Personnel>) => updatePersonnel(personId, payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to update personnel.")
+      setErrorMessage(error instanceof Error ? error.message : t("errors.update_personnel_failed"))
   });
 
   const createCompetencyMutation = useMutation({
     mutationFn: (payload: Partial<PersonnelCompetency>) => createCompetency(personId, payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to create competency.")
+      setErrorMessage(error instanceof Error ? error.message : t("errors.create_competency_failed"))
   });
 
   const updateCompetencyMutation = useMutation({
@@ -132,28 +153,28 @@ export default function PersonnelDetailsPage() {
       updateCompetency(personId, id, payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to update competency.")
+      setErrorMessage(error instanceof Error ? error.message : t("errors.update_competency_failed"))
   });
 
   const deleteCompetencyMutation = useMutation({
     mutationFn: (id: number) => deleteCompetency(personId, id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to delete competency.")
+      setErrorMessage(error instanceof Error ? error.message : t("errors.delete_competency_failed"))
   });
 
   const restoreCompetencyMutation = useMutation({
     mutationFn: (id: number) => restoreCompetency(personId, id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to restore competency.")
+      setErrorMessage(error instanceof Error ? error.message : t("errors.restore_competency_failed"))
   });
 
   const createTrainingMutation = useMutation({
     mutationFn: (payload: Partial<PersonnelTraining>) => createTraining(personId, payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to create training.")
+      setErrorMessage(error instanceof Error ? error.message : t("errors.create_training_failed"))
   });
 
   const updateTrainingMutation = useMutation({
@@ -161,21 +182,21 @@ export default function PersonnelDetailsPage() {
       updateTraining(personId, id, payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to update training.")
+      setErrorMessage(error instanceof Error ? error.message : t("errors.update_training_failed"))
   });
 
   const deleteTrainingMutation = useMutation({
     mutationFn: (id: number) => deleteTraining(personId, id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to delete training.")
+      setErrorMessage(error instanceof Error ? error.message : t("errors.delete_training_failed"))
   });
 
   const restoreTrainingMutation = useMutation({
     mutationFn: (id: number) => restoreTraining(personId, id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to restore training.")
+      setErrorMessage(error instanceof Error ? error.message : t("errors.restore_training_failed"))
   });
 
   const competencyColumns = useMemo<ColumnDef<PersonnelCompetency>[]>(() => {
@@ -215,8 +236,13 @@ export default function PersonnelDetailsPage() {
                     });
                     if (file) {
                       uploadAttachment(personId, "personnel_competency", row.original.id, file).catch((error) =>
-                        setErrorMessage(error instanceof Error ? error.message : "Failed to upload attachment.")
+                        setErrorMessage(
+                          error instanceof Error ? error.message : t("errors.attachment_upload_failed")
+                        )
                       );
+                      queryClient.invalidateQueries({
+                        queryKey: ["personnel-attachments", personId, "personnel_competency", row.original.id]
+                      });
                     }
                     setCompetencyDialog(null);
                   }
@@ -239,20 +265,13 @@ export default function PersonnelDetailsPage() {
             </Button>
             <Button
               size="small"
-              onClick={async () => {
-                try {
-                  const attachments = await listAttachments(personId, "personnel_competency", row.original.id);
-                  if (!attachments.length) {
-                    setErrorMessage("No attachment available.");
-                    return;
-                  }
-                  const blob = await downloadAttachment(attachments[0].id);
-                  const url = URL.createObjectURL(blob);
-                  window.open(url, "_blank");
-                } catch (error) {
-                  setErrorMessage(error instanceof Error ? error.message : "Failed to download attachment.");
-                }
-              }}
+              onClick={() =>
+                setAttachmentDialog({
+                  title: "Competency attachments",
+                  entity: "personnel_competency",
+                  entityId: row.original.id
+                })
+              }
             >
               Attachment
             </Button>
@@ -266,7 +285,10 @@ export default function PersonnelDetailsPage() {
     canWrite,
     deleteCompetencyMutation,
     personId,
+    queryClient,
     restoreCompetencyMutation,
+    setAttachmentDialog,
+    t,
     updateCompetencyMutation
   ]);
 
@@ -317,8 +339,13 @@ export default function PersonnelDetailsPage() {
                     });
                     if (file) {
                       uploadAttachment(personId, "personnel_training", row.original.id, file).catch((error) =>
-                        setErrorMessage(error instanceof Error ? error.message : "Failed to upload attachment.")
+                        setErrorMessage(
+                          error instanceof Error ? error.message : t("errors.attachment_upload_failed")
+                        )
                       );
+                      queryClient.invalidateQueries({
+                        queryKey: ["personnel-attachments", personId, "personnel_training", row.original.id]
+                      });
                     }
                     setTrainingDialog(null);
                   }
@@ -341,20 +368,13 @@ export default function PersonnelDetailsPage() {
             </Button>
             <Button
               size="small"
-              onClick={async () => {
-                try {
-                  const attachments = await listAttachments(personId, "personnel_training", row.original.id);
-                  if (!attachments.length) {
-                    setErrorMessage("No attachment available.");
-                    return;
-                  }
-                  const blob = await downloadAttachment(attachments[0].id);
-                  const url = URL.createObjectURL(blob);
-                  window.open(url, "_blank");
-                } catch (error) {
-                  setErrorMessage(error instanceof Error ? error.message : "Failed to download attachment.");
-                }
-              }}
+              onClick={() =>
+                setAttachmentDialog({
+                  title: "Training attachments",
+                  entity: "personnel_training",
+                  entityId: row.original.id
+                })
+              }
             >
               Attachment
             </Button>
@@ -368,7 +388,10 @@ export default function PersonnelDetailsPage() {
     canWrite,
     deleteTrainingMutation,
     personId,
+    queryClient,
     restoreTrainingMutation,
+    setAttachmentDialog,
+    t,
     updateTrainingMutation
   ]);
 
@@ -468,7 +491,7 @@ export default function PersonnelDetailsPage() {
                         uploadPersonnelPhoto(personId, file)
                           .then(() => refresh())
                           .catch((error) =>
-                            setErrorMessage(error instanceof Error ? error.message : "Failed to upload photo.")
+                            setErrorMessage(error instanceof Error ? error.message : t("errors.photo_upload_failed"))
                           );
                       }}
                     />
@@ -556,9 +579,12 @@ export default function PersonnelDetailsPage() {
                               if (file) {
                                 uploadAttachment(personId, "personnel_competency", data.id, file).catch((error) =>
                                   setErrorMessage(
-                                    error instanceof Error ? error.message : "Failed to upload attachment."
+                                    error instanceof Error ? error.message : t("errors.attachment_upload_failed")
                                   )
                                 );
+                                queryClient.invalidateQueries({
+                                  queryKey: ["personnel-attachments", personId, "personnel_competency", data.id]
+                                });
                               }
                             }
                           }
@@ -603,9 +629,12 @@ export default function PersonnelDetailsPage() {
                               if (file) {
                                 uploadAttachment(personId, "personnel_training", data.id, file).catch((error) =>
                                   setErrorMessage(
-                                    error instanceof Error ? error.message : "Failed to upload attachment."
+                                    error instanceof Error ? error.message : t("errors.attachment_upload_failed")
                                   )
                                 );
+                                queryClient.invalidateQueries({
+                                  queryKey: ["personnel-attachments", personId, "personnel_training", data.id]
+                                });
                               }
                             }
                           }
@@ -782,6 +811,43 @@ export default function PersonnelDetailsPage() {
             >
               Save
             </Button>
+          </DialogActions>
+        </Dialog>
+      )}
+
+      {attachmentDialog && (
+        <Dialog open onClose={() => setAttachmentDialog(null)} fullWidth maxWidth="sm">
+          <DialogTitle>{attachmentDialog.title}</DialogTitle>
+          <DialogContent sx={{ display: "grid", gap: 1, mt: 1 }}>
+            {attachmentListQuery.isLoading && <Typography>Loading...</Typography>}
+            {attachmentListQuery.data?.length ? (
+              attachmentListQuery.data.map((attachment) => (
+                <Box key={attachment.id} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Typography sx={{ flexGrow: 1 }}>{attachment.filename}</Typography>
+                  <Button
+                    size="small"
+                    onClick={async () => {
+                      try {
+                        const blob = await downloadAttachment(attachment.id);
+                        const url = URL.createObjectURL(blob);
+                        window.open(url, "_blank");
+                      } catch (error) {
+                        setErrorMessage(
+                          error instanceof Error ? error.message : t("errors.attachment_download_failed")
+                        );
+                      }
+                    }}
+                  >
+                    Download
+                  </Button>
+                </Box>
+              ))
+            ) : (
+              <Typography>{t("errors.no_attachment")}</Typography>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setAttachmentDialog(null)}>Close</Button>
           </DialogActions>
         </Dialog>
       )}

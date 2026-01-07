@@ -18,6 +18,20 @@ const getLabel = (item: NavItem, t: (key: string) => string) => {
   return item.id;
 };
 
+const matchPathPattern = (pattern: string, pathname: string) => {
+  const patternParts = pattern.split("/").filter(Boolean);
+  const pathParts = pathname.split("/").filter(Boolean);
+  if (patternParts.length !== pathParts.length) {
+    return false;
+  }
+  return patternParts.every((part, index) => {
+    if (part.startsWith(":")) {
+      return pathParts[index].length > 0;
+    }
+    return part === pathParts[index];
+  });
+};
+
 export function Breadcrumbs() {
   const location = useLocation();
   const { user } = useAuth();
@@ -32,6 +46,13 @@ export function Breadcrumbs() {
       path: item.path
     }))
   ];
+
+  if (
+    matchPathPattern("/personnel/:id", location.pathname) &&
+    !chain.some((item) => item.id === "personnel-details")
+  ) {
+    crumbs.push({ id: "personnel-details", label: t("pages.personnel_details"), path: undefined });
+  }
 
   return (
     <MuiBreadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
