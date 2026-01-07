@@ -39,7 +39,7 @@ export function Breadcrumbs() {
   const chain = findNavChain(location.pathname, navTree, user?.role);
 
   const crumbs = [
-    { id: "root", label: t("menu.root"), path: undefined },
+    { id: "root", label: t("menu.root"), path: "/dashboard" },
     ...chain.map((item) => ({
       id: item.id,
       label: getLabel(item, t),
@@ -51,14 +51,14 @@ export function Breadcrumbs() {
     matchPathPattern("/personnel/:id", location.pathname) &&
     !chain.some((item) => item.id === "personnel-details")
   ) {
-    crumbs.push({ id: "personnel-details", label: t("pages.personnel_details"), path: undefined });
+    crumbs.push({ id: "personnel-details", label: t("pages.personnel_details"), path: "/personnel/:id" });
   }
 
   return (
     <MuiBreadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
-      {crumbs.map((crumb, index) => {
-        const isLast = index === crumbs.length - 1;
-        if (!crumb.path || isLast) {
+      {crumbs.map((crumb) => {
+        const resolvedPath = crumb.path?.includes(":") ? location.pathname : crumb.path;
+        if (!resolvedPath) {
           return (
             <Typography color="text.primary" key={crumb.id}>
               {crumb.label}
@@ -66,7 +66,7 @@ export function Breadcrumbs() {
           );
         }
         return (
-          <Link component={NavLink} to={crumb.path} key={crumb.id} underline="hover">
+          <Link component={NavLink} to={resolvedPath} key={crumb.id} underline="hover">
             {crumb.label}
           </Link>
         );
