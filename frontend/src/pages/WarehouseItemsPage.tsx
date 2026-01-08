@@ -25,21 +25,7 @@ import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { AppButton } from "../components/ui/AppButton";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
-
-const sortOptions = [
-  { value: "-updated_at", label: "По обновлению (новые)" },
-  { value: "updated_at", label: "По обновлению (старые)" },
-  { value: "-quantity", label: "По количеству (убыванию)" },
-  { value: "quantity", label: "По количеству (возрастанию)" },
-  { value: 'equipment_type_name', label: 'Equipment (A-Z)' },
-  { value: '-equipment_type_name', label: 'Equipment (Z-A)' },
-  { value: 'equipment_category_name', label: 'Equipment type (A-Z)' },
-  { value: '-equipment_category_name', label: 'Equipment type (Z-A)' },
-  { value: 'manufacturer_name', label: 'Manufacturer (A-Z)' },
-  { value: '-manufacturer_name', label: 'Manufacturer (Z-A)' },
-  { value: 'unit_price_rub', label: 'Price (low-high)' },
-  { value: '-unit_price_rub', label: 'Price (high-low)' },
-];
+import { getTablePaginationProps } from "../components/tablePaginationI18n";
 
 const pageSizeOptions = [10, 20, 50, 100];
 
@@ -83,6 +69,24 @@ export default function WarehouseItemsPage() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const sortOptions = useMemo(
+    () => [
+      { value: "-updated_at", label: t("pagesUi.warehouseItems.sort.byUpdatedNewest") },
+      { value: "updated_at", label: t("pagesUi.warehouseItems.sort.byUpdatedOldest") },
+      { value: "-quantity", label: t("pagesUi.warehouseItems.sort.byQuantityDesc") },
+      { value: "quantity", label: t("pagesUi.warehouseItems.sort.byQuantityAsc") },
+      { value: "equipment_type_name", label: t("pagesUi.warehouseItems.sort.byEquipmentAsc") },
+      { value: "-equipment_type_name", label: t("pagesUi.warehouseItems.sort.byEquipmentDesc") },
+      { value: "equipment_category_name", label: t("pagesUi.warehouseItems.sort.byEquipmentCategoryAsc") },
+      { value: "-equipment_category_name", label: t("pagesUi.warehouseItems.sort.byEquipmentCategoryDesc") },
+      { value: "manufacturer_name", label: t("pagesUi.warehouseItems.sort.byManufacturerAsc") },
+      { value: "-manufacturer_name", label: t("pagesUi.warehouseItems.sort.byManufacturerDesc") },
+      { value: "unit_price_rub", label: t("pagesUi.warehouseItems.sort.byPriceAsc") },
+      { value: "-unit_price_rub", label: t("pagesUi.warehouseItems.sort.byPriceDesc") }
+    ],
+    [t]
+  );
 
   const itemsQuery = useQuery({
     queryKey: [
@@ -147,10 +151,10 @@ export default function WarehouseItemsPage() {
       setErrorMessage(
         itemsQuery.error instanceof Error
           ? itemsQuery.error.message
-          : "Ошибка загрузки складских позиций"
+          : t("pagesUi.warehouseItems.errors.load")
       );
     }
-  }, [itemsQuery.error]);
+  }, [itemsQuery.error, t]);
 
 
   const refresh = () => {
@@ -162,21 +166,21 @@ export default function WarehouseItemsPage() {
       updateEntity("/warehouse-items", id, payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to update warehouse item")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.warehouseItems.errors.update"))
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteEntity("/warehouse-items", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to delete warehouse item")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.warehouseItems.errors.delete"))
   });
 
   const restoreMutation = useMutation({
     mutationFn: (id: number) => restoreEntity("/warehouse-items", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to restore warehouse item")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.warehouseItems.errors.restore"))
   });
 
   const warehouseMap = useMemo(() => {
@@ -201,13 +205,13 @@ export default function WarehouseItemsPage() {
     },
     onError: (error) => {
       if (error instanceof Error && /not found|404/i.test(error.message)) {
-        setErrorMessage("Not implemented");
+        setErrorMessage(t("common.notImplemented"));
         return;
       }
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Не удалось выполнить действие. Попробуйте снова."
+          : t("pagesUi.warehouseItems.errors.actionFailed")
       );
     }
   });
@@ -215,11 +219,11 @@ export default function WarehouseItemsPage() {
   const openToWarehouseDialog = () => {
     setDialog({
       open: true,
-      title: "На склад",
+      title: t("pagesUi.warehouseItems.dialogs.toWarehouseTitle"),
       fields: [
         {
           name: "equipment_type_id",
-          label: "Оборудование",
+          label: t("common.fields.equipment"),
           type: "select",
           options:
             equipmentTypesQuery.data?.items.map((item) => ({
@@ -229,7 +233,7 @@ export default function WarehouseItemsPage() {
         },
         {
           name: "to_warehouse_id",
-          label: "Склад",
+          label: t("common.fields.warehouse"),
           type: "select",
           options:
             warehousesQuery.data?.items.map((item) => ({
@@ -237,9 +241,9 @@ export default function WarehouseItemsPage() {
               value: item.id
             })) || []
         },
-        { name: "quantity", label: "Количество", type: "number" },
-        { name: "is_accounted", label: "Учет", type: "checkbox" },
-        { name: "comment", label: "Комментарий", type: "text" }
+        { name: "quantity", label: t("common.fields.quantity"), type: "number" },
+        { name: "is_accounted", label: t("common.fields.accounting"), type: "checkbox" },
+        { name: "comment", label: t("common.fields.comment"), type: "text" }
       ],
       values: {
         equipment_type_id: "",
@@ -254,7 +258,7 @@ export default function WarehouseItemsPage() {
         const quantity = Number(values.quantity);
 
         if (!equipmentTypeId || !warehouseId || !Number.isFinite(quantity) || quantity < 1) {
-          setErrorMessage("Заполните обязательные поля.");
+          setErrorMessage(t("validation.requiredFields"));
           return;
         }
 
@@ -273,11 +277,11 @@ export default function WarehouseItemsPage() {
   const openToCabinetDialog = () => {
     setDialog({
       open: true,
-      title: "Со склада в шкаф",
+      title: t("pagesUi.warehouseItems.dialogs.toCabinetTitle"),
       fields: [
         {
           name: "equipment_type_id",
-          label: "Оборудование",
+          label: t("common.fields.equipment"),
           type: "select",
           options:
             equipmentTypesQuery.data?.items.map((item) => ({
@@ -287,7 +291,7 @@ export default function WarehouseItemsPage() {
         },
         {
           name: "from_warehouse_id",
-          label: "Со склада",
+          label: t("pagesUi.warehouseItems.fields.fromWarehouse"),
           type: "select",
           options:
             warehousesQuery.data?.items.map((item) => ({
@@ -297,7 +301,7 @@ export default function WarehouseItemsPage() {
         },
         {
           name: "to_cabinet_id",
-          label: "В шкаф",
+          label: t("pagesUi.warehouseItems.fields.toCabinet"),
           type: "select",
           options:
             cabinetsQuery.data?.items.map((item) => ({
@@ -305,8 +309,8 @@ export default function WarehouseItemsPage() {
               value: item.id
             })) || []
         },
-        { name: "quantity", label: "Количество", type: "number" },
-        { name: "comment", label: "Комментарий", type: "text" }
+        { name: "quantity", label: t("common.fields.quantity"), type: "number" },
+        { name: "comment", label: t("common.fields.comment"), type: "text" }
       ],
       values: {
         equipment_type_id: "",
@@ -328,7 +332,7 @@ export default function WarehouseItemsPage() {
           !Number.isFinite(quantity) ||
           quantity < 1
         ) {
-          setErrorMessage("Заполните обязательные поля.");
+          setErrorMessage(t("validation.requiredFields"));
           return;
         }
 
@@ -361,46 +365,49 @@ export default function WarehouseItemsPage() {
   const columns = useMemo<ColumnDef<WarehouseItem>[]>(() => {
     const base: ColumnDef<WarehouseItem>[] = [
       {
-        header: "Warehouse",
+        header: t("common.fields.warehouse"),
         cell: ({ row }) => warehouseMap.get(row.original.warehouse_id) || row.original.warehouse_id
       },
       {
-        header: "Equipment",
+        header: t("common.fields.equipment"),
         cell: ({ row }) =>
           row.original.equipment_type_name ||
           equipmentMap.get(row.original.equipment_type_id) ||
           row.original.equipment_type_id
       },
       {
-        header: "Equipment type",
+        header: t("common.fields.equipmentCategory"),
         cell: ({ row }) => row.original.equipment_category_name || "-"
       },
       {
-        header: "Manufacturer",
+        header: t("common.fields.manufacturer"),
         cell: ({ row }) => row.original.manufacturer_name || "-"
       },
       {
-        header: "Price, RUB",
+        header: t("common.fields.priceRub"),
         cell: ({ row }) =>
           row.original.unit_price_rub === null || row.original.unit_price_rub === undefined
             ? "-"
             : row.original.unit_price_rub
       },
-      { header: "Quantity", accessorKey: "quantity" },
+      { header: t("common.fields.quantity"), accessorKey: "quantity" },
       {
-        header: "Учёт",
-        cell: ({ row }) => (row.original.is_accounted ? "Учтено" : "Не учтено")
+        header: t("common.fields.accounting"),
+        cell: ({ row }) =>
+          row.original.is_accounted
+            ? t("pagesUi.warehouseItems.accounted")
+            : t("pagesUi.warehouseItems.notAccounted")
       },
-      { header: "Удалено", cell: ({ row }) => (row.original.is_deleted ? "Да" : "Нет") },
+      { header: t("common.deleted"), cell: ({ row }) => (row.original.is_deleted ? t("common.yes") : t("common.no")) },
       {
-        header: "Updated",
+        header: t("pagesUi.warehouseItems.columns.updated"),
         cell: ({ row }) => formatDateTime(row.original.updated_at || row.original.created_at)
       }
     ];
 
     if (canWrite) {
       base.push({
-        header: "Actions",
+        header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
             <AppButton
@@ -409,10 +416,10 @@ export default function WarehouseItemsPage() {
               onClick={() =>
                 setDialog({
                   open: true,
-                  title: "Edit warehouse item",
+                  title: t("pagesUi.warehouseItems.dialogs.editTitle"),
                   fields: [
-                    { name: "quantity", label: "Quantity", type: "number" },
-                    { name: "is_accounted", label: "Учёт", type: "checkbox" }
+                    { name: "quantity", label: t("common.fields.quantity"), type: "number" },
+                    { name: "is_accounted", label: t("common.fields.accounting"), type: "checkbox" }
                   ],
                   values: {
                     quantity: row.original.quantity,
@@ -431,7 +438,7 @@ export default function WarehouseItemsPage() {
                 })
               }
             >
-              Edit
+              {t("actions.edit")}
             </AppButton>
             <AppButton
               size="small"
@@ -445,7 +452,7 @@ export default function WarehouseItemsPage() {
                   : deleteMutation.mutate(row.original.id)
               }
             >
-              {row.original.is_deleted ? "Restore" : "Delete"}
+              {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
             </AppButton>
           </Box>
         )
@@ -453,7 +460,7 @@ export default function WarehouseItemsPage() {
     }
 
     return base;
-  }, [canWrite, deleteMutation, equipmentMap, restoreMutation, updateMutation, warehouseMap]);
+  }, [canWrite, deleteMutation, equipmentMap, restoreMutation, t, updateMutation, warehouseMap]);
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
@@ -478,8 +485,8 @@ export default function WarehouseItemsPage() {
             />
 
             <FormControl fullWidth>
-              <InputLabel>Сортировка</InputLabel>
-              <Select label="Сортировка" value={sort} onChange={(event) => setSort(event.target.value)}>
+              <InputLabel>{t("common.sort")}</InputLabel>
+              <Select label={t("common.sort")} value={sort} onChange={(event) => setSort(event.target.value)}>
                 {sortOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
@@ -489,9 +496,9 @@ export default function WarehouseItemsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Склад</InputLabel>
+              <InputLabel>{t("common.fields.warehouse")}</InputLabel>
               <Select
-                label="Склад"
+                label={t("common.fields.warehouse")}
                 value={warehouseFilter}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -499,7 +506,7 @@ export default function WarehouseItemsPage() {
                   setPage(1);
                 }}
               >
-                <MenuItem value="">Все</MenuItem>
+                <MenuItem value="">{t("common.all")}</MenuItem>
                 {warehousesQuery.data?.items.map((item) => (
                   <MenuItem key={item.id} value={item.id}>
                     {item.name}
@@ -509,9 +516,9 @@ export default function WarehouseItemsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Номенклатура</InputLabel>
+              <InputLabel>{t("common.fields.nomenclature")}</InputLabel>
               <Select
-                label="Номенклатура"
+                label={t("common.fields.nomenclature")}
                 value={equipmentFilter}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -519,7 +526,7 @@ export default function WarehouseItemsPage() {
                   setPage(1);
                 }}
               >
-                <MenuItem value="">???</MenuItem>
+                <MenuItem value="">{t("common.all")}</MenuItem>
                 {equipmentTypesQuery.data?.items.map((item) => (
                   <MenuItem key={item.id} value={item.id}>
                     {item.name}
@@ -529,9 +536,9 @@ export default function WarehouseItemsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Manufacturer</InputLabel>
+              <InputLabel>{t("common.fields.manufacturer")}</InputLabel>
               <Select
-                label="Manufacturer"
+                label={t("common.fields.manufacturer")}
                 value={manufacturerFilter}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -539,7 +546,7 @@ export default function WarehouseItemsPage() {
                   setPage(1);
                 }}
               >
-                <MenuItem value="">All</MenuItem>
+                <MenuItem value="">{t("common.all")}</MenuItem>
                 {manufacturersQuery.data?.items.map((item) => (
                   <MenuItem key={item.id} value={item.id}>
                     {item.name}
@@ -549,9 +556,9 @@ export default function WarehouseItemsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Equipment category</InputLabel>
+              <InputLabel>{t("common.fields.equipmentCategory")}</InputLabel>
               <Select
-                label="Equipment category"
+                label={t("common.fields.equipmentCategory")}
                 value={equipmentCategoryFilter}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -559,7 +566,7 @@ export default function WarehouseItemsPage() {
                   setPage(1);
                 }}
               >
-                <MenuItem value="">All</MenuItem>
+                <MenuItem value="">{t("common.all")}</MenuItem>
                 {equipmentCategoriesQuery.data?.items.map((item) => (
                   <MenuItem key={item.id} value={item.id}>
                     {item.name}
@@ -569,7 +576,7 @@ export default function WarehouseItemsPage() {
             </FormControl>
 
             <TextField
-              label="Price min"
+              label={t("pagesUi.warehouseItems.fields.priceMin")}
               type="number"
               value={priceMin}
               onChange={(event) => {
@@ -580,7 +587,7 @@ export default function WarehouseItemsPage() {
             />
 
             <TextField
-              label="Price max"
+              label={t("pagesUi.warehouseItems.fields.priceMax")}
               type="number"
               value={priceMax}
               onChange={(event) => {
@@ -603,22 +610,23 @@ export default function WarehouseItemsPage() {
                   }}
                 />
               }
-              label="Show deleted"
+              label={t("common.showDeleted")}
             />
           </Box>
 
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
             <AppButton variant="contained" onClick={openToWarehouseDialog}>
-              На склад
+              {t("pagesUi.warehouseItems.actions.toWarehouse")}
             </AppButton>
             <AppButton variant="contained" onClick={openToCabinetDialog}>
-              Со склада в шкаф
+              {t("pagesUi.warehouseItems.actions.toCabinet")}
             </AppButton>
           </Box>
 
           <DataTable data={itemsQuery.data?.items || []} columns={columns} />
           <TablePagination
             component="div"
+            {...getTablePaginationProps(t)}
             count={itemsQuery.data?.total || 0}
             page={page - 1}
             onPageChange={(_, value) => setPage(value + 1)}

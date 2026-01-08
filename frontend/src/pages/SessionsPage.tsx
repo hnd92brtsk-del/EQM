@@ -19,15 +19,9 @@ import { DataTable } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { listEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
+import { getTablePaginationProps } from "../components/tablePaginationI18n";
 
 const pageSizeOptions = [10, 20, 50, 100];
-
-const sortOptions = [
-  { value: "-started_at", label: "По началу (новые)" },
-  { value: "started_at", label: "По началу (старые)" },
-  { value: "-ended_at", label: "По окончанию (новые)" },
-  { value: "ended_at", label: "По окончанию (старые)" }
-];
 
 type Session = {
   id: number;
@@ -52,6 +46,16 @@ export default function SessionsPage() {
   const [endReasonFilter, setEndReasonFilter] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const sortOptions = useMemo(
+    () => [
+      { value: "-started_at", label: t("pagesUi.sessions.sort.byStartNewest") },
+      { value: "started_at", label: t("pagesUi.sessions.sort.byStartOldest") },
+      { value: "-ended_at", label: t("pagesUi.sessions.sort.byEndNewest") },
+      { value: "ended_at", label: t("pagesUi.sessions.sort.byEndOldest") }
+    ],
+    [t]
+  );
+
   const sessionsQuery = useQuery({
     queryKey: ["sessions", page, pageSize, q, sort, userIdFilter, endReasonFilter],
     queryFn: () =>
@@ -74,21 +78,21 @@ export default function SessionsPage() {
       setErrorMessage(
         sessionsQuery.error instanceof Error
           ? sessionsQuery.error.message
-          : "Ошибка загрузки сессий"
+          : t("pagesUi.sessions.errors.load")
       );
     }
-  }, [sessionsQuery.error]);
+  }, [sessionsQuery.error, t]);
 
   const columns = useMemo<ColumnDef<Session>[]>(
     () => [
-      { header: "ID", accessorKey: "id" },
-      { header: "User", accessorKey: "user_id" },
-      { header: "Начало", accessorKey: "started_at" },
-      { header: "Окончание", accessorKey: "ended_at" },
-      { header: "Причина", accessorKey: "end_reason" },
-      { header: "IP", accessorKey: "ip_address" }
+      { header: t("pagesUi.sessions.columns.id"), accessorKey: "id" },
+      { header: t("pagesUi.sessions.columns.user"), accessorKey: "user_id" },
+      { header: t("pagesUi.sessions.columns.startedAt"), accessorKey: "started_at" },
+      { header: t("pagesUi.sessions.columns.endedAt"), accessorKey: "ended_at" },
+      { header: t("pagesUi.sessions.columns.endReason"), accessorKey: "end_reason" },
+      { header: t("pagesUi.sessions.columns.ip"), accessorKey: "ip_address" }
     ],
-    []
+    [t]
   );
 
   if (!canView) {
@@ -118,8 +122,8 @@ export default function SessionsPage() {
             />
 
             <FormControl fullWidth>
-              <InputLabel>Сортировка</InputLabel>
-              <Select label="Сортировка" value={sort} onChange={(event) => setSort(event.target.value)}>
+              <InputLabel>{t("common.sort")}</InputLabel>
+              <Select label={t("common.sort")} value={sort} onChange={(event) => setSort(event.target.value)}>
                 {sortOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
@@ -129,7 +133,7 @@ export default function SessionsPage() {
             </FormControl>
 
             <TextField
-              label="User ID"
+              label={t("pagesUi.sessions.fields.userId")}
               value={userIdFilter}
               onChange={(event) => {
                 setUserIdFilter(event.target.value);
@@ -139,7 +143,7 @@ export default function SessionsPage() {
             />
 
             <TextField
-              label="Причина завершения"
+              label={t("pagesUi.sessions.fields.endReason")}
               value={endReasonFilter}
               onChange={(event) => {
                 setEndReasonFilter(event.target.value);
@@ -152,6 +156,7 @@ export default function SessionsPage() {
           <DataTable data={sessionsQuery.data?.items || []} columns={columns} />
           <TablePagination
             component="div"
+            {...getTablePaginationProps(t)}
             count={sessionsQuery.data?.total || 0}
             page={page - 1}
             onPageChange={(_, value) => setPage(value + 1)}

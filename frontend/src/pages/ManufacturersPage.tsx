@@ -18,6 +18,7 @@ import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
 import { DictionariesTabs } from "../components/DictionariesTabs";
@@ -26,6 +27,7 @@ import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
+import { getTablePaginationProps } from "../components/tablePaginationI18n";
 
 type Manufacturer = {
   id: number;
@@ -35,16 +37,10 @@ type Manufacturer = {
   created_at?: string;
 };
 
-const sortOptions = [
-  { value: "name", label: "По названию (А-Я)" },
-  { value: "-name", label: "По названию (Я-А)" },
-  { value: "created_at", label: "По дате создания (старые)" },
-  { value: "-created_at", label: "По дате создания (новые)" }
-];
-
 const pageSizeOptions = [10, 20, 50, 100];
 
 export default function ManufacturersPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const canWrite = user?.role === "admin" || user?.role === "engineer";
   const queryClient = useQueryClient();
@@ -58,6 +54,16 @@ export default function ManufacturersPage() {
   const [createdTo, setCreatedTo] = useState("");
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const sortOptions = useMemo(
+    () => [
+      { value: "name", label: t("pagesUi.manufacturers.sort.byNameAsc") },
+      { value: "-name", label: t("pagesUi.manufacturers.sort.byNameDesc") },
+      { value: "created_at", label: t("pagesUi.manufacturers.sort.byCreatedOldest") },
+      { value: "-created_at", label: t("pagesUi.manufacturers.sort.byCreatedNewest") }
+    ],
+    [t]
+  );
 
   const manufacturersQuery = useQuery({
     queryKey: ["manufacturers", page, pageSize, q, sort, showDeleted, createdFrom, createdTo],
@@ -80,10 +86,10 @@ export default function ManufacturersPage() {
       setErrorMessage(
         manufacturersQuery.error instanceof Error
           ? manufacturersQuery.error.message
-          : "Ошибка загрузки производителей"
+          : t("pagesUi.manufacturers.errors.load")
       );
     }
-  }, [manufacturersQuery.error]);
+  }, [manufacturersQuery.error, t]);
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["manufacturers"] });
@@ -93,7 +99,7 @@ export default function ManufacturersPage() {
     mutationFn: (payload: { name: string; country: string }) => createEntity("/manufacturers", payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка создания производителя")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.manufacturers.errors.create"))
   });
 
   const updateMutation = useMutation({
@@ -101,38 +107,40 @@ export default function ManufacturersPage() {
       updateEntity("/manufacturers", id, payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка обновления производителя")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.manufacturers.errors.update"))
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteEntity("/manufacturers", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка удаления производителя")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.manufacturers.errors.delete"))
   });
 
   const restoreMutation = useMutation({
     mutationFn: (id: number) => restoreEntity("/manufacturers", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка восстановления производителя")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.manufacturers.errors.restore"))
   });
 
   const columns = useMemo<ColumnDef<Manufacturer>[]>(() => {
     const base: ColumnDef<Manufacturer>[] = [
-      { header: "Название", accessorKey: "name" },
-      { header: "Страна", accessorKey: "country" },
+      { header: t("common.fields.name"), accessorKey: "name" },
+      { header: t("common.fields.country"), accessorKey: "country" },
       {
-        header: "Статус",
+        header: t("common.status.label"),
         cell: ({ row }) => (
-          <span className="status-pill">{row.original.is_deleted ? "Удалено" : "Активно"}</span>
+          <span className="status-pill">
+            {row.original.is_deleted ? t("common.status.deleted") : t("common.status.active")}
+          </span>
         )
       }
     ];
 
     if (canWrite) {
       base.push({
-        header: "Действия",
+        header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
             <AppButton
@@ -141,10 +149,10 @@ export default function ManufacturersPage() {
               onClick={() =>
                 setDialog({
                   open: true,
-                  title: "Производитель",
+                  title: t("pagesUi.manufacturers.dialogs.editTitle"),
                   fields: [
-                    { name: "name", label: "Название", type: "text" },
-                    { name: "country", label: "Страна", type: "text" }
+                    { name: "name", label: t("common.fields.name"), type: "text" },
+                    { name: "country", label: t("common.fields.country"), type: "text" }
                   ],
                   values: row.original,
                   onSave: (values) => {
@@ -157,7 +165,7 @@ export default function ManufacturersPage() {
                 })
               }
             >
-              Изменить
+              {t("actions.edit")}
             </AppButton>
             <AppButton
               size="small"
@@ -171,7 +179,7 @@ export default function ManufacturersPage() {
                   : deleteMutation.mutate(row.original.id)
               }
             >
-              {row.original.is_deleted ? "Восстановить" : "Удалить"}
+              {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
             </AppButton>
           </Box>
         )
@@ -179,11 +187,11 @@ export default function ManufacturersPage() {
     }
 
     return base;
-  }, [canWrite, deleteMutation, restoreMutation, updateMutation]);
+  }, [canWrite, deleteMutation, restoreMutation, t, updateMutation]);
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">Справочники</Typography>
+      <Typography variant="h4">{t("pagesUi.manufacturers.title")}</Typography>
       <DictionariesTabs />
 
       <Card>
@@ -196,7 +204,7 @@ export default function ManufacturersPage() {
             }}
           >
             <TextField
-              label="Поиск"
+              label={t("actions.search")}
               value={q}
               onChange={(event) => {
                 setQ(event.target.value);
@@ -206,8 +214,8 @@ export default function ManufacturersPage() {
             />
 
             <FormControl fullWidth>
-              <InputLabel>Сортировка</InputLabel>
-              <Select label="Сортировка" value={sort} onChange={(event) => setSort(event.target.value)}>
+              <InputLabel>{t("common.sort")}</InputLabel>
+              <Select label={t("common.sort")} value={sort} onChange={(event) => setSort(event.target.value)}>
                 {sortOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
@@ -217,7 +225,7 @@ export default function ManufacturersPage() {
             </FormControl>
 
             <TextField
-              label="Создано от"
+              label={t("common.createdFrom")}
               type="date"
               value={createdFrom}
               onChange={(event) => {
@@ -229,7 +237,7 @@ export default function ManufacturersPage() {
             />
 
             <TextField
-              label="Создано до"
+              label={t("common.createdTo")}
               type="date"
               value={createdTo}
               onChange={(event) => {
@@ -252,7 +260,7 @@ export default function ManufacturersPage() {
                   }}
                 />
               }
-              label="Показывать удаленные"
+              label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
             {canWrite && (
@@ -262,10 +270,10 @@ export default function ManufacturersPage() {
                 onClick={() =>
                   setDialog({
                     open: true,
-                    title: "Новый производитель",
+                    title: t("pagesUi.manufacturers.dialogs.createTitle"),
                     fields: [
-                      { name: "name", label: "Название", type: "text" },
-                      { name: "country", label: "Страна", type: "text" }
+                      { name: "name", label: t("common.fields.name"), type: "text" },
+                      { name: "country", label: t("common.fields.country"), type: "text" }
                     ],
                     values: { name: "", country: "" },
                     onSave: (values) => {
@@ -275,7 +283,7 @@ export default function ManufacturersPage() {
                   })
                 }
               >
-                Добавить
+                {t("actions.add")}
               </AppButton>
             )}
           </Box>
@@ -283,6 +291,7 @@ export default function ManufacturersPage() {
           <DataTable data={manufacturersQuery.data?.items || []} columns={columns} />
           <TablePagination
             component="div"
+            {...getTablePaginationProps(t)}
             count={manufacturersQuery.data?.total || 0}
             page={page - 1}
             onPageChange={(_, value) => setPage(value + 1)}

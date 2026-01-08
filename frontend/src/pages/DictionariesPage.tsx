@@ -205,12 +205,14 @@ export default function DictionariesPage() {
 
   const manufacturerColumns = useMemo<ColumnDef<Manufacturer>[]>(
     () => [
-      { header: "Название", accessorKey: "name" },
-      { header: "Страна", accessorKey: "country" },
+      { header: t("common.fields.name"), accessorKey: "name" },
+      { header: t("common.fields.country"), accessorKey: "country" },
       {
-        header: "Статус",
+        header: t("common.status.label"),
         cell: ({ row }) => (
-          <span className="status-pill">{row.original.is_deleted ? "Удалено" : "Активно"}</span>
+          <span className="status-pill">
+            {row.original.is_deleted ? t("common.status.deleted") : t("common.status.active")}
+          </span>
         )
       },
       {
@@ -223,10 +225,10 @@ export default function DictionariesPage() {
               onClick={() =>
                 setDialog({
                   open: true,
-                  title: "Производитель",
+                  title: t("pagesUi.manufacturers.dialogs.editTitle"),
                   fields: [
-                    { name: "name", label: "Название", type: "text" },
-                    { name: "country", label: "Страна", type: "text" }
+                    { name: "name", label: t("common.fields.name"), type: "text" },
+                    { name: "country", label: t("common.fields.country"), type: "text" }
                   ],
                   values: row.original,
                   onSave: (values) => {
@@ -267,12 +269,14 @@ export default function DictionariesPage() {
 
   const locationColumns = useMemo<ColumnDef<Location>[]>(
     () => [
-      { header: "Название", accessorKey: "name" },
-      { header: "Родитель", accessorKey: "parent_id" },
+      { header: t("common.fields.name"), accessorKey: "name" },
+      { header: t("common.fields.parent"), accessorKey: "parent_id" },
       {
-        header: "Статус",
+        header: t("common.status.label"),
         cell: ({ row }) => (
-          <span className="status-pill">{row.original.is_deleted ? "Удалено" : "Активно"}</span>
+          <span className="status-pill">
+            {row.original.is_deleted ? t("common.status.deleted") : t("common.status.active")}
+          </span>
         )
       },
       {
@@ -285,12 +289,12 @@ export default function DictionariesPage() {
               onClick={() =>
                 setDialog({
                   open: true,
-                  title: "Локация",
+                  title: t("pagesUi.locations.dialogs.editTitle"),
                   fields: [
-                    { name: "name", label: "Название", type: "text" },
+                    { name: "name", label: t("common.fields.name"), type: "text" },
                     {
                       name: "parent_id",
-                      label: "Родитель",
+                      label: t("common.fields.parent"),
                       type: "select",
                       options:
                         locationsQuery.data?.items.map((loc) => ({
@@ -338,18 +342,22 @@ export default function DictionariesPage() {
 
   const equipmentColumns = useMemo<ColumnDef<EquipmentType>[]>(
     () => [
-      { header: "Название", accessorKey: "name" },
-      { header: "Номенклатура", accessorKey: "nomenclature_number" },
-      { header: "Производитель", accessorKey: "manufacturer_id" },
+      { header: t("common.fields.name"), accessorKey: "name" },
+      { header: t("common.fields.nomenclature"), accessorKey: "nomenclature_number" },
+      { header: t("common.fields.manufacturer"), accessorKey: "manufacturer_id" },
       {
-        header: "Каналы",
+        header: t("pagesUi.equipmentTypes.columns.channels"),
         cell: ({ row }) =>
-          row.original.is_channel_forming ? `Да (${row.original.channel_count})` : "Нет"
+          row.original.is_channel_forming
+            ? t("pagesUi.equipmentTypes.channelsWithCount", { count: row.original.channel_count })
+            : t("common.no")
       },
       {
-        header: "Статус",
+        header: t("common.status.label"),
         cell: ({ row }) => (
-          <span className="status-pill">{row.original.is_deleted ? "Удалено" : "Активно"}</span>
+          <span className="status-pill">
+            {row.original.is_deleted ? t("common.status.deleted") : t("common.status.active")}
+          </span>
         )
       },
       {
@@ -362,13 +370,13 @@ export default function DictionariesPage() {
               onClick={() =>
                 setDialog({
                   open: true,
-                  title: "Тип оборудования",
+                  title: t("pagesUi.equipmentTypes.dialogs.editTitle"),
                   fields: [
-                    { name: "name", label: "Название", type: "text" },
-                    { name: "nomenclature_number", label: "Номенклатура", type: "text" },
+                    { name: "name", label: t("common.fields.name"), type: "text" },
+                    { name: "nomenclature_number", label: t("common.fields.nomenclature"), type: "text" },
                     {
                       name: "manufacturer_id",
-                      label: "Производитель",
+                      label: t("common.fields.manufacturer"),
                       type: "select",
                       options:
                         manufacturersQuery.data?.items.map((m) => ({
@@ -376,8 +384,8 @@ export default function DictionariesPage() {
                           value: m.id
                         })) || []
                     },
-                    { name: "is_channel_forming", label: "Каналообразующее", type: "checkbox" },
-                    { name: "channel_count", label: "Кол-во каналов", type: "number" }
+                    { name: "is_channel_forming", label: t("common.fields.channelForming"), type: "checkbox" },
+                    { name: "channel_count", label: t("common.fields.channelCount"), type: "number" }
                   ],
                   values: row.original,
                   onSave: (values) => {
@@ -424,12 +432,14 @@ export default function DictionariesPage() {
 
   const warehouseColumns = useMemo<ColumnDef<Warehouse>[]>(
     () => [
-      { header: "Название", accessorKey: "name" },
-      { header: "Локация", accessorKey: "location_id" },
+      { header: t("common.fields.name"), accessorKey: "name" },
+      { header: t("common.fields.location"), accessorKey: "location_id" },
       {
-        header: "Статус",
+        header: t("common.status.label"),
         cell: ({ row }) => (
-          <span className="status-pill">{row.original.is_deleted ? "Удалено" : "Активно"}</span>
+          <span className="status-pill">
+            {row.original.is_deleted ? t("common.status.deleted") : t("common.status.active")}
+          </span>
         )
       },
       {
@@ -442,12 +452,12 @@ export default function DictionariesPage() {
               onClick={() =>
                 setDialog({
                   open: true,
-                  title: "Склад",
+                  title: t("pagesUi.warehouses.dialogs.editTitle"),
                   fields: [
-                    { name: "name", label: "Название", type: "text" },
+                    { name: "name", label: t("common.fields.name"), type: "text" },
                     {
                       name: "location_id",
-                      label: "Локация",
+                      label: t("common.fields.location"),
                       type: "select",
                       options:
                         locationsQuery.data?.items.map((loc) => ({
@@ -495,12 +505,14 @@ export default function DictionariesPage() {
 
   const cabinetColumns = useMemo<ColumnDef<Cabinet>[]>(
     () => [
-      { header: "Название", accessorKey: "name" },
-      { header: "Локация", accessorKey: "location_id" },
+      { header: t("common.fields.name"), accessorKey: "name" },
+      { header: t("common.fields.location"), accessorKey: "location_id" },
       {
-        header: "Статус",
+        header: t("common.status.label"),
         cell: ({ row }) => (
-          <span className="status-pill">{row.original.is_deleted ? "Удалено" : "Активно"}</span>
+          <span className="status-pill">
+            {row.original.is_deleted ? t("common.status.deleted") : t("common.status.active")}
+          </span>
         )
       },
       {
@@ -513,12 +525,12 @@ export default function DictionariesPage() {
               onClick={() =>
                 setDialog({
                   open: true,
-                  title: "Шкаф",
+                  title: t("pagesUi.cabinets.dialogs.editTitle"),
                   fields: [
-                    { name: "name", label: "Название", type: "text" },
+                    { name: "name", label: t("common.fields.name"), type: "text" },
                     {
                       name: "location_id",
-                      label: "Локация",
+                      label: t("common.fields.location"),
                       type: "select",
                       options:
                         locationsQuery.data?.items.map((loc) => ({
@@ -570,7 +582,7 @@ export default function DictionariesPage() {
         <Card>
           <CardContent>
             <Box className="table-toolbar">
-              <Typography variant="h6">Производители</Typography>
+              <Typography variant="h6">{t("menu.manufacturers")}</Typography>
               <Box sx={{ flexGrow: 1 }} />
               <AppButton
                 variant="contained"
@@ -579,10 +591,10 @@ export default function DictionariesPage() {
                 onClick={() =>
                   setDialog({
                     open: true,
-                    title: "Новый производитель",
+                    title: t("pagesUi.manufacturers.dialogs.createTitle"),
                     fields: [
-                      { name: "name", label: "Название", type: "text" },
-                      { name: "country", label: "Страна", type: "text" }
+                      { name: "name", label: t("common.fields.name"), type: "text" },
+                      { name: "country", label: t("common.fields.country"), type: "text" }
                     ],
                     values: { name: "", country: "" },
                     onSave: (values) => {
@@ -606,7 +618,7 @@ export default function DictionariesPage() {
         <Card>
           <CardContent>
             <Box className="table-toolbar">
-              <Typography variant="h6">Локации</Typography>
+              <Typography variant="h6">{t("menu.locations")}</Typography>
               <Box sx={{ flexGrow: 1 }} />
               <AppButton
                 variant="contained"
@@ -615,12 +627,12 @@ export default function DictionariesPage() {
                 onClick={() =>
                   setDialog({
                     open: true,
-                    title: "Новая локация",
+                    title: t("pagesUi.locations.dialogs.createTitle"),
                     fields: [
-                      { name: "name", label: "Название", type: "text" },
+                      { name: "name", label: t("common.fields.name"), type: "text" },
                       {
                         name: "parent_id",
-                        label: "Родитель",
+                        label: t("common.fields.parent"),
                         type: "select",
                         options:
                           locationsQuery.data?.items.map((loc) => ({
@@ -654,7 +666,7 @@ export default function DictionariesPage() {
         <Card>
           <CardContent>
             <Box className="table-toolbar">
-              <Typography variant="h6">Номенклатура</Typography>
+              <Typography variant="h6">{t("menu.nomenclature")}</Typography>
               <Box sx={{ flexGrow: 1 }} />
               <AppButton
                 variant="contained"
@@ -663,13 +675,13 @@ export default function DictionariesPage() {
                 onClick={() =>
                   setDialog({
                     open: true,
-                    title: "Новый тип оборудования",
+                    title: t("pagesUi.equipmentTypes.dialogs.createTitle"),
                     fields: [
-                      { name: "name", label: "Название", type: "text" },
-                      { name: "nomenclature_number", label: "Номенклатура", type: "text" },
+                      { name: "name", label: t("common.fields.name"), type: "text" },
+                      { name: "nomenclature_number", label: t("common.fields.nomenclature"), type: "text" },
                       {
                         name: "manufacturer_id",
-                        label: "Производитель",
+                        label: t("common.fields.manufacturer"),
                         type: "select",
                         options:
                           manufacturersQuery.data?.items.map((m) => ({
@@ -677,8 +689,8 @@ export default function DictionariesPage() {
                             value: m.id
                           })) || []
                       },
-                      { name: "is_channel_forming", label: "Каналообразующее", type: "checkbox" },
-                      { name: "channel_count", label: "Кол-во каналов", type: "number" }
+                      { name: "is_channel_forming", label: t("common.fields.channelForming"), type: "checkbox" },
+                      { name: "channel_count", label: t("common.fields.channelCount"), type: "number" }
                     ],
                     values: {
                       name: "",
@@ -708,7 +720,7 @@ export default function DictionariesPage() {
         <Card>
           <CardContent>
             <Box className="table-toolbar">
-              <Typography variant="h6">Склады</Typography>
+              <Typography variant="h6">{t("menu.warehouses")}</Typography>
               <Box sx={{ flexGrow: 1 }} />
               <AppButton
                 variant="contained"
@@ -717,12 +729,12 @@ export default function DictionariesPage() {
                 onClick={() =>
                   setDialog({
                     open: true,
-                    title: "Новый склад",
+                    title: t("pagesUi.warehouses.dialogs.createTitle"),
                     fields: [
-                      { name: "name", label: "Название", type: "text" },
+                      { name: "name", label: t("common.fields.name"), type: "text" },
                       {
                         name: "location_id",
-                        label: "Локация",
+                        label: t("common.fields.location"),
                         type: "select",
                         options:
                           locationsQuery.data?.items.map((loc) => ({
@@ -752,10 +764,10 @@ export default function DictionariesPage() {
     }
 
     return (
-      <Card>
-        <CardContent>
-          <Box className="table-toolbar">
-            <Typography variant="h6">Шкафы</Typography>
+        <Card>
+          <CardContent>
+            <Box className="table-toolbar">
+            <Typography variant="h6">{t("menu.cabinets")}</Typography>
             <Box sx={{ flexGrow: 1 }} />
             <AppButton
               variant="contained"
@@ -764,12 +776,12 @@ export default function DictionariesPage() {
               onClick={() =>
                 setDialog({
                   open: true,
-                  title: "Новый шкаф",
+                  title: t("pagesUi.cabinets.dialogs.createTitle"),
                   fields: [
-                    { name: "name", label: "Название", type: "text" },
+                    { name: "name", label: t("common.fields.name"), type: "text" },
                     {
                       name: "location_id",
-                      label: "Локация",
+                      label: t("common.fields.location"),
                       type: "select",
                       options:
                         locationsQuery.data?.items.map((loc) => ({
@@ -802,16 +814,16 @@ export default function DictionariesPage() {
     <Box sx={{ display: "grid", gap: 2 }}>
       <Typography variant="h4">{t("pages.dictionaries")}</Typography>
       <Tabs value={tab} onChange={(_, value) => setTab(value)}>
-        <Tab label="Производители" />
-        <Tab label="Локации" />
-        <Tab label="Номенклатура" />
-        <Tab label="Склады" />
-        <Tab label="Шкафы" />
+        <Tab label={t("menu.manufacturers")} />
+        <Tab label={t("menu.locations")} />
+        <Tab label={t("menu.nomenclature")} />
+        <Tab label={t("menu.warehouses")} />
+        <Tab label={t("menu.cabinets")} />
             </Tabs>
       <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
         <FormControlLabel
           control={<Switch checked={showDeleted} onChange={(event) => setShowDeleted(event.target.checked)} />}
-          label="Показывать удаленные"
+          label={t("common.showDeleted")}
         />
       </Box>
       {renderSection()}

@@ -9,12 +9,6 @@ const getLabel = (item: NavItem, t: (key: string) => string) => {
   if (item.labelKey) {
     return t(item.labelKey);
   }
-  if (item.labelRu) {
-    return item.labelRu;
-  }
-  if (item.labelEn) {
-    return item.labelEn;
-  }
   return item.id;
 };
 

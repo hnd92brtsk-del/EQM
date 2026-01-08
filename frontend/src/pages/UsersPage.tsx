@@ -29,17 +29,9 @@ import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { AppButton } from "../components/ui/AppButton";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
+import { getTablePaginationProps } from "../components/tablePaginationI18n";
 
 const pageSizeOptions = [10, 20, 50, 100];
-
-const sortOptions = [
-  { value: "username", label: "По логину (А-Я)" },
-  { value: "-username", label: "По логину (Я-А)" },
-  { value: "role", label: "По роли (А-Я)" },
-  { value: "-role", label: "По роли (Я-А)" },
-  { value: "created_at", label: "По дате создания (старые)" },
-  { value: "-created_at", label: "По дате создания (новые)" }
-];
 
 type User = {
   id: number;
@@ -66,6 +58,18 @@ export default function UsersPage() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const sortOptions = useMemo(
+    () => [
+      { value: "username", label: t("pagesUi.users.sort.byUsernameAsc") },
+      { value: "-username", label: t("pagesUi.users.sort.byUsernameDesc") },
+      { value: "role", label: t("pagesUi.users.sort.byRoleAsc") },
+      { value: "-role", label: t("pagesUi.users.sort.byRoleDesc") },
+      { value: "created_at", label: t("pagesUi.users.sort.byCreatedOldest") },
+      { value: "-created_at", label: t("pagesUi.users.sort.byCreatedNewest") }
+    ],
+    [t]
+  );
+
   const usersQuery = useQuery({
     queryKey: ["users", page, pageSize, q, sort, roleFilter, showDeleted],
     queryFn: () =>
@@ -86,37 +90,37 @@ export default function UsersPage() {
       setErrorMessage(
         usersQuery.error instanceof Error
           ? usersQuery.error.message
-          : "Ошибка загрузки пользователей"
+          : t("pagesUi.users.errors.load")
       );
     }
-  }, [usersQuery.error]);
+  }, [usersQuery.error, t]);
 
   const createMutation = useMutation({
     mutationFn: (payload: any) => createEntity("/users", payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка создания пользователя")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.users.errors.create"))
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: any }) => updateEntity("/users", id, payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка обновления пользователя")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.users.errors.update"))
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteEntity("/users", id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка удаления пользователя")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.users.errors.delete"))
   });
 
   const restoreMutation = useMutation({
     mutationFn: (id: number) => restoreEntity("/users", id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка восстановления пользователя")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.users.errors.restore"))
   });
 
   const resetForm = () => {
@@ -127,12 +131,18 @@ export default function UsersPage() {
 
   const columns = useMemo<ColumnDef<User>[]>(() => {
     const base: ColumnDef<User>[] = [
-      { header: "Логин", accessorKey: "username" },
-      { header: "Роль", accessorKey: "role" },
+      { header: t("common.fields.login"), accessorKey: "username" },
       {
-        header: "Статус",
+        header: t("common.fields.role"),
+        accessorKey: "role",
+        cell: ({ row }) => t(`roles.${row.original.role}`)
+      },
+      {
+        header: t("common.status.label"),
         cell: ({ row }) => (
-          <span className="status-pill">{row.original.is_deleted ? "Удален" : "Активен"}</span>
+          <span className="status-pill">
+            {row.original.is_deleted ? t("common.status.deleted") : t("common.status.active")}
+          </span>
         )
       }
     ];
@@ -198,8 +208,8 @@ export default function UsersPage() {
             />
 
             <FormControl fullWidth>
-              <InputLabel>Сортировка</InputLabel>
-              <Select label="Сортировка" value={sort} onChange={(event) => setSort(event.target.value)}>
+              <InputLabel>{t("common.sort")}</InputLabel>
+              <Select label={t("common.sort")} value={sort} onChange={(event) => setSort(event.target.value)}>
                 {sortOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
@@ -209,19 +219,19 @@ export default function UsersPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Роль</InputLabel>
+              <InputLabel>{t("common.fields.role")}</InputLabel>
               <Select
-                label="Роль"
+                label={t("common.fields.role")}
                 value={roleFilter}
                 onChange={(event) => {
                   setRoleFilter(event.target.value as User["role"] | "");
                   setPage(1);
                 }}
               >
-                <MenuItem value="">Все</MenuItem>
-                <MenuItem value="admin">admin</MenuItem>
-                <MenuItem value="engineer">engineer</MenuItem>
-                <MenuItem value="viewer">viewer</MenuItem>
+                <MenuItem value="">{t("common.all")}</MenuItem>
+                <MenuItem value="admin">{t("roles.admin")}</MenuItem>
+                <MenuItem value="engineer">{t("roles.engineer")}</MenuItem>
+                <MenuItem value="viewer">{t("roles.viewer")}</MenuItem>
               </Select>
             </FormControl>
           </Box>
@@ -237,7 +247,7 @@ export default function UsersPage() {
                   }}
                 />
               }
-              label="Показывать удаленных"
+              label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
             {canWrite && (
@@ -258,6 +268,7 @@ export default function UsersPage() {
           <DataTable data={usersQuery.data?.items || []} columns={columns} />
           <TablePagination
             component="div"
+            {...getTablePaginationProps(t)}
             count={usersQuery.data?.total || 0}
             page={page - 1}
             onPageChange={(_, value) => setPage(value + 1)}
@@ -276,25 +287,29 @@ export default function UsersPage() {
           <DialogTitle>{editUser ? t("actions.edit") : t("actions.add")}</DialogTitle>
           <DialogContent sx={{ display: "grid", gap: 2, mt: 1 }}>
             <TextField
-              label="Логин"
+              label={t("common.fields.login")}
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               disabled={Boolean(editUser)}
               fullWidth
             />
             <TextField
-              label="Пароль"
+              label={t("common.fields.password")}
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               fullWidth
             />
             <FormControl fullWidth>
-              <InputLabel>Роль</InputLabel>
-              <Select label="Роль" value={role} onChange={(event) => setRole(event.target.value as User["role"])}>
-                <MenuItem value="admin">admin</MenuItem>
-                <MenuItem value="engineer">engineer</MenuItem>
-                <MenuItem value="viewer">viewer</MenuItem>
+              <InputLabel>{t("common.fields.role")}</InputLabel>
+              <Select
+                label={t("common.fields.role")}
+                value={role}
+                onChange={(event) => setRole(event.target.value as User["role"])}
+              >
+                <MenuItem value="admin">{t("roles.admin")}</MenuItem>
+                <MenuItem value="engineer">{t("roles.engineer")}</MenuItem>
+                <MenuItem value="viewer">{t("roles.viewer")}</MenuItem>
               </Select>
             </FormControl>
           </DialogContent>

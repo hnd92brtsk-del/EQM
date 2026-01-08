@@ -26,6 +26,7 @@ import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
+import { getTablePaginationProps } from "../components/tablePaginationI18n";
 
 type Warehouse = {
   id: number;
@@ -36,13 +37,6 @@ type Warehouse = {
 };
 
 type Location = { id: number; name: string };
-
-const sortOptions = [
-  { value: "name", label: "По названию (А-Я)" },
-  { value: "-name", label: "По названию (Я-А)" },
-  { value: "created_at", label: "По дате создания (старые)" },
-  { value: "-created_at", label: "По дате создания (новые)" }
-];
 
 const pageSizeOptions = [10, 20, 50, 100];
 
@@ -60,6 +54,16 @@ export default function WarehousesPage() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const sortOptions = useMemo(
+    () => [
+      { value: "name", label: t("pagesUi.warehouses.sort.byNameAsc") },
+      { value: "-name", label: t("pagesUi.warehouses.sort.byNameDesc") },
+      { value: "created_at", label: t("pagesUi.warehouses.sort.byCreatedOldest") },
+      { value: "-created_at", label: t("pagesUi.warehouses.sort.byCreatedNewest") }
+    ],
+    [t]
+  );
 
   const warehousesQuery = useQuery({
     queryKey: ["warehouses", page, pageSize, q, sort, locationFilter, showDeleted],
@@ -91,10 +95,10 @@ export default function WarehousesPage() {
       setErrorMessage(
         warehousesQuery.error instanceof Error
           ? warehousesQuery.error.message
-          : "Ошибка загрузки складов"
+          : t("pagesUi.warehouses.errors.load")
       );
     }
-  }, [warehousesQuery.error]);
+  }, [warehousesQuery.error, t]);
 
   const locationMap = useMemo(() => {
     const map = new Map<number, string>();
@@ -111,7 +115,7 @@ export default function WarehousesPage() {
       createEntity("/warehouses", payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка создания склада")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.warehouses.errors.create"))
   });
 
   const updateMutation = useMutation({
@@ -119,37 +123,39 @@ export default function WarehousesPage() {
       updateEntity("/warehouses", id, payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка обновления склада")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.warehouses.errors.update"))
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteEntity("/warehouses", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка удаления склада")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.warehouses.errors.delete"))
   });
 
   const restoreMutation = useMutation({
     mutationFn: (id: number) => restoreEntity("/warehouses", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка восстановления склада")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.warehouses.errors.restore"))
   });
 
   const columns = useMemo<ColumnDef<Warehouse>[]>(() => {
     const base: ColumnDef<Warehouse>[] = [
-      { header: "Название", accessorKey: "name" },
+      { header: t("common.fields.name"), accessorKey: "name" },
       {
-        header: "Локация",
+        header: t("common.fields.location"),
         cell: ({ row }) =>
           row.original.location_id
             ? locationMap.get(row.original.location_id) || row.original.location_id
             : "-"
       },
       {
-        header: "Статус",
+        header: t("common.status.label"),
         cell: ({ row }) => (
-          <span className="status-pill">{row.original.is_deleted ? "Удалено" : "Активно"}</span>
+          <span className="status-pill">
+            {row.original.is_deleted ? t("common.status.deleted") : t("common.status.active")}
+          </span>
         )
       }
     ];
@@ -165,12 +171,12 @@ export default function WarehousesPage() {
               onClick={() =>
                 setDialog({
                   open: true,
-                  title: "Склад",
+                  title: t("pagesUi.warehouses.dialogs.editTitle"),
                   fields: [
-                    { name: "name", label: "Название", type: "text" },
+                    { name: "name", label: t("common.fields.name"), type: "text" },
                     {
                       name: "location_id",
-                      label: "Локация",
+                      label: t("common.fields.location"),
                       type: "select",
                       options:
                         locationsQuery.data?.items.map((loc) => ({
@@ -250,8 +256,8 @@ export default function WarehousesPage() {
             />
 
             <FormControl fullWidth>
-              <InputLabel>Сортировка</InputLabel>
-              <Select label="Сортировка" value={sort} onChange={(event) => setSort(event.target.value)}>
+              <InputLabel>{t("common.sort")}</InputLabel>
+              <Select label={t("common.sort")} value={sort} onChange={(event) => setSort(event.target.value)}>
                 {sortOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
@@ -261,9 +267,9 @@ export default function WarehousesPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Локация</InputLabel>
+              <InputLabel>{t("common.fields.location")}</InputLabel>
               <Select
-                label="Локация"
+                label={t("common.fields.location")}
                 value={locationFilter}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -271,7 +277,7 @@ export default function WarehousesPage() {
                   setPage(1);
                 }}
               >
-                <MenuItem value="">Все</MenuItem>
+                <MenuItem value="">{t("common.all")}</MenuItem>
                 {locationsQuery.data?.items.map((loc) => (
                   <MenuItem key={loc.id} value={loc.id}>
                     {loc.name}
@@ -292,7 +298,7 @@ export default function WarehousesPage() {
                   }}
                 />
               }
-              label="Показывать удаленные"
+              label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
             {canWrite && (
@@ -302,12 +308,12 @@ export default function WarehousesPage() {
                 onClick={() =>
                   setDialog({
                     open: true,
-                    title: "Новый склад",
+                    title: t("pagesUi.warehouses.dialogs.createTitle"),
                     fields: [
-                      { name: "name", label: "Название", type: "text" },
+                      { name: "name", label: t("common.fields.name"), type: "text" },
                       {
                         name: "location_id",
-                        label: "Локация",
+                        label: t("common.fields.location"),
                         type: "select",
                         options:
                           locationsQuery.data?.items.map((loc) => ({
@@ -336,6 +342,7 @@ export default function WarehousesPage() {
           <DataTable data={warehousesQuery.data?.items || []} columns={columns} />
           <TablePagination
             component="div"
+            {...getTablePaginationProps(t)}
             count={warehousesQuery.data?.total || 0}
             page={page - 1}
             onPageChange={(_, value) => setPage(value + 1)}

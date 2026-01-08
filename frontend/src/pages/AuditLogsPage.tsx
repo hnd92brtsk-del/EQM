@@ -19,15 +19,9 @@ import { DataTable } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { listEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
+import { getTablePaginationProps } from "../components/tablePaginationI18n";
 
 const pageSizeOptions = [10, 20, 50, 100];
-
-const sortOptions = [
-  { value: "-created_at", label: "По времени (новые)" },
-  { value: "created_at", label: "По времени (старые)" },
-  { value: "entity", label: "По сущности (А-Я)" },
-  { value: "-entity", label: "По сущности (Я-А)" }
-];
 
 type AuditLog = {
   id: number;
@@ -52,6 +46,16 @@ export default function AuditLogsPage() {
   const [actionFilter, setActionFilter] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const sortOptions = useMemo(
+    () => [
+      { value: "-created_at", label: t("pagesUi.auditLogs.sort.byTimeNewest") },
+      { value: "created_at", label: t("pagesUi.auditLogs.sort.byTimeOldest") },
+      { value: "entity", label: t("pagesUi.auditLogs.sort.byEntityAsc") },
+      { value: "-entity", label: t("pagesUi.auditLogs.sort.byEntityDesc") }
+    ],
+    [t]
+  );
+
   const auditQuery = useQuery({
     queryKey: ["audit-logs", page, pageSize, q, sort, actorIdFilter, entityFilter, actionFilter],
     queryFn: () =>
@@ -75,21 +79,21 @@ export default function AuditLogsPage() {
       setErrorMessage(
         auditQuery.error instanceof Error
           ? auditQuery.error.message
-          : "Ошибка загрузки аудита"
+          : t("pagesUi.auditLogs.errors.load")
       );
     }
-  }, [auditQuery.error]);
+  }, [auditQuery.error, t]);
 
   const columns = useMemo<ColumnDef<AuditLog>[]>(
     () => [
-      { header: "ID", accessorKey: "id" },
-      { header: "Актор", accessorKey: "actor_id" },
-      { header: "Действие", accessorKey: "action" },
-      { header: "Сущность", accessorKey: "entity" },
-      { header: "ID сущности", accessorKey: "entity_id" },
-      { header: "Время", accessorKey: "created_at" }
+      { header: t("pagesUi.auditLogs.columns.id"), accessorKey: "id" },
+      { header: t("pagesUi.auditLogs.columns.actor"), accessorKey: "actor_id" },
+      { header: t("pagesUi.auditLogs.columns.action"), accessorKey: "action" },
+      { header: t("pagesUi.auditLogs.columns.entity"), accessorKey: "entity" },
+      { header: t("pagesUi.auditLogs.columns.entityId"), accessorKey: "entity_id" },
+      { header: t("pagesUi.auditLogs.columns.time"), accessorKey: "created_at" }
     ],
-    []
+    [t]
   );
 
   if (!canView) {
@@ -119,8 +123,8 @@ export default function AuditLogsPage() {
             />
 
             <FormControl fullWidth>
-              <InputLabel>Сортировка</InputLabel>
-              <Select label="Сортировка" value={sort} onChange={(event) => setSort(event.target.value)}>
+              <InputLabel>{t("common.sort")}</InputLabel>
+              <Select label={t("common.sort")} value={sort} onChange={(event) => setSort(event.target.value)}>
                 {sortOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
@@ -130,7 +134,7 @@ export default function AuditLogsPage() {
             </FormControl>
 
             <TextField
-              label="Actor ID"
+              label={t("pagesUi.auditLogs.fields.actorId")}
               value={actorIdFilter}
               onChange={(event) => {
                 setActorIdFilter(event.target.value);
@@ -140,7 +144,7 @@ export default function AuditLogsPage() {
             />
 
             <TextField
-              label="Сущность"
+              label={t("pagesUi.auditLogs.fields.entity")}
               value={entityFilter}
               onChange={(event) => {
                 setEntityFilter(event.target.value);
@@ -150,7 +154,7 @@ export default function AuditLogsPage() {
             />
 
             <TextField
-              label="Действие"
+              label={t("pagesUi.auditLogs.fields.action")}
               value={actionFilter}
               onChange={(event) => {
                 setActionFilter(event.target.value);
@@ -163,6 +167,7 @@ export default function AuditLogsPage() {
           <DataTable data={auditQuery.data?.items || []} columns={columns} />
           <TablePagination
             component="div"
+            {...getTablePaginationProps(t)}
             count={auditQuery.data?.total || 0}
             page={page - 1}
             onPageChange={(_, value) => setPage(value + 1)}

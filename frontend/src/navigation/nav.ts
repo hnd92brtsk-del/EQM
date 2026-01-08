@@ -8,8 +8,6 @@ export type NavRole = "viewer" | "engineer" | "admin";
 export type NavItem = {
   id: string;
   labelKey: string;
-  labelRu?: string;
-  labelEn?: string;
   path?: string;
   icon?: SvgIconComponent;
   children?: NavItem[];
@@ -21,8 +19,6 @@ export const navTree: NavItem[] = [
   {
     id: "overview",
     labelKey: "menu.overview",
-    labelRu: "Обзор",
-    labelEn: "Overview",
     path: "/dashboard",
     icon: IndexIcon,
     roles: ["viewer", "engineer", "admin"]
@@ -30,8 +26,6 @@ export const navTree: NavItem[] = [
   {
     id: "personnel",
     labelKey: "menu.personnel",
-    labelRu: "Персонал",
-    labelEn: "Personnel",
     path: "/personnel",
     icon: PeopleOutlineRoundedIcon,
     roles: ["viewer", "engineer", "admin"]
@@ -39,8 +33,6 @@ export const navTree: NavItem[] = [
   {
     id: "personnel-details",
     labelKey: "pages.personnel_details",
-    labelRu: "???????? ??????????",
-    labelEn: "Personnel details",
     path: "/personnel/:id",
     roles: ["viewer", "engineer", "admin"],
     showInMenu: false
@@ -48,15 +40,11 @@ export const navTree: NavItem[] = [
   {
     id: "equipment",
     labelKey: "menu.equipment",
-    labelRu: "Оборудование",
-    labelEn: "Equipment",
     roles: ["viewer", "engineer", "admin"],
     children: [
       {
         id: "warehouse-items",
         labelKey: "menu.warehouse_items",
-        labelRu: "Складские позиции",
-        labelEn: "Warehouse Items",
         path: "/warehouse-items",
         icon: WarehouseIcon,
         roles: ["viewer", "engineer", "admin"]
@@ -64,8 +52,6 @@ export const navTree: NavItem[] = [
       {
         id: "cabinet-items",
         labelKey: "menu.cabinet_items",
-        labelRu: "Шкафные позиции",
-        labelEn: "Cabinet Items",
         path: "/cabinet-items",
         icon: CabinetIcon,
         roles: ["viewer", "engineer", "admin"]
@@ -73,8 +59,6 @@ export const navTree: NavItem[] = [
       {
         id: "movements",
         labelKey: "menu.movements",
-        labelRu: "Перемещения",
-        labelEn: "Movements",
         path: "/movements",
         roles: ["viewer", "engineer", "admin"],
         showInMenu: false
@@ -84,15 +68,11 @@ export const navTree: NavItem[] = [
   {
     id: "cabinets-group",
     labelKey: "menu.cabinets_group",
-    labelRu: "Шкафы",
-    labelEn: "Cabinets",
     roles: ["viewer", "engineer", "admin"],
     children: [
       {
         id: "cabinets",
         labelKey: "menu.cabinets",
-        labelRu: "Cabinets",
-        labelEn: "Cabinets",
         path: "/cabinets",
         icon: CabinetIcon,
         roles: ["viewer", "engineer", "admin"]
@@ -100,8 +80,6 @@ export const navTree: NavItem[] = [
       {
         id: "cabinet-composition",
         labelKey: "menu.cabinet_composition",
-        labelRu: "Состав шкафа",
-        labelEn: "Cabinet Composition",
         path: "/cabinets/:id/composition",
         roles: ["viewer", "engineer", "admin"],
         showInMenu: false
@@ -111,15 +89,11 @@ export const navTree: NavItem[] = [
   {
     id: "engineering",
     labelKey: "menu.engineering",
-    labelRu: "Engineering",
-    labelEn: "Engineering",
     roles: ["viewer", "engineer", "admin"],
     children: [
       {
         id: "io-signals",
         labelKey: "menu.io_signals",
-        labelRu: "IO Signals",
-        labelEn: "IO Signals",
         path: "/io-signals",
         icon: NumbersSignalIcon,
         roles: ["viewer", "engineer", "admin"]
@@ -127,8 +101,6 @@ export const navTree: NavItem[] = [
       {
         id: "dcl",
         labelKey: "menu.dcl",
-        labelRu: "DCL",
-        labelEn: "DCL",
         path: "/engineering/dcl",
         icon: NumbersSignalIcon,
         roles: ["viewer", "engineer", "admin"]
@@ -138,15 +110,11 @@ export const navTree: NavItem[] = [
   {
     id: "dictionaries",
     labelKey: "menu.dictionaries",
-    labelRu: "Справочники",
-    labelEn: "Dictionaries",
     roles: ["viewer", "engineer", "admin"],
     children: [
       {
         id: "warehouses",
         labelKey: "menu.warehouses",
-        labelRu: "Warehouses",
-        labelEn: "Warehouses",
         path: "/warehouses",
         icon: WarehouseIcon,
         roles: ["viewer", "engineer", "admin"]
@@ -154,8 +122,6 @@ export const navTree: NavItem[] = [
       {
         id: "manufacturers",
         labelKey: "menu.manufacturers",
-        labelRu: "Manufacturers",
-        labelEn: "Manufacturers",
         path: "/dictionaries/manufacturers",
         icon: IndexIcon,
         roles: ["viewer", "engineer", "admin"]
@@ -163,8 +129,6 @@ export const navTree: NavItem[] = [
       {
         id: "nomenclature",
         labelKey: "menu.nomenclature",
-        labelRu: "Номенклатура",
-        labelEn: "Nomenclature",
         path: "/dictionaries/equipment-types",
         icon: IndexIcon,
         roles: ["viewer", "engineer", "admin"]
@@ -172,8 +136,6 @@ export const navTree: NavItem[] = [
       {
         id: "locations",
         labelKey: "menu.locations",
-        labelRu: "Locations",
-        labelEn: "Locations",
         path: "/dictionaries/locations",
         icon: IndexIcon,
         roles: ["viewer", "engineer", "admin"]
@@ -181,8 +143,6 @@ export const navTree: NavItem[] = [
       {
         id: "equipment-categories",
         labelKey: "menu.equipment_categories",
-        labelRu: "Типы оборудования",
-        labelEn: "Equipment Categories",
         path: "/dictionaries/equipment-categories",
         roles: ["viewer", "engineer", "admin"],
         showInMenu: false
@@ -192,15 +152,11 @@ export const navTree: NavItem[] = [
   {
     id: "admin",
     labelKey: "menu.admin",
-    labelRu: "Admin",
-    labelEn: "Admin",
     roles: ["admin"],
     children: [
       {
         id: "admin-users",
         labelKey: "menu.admin_users",
-        labelRu: "Users",
-        labelEn: "Users",
         path: "/admin/users",
         icon: AdminGearIcon,
         roles: ["admin"]
@@ -208,8 +164,6 @@ export const navTree: NavItem[] = [
       {
         id: "admin-sessions",
         labelKey: "menu.admin_sessions",
-        labelRu: "Sessions",
-        labelEn: "Sessions",
         path: "/admin/sessions",
         icon: AdminGearIcon,
         roles: ["admin"]
@@ -217,8 +171,6 @@ export const navTree: NavItem[] = [
       {
         id: "admin-audit",
         labelKey: "menu.admin_audit",
-        labelRu: "Audit Logs",
-        labelEn: "Audit Logs",
         path: "/admin/audit",
         icon: AdminGearIcon,
         roles: ["admin"]
@@ -228,8 +180,6 @@ export const navTree: NavItem[] = [
   {
     id: "help",
     labelKey: "menu.help",
-    labelRu: "Помощь",
-    labelEn: "Help",
     path: "/help",
     icon: HelpOutlineRoundedIcon,
     roles: ["viewer", "engineer", "admin"],

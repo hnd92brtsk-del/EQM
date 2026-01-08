@@ -20,7 +20,7 @@ export default function HelpPage() {
       >
         <Card>
           <CardContent sx={{ display: "grid", gap: 1 }}>
-            <Typography variant="h6">Table of contents</Typography>
+            <Typography variant="h6">{t("pages.helpTableOfContents")}</Typography>
             <Box sx={{ display: "grid", gap: 0.5 }}>
               {sections.map((section) => (
                 <Link key={section.id} href={`#${section.id}`} underline="hover">

@@ -35,16 +35,11 @@ import {
 } from "../api/personnel";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
+import { getTablePaginationProps } from "../components/tablePaginationI18n";
 
 type UserOption = { id: number; username: string };
 
 const pageSizeOptions = [10, 20, 50, 100];
-const sortOptions = [
-  { value: "last_name", label: "Last name (A-Z)" },
-  { value: "-last_name", label: "Last name (Z-A)" },
-  { value: "hire_date", label: "Hire date (oldest)" },
-  { value: "-hire_date", label: "Hire date (newest)" }
-];
 
 export default function PersonnelPage() {
   const { t } = useTranslation();
@@ -62,6 +57,16 @@ export default function PersonnelPage() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const sortOptions = useMemo(
+    () => [
+      { value: "last_name", label: t("pagesUi.personnel.sort.byLastNameAsc") },
+      { value: "-last_name", label: t("pagesUi.personnel.sort.byLastNameDesc") },
+      { value: "hire_date", label: t("pagesUi.personnel.sort.byHireDateOldest") },
+      { value: "-hire_date", label: t("pagesUi.personnel.sort.byHireDateNewest") }
+    ],
+    [t]
+  );
 
   const personnelQuery = useQuery({
     queryKey: ["personnel", page, pageSize, q, sort, departmentFilter, serviceFilter, showDeleted],
@@ -144,7 +149,7 @@ export default function PersonnelPage() {
   const columns = useMemo<ColumnDef<Personnel>[]>(() => {
     const base: ColumnDef<Personnel>[] = [
       {
-        header: "Full name",
+        header: t("pagesUi.personnel.columns.fullName"),
         cell: ({ row }) => (
           <AppButton size="small" onClick={() => navigate(`/personnel/${row.original.id}`)}>
             {[row.original.last_name, row.original.first_name, row.original.middle_name]
@@ -153,18 +158,20 @@ export default function PersonnelPage() {
           </AppButton>
         )
       },
-      { header: "Position", accessorKey: "position" },
-      { header: "Personnel #", accessorKey: "personnel_number" },
+      { header: t("pagesUi.personnel.columns.position"), accessorKey: "position" },
+      { header: t("pagesUi.personnel.columns.personnelNumber"), accessorKey: "personnel_number" },
       {
-        header: "Login",
+        header: t("common.fields.login"),
         cell: ({ row }) => row.original.user?.username || "-"
       },
-      { header: "Organisation", accessorKey: "organisation" },
-      { header: "Department", accessorKey: "department" },
+      { header: t("pagesUi.personnel.columns.organisation"), accessorKey: "organisation" },
+      { header: t("pagesUi.personnel.columns.department"), accessorKey: "department" },
       {
-        header: "Status",
+        header: t("common.status.label"),
         cell: ({ row }) => (
-          <span className="status-pill">{row.original.is_deleted ? "Deleted" : "Active"}</span>
+          <span className="status-pill">
+            {row.original.is_deleted ? t("common.status.deleted") : t("common.status.active")}
+          </span>
         )
       }
     ];
@@ -180,14 +187,18 @@ export default function PersonnelPage() {
               onClick={() =>
                 setDialog({
                   open: true,
-                  title: "Edit personnel",
+                  title: t("pagesUi.personnel.dialogs.editTitle"),
                   fields: [
-                    { name: "first_name", label: "First name", type: "text" },
-                    { name: "last_name", label: "Last name", type: "text" },
-                    { name: "middle_name", label: "Middle name", type: "text" },
-                    { name: "position", label: "Position", type: "text" },
-                    { name: "personnel_number", label: "Personnel #", type: "text" },
-                    { name: "user_id", label: "Login", type: "select", options: userOptions }
+                    { name: "first_name", label: t("pagesUi.personnel.fields.firstName"), type: "text" },
+                    { name: "last_name", label: t("pagesUi.personnel.fields.lastName"), type: "text" },
+                    { name: "middle_name", label: t("pagesUi.personnel.fields.middleName"), type: "text" },
+                    { name: "position", label: t("pagesUi.personnel.fields.position"), type: "text" },
+                    {
+                      name: "personnel_number",
+                      label: t("pagesUi.personnel.fields.personnelNumber"),
+                      type: "text"
+                    },
+                    { name: "user_id", label: t("common.fields.login"), type: "select", options: userOptions }
                   ],
                   values: row.original,
                   onSave: (values) => {
@@ -252,9 +263,9 @@ export default function PersonnelPage() {
               fullWidth
             />
             <FormControl fullWidth>
-              <InputLabel>Sort</InputLabel>
+              <InputLabel>{t("common.sort")}</InputLabel>
               <Select
-                label="Sort"
+                label={t("common.sort")}
                 value={sort}
                 onChange={(event) => {
                   setSort(event.target.value);
@@ -269,7 +280,7 @@ export default function PersonnelPage() {
               </Select>
             </FormControl>
             <TextField
-              label="Department"
+              label={t("pagesUi.personnel.fields.department")}
               value={departmentFilter}
               onChange={(event) => {
                 setDepartmentFilter(event.target.value);
@@ -278,7 +289,7 @@ export default function PersonnelPage() {
               fullWidth
             />
             <TextField
-              label="Service"
+              label={t("pagesUi.personnel.fields.service")}
               value={serviceFilter}
               onChange={(event) => {
                 setServiceFilter(event.target.value);
@@ -300,7 +311,7 @@ export default function PersonnelPage() {
                     }}
                   />
                 }
-                label="Show deleted"
+                label={t("common.showDeleted")}
               />
             )}
             <Box sx={{ flexGrow: 1 }} />
@@ -311,14 +322,18 @@ export default function PersonnelPage() {
                 onClick={() =>
                   setDialog({
                     open: true,
-                    title: "Add personnel",
+                    title: t("pagesUi.personnel.dialogs.createTitle"),
                     fields: [
-                      { name: "first_name", label: "First name", type: "text" },
-                      { name: "last_name", label: "Last name", type: "text" },
-                      { name: "middle_name", label: "Middle name", type: "text" },
-                      { name: "position", label: "Position", type: "text" },
-                      { name: "personnel_number", label: "Personnel #", type: "text" },
-                      { name: "user_id", label: "Login", type: "select", options: userOptions }
+                      { name: "first_name", label: t("pagesUi.personnel.fields.firstName"), type: "text" },
+                      { name: "last_name", label: t("pagesUi.personnel.fields.lastName"), type: "text" },
+                      { name: "middle_name", label: t("pagesUi.personnel.fields.middleName"), type: "text" },
+                      { name: "position", label: t("pagesUi.personnel.fields.position"), type: "text" },
+                      {
+                        name: "personnel_number",
+                        label: t("pagesUi.personnel.fields.personnelNumber"),
+                        type: "text"
+                      },
+                      { name: "user_id", label: t("common.fields.login"), type: "select", options: userOptions }
                     ],
                     values: {
                       first_name: "",
@@ -350,6 +365,7 @@ export default function PersonnelPage() {
           <DataTable data={personnelQuery.data?.items || []} columns={columns} />
           <TablePagination
             component="div"
+            {...getTablePaginationProps(t)}
             count={personnelQuery.data?.total || 0}
             page={page - 1}
             onPageChange={(_, value) => setPage(value + 1)}

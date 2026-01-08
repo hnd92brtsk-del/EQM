@@ -27,6 +27,7 @@ import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
+import { getTablePaginationProps } from "../components/tablePaginationI18n";
 
 type EquipmentCategory = {
   id: number;
@@ -34,13 +35,6 @@ type EquipmentCategory = {
   is_deleted: boolean;
   created_at?: string;
 };
-
-const sortOptions = [
-  { value: "name", label: "По названию (А-Я)" },
-  { value: "-name", label: "По названию (Я-А)" },
-  { value: "created_at", label: "По дате создания (сначала старые)" },
-  { value: "-created_at", label: "По дате создания (сначала новые)" }
-];
 
 const pageSizeOptions = [10, 20, 50, 100];
 
@@ -57,6 +51,16 @@ export default function EquipmentCategoriesPage() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const sortOptions = useMemo(
+    () => [
+      { value: "name", label: t("pagesUi.equipmentCategories.sort.byNameAsc") },
+      { value: "-name", label: t("pagesUi.equipmentCategories.sort.byNameDesc") },
+      { value: "created_at", label: t("pagesUi.equipmentCategories.sort.byCreatedOldest") },
+      { value: "-created_at", label: t("pagesUi.equipmentCategories.sort.byCreatedNewest") }
+    ],
+    [t]
+  );
 
   const categoriesQuery = useQuery({
     queryKey: ["equipment-categories", page, pageSize, q, sort, showDeleted],
@@ -75,10 +79,10 @@ export default function EquipmentCategoriesPage() {
       setErrorMessage(
         categoriesQuery.error instanceof Error
           ? categoriesQuery.error.message
-          : "Ошибка загрузки справочника типов оборудования"
+          : t("pagesUi.equipmentCategories.errors.load")
       );
     }
-  }, [categoriesQuery.error]);
+  }, [categoriesQuery.error, t]);
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["equipment-categories"] });
@@ -88,7 +92,7 @@ export default function EquipmentCategoriesPage() {
     mutationFn: (payload: { name: string }) => createEntity("/equipment-categories", payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка создания записи")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.equipmentCategories.errors.create"))
   });
 
   const updateMutation = useMutation({
@@ -96,30 +100,32 @@ export default function EquipmentCategoriesPage() {
       updateEntity("/equipment-categories", id, payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка обновления записи")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.equipmentCategories.errors.update"))
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteEntity("/equipment-categories", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка удаления записи")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.equipmentCategories.errors.delete"))
   });
 
   const restoreMutation = useMutation({
     mutationFn: (id: number) => restoreEntity("/equipment-categories", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка восстановления записи")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.equipmentCategories.errors.restore"))
   });
 
   const columns = useMemo<ColumnDef<EquipmentCategory>[]>(() => {
     const base: ColumnDef<EquipmentCategory>[] = [
-      { header: "Название", accessorKey: "name" },
+      { header: t("common.fields.name"), accessorKey: "name" },
       {
-        header: "Статус",
+        header: t("common.status.label"),
         cell: ({ row }) => (
-          <span className="status-pill">{row.original.is_deleted ? "Удалено" : "Активно"}</span>
+          <span className="status-pill">
+            {row.original.is_deleted ? t("common.status.deleted") : t("common.status.active")}
+          </span>
         )
       }
     ];
@@ -135,8 +141,8 @@ export default function EquipmentCategoriesPage() {
               onClick={() =>
                 setDialog({
                   open: true,
-                  title: "Редактировать тип оборудования",
-                  fields: [{ name: "name", label: "Название", type: "text" }],
+                  title: t("pagesUi.equipmentCategories.dialogs.editTitle"),
+                  fields: [{ name: "name", label: t("common.fields.name"), type: "text" }],
                   values: row.original,
                   onSave: (values) => {
                     updateMutation.mutate({
@@ -174,7 +180,7 @@ export default function EquipmentCategoriesPage() {
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">Типы оборудования</Typography>
+      <Typography variant="h4">{t("pagesUi.equipmentCategories.title")}</Typography>
       <DictionariesTabs />
 
       <Card>
@@ -197,8 +203,12 @@ export default function EquipmentCategoriesPage() {
             />
 
             <FormControl fullWidth>
-              <InputLabel>Сортировка</InputLabel>
-              <Select label="Сортировка" value={sort} onChange={(event) => setSort(event.target.value)}>
+              <InputLabel>{t("common.sort")}</InputLabel>
+              <Select
+                label={t("common.sort")}
+                value={sort}
+                onChange={(event) => setSort(event.target.value)}
+              >
                 {sortOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
@@ -219,7 +229,7 @@ export default function EquipmentCategoriesPage() {
                   }}
                 />
               }
-              label="Показывать удаленные"
+              label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
             {canWrite && (
@@ -229,8 +239,8 @@ export default function EquipmentCategoriesPage() {
                 onClick={() =>
                   setDialog({
                     open: true,
-                    title: "Новый тип оборудования",
-                    fields: [{ name: "name", label: "Название", type: "text" }],
+                    title: t("pagesUi.equipmentCategories.dialogs.createTitle"),
+                    fields: [{ name: "name", label: t("common.fields.name"), type: "text" }],
                     values: { name: "" },
                     onSave: (values) => {
                       createMutation.mutate({ name: values.name });
@@ -247,6 +257,7 @@ export default function EquipmentCategoriesPage() {
           <DataTable data={categoriesQuery.data?.items || []} columns={columns} />
           <TablePagination
             component="div"
+            {...getTablePaginationProps(t)}
             count={categoriesQuery.data?.total || 0}
             page={page - 1}
             onPageChange={(_, value) => setPage(value + 1)}

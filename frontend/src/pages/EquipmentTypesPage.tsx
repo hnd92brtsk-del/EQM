@@ -19,6 +19,7 @@ import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
 import { DictionariesTabs } from "../components/DictionariesTabs";
@@ -27,6 +28,7 @@ import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
+import { getTablePaginationProps } from "../components/tablePaginationI18n";
 
 type EquipmentType = {
   id: number;
@@ -44,18 +46,10 @@ type EquipmentType = {
 type Manufacturer = { id: number; name: string };
 type EquipmentCategory = { id: number; name: string };
 
-const sortOptions = [
-  { value: "name", label: "По названию (А-Я)" },
-  { value: "-name", label: "По названию (Я-А)" },
-  { value: "nomenclature_number", label: "По номенклатуре (А-Я)" },
-  { value: "-nomenclature_number", label: "По номенклатуре (Я-А)" },
-  { value: "created_at", label: "По дате создания (старые)" },
-  { value: "-created_at", label: "По дате создания (новые)" }
-];
-
 const pageSizeOptions = [10, 20, 50, 100];
 
 export default function EquipmentTypesPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const canWrite = user?.role === "admin" || user?.role === "engineer";
   const queryClient = useQueryClient();
@@ -69,6 +63,18 @@ export default function EquipmentTypesPage() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const sortOptions = useMemo(
+    () => [
+      { value: "name", label: t("pagesUi.equipmentTypes.sort.byNameAsc") },
+      { value: "-name", label: t("pagesUi.equipmentTypes.sort.byNameDesc") },
+      { value: "nomenclature_number", label: t("pagesUi.equipmentTypes.sort.byNomenclatureAsc") },
+      { value: "-nomenclature_number", label: t("pagesUi.equipmentTypes.sort.byNomenclatureDesc") },
+      { value: "created_at", label: t("pagesUi.equipmentTypes.sort.byCreatedOldest") },
+      { value: "-created_at", label: t("pagesUi.equipmentTypes.sort.byCreatedNewest") }
+    ],
+    [t]
+  );
 
   const equipmentQuery = useQuery({
     queryKey: [
@@ -121,10 +127,10 @@ export default function EquipmentTypesPage() {
       setErrorMessage(
         equipmentQuery.error instanceof Error
           ? equipmentQuery.error.message
-          : "Ошибка загрузки номенклатуры"
+          : t("pagesUi.equipmentTypes.errors.load")
       );
     }
-  }, [equipmentQuery.error]);
+  }, [equipmentQuery.error, t]);
 
   const manufacturerMap = useMemo(() => {
     const map = new Map<number, string>();
@@ -148,7 +154,7 @@ export default function EquipmentTypesPage() {
     mutationFn: (payload: Partial<EquipmentType>) => createEntity("/equipment-types", payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка создания типа оборудования")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.equipmentTypes.errors.create"))
   });
 
   const updateMutation = useMutation({
@@ -156,34 +162,34 @@ export default function EquipmentTypesPage() {
       updateEntity("/equipment-types", id, payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка обновления типа оборудования")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.equipmentTypes.errors.update"))
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteEntity("/equipment-types", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка удаления типа оборудования")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.equipmentTypes.errors.delete"))
   });
 
   const restoreMutation = useMutation({
     mutationFn: (id: number) => restoreEntity("/equipment-types", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка восстановления типа оборудования")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.equipmentTypes.errors.restore"))
   });
 
   const columns = useMemo<ColumnDef<EquipmentType>[]>(() => {
     const base: ColumnDef<EquipmentType>[] = [
-      { header: "Название", accessorKey: "name" },
-      { header: "Номенклатура", accessorKey: "nomenclature_number" },
+      { header: t("common.fields.name"), accessorKey: "name" },
+      { header: t("common.fields.nomenclature"), accessorKey: "nomenclature_number" },
       {
-        header: "Производитель",
+        header: t("common.fields.manufacturer"),
         cell: ({ row }) =>
           manufacturerMap.get(row.original.manufacturer_id) || row.original.manufacturer_id
       },
       {
-        header: "Тип оборудования",
+        header: t("common.fields.equipmentCategory"),
         cell: ({ row }) => {
           const currentId = row.original.equipment_category_id;
           if (!canWrite) {
@@ -205,7 +211,7 @@ export default function EquipmentTypesPage() {
               getOptionLabel={(option) => option.name}
               isOptionEqualToValue={(option, value) => option.id === value.id}
               renderInput={(params) => (
-                <TextField {...params} variant="standard" placeholder="Не выбрано" />
+                <TextField {...params} variant="standard" placeholder={t("actions.notSelected")} />
               )}
               size="small"
             />
@@ -213,28 +219,32 @@ export default function EquipmentTypesPage() {
         }
       },
       {
-        header: "Каналы",
+        header: t("pagesUi.equipmentTypes.columns.channels"),
         cell: ({ row }) =>
-          row.original.is_channel_forming ? `Да (${row.original.channel_count})` : "Нет"
+          row.original.is_channel_forming
+            ? t("pagesUi.equipmentTypes.channelsWithCount", { count: row.original.channel_count })
+            : t("common.no")
       },
       {
-        header: "Цена, RUB",
+        header: t("common.fields.priceRub"),
         cell: ({ row }) =>
           row.original.unit_price_rub === null || row.original.unit_price_rub === undefined
             ? "-"
             : row.original.unit_price_rub
       },
       {
-        header: "Статус",
+        header: t("common.status.label"),
         cell: ({ row }) => (
-          <span className="status-pill">{row.original.is_deleted ? "Удалено" : "Активно"}</span>
+          <span className="status-pill">
+            {row.original.is_deleted ? t("common.status.deleted") : t("common.status.active")}
+          </span>
         )
       }
     ];
 
     if (canWrite) {
       base.push({
-        header: "Действия",
+        header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
             <AppButton
@@ -243,13 +253,13 @@ export default function EquipmentTypesPage() {
               onClick={() =>
                 setDialog({
                   open: true,
-                  title: "Тип оборудования",
+                  title: t("pagesUi.equipmentTypes.dialogs.editTitle"),
                   fields: [
-                    { name: "name", label: "Название", type: "text" },
-                    { name: "nomenclature_number", label: "Номенклатура", type: "text" },
+                    { name: "name", label: t("common.fields.name"), type: "text" },
+                    { name: "nomenclature_number", label: t("common.fields.nomenclature"), type: "text" },
                     {
                       name: "manufacturer_id",
-                      label: "Производитель",
+                      label: t("common.fields.manufacturer"),
                       type: "select",
                       options:
                         manufacturersQuery.data?.items.map((m) => ({
@@ -259,7 +269,7 @@ export default function EquipmentTypesPage() {
                     },
                     {
                       name: "equipment_category_id",
-                      label: "Тип оборудования",
+                      label: t("common.fields.equipmentCategory"),
                       type: "select",
                       options:
                         equipmentCategoriesQuery.data?.items.map((category) => ({
@@ -267,9 +277,13 @@ export default function EquipmentTypesPage() {
                           value: category.id
                         })) || []
                     },
-                    { name: "is_channel_forming", label: "Каналообразующее", type: "checkbox" },
-                    { name: "channel_count", label: "Кол-во каналов", type: "number" },
-                    { name: "unit_price_rub", label: "Цена, RUB", type: "number" }
+                    {
+                      name: "is_channel_forming",
+                      label: t("common.fields.channelForming"),
+                      type: "checkbox"
+                    },
+                    { name: "channel_count", label: t("common.fields.channelCount"), type: "number" },
+                    { name: "unit_price_rub", label: t("common.fields.priceRub"), type: "number" }
                   ],
                   values: row.original,
                   onSave: (values) => {
@@ -298,7 +312,7 @@ export default function EquipmentTypesPage() {
                 })
               }
             >
-              Изменить
+              {t("actions.edit")}
             </AppButton>
             <AppButton
               size="small"
@@ -312,7 +326,7 @@ export default function EquipmentTypesPage() {
                   : deleteMutation.mutate(row.original.id)
               }
             >
-              {row.original.is_deleted ? "Восстановить" : "Удалить"}
+              {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
             </AppButton>
           </Box>
         )
@@ -328,12 +342,13 @@ export default function EquipmentTypesPage() {
     manufacturerMap,
     manufacturersQuery.data?.items,
     restoreMutation,
+    t,
     updateMutation
   ]);
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">Справочники</Typography>
+      <Typography variant="h4">{t("pagesUi.equipmentTypes.title")}</Typography>
       <DictionariesTabs />
 
       <Card>
@@ -346,7 +361,7 @@ export default function EquipmentTypesPage() {
             }}
           >
             <TextField
-              label="Поиск"
+              label={t("actions.search")}
               value={q}
               onChange={(event) => {
                 setQ(event.target.value);
@@ -356,8 +371,8 @@ export default function EquipmentTypesPage() {
             />
 
             <FormControl fullWidth>
-              <InputLabel>Сортировка</InputLabel>
-              <Select label="Сортировка" value={sort} onChange={(event) => setSort(event.target.value)}>
+              <InputLabel>{t("common.sort")}</InputLabel>
+              <Select label={t("common.sort")} value={sort} onChange={(event) => setSort(event.target.value)}>
                 {sortOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
@@ -367,9 +382,9 @@ export default function EquipmentTypesPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Производитель</InputLabel>
+              <InputLabel>{t("common.fields.manufacturer")}</InputLabel>
               <Select
-                label="Производитель"
+                label={t("common.fields.manufacturer")}
                 value={manufacturerFilter}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -377,7 +392,7 @@ export default function EquipmentTypesPage() {
                   setPage(1);
                 }}
               >
-                <MenuItem value="">Все</MenuItem>
+                <MenuItem value="">{t("common.all")}</MenuItem>
                 {manufacturersQuery.data?.items.map((item) => (
                   <MenuItem key={item.id} value={item.id}>
                     {item.name}
@@ -387,18 +402,18 @@ export default function EquipmentTypesPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Каналообразующее</InputLabel>
+              <InputLabel>{t("common.fields.channelForming")}</InputLabel>
               <Select
-                label="Каналообразующее"
+                label={t("common.fields.channelForming")}
                 value={channelFormingFilter}
                 onChange={(event) => {
                   setChannelFormingFilter(event.target.value as "" | "true" | "false");
                   setPage(1);
                 }}
               >
-                <MenuItem value="">Все</MenuItem>
-                <MenuItem value="true">Да</MenuItem>
-                <MenuItem value="false">Нет</MenuItem>
+                <MenuItem value="">{t("common.all")}</MenuItem>
+                <MenuItem value="true">{t("common.yes")}</MenuItem>
+                <MenuItem value="false">{t("common.no")}</MenuItem>
               </Select>
             </FormControl>
           </Box>
@@ -414,7 +429,7 @@ export default function EquipmentTypesPage() {
                   }}
                 />
               }
-              label="Показывать удаленные"
+              label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
             {canWrite && (
@@ -424,13 +439,13 @@ export default function EquipmentTypesPage() {
                 onClick={() =>
                   setDialog({
                     open: true,
-                    title: "Новый тип оборудования",
+                    title: t("pagesUi.equipmentTypes.dialogs.createTitle"),
                     fields: [
-                      { name: "name", label: "Название", type: "text" },
-                      { name: "nomenclature_number", label: "Номенклатура", type: "text" },
+                      { name: "name", label: t("common.fields.name"), type: "text" },
+                      { name: "nomenclature_number", label: t("common.fields.nomenclature"), type: "text" },
                       {
                         name: "manufacturer_id",
-                        label: "Производитель",
+                        label: t("common.fields.manufacturer"),
                         type: "select",
                         options:
                           manufacturersQuery.data?.items.map((m) => ({
@@ -440,7 +455,7 @@ export default function EquipmentTypesPage() {
                       },
                     {
                       name: "equipment_category_id",
-                      label: "Тип оборудования",
+                      label: t("common.fields.equipmentCategory"),
                       type: "select",
                       options:
                         equipmentCategoriesQuery.data?.items.map((category) => ({
@@ -448,9 +463,13 @@ export default function EquipmentTypesPage() {
                           value: category.id
                         })) || []
                     },
-                      { name: "is_channel_forming", label: "Каналообразующее", type: "checkbox" },
-                      { name: "channel_count", label: "Кол-во каналов", type: "number" },
-                      { name: "unit_price_rub", label: "Цена, RUB", type: "number" }
+                      {
+                        name: "is_channel_forming",
+                        label: t("common.fields.channelForming"),
+                        type: "checkbox"
+                      },
+                      { name: "channel_count", label: t("common.fields.channelCount"), type: "number" },
+                      { name: "unit_price_rub", label: t("common.fields.priceRub"), type: "number" }
                     ],
                     values: {
                       name: "",
@@ -486,14 +505,14 @@ export default function EquipmentTypesPage() {
                         setErrorMessage(
                           error instanceof Error
                             ? error.message
-                            : "Failed to create equipment type"
+                            : t("pagesUi.equipmentTypes.errors.create")
                         );
                       }
                     }
                   })
                 }
               >
-                Добавить
+                {t("actions.add")}
               </AppButton>
             )}
           </Box>
@@ -501,6 +520,7 @@ export default function EquipmentTypesPage() {
           <DataTable data={equipmentQuery.data?.items || []} columns={columns} />
           <TablePagination
             component="div"
+            {...getTablePaginationProps(t)}
             count={equipmentQuery.data?.total || 0}
             page={page - 1}
             onPageChange={(_, value) => setPage(value + 1)}

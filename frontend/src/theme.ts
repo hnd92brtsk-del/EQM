@@ -20,7 +20,7 @@ export function createAppTheme(mode: PaletteMode) {
       }
     },
     typography: {
-      fontFamily: '"Manrope", "Segoe UI", sans-serif',
+      fontFamily: '"Manrope", "Roboto", "Segoe UI", "Noto Sans", "Arial", sans-serif',
       h4: { fontWeight: 700 },
       h5: { fontWeight: 700 }
     },

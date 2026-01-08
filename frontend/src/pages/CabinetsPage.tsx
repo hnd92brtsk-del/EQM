@@ -27,6 +27,7 @@ import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
+import { getTablePaginationProps } from "../components/tablePaginationI18n";
 
 type Cabinet = {
   id: number;
@@ -37,13 +38,6 @@ type Cabinet = {
 };
 
 type Location = { id: number; name: string };
-
-const sortOptions = [
-  { value: "name", label: "По названию (А-Я)" },
-  { value: "-name", label: "По названию (Я-А)" },
-  { value: "created_at", label: "По дате создания (старые)" },
-  { value: "-created_at", label: "По дате создания (новые)" }
-];
 
 const pageSizeOptions = [10, 20, 50, 100];
 
@@ -62,6 +56,16 @@ export default function CabinetsPage() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const sortOptions = useMemo(
+    () => [
+      { value: "name", label: t("pagesUi.cabinets.sort.byNameAsc") },
+      { value: "-name", label: t("pagesUi.cabinets.sort.byNameDesc") },
+      { value: "created_at", label: t("pagesUi.cabinets.sort.byCreatedOldest") },
+      { value: "-created_at", label: t("pagesUi.cabinets.sort.byCreatedNewest") }
+    ],
+    [t]
+  );
 
   const cabinetsQuery = useQuery({
     queryKey: ["cabinets", page, pageSize, q, sort, locationFilter, showDeleted],
@@ -93,10 +97,10 @@ export default function CabinetsPage() {
       setErrorMessage(
         cabinetsQuery.error instanceof Error
           ? cabinetsQuery.error.message
-          : "Ошибка загрузки шкафов"
+          : t("pagesUi.cabinets.errors.load")
       );
     }
-  }, [cabinetsQuery.error]);
+  }, [cabinetsQuery.error, t]);
 
   const locationMap = useMemo(() => {
     const map = new Map<number, string>();
@@ -113,7 +117,7 @@ export default function CabinetsPage() {
       createEntity("/cabinets", payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка создания шкафа")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.cabinets.errors.create"))
   });
 
   const updateMutation = useMutation({
@@ -121,47 +125,49 @@ export default function CabinetsPage() {
       updateEntity("/cabinets", id, payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка обновления шкафа")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.cabinets.errors.update"))
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteEntity("/cabinets", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка удаления шкафа")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.cabinets.errors.delete"))
   });
 
   const restoreMutation = useMutation({
     mutationFn: (id: number) => restoreEntity("/cabinets", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка восстановления шкафа")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.cabinets.errors.restore"))
   });
 
   const columns = useMemo<ColumnDef<Cabinet>[]>(() => {
     const base: ColumnDef<Cabinet>[] = [
-      { header: "Название", accessorKey: "name" },
+      { header: t("common.fields.name"), accessorKey: "name" },
       {
-        header: "Локация",
+        header: t("common.fields.location"),
         cell: ({ row }) =>
           row.original.location_id
             ? locationMap.get(row.original.location_id) || row.original.location_id
             : "-"
       },
       {
-        header: "Статус",
+        header: t("common.status.label"),
         cell: ({ row }) => (
-          <span className="status-pill">{row.original.is_deleted ? "Удалено" : "Активно"}</span>
+          <span className="status-pill">
+            {row.original.is_deleted ? t("common.status.deleted") : t("common.status.active")}
+          </span>
         )
       }
     ];
 
     base.push({
       header: t("actions.actions"),
-      cell: ({ row }) => (
-        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-          <AppButton size="small" onClick={() => navigate(`/cabinets/${row.original.id}/composition`)}>
-            Открыть состав
+        cell: ({ row }) => (
+          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+            <AppButton size="small" onClick={() => navigate(`/cabinets/${row.original.id}/composition`)}>
+            {t("pagesUi.cabinets.actions.openComposition")}
           </AppButton>
           {canWrite && (
             <>
@@ -171,12 +177,12 @@ export default function CabinetsPage() {
                 onClick={() =>
                   setDialog({
                     open: true,
-                    title: "Редактировать шкаф",
+                    title: t("pagesUi.cabinets.dialogs.editTitle"),
                     fields: [
-                      { name: "name", label: "Название", type: "text" },
+                      { name: "name", label: t("common.fields.name"), type: "text" },
                       {
                         name: "location_id",
-                        label: "Локация",
+                        label: t("common.fields.location"),
                         type: "select",
                         options:
                           locationsQuery.data?.items.map((loc) => ({
@@ -259,8 +265,8 @@ export default function CabinetsPage() {
             />
 
             <FormControl fullWidth>
-              <InputLabel>Сортировка</InputLabel>
-              <Select label="Сортировка" value={sort} onChange={(event) => setSort(event.target.value)}>
+              <InputLabel>{t("common.sort")}</InputLabel>
+              <Select label={t("common.sort")} value={sort} onChange={(event) => setSort(event.target.value)}>
                 {sortOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
@@ -270,9 +276,9 @@ export default function CabinetsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Локация</InputLabel>
+              <InputLabel>{t("common.fields.location")}</InputLabel>
               <Select
-                label="Локация"
+                label={t("common.fields.location")}
                 value={locationFilter}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -280,7 +286,7 @@ export default function CabinetsPage() {
                   setPage(1);
                 }}
               >
-                <MenuItem value="">Все</MenuItem>
+                <MenuItem value="">{t("common.all")}</MenuItem>
                 {locationsQuery.data?.items.map((loc) => (
                   <MenuItem key={loc.id} value={loc.id}>
                     {loc.name}
@@ -301,7 +307,7 @@ export default function CabinetsPage() {
                   }}
                 />
               }
-              label="Показывать удаленные"
+              label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
             {canWrite && (
@@ -311,12 +317,12 @@ export default function CabinetsPage() {
                 onClick={() =>
                   setDialog({
                     open: true,
-                    title: "Новый шкаф",
+                    title: t("pagesUi.cabinets.dialogs.createTitle"),
                     fields: [
-                      { name: "name", label: "Название", type: "text" },
+                      { name: "name", label: t("common.fields.name"), type: "text" },
                       {
                         name: "location_id",
-                        label: "Локация",
+                        label: t("common.fields.location"),
                         type: "select",
                         options:
                           locationsQuery.data?.items.map((loc) => ({
@@ -345,6 +351,7 @@ export default function CabinetsPage() {
           <DataTable data={cabinetsQuery.data?.items || []} columns={columns} />
           <TablePagination
             component="div"
+            {...getTablePaginationProps(t)}
             count={cabinetsQuery.data?.total || 0}
             page={page - 1}
             onPageChange={(_, value) => setPage(value + 1)}

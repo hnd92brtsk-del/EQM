@@ -26,6 +26,7 @@ import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { AppButton } from "../components/ui/AppButton";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
+import { getTablePaginationProps } from "../components/tablePaginationI18n";
 
 type IOSignal = {
   id: number;
@@ -71,11 +72,6 @@ const measurementOptions = [
   { value: "8-16mA (DI)", label: "8-16mA (DI)" }
 ];
 
-const sortOptions = [
-  { value: "-created_at", label: "По дате (новые)" },
-  { value: "created_at", label: "По дате (старые)" }
-];
-
 const pageSizeOptions = [10, 20, 50, 100];
 
 export default function IOSignalsPage() {
@@ -94,6 +90,14 @@ export default function IOSignalsPage() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const sortOptions = useMemo(
+    () => [
+      { value: "-created_at", label: t("pagesUi.ioSignals.sort.byDateNewest") },
+      { value: "created_at", label: t("pagesUi.ioSignals.sort.byDateOldest") }
+    ],
+    [t]
+  );
 
   const signalsQuery = useQuery({
     queryKey: [
@@ -142,10 +146,10 @@ export default function IOSignalsPage() {
       setErrorMessage(
         signalsQuery.error instanceof Error
           ? signalsQuery.error.message
-          : "Ошибка загрузки I/O сигналов"
+          : t("pagesUi.ioSignals.errors.load")
       );
     }
-  }, [signalsQuery.error]);
+  }, [signalsQuery.error, t]);
 
   const cabinetMap = useMemo(() => {
     const map = new Map<number, string>();
@@ -162,13 +166,16 @@ export default function IOSignalsPage() {
   const cabinetItemMap = useMemo(() => {
     const map = new Map<number, string>();
     cabinetItemsQuery.data?.items.forEach((item) => {
-      const cabinetLabel = cabinetMap.get(item.cabinet_id) || `Шкаф ${item.cabinet_id}`;
+      const cabinetLabel =
+        cabinetMap.get(item.cabinet_id) ||
+        t("pagesUi.ioSignals.labels.cabinetFallback", { id: item.cabinet_id });
       const equipmentLabel =
-        equipmentMap.get(item.equipment_type_id) || `Номенклатура ${item.equipment_type_id}`;
+        equipmentMap.get(item.equipment_type_id) ||
+        t("pagesUi.ioSignals.labels.equipmentFallback", { id: item.equipment_type_id });
       map.set(item.id, `${cabinetLabel} - ${equipmentLabel}`);
     });
     return map;
-  }, [cabinetItemsQuery.data?.items, cabinetMap, equipmentMap]);
+  }, [cabinetItemsQuery.data?.items, cabinetMap, equipmentMap, t]);
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["io-signals"] });
@@ -178,7 +185,7 @@ export default function IOSignalsPage() {
     mutationFn: (payload: Partial<IOSignal>) => createEntity("/io-signals", payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка создания сигнала")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.ioSignals.errors.create"))
   });
 
   const updateMutation = useMutation({
@@ -186,38 +193,40 @@ export default function IOSignalsPage() {
       updateEntity("/io-signals", id, payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка обновления сигнала")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.ioSignals.errors.update"))
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteEntity("/io-signals", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка удаления сигнала")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.ioSignals.errors.delete"))
   });
 
   const restoreMutation = useMutation({
     mutationFn: (id: number) => restoreEntity("/io-signals", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка восстановления сигнала")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.ioSignals.errors.restore"))
   });
 
   const columns = useMemo<ColumnDef<IOSignal>[]>(() => {
     const base: ColumnDef<IOSignal>[] = [
       {
-        header: "Компонент",
+        header: t("pagesUi.ioSignals.columns.component"),
         cell: ({ row }) =>
           cabinetItemMap.get(row.original.cabinet_component_id) || row.original.cabinet_component_id
       },
-      { header: "Tag", accessorKey: "tag_name" },
-      { header: "Сигнал", accessorKey: "signal_name" },
-      { header: "Тип", accessorKey: "signal_type" },
-      { header: "Тип измерения", accessorKey: "measurement_type" },
+      { header: t("pagesUi.ioSignals.columns.tag"), accessorKey: "tag_name" },
+      { header: t("pagesUi.ioSignals.columns.signal"), accessorKey: "signal_name" },
+      { header: t("pagesUi.ioSignals.columns.signalType"), accessorKey: "signal_type" },
+      { header: t("pagesUi.ioSignals.columns.measurementType"), accessorKey: "measurement_type" },
       {
-        header: "Статус",
+        header: t("common.status.label"),
         cell: ({ row }) => (
-          <span className="status-pill">{row.original.is_deleted ? "Удалено" : "Активно"}</span>
+          <span className="status-pill">
+            {row.original.is_deleted ? t("common.status.deleted") : t("common.status.active")}
+          </span>
         )
       }
     ];
@@ -233,38 +242,42 @@ export default function IOSignalsPage() {
               onClick={() =>
                 setDialog({
                   open: true,
-                  title: "I/O сигнал",
+                  title: t("pagesUi.ioSignals.dialogs.editTitle"),
                   fields: [
                     {
                       name: "cabinet_component_id",
-                      label: "Компонент",
+                      label: t("pagesUi.ioSignals.fields.component"),
                       type: "select",
                       options:
                         cabinetItemsQuery.data?.items.map((item) => ({
                           label:
                             cabinetItemMap.get(item.id) ||
-                            `Компонент ${item.id}`,
+                            t("pagesUi.ioSignals.labels.componentFallback", { id: item.id }),
                           value: item.id
                         })) || []
                     },
-                    { name: "tag_name", label: "Tag", type: "text" },
-                    { name: "signal_name", label: "Сигнал", type: "text" },
-                    { name: "plc_channel_address", label: "Адрес PLC", type: "text" },
+                    { name: "tag_name", label: t("pagesUi.ioSignals.fields.tag"), type: "text" },
+                    { name: "signal_name", label: t("pagesUi.ioSignals.fields.signal"), type: "text" },
+                    {
+                      name: "plc_channel_address",
+                      label: t("pagesUi.ioSignals.fields.plcAddress"),
+                      type: "text"
+                    },
                     {
                       name: "signal_type",
-                      label: "Тип сигнала",
+                      label: t("pagesUi.ioSignals.fields.signalType"),
                       type: "select",
                       options: signalTypeOptions
                     },
                     {
                       name: "measurement_type",
-                      label: "Тип измерения",
+                      label: t("pagesUi.ioSignals.fields.measurementType"),
                       type: "select",
                       options: measurementOptions
                     },
-                    { name: "terminal_connection", label: "Клемма", type: "text" },
-                    { name: "sensor_range", label: "Диапазон", type: "text" },
-                    { name: "engineering_units", label: "Ед. измерения", type: "text" }
+                    { name: "terminal_connection", label: t("pagesUi.ioSignals.fields.terminal"), type: "text" },
+                    { name: "sensor_range", label: t("pagesUi.ioSignals.fields.range"), type: "text" },
+                    { name: "engineering_units", label: t("pagesUi.ioSignals.fields.units"), type: "text" }
                   ],
                   values: row.original,
                   onSave: (values) => {
@@ -343,8 +356,8 @@ export default function IOSignalsPage() {
             />
 
             <FormControl fullWidth>
-              <InputLabel>Сортировка</InputLabel>
-              <Select label="Сортировка" value={sort} onChange={(event) => setSort(event.target.value)}>
+              <InputLabel>{t("common.sort")}</InputLabel>
+              <Select label={t("common.sort")} value={sort} onChange={(event) => setSort(event.target.value)}>
                 {sortOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
@@ -354,9 +367,9 @@ export default function IOSignalsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Шкаф</InputLabel>
+              <InputLabel>{t("common.fields.cabinet")}</InputLabel>
               <Select
-                label="Шкаф"
+                label={t("common.fields.cabinet")}
                 value={cabinetFilter}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -364,7 +377,7 @@ export default function IOSignalsPage() {
                   setPage(1);
                 }}
               >
-                <MenuItem value="">Все</MenuItem>
+                <MenuItem value="">{t("common.all")}</MenuItem>
                 {cabinetsQuery.data?.items.map((item) => (
                   <MenuItem key={item.id} value={item.id}>
                     {item.name}
@@ -374,9 +387,9 @@ export default function IOSignalsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Номенклатура</InputLabel>
+              <InputLabel>{t("common.fields.nomenclature")}</InputLabel>
               <Select
-                label="Номенклатура"
+                label={t("common.fields.nomenclature")}
                 value={equipmentFilter}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -384,7 +397,7 @@ export default function IOSignalsPage() {
                   setPage(1);
                 }}
               >
-                <MenuItem value="">Все</MenuItem>
+                <MenuItem value="">{t("common.all")}</MenuItem>
                 {equipmentTypesQuery.data?.items.map((item) => (
                   <MenuItem key={item.id} value={item.id}>
                     {item.name}
@@ -394,16 +407,16 @@ export default function IOSignalsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Тип сигнала</InputLabel>
+              <InputLabel>{t("pagesUi.ioSignals.fields.signalType")}</InputLabel>
               <Select
-                label="Тип сигнала"
+                label={t("pagesUi.ioSignals.fields.signalType")}
                 value={signalTypeFilter}
                 onChange={(event) => {
                   setSignalTypeFilter(event.target.value);
                   setPage(1);
                 }}
               >
-                <MenuItem value="">Все</MenuItem>
+                <MenuItem value="">{t("common.all")}</MenuItem>
                 {signalTypeOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
@@ -424,7 +437,7 @@ export default function IOSignalsPage() {
                   }}
                 />
               }
-              label="Показывать удаленные"
+              label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
             {canWrite && (
@@ -434,38 +447,42 @@ export default function IOSignalsPage() {
                 onClick={() =>
                   setDialog({
                     open: true,
-                    title: "Новый I/O сигнал",
+                    title: t("pagesUi.ioSignals.dialogs.createTitle"),
                     fields: [
                       {
                         name: "cabinet_component_id",
-                        label: "Компонент",
+                        label: t("pagesUi.ioSignals.fields.component"),
                         type: "select",
                         options:
                           cabinetItemsQuery.data?.items.map((item) => ({
                             label:
                               cabinetItemMap.get(item.id) ||
-                              `Компонент ${item.id}`,
+                              t("pagesUi.ioSignals.labels.componentFallback", { id: item.id }),
                             value: item.id
                           })) || []
                       },
-                      { name: "tag_name", label: "Tag", type: "text" },
-                      { name: "signal_name", label: "Сигнал", type: "text" },
-                      { name: "plc_channel_address", label: "Адрес PLC", type: "text" },
+                      { name: "tag_name", label: t("pagesUi.ioSignals.fields.tag"), type: "text" },
+                      { name: "signal_name", label: t("pagesUi.ioSignals.fields.signal"), type: "text" },
+                      {
+                        name: "plc_channel_address",
+                        label: t("pagesUi.ioSignals.fields.plcAddress"),
+                        type: "text"
+                      },
                       {
                         name: "signal_type",
-                        label: "Тип сигнала",
+                        label: t("pagesUi.ioSignals.fields.signalType"),
                         type: "select",
                         options: signalTypeOptions
                       },
                       {
                         name: "measurement_type",
-                        label: "Тип измерения",
+                        label: t("pagesUi.ioSignals.fields.measurementType"),
                         type: "select",
                         options: measurementOptions
                       },
-                      { name: "terminal_connection", label: "Клемма", type: "text" },
-                      { name: "sensor_range", label: "Диапазон", type: "text" },
-                      { name: "engineering_units", label: "Ед. измерения", type: "text" }
+                      { name: "terminal_connection", label: t("pagesUi.ioSignals.fields.terminal"), type: "text" },
+                      { name: "sensor_range", label: t("pagesUi.ioSignals.fields.range"), type: "text" },
+                      { name: "engineering_units", label: t("pagesUi.ioSignals.fields.units"), type: "text" }
                     ],
                     values: {
                       cabinet_component_id: "",
@@ -503,6 +520,7 @@ export default function IOSignalsPage() {
           <DataTable data={signalsQuery.data?.items || []} columns={columns} />
           <TablePagination
             component="div"
+            {...getTablePaginationProps(t)}
             count={signalsQuery.data?.total || 0}
             page={page - 1}
             onPageChange={(_, value) => setPage(value + 1)}

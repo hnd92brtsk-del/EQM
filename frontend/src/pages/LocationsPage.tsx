@@ -16,6 +16,7 @@ import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import { DictionariesTabs } from "../components/DictionariesTabs";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
@@ -89,6 +90,7 @@ function filterTree(nodes: LocationNode[], query: string): LocationNode[] {
 }
 
 export default function LocationsPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const canWrite = user?.role === "admin" || user?.role === "engineer";
   const queryClient = useQueryClient();
@@ -107,10 +109,12 @@ export default function LocationsPage() {
   useEffect(() => {
     if (locationsQuery.error) {
       setErrorMessage(
-        locationsQuery.error instanceof Error ? locationsQuery.error.message : "Failed to load locations."
+        locationsQuery.error instanceof Error
+          ? locationsQuery.error.message
+          : t("pagesUi.locations.errors.load")
       );
     }
-  }, [locationsQuery.error]);
+  }, [locationsQuery.error, t]);
 
   const tree = useMemo(() => sortTree(buildTree(locationsQuery.data || [])), [locationsQuery.data]);
   const filteredTree = useMemo(() => filterTree(tree, q), [tree, q]);
@@ -137,7 +141,7 @@ export default function LocationsPage() {
     mutationFn: (payload: { name: string; parent_id?: number | null }) => createEntity("/locations", payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to create location.")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.locations.errors.create"))
   });
 
   const updateMutation = useMutation({
@@ -145,21 +149,21 @@ export default function LocationsPage() {
       updateEntity("/locations", id, payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to update location.")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.locations.errors.update"))
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteEntity("/locations", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to delete location.")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.locations.errors.delete"))
   });
 
   const restoreMutation = useMutation({
     mutationFn: (id: number) => restoreEntity("/locations", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Failed to restore location.")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.locations.errors.restore"))
   });
 
   const toggleExpanded = (id: number) => {
@@ -177,12 +181,12 @@ export default function LocationsPage() {
   const openCreateDialog = (parentId?: number | null) => {
     setDialog({
       open: true,
-      title: "Create location",
+      title: t("pagesUi.locations.dialogs.createTitle"),
       fields: [
-        { name: "name", label: "Name", type: "text" },
+        { name: "name", label: t("common.fields.name"), type: "text" },
         {
           name: "parent_id",
-          label: "Parent",
+          label: t("common.fields.parent"),
           type: "select",
           options: parentOptions
         }
@@ -203,12 +207,12 @@ export default function LocationsPage() {
   const openEditDialog = (node: LocationNode) => {
     setDialog({
       open: true,
-      title: "Edit location",
+      title: t("pagesUi.locations.dialogs.editTitle"),
       fields: [
-        { name: "name", label: "Name", type: "text" },
+        { name: "name", label: t("common.fields.name"), type: "text" },
         {
           name: "parent_id",
-          label: "Parent",
+          label: t("common.fields.parent"),
           type: "select",
           options: parentOptions.filter((option) => option.value !== node.id)
         }
@@ -259,7 +263,7 @@ export default function LocationsPage() {
           <Box sx={{ display: "grid" }}>
             <Typography sx={{ fontWeight: 500 }}>
               {node.name}
-              {node.is_deleted ? " (deleted)" : ""}
+              {node.is_deleted ? t("common.deletedSuffix") : ""}
             </Typography>
             {breadcrumb ? (
               <Typography variant="body2" color="text.secondary">
@@ -271,10 +275,10 @@ export default function LocationsPage() {
           {canWrite && (
             <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
               <AppButton size="small" onClick={() => openCreateDialog(node.id)}>
-                Add child
+                {t("pagesUi.locations.actions.addChild")}
               </AppButton>
               <AppButton size="small" startIcon={<EditRoundedIcon />} onClick={() => openEditDialog(node)}>
-                Edit
+                {t("actions.edit")}
               </AppButton>
               <AppButton
                 size="small"
@@ -284,7 +288,7 @@ export default function LocationsPage() {
                   node.is_deleted ? restoreMutation.mutate(node.id) : deleteMutation.mutate(node.id)
                 }
               >
-                {node.is_deleted ? "Restore" : "Delete"}
+                {node.is_deleted ? t("actions.restore") : t("actions.delete")}
               </AppButton>
             </Box>
           )}
@@ -302,7 +306,7 @@ export default function LocationsPage() {
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">Locations</Typography>
+      <Typography variant="h4">{t("pagesUi.locations.title")}</Typography>
       <DictionariesTabs />
 
       <Card>
@@ -315,7 +319,7 @@ export default function LocationsPage() {
             }}
           >
             <TextField
-              label="Search"
+              label={t("actions.search")}
               value={q}
               onChange={(event) => {
                 setQ(event.target.value);
@@ -335,12 +339,12 @@ export default function LocationsPage() {
                   }}
                 />
               }
-              label="Show deleted"
+              label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
             {canWrite && (
               <AppButton variant="contained" startIcon={<AddRoundedIcon />} onClick={() => openCreateDialog(null)}>
-                Add root
+                {t("pagesUi.locations.actions.addRoot")}
               </AppButton>
             )}
           </Box>

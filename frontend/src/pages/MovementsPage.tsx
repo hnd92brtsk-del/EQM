@@ -20,17 +20,7 @@ import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, listEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
-
-const movementOptions = [
-  { value: "to_warehouse", label: "На склад" },
-  { value: "to_cabinet", label: "Со склада в шкаф" },
-  { value: "direct_to_cabinet", label: "Напрямую в шкаф" }
-];
-
-const sortOptions = [
-  { value: "-created_at", label: "По дате (новые)" },
-  { value: "created_at", label: "По дате (старые)" }
-];
+import { getTablePaginationProps } from "../components/tablePaginationI18n";
 
 const pageSizeOptions = [10, 20, 50, 100];
 
@@ -84,6 +74,29 @@ export default function MovementsPage() {
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const movementOptions = useMemo(
+    () => [
+      { value: "to_warehouse", label: t("pagesUi.movements.types.toWarehouse") },
+      { value: "to_cabinet", label: t("pagesUi.movements.types.toCabinet") },
+      { value: "direct_to_cabinet", label: t("pagesUi.movements.types.directToCabinet") }
+    ],
+    [t]
+  );
+
+  const movementLabelMap = useMemo(() => {
+    const map = new Map<string, string>();
+    movementOptions.forEach((option) => map.set(option.value, option.label));
+    return map;
+  }, [movementOptions]);
+
+  const sortOptions = useMemo(
+    () => [
+      { value: "-created_at", label: t("pagesUi.movements.sort.byDateNewest") },
+      { value: "created_at", label: t("pagesUi.movements.sort.byDateOldest") }
+    ],
+    [t]
+  );
 
   const parseSelectValue = (value: string | number) => (value === "" ? "" : Number(value));
 
@@ -142,10 +155,10 @@ export default function MovementsPage() {
       setErrorMessage(
         movementsQuery.error instanceof Error
           ? movementsQuery.error.message
-          : "Ошибка загрузки перемещений"
+          : t("pagesUi.movements.errors.load")
       );
     }
-  }, [movementsQuery.error]);
+  }, [movementsQuery.error, t]);
 
   const movementMutation = useMutation({
     mutationFn: (payload: any) => createEntity("/movements", payload),
@@ -164,7 +177,7 @@ export default function MovementsPage() {
       setFormError(null);
     },
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : "Ошибка создания перемещения")
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.movements.errors.create"))
   });
 
   const equipmentMap = useMemo(() => {
@@ -187,15 +200,19 @@ export default function MovementsPage() {
 
   const columns = useMemo<ColumnDef<Movement>[]>(
     () => [
-      { header: "Тип", accessorKey: "movement_type" },
       {
-        header: "Номенклатура",
+        header: t("pagesUi.movements.columns.type"),
+        accessorKey: "movement_type",
+        cell: ({ row }) => movementLabelMap.get(row.original.movement_type) || row.original.movement_type
+      },
+      {
+        header: t("common.fields.nomenclature"),
         cell: ({ row }) =>
           equipmentMap.get(row.original.equipment_type_id) || row.original.equipment_type_id
       },
-      { header: "Количество", accessorKey: "quantity" },
+      { header: t("common.fields.quantity"), accessorKey: "quantity" },
       {
-        header: "Откуда",
+        header: t("pagesUi.movements.columns.from"),
         cell: ({ row }) => {
           if (row.original.from_warehouse_id) {
             return warehouseMap.get(row.original.from_warehouse_id) || row.original.from_warehouse_id;
@@ -207,7 +224,7 @@ export default function MovementsPage() {
         }
       },
       {
-        header: "Куда",
+        header: t("pagesUi.movements.columns.to"),
         cell: ({ row }) => {
           if (row.original.to_warehouse_id) {
             return warehouseMap.get(row.original.to_warehouse_id) || row.original.to_warehouse_id;
@@ -218,37 +235,37 @@ export default function MovementsPage() {
           return "-";
         }
       },
-      { header: "Кто", accessorKey: "performed_by_id" },
-      { header: "Дата", accessorKey: "created_at" }
+      { header: t("pagesUi.movements.columns.performedBy"), accessorKey: "performed_by_id" },
+      { header: t("pagesUi.movements.columns.createdAt"), accessorKey: "created_at" }
     ],
-    [cabinetMap, equipmentMap, warehouseMap]
+    [cabinetMap, equipmentMap, movementLabelMap, t, warehouseMap]
   );
 
   const handleSubmit = () => {
     setFormError(null);
 
     if (!movementType) {
-      setFormError("Выберите тип перемещения.");
+      setFormError(t("pagesUi.movements.validation.typeRequired"));
       return;
     }
 
     if (!equipmentTypeId || quantity < 1) {
-      setFormError("Укажите номенклатуру и количество.");
+      setFormError(t("pagesUi.movements.validation.equipmentAndQuantity"));
       return;
     }
 
     if (movementType === "to_warehouse" && !toWarehouseId) {
-      setFormError("Выберите склад назначения.");
+      setFormError(t("pagesUi.movements.validation.toWarehouseRequired"));
       return;
     }
 
     if (movementType === "to_cabinet" && (!fromWarehouseId || !toCabinetId)) {
-      setFormError("Выберите склад-источник и шкаф назначения.");
+      setFormError(t("pagesUi.movements.validation.fromWarehouseAndCabinet"));
       return;
     }
 
     if (movementType === "direct_to_cabinet" && !toCabinetId) {
-      setFormError("Выберите шкаф назначения.");
+      setFormError(t("pagesUi.movements.validation.toCabinetRequired"));
       return;
     }
 
@@ -282,7 +299,7 @@ export default function MovementsPage() {
 
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
-          <Typography variant="h6">Новое перемещение</Typography>
+          <Typography variant="h6">{t("pagesUi.movements.newTitle")}</Typography>
           {formError && <Alert severity="error">{formError}</Alert>}
           <Box
             sx={{
@@ -292,9 +309,9 @@ export default function MovementsPage() {
             }}
           >
             <FormControl fullWidth>
-              <InputLabel>Тип перемещения</InputLabel>
+              <InputLabel>{t("pagesUi.movements.fields.movementType")}</InputLabel>
               <Select
-                label="Тип перемещения"
+                label={t("pagesUi.movements.fields.movementType")}
                 value={movementType}
                 onChange={(event) => setMovementType(event.target.value)}
               >
@@ -307,9 +324,9 @@ export default function MovementsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Номенклатура</InputLabel>
+              <InputLabel>{t("common.fields.nomenclature")}</InputLabel>
               <Select
-                label="Номенклатура"
+                label={t("common.fields.nomenclature")}
                 value={equipmentTypeId}
                 onChange={(event) => setEquipmentTypeId(parseSelectValue(event.target.value))}
               >
@@ -322,7 +339,7 @@ export default function MovementsPage() {
             </FormControl>
 
             <TextField
-              label="Количество"
+              label={t("common.fields.quantity")}
               type="number"
               value={quantity}
               onChange={(event) => setQuantity(Number(event.target.value))}
@@ -332,9 +349,9 @@ export default function MovementsPage() {
 
             {movementType === "to_warehouse" && (
               <FormControl fullWidth>
-                <InputLabel>Склад назначения</InputLabel>
+                <InputLabel>{t("pagesUi.movements.fields.toWarehouse")}</InputLabel>
                 <Select
-                  label="Склад назначения"
+                  label={t("pagesUi.movements.fields.toWarehouse")}
                   value={toWarehouseId}
                   onChange={(event) => setToWarehouseId(parseSelectValue(event.target.value))}
                 >
@@ -350,9 +367,9 @@ export default function MovementsPage() {
             {movementType === "to_cabinet" && (
               <>
                 <FormControl fullWidth>
-                  <InputLabel>Склад-источник</InputLabel>
+                  <InputLabel>{t("pagesUi.movements.fields.fromWarehouse")}</InputLabel>
                   <Select
-                    label="Склад-источник"
+                    label={t("pagesUi.movements.fields.fromWarehouse")}
                     value={fromWarehouseId}
                     onChange={(event) => setFromWarehouseId(parseSelectValue(event.target.value))}
                   >
@@ -365,9 +382,9 @@ export default function MovementsPage() {
                 </FormControl>
 
                 <FormControl fullWidth>
-                  <InputLabel>Шкаф назначения</InputLabel>
+                  <InputLabel>{t("pagesUi.movements.fields.toCabinet")}</InputLabel>
                   <Select
-                    label="Шкаф назначения"
+                    label={t("pagesUi.movements.fields.toCabinet")}
                     value={toCabinetId}
                     onChange={(event) => setToCabinetId(parseSelectValue(event.target.value))}
                   >
@@ -383,9 +400,9 @@ export default function MovementsPage() {
 
             {movementType === "direct_to_cabinet" && (
               <FormControl fullWidth>
-                <InputLabel>Шкаф назначения</InputLabel>
+                <InputLabel>{t("pagesUi.movements.fields.toCabinet")}</InputLabel>
                 <Select
-                  label="Шкаф назначения"
+                  label={t("pagesUi.movements.fields.toCabinet")}
                   value={toCabinetId}
                   onChange={(event) => setToCabinetId(parseSelectValue(event.target.value))}
                 >
@@ -399,13 +416,13 @@ export default function MovementsPage() {
             )}
 
             <TextField
-              label="Reference"
+              label={t("common.fields.reference")}
               value={reference}
               onChange={(event) => setReference(event.target.value)}
               fullWidth
             />
             <TextField
-              label="Комментарий"
+              label={t("common.fields.comment")}
               value={comment}
               onChange={(event) => setComment(event.target.value)}
               fullWidth
@@ -417,7 +434,7 @@ export default function MovementsPage() {
           {canWrite && (
             <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
               <AppButton variant="contained" onClick={handleSubmit}>
-                Создать перемещение
+                {t("pagesUi.movements.actions.create")}
               </AppButton>
             </Box>
           )}
@@ -426,7 +443,7 @@ export default function MovementsPage() {
 
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
-          <Typography variant="h6">История перемещений</Typography>
+          <Typography variant="h6">{t("pagesUi.movements.historyTitle")}</Typography>
           <Box
             sx={{
               display: "grid",
@@ -445,8 +462,8 @@ export default function MovementsPage() {
             />
 
             <FormControl fullWidth>
-              <InputLabel>Сортировка</InputLabel>
-              <Select label="Сортировка" value={sort} onChange={(event) => setSort(event.target.value)}>
+              <InputLabel>{t("common.sort")}</InputLabel>
+              <Select label={t("common.sort")} value={sort} onChange={(event) => setSort(event.target.value)}>
                 {sortOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
@@ -456,16 +473,16 @@ export default function MovementsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Тип перемещения</InputLabel>
+              <InputLabel>{t("pagesUi.movements.fields.movementType")}</InputLabel>
               <Select
-                label="Тип перемещения"
+                label={t("pagesUi.movements.fields.movementType")}
                 value={filterType}
                 onChange={(event) => {
                   setFilterType(event.target.value);
                   setPage(1);
                 }}
               >
-                <MenuItem value="">Все</MenuItem>
+                <MenuItem value="">{t("common.all")}</MenuItem>
                 {movementOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
@@ -475,16 +492,16 @@ export default function MovementsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Номенклатура</InputLabel>
+              <InputLabel>{t("common.fields.nomenclature")}</InputLabel>
               <Select
-                label="Номенклатура"
+                label={t("common.fields.nomenclature")}
                 value={filterEquipment}
                 onChange={(event) => {
                   setFilterEquipment(parseSelectValue(event.target.value));
                   setPage(1);
                 }}
               >
-                <MenuItem value="">???</MenuItem>
+                <MenuItem value="">{t("common.all")}</MenuItem>
                 {equipmentTypesQuery.data?.items.map((item) => (
                   <MenuItem key={item.id} value={item.id}>
                     {item.name}
@@ -494,16 +511,16 @@ export default function MovementsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Склад источник</InputLabel>
+              <InputLabel>{t("pagesUi.movements.fields.fromWarehouse")}</InputLabel>
               <Select
-                label="Склад источник"
+                label={t("pagesUi.movements.fields.fromWarehouse")}
                 value={filterFromWarehouse}
                 onChange={(event) => {
                   setFilterFromWarehouse(parseSelectValue(event.target.value));
                   setPage(1);
                 }}
               >
-                <MenuItem value="">???</MenuItem>
+                <MenuItem value="">{t("common.all")}</MenuItem>
                 {warehousesQuery.data?.items.map((warehouse) => (
                   <MenuItem key={warehouse.id} value={warehouse.id}>
                     {warehouse.name}
@@ -513,16 +530,16 @@ export default function MovementsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Склад назначения</InputLabel>
+              <InputLabel>{t("pagesUi.movements.fields.toWarehouse")}</InputLabel>
               <Select
-                label="Склад назначения"
+                label={t("pagesUi.movements.fields.toWarehouse")}
                 value={filterToWarehouse}
                 onChange={(event) => {
                   setFilterToWarehouse(parseSelectValue(event.target.value));
                   setPage(1);
                 }}
               >
-                <MenuItem value="">???</MenuItem>
+                <MenuItem value="">{t("common.all")}</MenuItem>
                 {warehousesQuery.data?.items.map((warehouse) => (
                   <MenuItem key={warehouse.id} value={warehouse.id}>
                     {warehouse.name}
@@ -532,16 +549,16 @@ export default function MovementsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Шкаф источник</InputLabel>
+              <InputLabel>{t("pagesUi.movements.fields.fromCabinet")}</InputLabel>
               <Select
-                label="Шкаф источник"
+                label={t("pagesUi.movements.fields.fromCabinet")}
                 value={filterFromCabinet}
                 onChange={(event) => {
                   setFilterFromCabinet(parseSelectValue(event.target.value));
                   setPage(1);
                 }}
               >
-                <MenuItem value="">???</MenuItem>
+                <MenuItem value="">{t("common.all")}</MenuItem>
                 {cabinetsQuery.data?.items.map((cabinet) => (
                   <MenuItem key={cabinet.id} value={cabinet.id}>
                     {cabinet.name}
@@ -551,16 +568,16 @@ export default function MovementsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>Шкаф назначения</InputLabel>
+              <InputLabel>{t("pagesUi.movements.fields.toCabinet")}</InputLabel>
               <Select
-                label="Шкаф назначения"
+                label={t("pagesUi.movements.fields.toCabinet")}
                 value={filterToCabinet}
                 onChange={(event) => {
                   setFilterToCabinet(parseSelectValue(event.target.value));
                   setPage(1);
                 }}
               >
-                <MenuItem value="">???</MenuItem>
+                <MenuItem value="">{t("common.all")}</MenuItem>
                 {cabinetsQuery.data?.items.map((cabinet) => (
                   <MenuItem key={cabinet.id} value={cabinet.id}>
                     {cabinet.name}
@@ -570,7 +587,7 @@ export default function MovementsPage() {
             </FormControl>
 
             <TextField
-              label="Дата от"
+              label={t("common.dateFrom")}
               type="date"
               value={createdFrom}
               onChange={(event) => {
@@ -582,7 +599,7 @@ export default function MovementsPage() {
             />
 
             <TextField
-              label="Дата до"
+              label={t("common.dateTo")}
               type="date"
               value={createdTo}
               onChange={(event) => {
@@ -597,6 +614,7 @@ export default function MovementsPage() {
           <DataTable data={movementsQuery.data?.items || []} columns={columns} />
           <TablePagination
             component="div"
+            {...getTablePaginationProps(t)}
             count={movementsQuery.data?.total || 0}
             page={page - 1}
             onPageChange={(_, value) => setPage(value + 1)}

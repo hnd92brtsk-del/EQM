@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   Box,Card,
   CardContent,
@@ -200,19 +200,19 @@ export default function PersonnelDetailsPage() {
 
   const competencyColumns = useMemo<ColumnDef<PersonnelCompetency>[]>(() => {
     const base: ColumnDef<PersonnelCompetency>[] = [
-      { header: "Name", accessorKey: "name" },
-      { header: "Organisation", accessorKey: "organisation" },
-      { header: "City", accessorKey: "city" },
-      { header: "Completion date", accessorKey: "completion_date" },
+      { header: t("pagesUi.personnelDetails.columns.name"), accessorKey: "name" },
+      { header: t("pagesUi.personnelDetails.columns.organisation"), accessorKey: "organisation" },
+      { header: t("pagesUi.personnelDetails.columns.city"), accessorKey: "city" },
+      { header: t("pagesUi.personnelDetails.columns.completionDate"), accessorKey: "completion_date" },
       {
-        header: "Age",
+        header: t("pagesUi.personnelDetails.columns.age"),
         cell: ({ row }) => daysToAge(row.original.completion_age_days)
       }
     ];
 
     if (canWrite) {
       base.push({
-        header: "Actions",
+        header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
             <AppButton
@@ -221,7 +221,7 @@ export default function PersonnelDetailsPage() {
               onClick={() =>
                 setCompetencyDialog({
                   open: true,
-                  title: "Edit competency",
+                  title: t("pagesUi.personnelDetails.dialogs.editCompetencyTitle"),
                   values: row.original,
                   onSave: (values, file) => {
                     updateCompetencyMutation.mutate({
@@ -248,7 +248,7 @@ export default function PersonnelDetailsPage() {
                 })
               }
             >
-              Edit
+              {t("actions.edit")}
             </AppButton>
             <AppButton
               size="small"
@@ -260,19 +260,19 @@ export default function PersonnelDetailsPage() {
                   : deleteCompetencyMutation.mutate(row.original.id)
               }
             >
-              {row.original.is_deleted ? "Restore" : "Delete"}
+              {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
             </AppButton>
             <AppButton
               size="small"
               onClick={() =>
                 setAttachmentDialog({
-                  title: "Competency attachments",
+                  title: t("pagesUi.personnelDetails.dialogs.competencyAttachmentsTitle"),
                   entity: "personnel_competency",
                   entityId: row.original.id
                 })
               }
             >
-              Attachment
+              {t("pagesUi.personnelDetails.actions.attachment")}
             </AppButton>
           </Box>
         )
@@ -293,11 +293,11 @@ export default function PersonnelDetailsPage() {
 
   const trainingColumns = useMemo<ColumnDef<PersonnelTraining>[]>(() => {
     const base: ColumnDef<PersonnelTraining>[] = [
-      { header: "Name", accessorKey: "name" },
-      { header: "Completion date", accessorKey: "completion_date" },
-      { header: "Next due date", accessorKey: "next_due_date" },
+      { header: t("pagesUi.personnelDetails.columns.name"), accessorKey: "name" },
+      { header: t("pagesUi.personnelDetails.columns.completionDate"), accessorKey: "completion_date" },
+      { header: t("pagesUi.personnelDetails.columns.nextDueDate"), accessorKey: "next_due_date" },
       {
-        header: "Days until due",
+        header: t("pagesUi.personnelDetails.columns.daysUntilDue"),
         cell: ({ row }) => {
           const value = row.original.days_until_due;
           const warning =
@@ -310,12 +310,12 @@ export default function PersonnelDetailsPage() {
           return <span style={{ color }}>{value ?? "-"}</span>;
         }
       },
-      { header: "Reminder offset", accessorKey: "reminder_offset_days" }
+      { header: t("pagesUi.personnelDetails.columns.reminderOffset"), accessorKey: "reminder_offset_days" }
     ];
 
     if (canWrite) {
       base.push({
-        header: "Actions",
+        header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
             <AppButton
@@ -324,7 +324,7 @@ export default function PersonnelDetailsPage() {
               onClick={() =>
                 setTrainingDialog({
                   open: true,
-                  title: "Edit training",
+                  title: t("pagesUi.personnelDetails.dialogs.editTrainingTitle"),
                   values: row.original,
                   onSave: (values, file) => {
                     updateTrainingMutation.mutate({
@@ -351,7 +351,7 @@ export default function PersonnelDetailsPage() {
                 })
               }
             >
-              Edit
+              {t("actions.edit")}
             </AppButton>
             <AppButton
               size="small"
@@ -363,19 +363,19 @@ export default function PersonnelDetailsPage() {
                   : deleteTrainingMutation.mutate(row.original.id)
               }
             >
-              {row.original.is_deleted ? "Restore" : "Delete"}
+              {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
             </AppButton>
             <AppButton
               size="small"
               onClick={() =>
                 setAttachmentDialog({
-                  title: "Training attachments",
+                  title: t("pagesUi.personnelDetails.dialogs.trainingAttachmentsTitle"),
                   entity: "personnel_training",
                   entityId: row.original.id
                 })
               }
             >
-              Attachment
+              {t("pagesUi.personnelDetails.actions.attachment")}
             </AppButton>
           </Box>
         )
@@ -395,18 +395,18 @@ export default function PersonnelDetailsPage() {
   ]);
 
   const profileFields = [
-    { label: "First name", key: "first_name" },
-    { label: "Last name", key: "last_name" },
-    { label: "Middle name", key: "middle_name" },
-    { label: "Position", key: "position" },
-    { label: "Personnel #", key: "personnel_number" },
-    { label: "Service", key: "service" },
-    { label: "Shop", key: "shop" },
-    { label: "Department", key: "department" },
-    { label: "Division", key: "division" },
-    { label: "Organisation", key: "organisation" },
-    { label: "Email", key: "email" },
-    { label: "Phone", key: "phone" }
+    { label: t("pagesUi.personnelDetails.fields.firstName"), key: "first_name" },
+    { label: t("pagesUi.personnelDetails.fields.lastName"), key: "last_name" },
+    { label: t("pagesUi.personnelDetails.fields.middleName"), key: "middle_name" },
+    { label: t("pagesUi.personnelDetails.fields.position"), key: "position" },
+    { label: t("pagesUi.personnelDetails.fields.personnelNumber"), key: "personnel_number" },
+    { label: t("pagesUi.personnelDetails.fields.service"), key: "service" },
+    { label: t("pagesUi.personnelDetails.fields.shop"), key: "shop" },
+    { label: t("pagesUi.personnelDetails.fields.department"), key: "department" },
+    { label: t("pagesUi.personnelDetails.fields.division"), key: "division" },
+    { label: t("pagesUi.personnelDetails.fields.organisation"), key: "organisation" },
+    { label: t("pagesUi.personnelDetails.fields.email"), key: "email" },
+    { label: t("pagesUi.personnelDetails.fields.phone"), key: "phone" }
   ];
 
   const buildProfilePayload = () => ({
@@ -428,11 +428,11 @@ export default function PersonnelDetailsPage() {
   });
 
   if (personnelQuery.isLoading) {
-    return <Typography>Loading...</Typography>;
+    return <Typography>{t("common.loading")}</Typography>;
   }
 
   if (!personnelQuery.data) {
-    return <Typography>Personnel not found.</Typography>;
+    return <Typography>{t("pagesUi.personnelDetails.errors.notFound")}</Typography>;
   }
 
   return (
@@ -444,10 +444,10 @@ export default function PersonnelDetailsPage() {
       </Typography>
 
       <Tabs value={tab} onChange={(_, value) => setTab(value)}>
-        <Tab label="Profile" />
-        <Tab label="Competencies" />
-        <Tab label="Training" />
-        <Tab label="Notes" />
+        <Tab label={t("pagesUi.personnelDetails.tabs.profile")} />
+        <Tab label={t("pagesUi.personnelDetails.tabs.competencies")} />
+        <Tab label={t("pagesUi.personnelDetails.tabs.training")} />
+        <Tab label={t("pagesUi.personnelDetails.tabs.notes")} />
       </Tabs>
 
       {tab === 0 && (
@@ -467,9 +467,13 @@ export default function PersonnelDetailsPage() {
                   }}
                 >
                   {photoUrl ? (
-                    <img src={photoUrl} alt="Personnel" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <img
+                      src={photoUrl}
+                      alt={t("pagesUi.personnelDetails.photoAlt")}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
                   ) : (
-                    <Typography variant="caption">No photo</Typography>
+                    <Typography variant="caption">{t("pagesUi.personnelDetails.noPhoto")}</Typography>
                   )}
                 </Box>
                 {canWrite && (
@@ -477,7 +481,7 @@ export default function PersonnelDetailsPage() {
                     variant="outlined"
                     component="label"
                   >
-                    Upload photo
+                    {t("pagesUi.personnelDetails.actions.uploadPhoto")}
                     <input
                       hidden
                       type="file"
@@ -511,7 +515,7 @@ export default function PersonnelDetailsPage() {
                   />
                 ))}
                 <TextField
-                  label="Birth date"
+                  label={t("pagesUi.personnelDetails.fields.birthDate")}
                   type="date"
                   InputLabelProps={{ shrink: true }}
                   value={profileState.birth_date ?? ""}
@@ -519,7 +523,7 @@ export default function PersonnelDetailsPage() {
                   disabled={!canWrite}
                 />
                 <TextField
-                  label="Hire date"
+                  label={t("pagesUi.personnelDetails.fields.hireDate")}
                   type="date"
                   InputLabelProps={{ shrink: true }}
                   value={profileState.hire_date ?? ""}
@@ -527,12 +531,12 @@ export default function PersonnelDetailsPage() {
                   disabled={!canWrite}
                 />
                 <TextField
-                  label="Tenure (years)"
+                  label={t("pagesUi.personnelDetails.fields.tenureYears")}
                   value={personnelQuery.data.tenure_years ?? "-"}
                   disabled
                 />
                 <TextField
-                  label="Login"
+                  label={t("common.fields.login")}
                   value={personnelQuery.data.user?.username || "-"}
                   disabled
                 />
@@ -544,7 +548,7 @@ export default function PersonnelDetailsPage() {
                   variant="contained"
                   onClick={() => updatePersonnelMutation.mutate(buildProfilePayload())}
                 >
-                  Save profile
+                  {t("pagesUi.personnelDetails.actions.saveProfile")}
                 </AppButton>
               </Box>
             )}
@@ -563,7 +567,7 @@ export default function PersonnelDetailsPage() {
                   onClick={() =>
                     setCompetencyDialog({
                       open: true,
-                      title: "Add competency",
+                      title: t("pagesUi.personnelDetails.dialogs.addCompetencyTitle"),
                       values: { name: "", organisation: "", city: "", completion_date: "" },
                       onSave: (values, file) => {
                         createCompetencyMutation.mutate(
@@ -593,7 +597,7 @@ export default function PersonnelDetailsPage() {
                     })
                   }
                 >
-                  Add competency
+                  {t("pagesUi.personnelDetails.actions.addCompetency")}
                 </AppButton>
               </Box>
             )}
@@ -613,7 +617,7 @@ export default function PersonnelDetailsPage() {
                   onClick={() =>
                     setTrainingDialog({
                       open: true,
-                      title: "Add training",
+                      title: t("pagesUi.personnelDetails.dialogs.addTrainingTitle"),
                       values: { name: "", completion_date: "", next_due_date: "", reminder_offset_days: 0 },
                       onSave: (values, file) => {
                         createTrainingMutation.mutate(
@@ -643,7 +647,7 @@ export default function PersonnelDetailsPage() {
                     })
                   }
                 >
-                  Add training
+                  {t("pagesUi.personnelDetails.actions.addTraining")}
                 </AppButton>
               </Box>
             )}
@@ -656,7 +660,7 @@ export default function PersonnelDetailsPage() {
         <Card>
           <CardContent sx={{ display: "grid", gap: 2 }}>
             <TextField
-              label="Notes"
+              label={t("pagesUi.personnelDetails.fields.notes")}
               value={profileState.notes ?? ""}
               onChange={(event) => setProfileState((prev) => ({ ...prev, notes: event.target.value }))}
               multiline
@@ -666,8 +670,11 @@ export default function PersonnelDetailsPage() {
             />
             {canWrite && (
               <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <AppButton variant="contained" onClick={() => updatePersonnelMutation.mutate({ notes: profileState.notes })}>
-                  Save notes
+                <AppButton
+                  variant="contained"
+                  onClick={() => updatePersonnelMutation.mutate({ notes: profileState.notes })}
+                >
+                  {t("pagesUi.personnelDetails.actions.saveNotes")}
                 </AppButton>
               </Box>
             )}
@@ -680,7 +687,7 @@ export default function PersonnelDetailsPage() {
           <DialogTitle>{competencyDialog.title}</DialogTitle>
           <DialogContent sx={{ display: "grid", gap: 2, mt: 1 }}>
             <TextField
-              label="Name"
+              label={t("pagesUi.personnelDetails.fields.name")}
               value={competencyDialog.values.name}
               onChange={(event) =>
                 setCompetencyDialog((prev) =>
@@ -689,7 +696,7 @@ export default function PersonnelDetailsPage() {
               }
             />
             <TextField
-              label="Organisation"
+              label={t("pagesUi.personnelDetails.fields.organisation")}
               value={competencyDialog.values.organisation}
               onChange={(event) =>
                 setCompetencyDialog((prev) =>
@@ -698,7 +705,7 @@ export default function PersonnelDetailsPage() {
               }
             />
             <TextField
-              label="City"
+              label={t("pagesUi.personnelDetails.fields.city")}
               value={competencyDialog.values.city}
               onChange={(event) =>
                 setCompetencyDialog((prev) =>
@@ -707,7 +714,7 @@ export default function PersonnelDetailsPage() {
               }
             />
             <TextField
-              label="Completion date"
+              label={t("pagesUi.personnelDetails.fields.completionDate")}
               type="date"
               InputLabelProps={{ shrink: true }}
               value={competencyDialog.values.completion_date || ""}
@@ -718,7 +725,7 @@ export default function PersonnelDetailsPage() {
               }
             />
             <AppButton component="label" variant="outlined">
-              Upload attachment
+              {t("pagesUi.personnelDetails.actions.uploadAttachment")}
               <input
                 hidden
                 type="file"
@@ -731,12 +738,12 @@ export default function PersonnelDetailsPage() {
             </AppButton>
           </DialogContent>
           <DialogActions>
-            <AppButton onClick={() => setCompetencyDialog(null)}>Cancel</AppButton>
+            <AppButton onClick={() => setCompetencyDialog(null)}>{t("actions.cancel")}</AppButton>
             <AppButton
               variant="contained"
               onClick={() => competencyDialog.onSave(competencyDialog.values, competencyDialog.values.file)}
             >
-              Save
+              {t("actions.save")}
             </AppButton>
           </DialogActions>
         </Dialog>
@@ -747,7 +754,7 @@ export default function PersonnelDetailsPage() {
           <DialogTitle>{trainingDialog.title}</DialogTitle>
           <DialogContent sx={{ display: "grid", gap: 2, mt: 1 }}>
             <TextField
-              label="Name"
+              label={t("pagesUi.personnelDetails.fields.name")}
               value={trainingDialog.values.name}
               onChange={(event) =>
                 setTrainingDialog((prev) =>
@@ -756,7 +763,7 @@ export default function PersonnelDetailsPage() {
               }
             />
             <TextField
-              label="Completion date"
+              label={t("pagesUi.personnelDetails.fields.completionDate")}
               type="date"
               InputLabelProps={{ shrink: true }}
               value={trainingDialog.values.completion_date || ""}
@@ -767,7 +774,7 @@ export default function PersonnelDetailsPage() {
               }
             />
             <TextField
-              label="Next due date"
+              label={t("pagesUi.personnelDetails.fields.nextDueDate")}
               type="date"
               InputLabelProps={{ shrink: true }}
               value={trainingDialog.values.next_due_date || ""}
@@ -778,7 +785,7 @@ export default function PersonnelDetailsPage() {
               }
             />
             <TextField
-              label="Reminder offset (days)"
+              label={t("pagesUi.personnelDetails.fields.reminderOffsetDays")}
               type="number"
               value={trainingDialog.values.reminder_offset_days}
               onChange={(event) =>
@@ -790,7 +797,7 @@ export default function PersonnelDetailsPage() {
               }
             />
             <AppButton component="label" variant="outlined">
-              Upload attachment
+              {t("pagesUi.personnelDetails.actions.uploadAttachment")}
               <input
                 hidden
                 type="file"
@@ -803,12 +810,12 @@ export default function PersonnelDetailsPage() {
             </AppButton>
           </DialogContent>
           <DialogActions>
-            <AppButton onClick={() => setTrainingDialog(null)}>Cancel</AppButton>
+            <AppButton onClick={() => setTrainingDialog(null)}>{t("actions.cancel")}</AppButton>
             <AppButton
               variant="contained"
               onClick={() => trainingDialog.onSave(trainingDialog.values, trainingDialog.values.file)}
             >
-              Save
+              {t("actions.save")}
             </AppButton>
           </DialogActions>
         </Dialog>
@@ -818,7 +825,7 @@ export default function PersonnelDetailsPage() {
         <Dialog open onClose={() => setAttachmentDialog(null)} fullWidth maxWidth="sm">
           <DialogTitle>{attachmentDialog.title}</DialogTitle>
           <DialogContent sx={{ display: "grid", gap: 1, mt: 1 }}>
-            {attachmentListQuery.isLoading && <Typography>Loading...</Typography>}
+            {attachmentListQuery.isLoading && <Typography>{t("common.loading")}</Typography>}
             {attachmentListQuery.data?.length ? (
               attachmentListQuery.data.map((attachment) => (
                 <Box key={attachment.id} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -837,7 +844,7 @@ export default function PersonnelDetailsPage() {
                       }
                     }}
                   >
-                    Download
+                    {t("pagesUi.personnelDetails.actions.download")}
                   </AppButton>
                 </Box>
               ))
@@ -846,7 +853,7 @@ export default function PersonnelDetailsPage() {
             )}
           </DialogContent>
           <DialogActions>
-            <AppButton onClick={() => setAttachmentDialog(null)}>Close</AppButton>
+            <AppButton onClick={() => setAttachmentDialog(null)}>{t("actions.close")}</AppButton>
           </DialogActions>
         </Dialog>
       )}
@@ -855,6 +862,7 @@ export default function PersonnelDetailsPage() {
     </Box>
   );
 }
+
 
 
 

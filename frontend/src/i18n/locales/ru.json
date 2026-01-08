@@ -11,13 +11,13 @@
     "cabinets": "Шкафы",
     "cabinetItems": "Шкафные позиции",
     "movements": "Перемещения",
-    "ioSignals": "I/O сигналы"
+    "ioSignals": "Сигналы I/O"
   },
   "admin": {
-    "title": "Admin",
+    "title": "Администрирование",
     "users": "Пользователи",
     "sessions": "Сессии",
-    "audit": "Аудит"
+    "audit": "Журнал аудита"
   },
   "theme": {
     "light": "Светлая",
@@ -39,7 +39,7 @@
   },
   "actions": {
     "add": "Добавить",
-    "edit": "Изменить",
+    "edit": "Редактировать",
     "delete": "Удалить",
     "restore": "Восстановить",
     "save": "Сохранить",
@@ -48,7 +48,8 @@
     "search": "Поиск",
     "filters": "Фильтры",
     "actions": "Действия",
-    "notSelected": "Не выбрано"
+    "notSelected": "Не выбрано",
+    "close": "Закрыть"
   },
   "pages": {
     "dashboard": "Обзор",
@@ -59,12 +60,13 @@
     "warehouseItems": "Складские позиции",
     "cabinetItems": "Шкафные позиции",
     "movements": "Перемещения",
-    "ioSignals": "I/O сигналы",
-    "auditLogs": "Аудит",
-    "sessions": "Сессии",
+    "ioSignals": "Сигналы I/O",
     "help": "Помощь",
     "personnel": "Персонал",
-    "personnel_details": "Карточка сотрудника"
+    "auditLogs": "Журнал аудита",
+    "sessions": "Сессии",
+    "personnel_details": "Карточка сотрудника",
+    "helpTableOfContents": "Содержание"
   },
   "dashboard": {
     "kpis": {
@@ -72,19 +74,19 @@
       "total_plc_in_cabinets": "Всего ПЛК в шкафах",
       "total_plc_in_warehouses": "Всего ПЛК на складах",
       "total_channels": "Всего каналов",
-      "total_warehouse_value_rub": "Всего оборудования на сумму"
+      "total_warehouse_value_rub": "Общая стоимость оборудования"
     },
     "titles": {
       "by_type": "Распределение по типам",
-      "by_warehouse_qty": "Остатки по складам",
-      "accounted_vs_not": "Учтено / Не учтено",
+      "by_warehouse_qty": "Наличие по складам",
+      "accounted_vs_not": "Учтено / не учтено",
       "by_warehouse_value": "Стоимость по складам",
       "recent_actions": "Последние действия",
-      "recent_logins": "Последние логины"
+      "recent_logins": "Последние входы"
     },
     "columns": {
       "action": "Действие",
-      "entity": "Объект",
+      "entity": "Сущность",
       "user": "Пользователь",
       "date": "Дата",
       "login": "Вход",
@@ -94,52 +96,105 @@
     "common": {
       "loading": "Загрузка",
       "no_data": "Нет данных",
-      "last_rows": "Показано последних {{count}} записей"
+      "last_rows": "Показаны последние {{count}} записей"
     },
     "errors": {
-      "overview": "Не удалось загрузить данные дашборда. Проверьте /api/v1/dashboard/overview.",
+      "overview": "Не удалось загрузить обзор. Проверьте /api/v1/dashboard/overview.",
       "actions": "Не удалось загрузить действия.",
-      "logins": "Не удалось загрузить логины."
+      "logins": "Не удалось загрузить входы."
     },
-    "units": "единиц"
+    "units": "ед."
   },
   "menu": {
-    "root": "\u041c\u0435\u043d\u044e",
-    "overview": "Overview",
-    "equipment": "Equipment",
-    "warehouse_items": "Warehouse Items",
-    "cabinets": "Cabinets",
-    "movements": "Movements",
-    "cabinets_group": "Cabinets",
-    "cabinet_items": "Cabinet Items",
-    "cabinet_composition": "Cabinet Composition",
-    "engineering": "Engineering",
-    "io_signals": "IO Signals",
+    "root": "Меню",
+    "overview": "Обзор",
+    "equipment": "Оборудование",
+    "warehouse_items": "Складские позиции",
+    "cabinets": "Шкафы",
+    "movements": "Перемещения",
+    "cabinets_group": "Шкафы",
+    "cabinet_items": "Шкафные позиции",
+    "cabinet_composition": "Состав шкафа",
+    "engineering": "Инженерия",
+    "io_signals": "Сигналы I/O",
     "dcl": "DCL",
-    "dictionaries": "Dictionaries",
-    "warehouses": "Warehouses",
-    "manufacturers": "Manufacturers",
-    "nomenclature": "Nomenclature",
-    "locations": "Locations",
-    "equipment_categories": "Equipment Categories",
-    "admin": "Admin",
-    "admin_users": "Users",
-    "admin_sessions": "Sessions",
-    "admin_audit": "Audit Logs",
+    "dictionaries": "Справочники",
+    "warehouses": "Склады",
+    "manufacturers": "Производители",
+    "nomenclature": "Номенклатура",
+    "locations": "Локации",
+    "equipment_categories": "Категории оборудования",
+    "admin": "Администрирование",
+    "admin_users": "Пользователи",
+    "admin_sessions": "Сессии",
+    "admin_audit": "Журнал аудита",
     "help": "Помощь",
     "personnel": "Персонал"
   },
-  "common": {
-    "noAccess": "Недостаточно прав."
-  },
   "help": {
-    "personnel_overview": "Раздел Персонал доступен в левом меню. Список поддерживает поиск, фильтры и сортировку; администратор может добавлять, редактировать, удалять и восстанавливать записи.",
-    "personnel_details": "Открытие строки показывает карточку сотрудника: профиль, загрузка фото, компетенции, обучение с предупреждениями о сроках и настройками напоминаний, а также заметки."
+    "personnel_overview": "Раздел «Персонал» доступен в левом меню. Список поддерживает поиск, фильтры и сортировку; администраторы могут добавлять, редактировать, удалять и восстанавливать записи.",
+    "personnel_details": "Открытие строки показывает карточку сотрудника с полями профиля, загрузкой фото, компетенциями, обучением с напоминаниями и заметками.",
+    "overview": "Обзор — это панель только для чтения с KPI, диаграммами и сводными таблицами. Здесь нельзя редактировать записи напрямую.",
+    "equipmentWarehouseItems": "В таблице складских позиций отображаются остатки на складах. Используйте поиск, фильтры и сортировку, чтобы быстро находить позиции. Доступны действия добавления, редактирования, удаления и восстановления.",
+    "equipmentWarehouseItemsSecondary": "Перемещения (приход/перемещение) запускаются из этого раздела.",
+    "equipmentCabinetItems": "Шкафные позиции показывают оборудование, размещенное в шкафах. Используйте поиск, фильтры, сортировку и действия для добавления, редактирования, удаления и восстановления.",
+    "cabinets": "Список шкафов позволяет управлять записями шкафов. Доступны действия добавления, редактирования, удаления, восстановления и переход к составу шкафа.",
+    "cabinetComposition": "Состав шкафа — отдельный экран для структуры шкафа и его позиций. Здесь доступны действия, связанные с составом.",
+    "engineering": "Инженерия включает I/O сигналы и DCL. Эти экраны управляют сигналами, соединениями и связанными справочниками с действиями добавления, редактирования, удаления и восстановления.",
+    "engineeringSecondary": "Используйте фильтры и сортировку для навигации по большим спискам сигналов.",
+    "dictionaries": "Справочники включают Склады, Производителей, Номенклатуру, Локации и Категории оборудования. Записи можно просматривать, добавлять, редактировать, удалять и восстанавливать.",
+    "admin": "Раздел администрирования содержит Пользователей, Сессии и Журнал аудита. Доступ ограничен ролью администратора."
+  },
+  "common": {
+    "noAccess": "Недостаточно прав.",
+    "sort": "Сортировка",
+    "showDeleted": "Показывать удаленные",
+    "all": "Все",
+    "yes": "Да",
+    "no": "Нет",
+    "deleted": "Удалено",
+    "deletedSuffix": " (удалено)",
+    "notImplemented": "Не реализовано",
+    "loading": "Загрузка...",
+    "dateFrom": "Дата от",
+    "dateTo": "Дата до",
+    "createdFrom": "Создано от",
+    "createdTo": "Создано до",
+    "rowsPerPage": "Строк на странице",
+    "rowsDisplayed": "{{from}}-{{to}} из {{countLabel}}",
+    "rowsMore": "больше",
+    "status": {
+      "label": "Статус",
+      "deleted": "Удалено",
+      "active": "Активно"
+    },
+    "fields": {
+      "name": "Название",
+      "location": "Локация",
+      "manufacturer": "Производитель",
+      "equipmentCategory": "Категория оборудования",
+      "nomenclature": "Номенклатура",
+      "channelForming": "Каналообразующее",
+      "channelCount": "Количество каналов",
+      "priceRub": "Цена, руб.",
+      "login": "Логин",
+      "password": "Пароль",
+      "role": "Роль",
+      "country": "Страна",
+      "parent": "Родитель",
+      "cabinet": "Шкаф",
+      "equipment": "Оборудование",
+      "quantity": "Количество",
+      "comment": "Комментарий",
+      "accounting": "Учет",
+      "warehouse": "Склад",
+      "reference": "Основание"
+    }
   },
   "errors": {
     "load_personnel_failed": "Не удалось загрузить персонал.",
     "create_personnel_failed": "Не удалось создать сотрудника.",
-    "update_personnel_failed": "Не удалось обновить данные сотрудника.",
+    "update_personnel_failed": "Не удалось обновить сотрудника.",
     "delete_personnel_failed": "Не удалось удалить сотрудника.",
     "restore_personnel_failed": "Не удалось восстановить сотрудника.",
     "create_competency_failed": "Не удалось создать компетенцию.",
@@ -150,9 +205,442 @@
     "restore_competency_failed": "Не удалось восстановить компетенцию.",
     "delete_training_failed": "Не удалось удалить обучение.",
     "restore_training_failed": "Не удалось восстановить обучение.",
-    "no_attachment": "Нет вложений.",
+    "no_attachment": "Нет вложения.",
     "attachment_upload_failed": "Не удалось загрузить вложение.",
     "attachment_download_failed": "Не удалось скачать вложение.",
     "photo_upload_failed": "Не удалось загрузить фото."
+  },
+  "roles": {
+    "admin": "Администратор",
+    "engineer": "Инженер",
+    "viewer": "Наблюдатель"
+  },
+  "validation": {
+    "requiredFields": "Заполните обязательные поля."
+  },
+  "pagesUi": {
+    "equipmentCategories": {
+      "title": "Категории оборудования",
+      "sort": {
+        "byNameAsc": "По названию (А-Я)",
+        "byNameDesc": "По названию (Я-А)",
+        "byCreatedOldest": "По дате создания (сначала старые)",
+        "byCreatedNewest": "По дате создания (сначала новые)"
+      },
+      "dialogs": {
+        "editTitle": "Редактировать категорию оборудования",
+        "createTitle": "Новая категория оборудования"
+      },
+      "errors": {
+        "load": "Не удалось загрузить категории оборудования",
+        "create": "Не удалось создать запись",
+        "update": "Не удалось обновить запись",
+        "delete": "Не удалось удалить запись",
+        "restore": "Не удалось восстановить запись"
+      }
+    },
+    "equipmentTypes": {
+      "title": "Номенклатура",
+      "sort": {
+        "byNameAsc": "По названию (А-Я)",
+        "byNameDesc": "По названию (Я-А)",
+        "byNomenclatureAsc": "По номенклатуре (А-Я)",
+        "byNomenclatureDesc": "По номенклатуре (Я-А)",
+        "byCreatedOldest": "По дате создания (сначала старые)",
+        "byCreatedNewest": "По дате создания (сначала новые)"
+      },
+      "errors": {
+        "load": "Не удалось загрузить номенклатуру",
+        "create": "Не удалось создать тип оборудования",
+        "update": "Не удалось обновить тип оборудования",
+        "delete": "Не удалось удалить тип оборудования",
+        "restore": "Не удалось восстановить тип оборудования"
+      },
+      "columns": {
+        "channels": "Каналы"
+      },
+      "channelsWithCount": "Да ({{count}})",
+      "dialogs": {
+        "editTitle": "Тип оборудования",
+        "createTitle": "Новый тип оборудования"
+      }
+    },
+    "auditLogs": {
+      "sort": {
+        "byTimeNewest": "По времени (сначала новые)",
+        "byTimeOldest": "По времени (сначала старые)",
+        "byEntityAsc": "По сущности (А-Я)",
+        "byEntityDesc": "По сущности (Я-А)"
+      },
+      "fields": {
+        "actorId": "ID автора",
+        "entity": "Сущность",
+        "action": "Действие"
+      },
+      "columns": {
+        "id": "ID",
+        "actor": "Автор",
+        "action": "Действие",
+        "entity": "Сущность",
+        "entityId": "ID сущности",
+        "time": "Время"
+      },
+      "errors": {
+        "load": "Не удалось загрузить журнал аудита"
+      }
+    },
+    "sessions": {
+      "sort": {
+        "byStartNewest": "По началу (сначала новые)",
+        "byStartOldest": "По началу (сначала старые)",
+        "byEndNewest": "По окончанию (сначала новые)",
+        "byEndOldest": "По окончанию (сначала старые)"
+      },
+      "fields": {
+        "userId": "ID пользователя",
+        "endReason": "Причина завершения"
+      },
+      "columns": {
+        "id": "ID",
+        "user": "Пользователь",
+        "startedAt": "Начало",
+        "endedAt": "Окончание",
+        "endReason": "Причина",
+        "ip": "IP-адрес"
+      },
+      "errors": {
+        "load": "Не удалось загрузить сессии"
+      }
+    },
+    "users": {
+      "sort": {
+        "byUsernameAsc": "По логину (А-Я)",
+        "byUsernameDesc": "По логину (Я-А)",
+        "byRoleAsc": "По роли (А-Я)",
+        "byRoleDesc": "По роли (Я-А)",
+        "byCreatedOldest": "По дате создания (сначала старые)",
+        "byCreatedNewest": "По дате создания (сначала новые)"
+      },
+      "errors": {
+        "load": "Не удалось загрузить пользователей",
+        "create": "Не удалось создать пользователя",
+        "update": "Не удалось обновить пользователя",
+        "delete": "Не удалось удалить пользователя",
+        "restore": "Не удалось восстановить пользователя"
+      }
+    },
+    "cabinets": {
+      "sort": {
+        "byNameAsc": "По названию (А-Я)",
+        "byNameDesc": "По названию (Я-А)",
+        "byCreatedOldest": "По дате создания (сначала старые)",
+        "byCreatedNewest": "По дате создания (сначала новые)"
+      },
+      "errors": {
+        "load": "Не удалось загрузить шкафы",
+        "create": "Не удалось создать шкаф",
+        "update": "Не удалось обновить шкаф",
+        "delete": "Не удалось удалить шкаф",
+        "restore": "Не удалось восстановить шкаф"
+      },
+      "dialogs": {
+        "editTitle": "Редактировать шкаф",
+        "createTitle": "Новый шкаф"
+      },
+      "actions": {
+        "openComposition": "Открыть состав"
+      }
+    },
+    "warehouses": {
+      "sort": {
+        "byNameAsc": "По названию (А-Я)",
+        "byNameDesc": "По названию (Я-А)",
+        "byCreatedOldest": "По дате создания (сначала старые)",
+        "byCreatedNewest": "По дате создания (сначала новые)"
+      },
+      "errors": {
+        "load": "Не удалось загрузить склады",
+        "create": "Не удалось создать склад",
+        "update": "Не удалось обновить склад",
+        "delete": "Не удалось удалить склад",
+        "restore": "Не удалось восстановить склад"
+      },
+      "dialogs": {
+        "editTitle": "Склад",
+        "createTitle": "Новый склад"
+      }
+    },
+    "manufacturers": {
+      "title": "Производители",
+      "sort": {
+        "byNameAsc": "По названию (А-Я)",
+        "byNameDesc": "По названию (Я-А)",
+        "byCreatedOldest": "По дате создания (сначала старые)",
+        "byCreatedNewest": "По дате создания (сначала новые)"
+      },
+      "errors": {
+        "load": "Не удалось загрузить производителей",
+        "create": "Не удалось создать производителя",
+        "update": "Не удалось обновить производителя",
+        "delete": "Не удалось удалить производителя",
+        "restore": "Не удалось восстановить производителя"
+      },
+      "dialogs": {
+        "editTitle": "Производитель",
+        "createTitle": "Новый производитель"
+      }
+    },
+    "locations": {
+      "title": "Локации",
+      "dialogs": {
+        "createTitle": "Новая локация",
+        "editTitle": "Редактировать локацию"
+      },
+      "actions": {
+        "addChild": "Добавить дочерний",
+        "addRoot": "Добавить корневой"
+      },
+      "errors": {
+        "load": "Не удалось загрузить локации",
+        "create": "Не удалось создать локацию",
+        "update": "Не удалось обновить локацию",
+        "delete": "Не удалось удалить локацию",
+        "restore": "Не удалось восстановить локацию"
+      }
+    },
+    "cabinetItems": {
+      "sort": {
+        "byDateNewest": "По дате (сначала новые)",
+        "byDateOldest": "По дате (сначала старые)",
+        "byQuantityDesc": "По количеству (убыв.)",
+        "byQuantityAsc": "По количеству (возр.)",
+        "byEquipmentAsc": "Оборудование (А-Я)",
+        "byEquipmentDesc": "Оборудование (Я-А)",
+        "byManufacturerAsc": "Производитель (А-Я)",
+        "byManufacturerDesc": "Производитель (Я-А)"
+      },
+      "errors": {
+        "load": "Не удалось загрузить шкафные позиции",
+        "delete": "Не удалось удалить шкафную позицию",
+        "restore": "Не удалось восстановить шкафную позицию",
+        "updateQuantity": "Не удалось обновить количество"
+      }
+    },
+    "warehouseItems": {
+      "sort": {
+        "byUpdatedNewest": "По обновлению (сначала новые)",
+        "byUpdatedOldest": "По обновлению (сначала старые)",
+        "byQuantityDesc": "По количеству (убыв.)",
+        "byQuantityAsc": "По количеству (возр.)",
+        "byEquipmentAsc": "Оборудование (А-Я)",
+        "byEquipmentDesc": "Оборудование (Я-А)",
+        "byEquipmentCategoryAsc": "Категория оборудования (А-Я)",
+        "byEquipmentCategoryDesc": "Категория оборудования (Я-А)",
+        "byManufacturerAsc": "Производитель (А-Я)",
+        "byManufacturerDesc": "Производитель (Я-А)",
+        "byPriceAsc": "По цене (дешевые-дорогие)",
+        "byPriceDesc": "По цене (дорогие-дешевые)"
+      },
+      "errors": {
+        "load": "Не удалось загрузить складские позиции",
+        "update": "Не удалось обновить складскую позицию",
+        "delete": "Не удалось удалить складскую позицию",
+        "restore": "Не удалось восстановить складскую позицию",
+        "actionFailed": "Не удалось выполнить действие. Попробуйте еще раз."
+      },
+      "fields": {
+        "priceMin": "Цена от",
+        "priceMax": "Цена до",
+        "fromWarehouse": "Со склада",
+        "toCabinet": "В шкаф"
+      },
+      "dialogs": {
+        "toWarehouseTitle": "На склад",
+        "toCabinetTitle": "Со склада в шкаф",
+        "editTitle": "Редактировать позицию склада"
+      },
+      "actions": {
+        "toWarehouse": "На склад",
+        "toCabinet": "Со склада в шкаф"
+      },
+      "columns": {
+        "updated": "Обновлено"
+      },
+      "accounted": "Учтено",
+      "notAccounted": "Не учтено"
+    },
+    "movements": {
+      "types": {
+        "toWarehouse": "На склад",
+        "toCabinet": "Со склада в шкаф",
+        "directToCabinet": "Сразу в шкаф"
+      },
+      "sort": {
+        "byDateNewest": "По дате (сначала новые)",
+        "byDateOldest": "По дате (сначала старые)"
+      },
+      "errors": {
+        "load": "Не удалось загрузить перемещения",
+        "create": "Не удалось создать перемещение"
+      },
+      "columns": {
+        "type": "Тип",
+        "from": "Откуда",
+        "to": "Куда",
+        "performedBy": "Выполнил",
+        "createdAt": "Дата"
+      },
+      "fields": {
+        "movementType": "Тип перемещения",
+        "fromWarehouse": "Со склада",
+        "toWarehouse": "На склад",
+        "fromCabinet": "Из шкафа",
+        "toCabinet": "В шкаф"
+      },
+      "validation": {
+        "typeRequired": "Выберите тип перемещения.",
+        "equipmentAndQuantity": "Укажите оборудование и количество.",
+        "toWarehouseRequired": "Выберите склад назначения.",
+        "fromWarehouseAndCabinet": "Выберите склад-источник и шкаф назначения.",
+        "toCabinetRequired": "Выберите шкаф назначения."
+      },
+      "actions": {
+        "create": "Создать перемещение"
+      },
+      "newTitle": "Новое перемещение",
+      "historyTitle": "История перемещений"
+    },
+    "ioSignals": {
+      "sort": {
+        "byDateNewest": "По дате (сначала новые)",
+        "byDateOldest": "По дате (сначала старые)"
+      },
+      "errors": {
+        "load": "Не удалось загрузить сигналы I/O",
+        "create": "Не удалось создать сигнал",
+        "update": "Не удалось обновить сигнал",
+        "delete": "Не удалось удалить сигнал",
+        "restore": "Не удалось восстановить сигнал"
+      },
+      "labels": {
+        "cabinetFallback": "Шкаф {{id}}",
+        "equipmentFallback": "Номенклатура {{id}}",
+        "componentFallback": "Компонент {{id}}"
+      },
+      "columns": {
+        "component": "Компонент",
+        "tag": "Тег",
+        "signal": "Сигнал",
+        "signalType": "Тип сигнала",
+        "measurementType": "Тип измерения"
+      },
+      "fields": {
+        "component": "Компонент",
+        "tag": "Тег",
+        "signal": "Сигнал",
+        "plcAddress": "Адрес PLC",
+        "signalType": "Тип сигнала",
+        "measurementType": "Тип измерения",
+        "terminal": "Клемма",
+        "range": "Диапазон",
+        "units": "Ед. измерения"
+      },
+      "dialogs": {
+        "editTitle": "Сигнал I/O",
+        "createTitle": "Новый сигнал I/O"
+      }
+    },
+    "personnel": {
+      "sort": {
+        "byLastNameAsc": "Фамилия (А-Я)",
+        "byLastNameDesc": "Фамилия (Я-А)",
+        "byHireDateOldest": "Дата приема (сначала старые)",
+        "byHireDateNewest": "Дата приема (сначала новые)"
+      },
+      "columns": {
+        "fullName": "ФИО",
+        "position": "Должность",
+        "personnelNumber": "Табельный №",
+        "organisation": "Организация",
+        "department": "Подразделение"
+      },
+      "fields": {
+        "firstName": "Имя",
+        "lastName": "Фамилия",
+        "middleName": "Отчество",
+        "position": "Должность",
+        "personnelNumber": "Табельный №",
+        "department": "Подразделение",
+        "service": "Служба"
+      },
+      "dialogs": {
+        "editTitle": "Редактировать сотрудника",
+        "createTitle": "Добавить сотрудника"
+      }
+    },
+    "personnelDetails": {
+      "errors": {
+        "notFound": "Сотрудник не найден."
+      },
+      "tabs": {
+        "profile": "Профиль",
+        "competencies": "Компетенции",
+        "training": "Обучение",
+        "notes": "Заметки"
+      },
+      "noPhoto": "Нет фото",
+      "photoAlt": "Фото сотрудника",
+      "actions": {
+        "saveProfile": "Сохранить профиль",
+        "addCompetency": "Добавить компетенцию",
+        "addTraining": "Добавить обучение",
+        "saveNotes": "Сохранить заметки",
+        "uploadAttachment": "Загрузить вложение",
+        "download": "Скачать",
+        "uploadPhoto": "Загрузить фото",
+        "attachment": "Вложение"
+      },
+      "fields": {
+        "birthDate": "Дата рождения",
+        "hireDate": "Дата приема",
+        "tenureYears": "Стаж (лет)",
+        "firstName": "Имя",
+        "lastName": "Фамилия",
+        "middleName": "Отчество",
+        "position": "Должность",
+        "personnelNumber": "Табельный №",
+        "service": "Служба",
+        "shop": "Цех",
+        "department": "Подразделение",
+        "division": "Дивизион",
+        "organisation": "Организация",
+        "email": "Эл. почта",
+        "phone": "Телефон",
+        "notes": "Заметки",
+        "name": "Название",
+        "city": "Город",
+        "completionDate": "Дата завершения",
+        "nextDueDate": "Следующая дата",
+        "reminderOffsetDays": "Смещение напоминания (дней)"
+      },
+      "columns": {
+        "name": "Название",
+        "organisation": "Организация",
+        "city": "Город",
+        "completionDate": "Дата завершения",
+        "nextDueDate": "Следующая дата",
+        "reminderOffset": "Смещение напоминания",
+        "age": "Срок",
+        "daysUntilDue": "Дней до срока"
+      },
+      "dialogs": {
+        "addCompetencyTitle": "Добавить компетенцию",
+        "addTrainingTitle": "Добавить обучение",
+        "editCompetencyTitle": "Редактировать компетенцию",
+        "editTrainingTitle": "Редактировать обучение",
+        "competencyAttachmentsTitle": "Вложения компетенций",
+        "trainingAttachmentsTitle": "Вложения обучения"
+      }
+    }
   }
 }

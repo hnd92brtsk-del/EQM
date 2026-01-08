@@ -5,6 +5,7 @@ import ru from "./locales/ru.json";
 import en from "./locales/en.json";
 
 const STORAGE_KEY = "eqm.lang";
+const isDev = import.meta.env.DEV;
 
 const getInitialLanguage = () => {
   if (typeof window === "undefined") {
@@ -24,6 +25,14 @@ i18n.use(initReactI18next).init({
   },
   lng: getInitialLanguage(),
   fallbackLng: "ru",
+  returnNull: false,
+  returnEmptyString: false,
+  saveMissing: isDev,
+  missingKeyHandler: isDev
+    ? (_lngs, namespace, key) => {
+        console.warn(`[i18n] Missing key: ${namespace}:${key}`);
+      }
+    : undefined,
   interpolation: {
     escapeValue: false
   }
