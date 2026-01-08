@@ -14,6 +14,7 @@ from app.routers import audit_logs
 from app.routers import sessions
 from app.routers import dashboard
 from app.routers import personnel
+from app.routers import chat
 
 __all__ = [
     "auth",
@@ -31,4 +32,5 @@ __all__ = [
     "audit_logs",
     "sessions",
     "dashboard",
+    "chat",
 ]
