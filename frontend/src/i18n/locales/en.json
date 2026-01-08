@@ -129,7 +129,13 @@
     "admin_sessions": "Sessions",
     "admin_audit": "Audit Logs",
     "help": "Help",
-    "personnel": "Personnel"
+    "personnel": "Personnel",
+    "chat": "Chatbot"
+  },
+  "chat": {
+    "title": "Chatbot",
+    "placeholder": "Enter your message…",
+    "send": "Send"
   },
   "help": {
     "personnel_overview": "Personnel is available in the left sidebar. The list supports search, filters, and sorting; admins can add, edit, delete, and restore records.",

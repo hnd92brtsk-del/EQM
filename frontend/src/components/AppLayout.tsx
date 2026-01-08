@@ -15,6 +15,7 @@ import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
+import ChatRoundedIcon from "@mui/icons-material/ChatRounded";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
@@ -24,6 +25,7 @@ import { Breadcrumbs } from "./Breadcrumbs";
 import { navTree } from "../navigation/nav";
 import { SidebarNavTree, useAutoOpenGroups } from "./SidebarNavTree";
 import { AppButton } from "./ui/AppButton";
+import ChatDialog from "./ChatDialog";
 
 const drawerWidth = 240;
 
@@ -32,6 +34,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { t, i18n } = useTranslation();
   const { mode, toggleTheme } = useThemeMode();
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [chatOpen, setChatOpen] = React.useState(false);
   const navigate = useNavigate();
 
   const toggleDrawer = () => setMobileOpen((prev) => !prev);
@@ -89,11 +92,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <HelpOutlineRoundedIcon />
             </IconButton>
           </Tooltip>
+          <Tooltip title={t("menu.chat")}>
+            <IconButton color="inherit" onClick={() => setChatOpen(true)}>
+              <ChatRoundedIcon />
+            </IconButton>
+          </Tooltip>
           <AppButton color="inherit" startIcon={<LogoutRoundedIcon />} onClick={logout}>
             {t("actions.logout")}
           </AppButton>
         </Toolbar>
       </AppBar>
+      <ChatDialog open={chatOpen} onClose={() => setChatOpen(false)} />
 
       <Box sx={{ display: "flex", flex: 1 }}>
         <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}>
