@@ -1,8 +1,10 @@
-# Chat proxy router for LM Studio; keeps frontend API stable.
+﻿# Chat proxy router for LM Studio; keeps frontend API stable.
 # Prompts enforce read-only vs admin guidance without data mutation.
-from typing import List, Literal
+import json
+from typing import Any, List, Literal
 
 import httpx
+import jsonschema
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
@@ -13,13 +15,12 @@ router = APIRouter()
 settings = get_settings()
 
 SYSTEM_PROMPT_READONLY = (
-    "Ты работаешь в режиме read-only. Отвечай на вопросы, пиши код и рекомендации, "
-    "но не предлагай изменять, создавать или удалять данные"
+    "Ты работаешь в режиме read-only. Отвечай коротко и по существу, без перечислений "
+    "и индексации. Формат ответа — обычный текст."
 )
 SYSTEM_PROMPT_ADMIN = (
-    "Ты работаешь от имени администратора. Разрешено предлагать создание и "
-    "редактирование сущностей через UI, но запрещено удалять или удалённо "
-    "модифицировать данные напрямую"
+    "Ты работаешь в режиме администратора, удаление запрещено. Отвечай коротко и по существу, "
+    "без перечислений и индексации. Формат ответа — обычный текст."
 )
 
 
@@ -30,22 +31,36 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: List[ChatMessage] = Field(min_length=1)
+    output_schema: dict | None = None
 
 
 class ChatResponse(BaseModel):
     content: str
 
 
-async def _proxy_chat(messages: List[ChatMessage], system_prompt: str) -> ChatResponse:
+async def _proxy_chat(
+    messages: List[ChatMessage],
+    system_prompt: str,
+    output_schema: dict | None,
+) -> ChatResponse | dict:
     formatted_messages = [{"role": "system", "content": system_prompt}] + [
         {"role": message.role, "content": message.content} for message in messages
     ]
+    if output_schema is not None:
+        schema_prompt = (
+            "Строго следуй следующей JSON-схеме и возвращай результат только в формате JSON:\n"
+            f"{json.dumps(output_schema, ensure_ascii=False)}"
+        )
+        formatted_messages = [{"role": "system", "content": schema_prompt}] + formatted_messages
+
     payload = {
         "model": settings.lm_model,
         "messages": formatted_messages,
         "temperature": 0.4,
         "max_tokens": 512,
     }
+    if output_schema is not None:
+        payload["response_format"] = {"type": "json_object"}
 
     headers: dict[str, str] = {}
     if settings.lm_studio_api_key:
@@ -64,14 +79,33 @@ async def _proxy_chat(messages: List[ChatMessage], system_prompt: str) -> ChatRe
 
     data = response.json()
     assistant_reply = data["choices"][0]["message"]["content"]
-    return ChatResponse(content=assistant_reply)
+    if output_schema is None:
+        return ChatResponse(content=assistant_reply)
+
+    try:
+        parsed_reply = json.loads(assistant_reply)
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="LLM returned invalid JSON",
+        )
+
+    try:
+        jsonschema.validate(instance=parsed_reply, schema=output_schema)
+    except jsonschema.ValidationError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="LLM returned JSON that does not match schema",
+        )
+
+    return parsed_reply
 
 
-@router.post("/chat", response_model=ChatResponse)
+@router.post("/chat", response_model=ChatResponse | dict)
 async def chat(payload: ChatRequest, _user=Depends(require_read_access())):
-    return await _proxy_chat(payload.messages, SYSTEM_PROMPT_READONLY)
+    return await _proxy_chat(payload.messages, SYSTEM_PROMPT_READONLY, payload.output_schema)
 
 
-@router.post("/chat/admin", response_model=ChatResponse)
+@router.post("/chat/admin", response_model=ChatResponse | dict)
 async def chat_admin(payload: ChatRequest, _user=Depends(require_admin())):
-    return await _proxy_chat(payload.messages, SYSTEM_PROMPT_ADMIN)
+    return await _proxy_chat(payload.messages, SYSTEM_PROMPT_ADMIN, payload.output_schema)
