@@ -35,7 +35,9 @@
     "username": "Username",
     "password": "Password",
     "signIn": "Sign in",
-    "invalidCredentials": "Invalid username or password"
+    "invalidCredentials": "Invalid username or password",
+    "promoTitle": "Unified control center for equipment",
+    "promoSubtitle": "Monitor assets, track movements, and keep inventory aligned in one workspace."
   },
   "actions": {
     "add": "Add",
