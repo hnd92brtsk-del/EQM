@@ -37,7 +37,19 @@
     "signIn": "Sign in",
     "invalidCredentials": "Invalid username or password",
     "promoTitle": "Unified control center for equipment",
-    "promoSubtitle": "Monitor assets, track movements, and keep inventory aligned in one workspace."
+    "promoSubtitle": "Monitor assets, track movements, and keep inventory aligned in one workspace.",
+    "fields": {
+      "login": "Login",
+      "password": "Password"
+    },
+    "actions": {
+      "submit": "Sign in"
+    },
+    "helper": {
+      "accountCreation": "To create an account, contact the administrator via corporate email or TrueConf"
+    },
+    "brandTitle": "EQM Platform",
+    "brandSubtitle": "Manage assets, workflows, and inventory from a single secure workspace."
   },
   "actions": {
     "add": "Add",
@@ -51,7 +63,13 @@
     "filters": "Filters",
     "actions": "Actions",
     "notSelected": "Not selected",
-    "close": "Close"
+    "close": "Close",
+    "downloadTemplate": "Download template",
+    "import": "Import",
+    "exportActiveCsv": "Export active (CSV)",
+    "exportActiveXlsx": "Export active (XLSX)",
+    "exportDeletedCsv": "Export deleted (CSV)",
+    "exportDeletedXlsx": "Export deleted (XLSX)"
   },
   "pages": {
     "dashboard": "Overview",
@@ -386,12 +404,38 @@
         "byCreatedOldest": "By created date (oldest)",
         "byCreatedNewest": "By created date (newest)"
       },
+      "actions": {
+        "template": "Download template",
+        "exportCsv": "Export CSV",
+        "exportXlsx": "Export XLSX",
+        "exportActiveCsv": "Export active CSV",
+        "exportActiveXlsx": "Export active XLSX",
+        "exportDeletedCsv": "Export deleted CSV",
+        "exportDeletedXlsx": "Export deleted XLSX",
+        "import": "Import"
+      },
+      "import": {
+        "title": "Import manufacturers",
+        "dryRun": "Dry run (no changes)",
+        "submit": "Start import",
+        "reportTitle": "Import report",
+        "reportSummary": "Rows: {{total}}, created: {{created}}, skipped: {{skipped}}",
+        "errors": "Errors",
+        "warnings": "Warnings",
+        "issue": "Row {{row}}, {{field}}: {{message}}",
+        "dryRunSuccess": "Dry run completed",
+        "success": "Import completed"
+      },
       "errors": {
         "load": "Failed to load manufacturers",
         "create": "Failed to create manufacturer",
         "update": "Failed to update manufacturer",
         "delete": "Failed to delete manufacturer",
-        "restore": "Failed to restore manufacturer"
+        "restore": "Failed to restore manufacturer",
+        "export": "Failed to export manufacturers",
+        "template": "Failed to download template",
+        "import": "Failed to import manufacturers",
+        "importNoFile": "Select a file to import"
       },
       "dialogs": {
         "editTitle": "Manufacturer",

@@ -1,21 +1,37 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Box,Card,
+  Alert,
+  Box,
+  Card,
   CardContent,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
   FormControl,
   FormControlLabel,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
+  Snackbar,
+  Stack,
   Switch,
   TablePagination,
   TextField,
+  Tooltip,
   Typography
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
+import FileUploadOutlinedIcon from "@mui/icons-material/FileUploadOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -25,6 +41,7 @@ import { DictionariesTabs } from "../components/DictionariesTabs";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
+import { downloadFile, importFile, type ImportReport } from "../api/importExport";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
@@ -54,6 +71,13 @@ export default function ManufacturersPage() {
   const [createdTo, setCreatedTo] = useState("");
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importFileValue, setImportFileValue] = useState<File | null>(null);
+  const [dryRun, setDryRun] = useState(true);
+  const [report, setReport] = useState<ImportReport | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const sortOptions = useMemo(
     () => [
@@ -189,6 +213,55 @@ export default function ManufacturersPage() {
     return base;
   }, [canWrite, deleteMutation, restoreMutation, t, updateMutation]);
 
+  const handleExport = async (format: "csv" | "xlsx", isDeleted: boolean) => {
+    try {
+      await downloadFile(
+        "/manufacturers/export",
+        { format, is_deleted: isDeleted },
+        `manufacturers-${isDeleted ? "deleted" : "active"}.${format}`
+      );
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.manufacturers.errors.export"));
+    }
+  };
+
+  const handleTemplate = async () => {
+    try {
+      await downloadFile(
+        "/manufacturers/template",
+        { format: "xlsx" },
+        "manufacturers-template.xlsx"
+      );
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.manufacturers.errors.template"));
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFileValue) {
+      setErrorMessage(t("pagesUi.manufacturers.errors.importNoFile"));
+      return;
+    }
+
+    try {
+      const result = await importFile("/manufacturers/import", importFileValue, {
+        dry_run: dryRun
+      });
+      setReport(result);
+      setReportOpen(true);
+      setSuccessMessage(
+        dryRun
+          ? t("pagesUi.manufacturers.import.dryRunSuccess")
+          : t("pagesUi.manufacturers.import.success")
+      );
+      if (!dryRun) {
+        refresh();
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.manufacturers.errors.import"));
+    }
+  };
+
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
       <Typography variant="h4">{t("pagesUi.manufacturers.title")}</Typography>
@@ -263,6 +336,85 @@ export default function ManufacturersPage() {
               label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
+            <Stack
+              direction="row"
+              spacing={1}
+              divider={<Divider orientation="vertical" flexItem />}
+              sx={{ alignItems: "center", flexWrap: "wrap" }}
+            >
+              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                <Tooltip title={t("actions.downloadTemplate")}>
+                  <IconButton
+                    aria-label={t("actions.downloadTemplate")}
+                    onClick={handleTemplate}
+                    size="small"
+                  >
+                    <DescriptionOutlinedIcon />
+                  </IconButton>
+                </Tooltip>
+                {canWrite && (
+                  <Tooltip title={t("actions.import")}>
+                    <IconButton
+                      aria-label={t("actions.import")}
+                      onClick={() => setImportDialogOpen(true)}
+                      size="small"
+                    >
+                      <FileUploadOutlinedIcon />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Stack>
+              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                <Tooltip title={t("actions.exportActiveCsv")}>
+                  <IconButton
+                    aria-label={t("actions.exportActiveCsv")}
+                    onClick={() => handleExport("csv", false)}
+                    size="small"
+                    color="success"
+                  >
+                    <DownloadOutlinedIcon />
+                  </IconButton>
+                </Tooltip>
+                <Chip size="small" label="CSV" />
+                <Tooltip title={t("actions.exportActiveXlsx")}>
+                  <IconButton
+                    aria-label={t("actions.exportActiveXlsx")}
+                    onClick={() => handleExport("xlsx", false)}
+                    size="small"
+                    color="success"
+                  >
+                    <DownloadOutlinedIcon />
+                  </IconButton>
+                </Tooltip>
+                <Chip size="small" label="XLSX" />
+              </Stack>
+              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                <Tooltip title={t("actions.exportDeletedCsv")}>
+                  <IconButton
+                    aria-label={t("actions.exportDeletedCsv")}
+                    onClick={() => handleExport("csv", true)}
+                    size="small"
+                    color="error"
+                  >
+                    <DeleteOutlineIcon fontSize="small" />
+                    <DownloadOutlinedIcon />
+                  </IconButton>
+                </Tooltip>
+                <Chip size="small" label="CSV" color="error" variant="outlined" />
+                <Tooltip title={t("actions.exportDeletedXlsx")}>
+                  <IconButton
+                    aria-label={t("actions.exportDeletedXlsx")}
+                    onClick={() => handleExport("xlsx", true)}
+                    size="small"
+                    color="error"
+                  >
+                    <DeleteOutlineIcon fontSize="small" />
+                    <DownloadOutlinedIcon />
+                  </IconButton>
+                </Tooltip>
+                <Chip size="small" label="XLSX" color="error" variant="outlined" />
+              </Stack>
+            </Stack>
             {canWrite && (
               <AppButton
                 variant="contained"
@@ -307,6 +459,108 @@ export default function ManufacturersPage() {
 
       {dialog && <EntityDialog state={dialog} onClose={() => setDialog(null)} />}
       <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage(null)} />
+      <Snackbar
+        open={Boolean(successMessage)}
+        autoHideDuration={4000}
+        onClose={() => setSuccessMessage(null)}
+      >
+        <Alert onClose={() => setSuccessMessage(null)} severity="success" sx={{ width: "100%" }}>
+          {successMessage}
+        </Alert>
+      </Snackbar>
+
+      <Dialog open={importDialogOpen} onClose={() => setImportDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{t("pagesUi.manufacturers.import.title")}</DialogTitle>
+        <DialogContent sx={{ display: "grid", gap: 2, pt: 2 }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.xlsx"
+            onChange={(event) => {
+              const file = event.target.files?.[0] || null;
+              setImportFileValue(file);
+            }}
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={dryRun}
+                onChange={(event) => setDryRun(event.target.checked)}
+              />
+            }
+            label={t("pagesUi.manufacturers.import.dryRun")}
+          />
+        </DialogContent>
+        <DialogActions>
+          <AppButton variant="text" onClick={() => setImportDialogOpen(false)}>
+            {t("actions.cancel")}
+          </AppButton>
+          <AppButton
+            variant="contained"
+            onClick={() => {
+              handleImport();
+              setImportDialogOpen(false);
+            }}
+            disabled={!importFileValue}
+          >
+            {t("pagesUi.manufacturers.import.submit")}
+          </AppButton>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={reportOpen} onClose={() => setReportOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{t("pagesUi.manufacturers.import.reportTitle")}</DialogTitle>
+        <DialogContent sx={{ display: "grid", gap: 1.5 }}>
+          {report && (
+            <>
+              <Typography>
+                {t("pagesUi.manufacturers.import.reportSummary", {
+                  total: report.total_rows,
+                  created: report.created,
+                  skipped: report.skipped_duplicates
+                })}
+              </Typography>
+              {report.errors.length > 0 && (
+                <Box>
+                  <Typography variant="subtitle2">{t("pagesUi.manufacturers.import.errors")}</Typography>
+                  <Box component="ul" sx={{ pl: 2 }}>
+                    {report.errors.map((item, index) => (
+                      <li key={`error-${index}`}>
+                        {t("pagesUi.manufacturers.import.issue", {
+                          row: item.row ?? "-",
+                          field: item.field ?? "-",
+                          message: item.message
+                        })}
+                      </li>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+              {report.warnings.length > 0 && (
+                <Box>
+                  <Typography variant="subtitle2">{t("pagesUi.manufacturers.import.warnings")}</Typography>
+                  <Box component="ul" sx={{ pl: 2 }}>
+                    {report.warnings.map((item, index) => (
+                      <li key={`warning-${index}`}>
+                        {t("pagesUi.manufacturers.import.issue", {
+                          row: item.row ?? "-",
+                          field: item.field ?? "-",
+                          message: item.message
+                        })}
+                      </li>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <AppButton variant="contained" onClick={() => setReportOpen(false)}>
+            {t("actions.close")}
+          </AppButton>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

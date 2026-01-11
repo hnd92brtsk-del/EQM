@@ -1,17 +1,13 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Box,
-  Card,
-  CardContent,
-  Paper,
-  TextField
-} from "@mui/material";
+import { Box, TextField, Typography } from "@mui/material";
 import { alpha, darken } from "@mui/material/styles";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import { useTranslation } from "react-i18next";
 
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
+import authBg from "../assets/auth/auth-bg.jpg";
 
 export default function LoginPage() {
   const { t } = useTranslation();
@@ -39,193 +35,175 @@ export default function LoginPage() {
 
   return (
     <Box
-      sx={(theme) => ({
+      sx={{
         minHeight: "100vh",
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-        backgroundColor: theme.palette.background.default
-      })}
+        gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }
+      }}
     >
       <Box
         sx={(theme) => ({
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          p: { xs: 3, md: 6 },
-          backgroundColor: theme.palette.grey[50]
-        })}
-      >
-        <Card
-          sx={{
-            maxWidth: 480,
-            width: "100%",
-            borderRadius: 2,
-            boxShadow: "0 18px 40px rgba(15, 23, 42, 0.12)",
-            backgroundColor: "common.white"
-          }}
-        >
-          <CardContent sx={{ display: "grid", gap: 2.5, p: { xs: 4, md: 5 } }}>
-            <Box component="form" onSubmit={handleSubmit} sx={{ display: "grid", gap: 2 }}>
-              <TextField
-                label={t("auth.username")}
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                required
-                error={hasError}
-                sx={{
-                  "& .MuiInputBase-root": {
-                    backgroundColor: "rgba(15, 23, 42, 0.04)"
-                  },
-                  "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "rgba(15, 23, 42, 0.16)"
-                  },
-                  "&:hover .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "rgba(15, 23, 42, 0.28)"
-                  },
-                  "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "primary.main"
-                  }
-                }}
-              />
-              <TextField
-                label={t("auth.password")}
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-                error={hasError}
-                sx={{
-                  "& .MuiInputBase-root": {
-                    backgroundColor: "rgba(15, 23, 42, 0.04)"
-                  },
-                  "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "rgba(15, 23, 42, 0.16)"
-                  },
-                  "&:hover .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "rgba(15, 23, 42, 0.28)"
-                  },
-                  "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "primary.main"
-                  }
-                }}
-              />
-              <AppButton
-                type="submit"
-                variant="contained"
-                disabled={loading}
-                fullWidth
-                sx={(theme) => ({
-                  height: 46,
-                  borderRadius: 2,
-                  textTransform: "none",
-                  fontWeight: 600,
-                  backgroundColor: theme.palette.primary.main,
-                  "&:hover": {
-                    backgroundColor: darken(theme.palette.primary.main, 0.12)
-                  }
-                })}
-              >
-                {t("auth.signIn")}
-              </AppButton>
-            </Box>
-          </CardContent>
-        </Card>
-      </Box>
-      <Box
-        sx={(theme) => ({
           position: "relative",
-          display: { xs: "none", md: "flex" },
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-          background: `linear-gradient(145deg, ${alpha(
-            theme.palette.primary.dark,
-            0.92
-          )} 0%, ${alpha(theme.palette.secondary.main, 0.86)} 100%)`
+          display: { xs: "none", md: "block" },
+          backgroundImage: `url(${authBg})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          color: "common.white"
         })}
       >
         <Box
           sx={{
             position: "absolute",
             inset: 0,
-            background:
-              "radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.22), transparent 55%)"
+            backgroundColor: alpha("#000000", 0.45)
           }}
         />
         <Box
           sx={{
             position: "relative",
-            width: "100%",
-            height: "100%",
             p: 6,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "flex-end",
-            gap: 2,
-            color: "common.white"
+            maxWidth: 360
           }}
         >
-          <Box sx={{ position: "absolute", top: 64, right: 80 }}>
-            <Paper
-              elevation={0}
-              sx={{
-                width: 220,
-                p: 2,
-                borderRadius: 3,
-                backgroundColor: "rgba(255, 255, 255, 0.92)",
-                boxShadow: "0 18px 30px rgba(10, 20, 40, 0.2)"
-              }}
-            >
-              <Box sx={{ height: 10, width: 80, borderRadius: 5, backgroundColor: "grey.200" }} />
-              <Box sx={{ mt: 2, height: 70, borderRadius: 2, backgroundColor: "grey.100" }} />
-            </Paper>
+          <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            {t("auth.brandTitle")}
+          </Typography>
+          <Typography sx={{ mt: 1, color: alpha("#ffffff", 0.75) }}>
+            {t("auth.brandSubtitle")}
+          </Typography>
+        </Box>
+      </Box>
+      <Box
+        sx={(theme) => ({
+          backgroundColor: theme.palette.grey[50],
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          p: { xs: 2, md: 6 }
+        })}
+      >
+        <Box
+          sx={{
+            width: "100%",
+            maxWidth: 460,
+            backgroundColor: "common.white",
+            border: "1px solid",
+            borderColor: "grey.200",
+            borderRadius: 0,
+            boxShadow: "0 2px 10px rgba(15, 23, 42, 0.04)",
+            p: { xs: 3, md: 4 }
+          }}
+        >
+          <Box
+            sx={{
+              width: 44,
+              height: 44,
+              borderRadius: 999,
+              border: "1px solid",
+              borderColor: "grey.200",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "text.secondary",
+              mb: 2
+            }}
+          >
+            <LockOutlinedIcon fontSize="small" />
           </Box>
-          <Box sx={{ position: "absolute", top: 210, right: 180 }}>
-            <Paper
-              elevation={0}
+          <Box component="form" onSubmit={handleSubmit} sx={{ display: "grid", gap: 2 }}>
+            <TextField
+              label={t("auth.fields.login")}
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              required
+              fullWidth
+              size="medium"
+              variant="outlined"
+              error={hasError}
+              InputLabelProps={{ shrink: true }}
               sx={{
-                width: 240,
-                p: 2,
-                borderRadius: 3,
-                backgroundColor: "rgba(255, 255, 255, 0.9)",
-                boxShadow: "0 18px 30px rgba(10, 20, 40, 0.2)"
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 1.5
+                },
+                "& .MuiInputBase-root": {
+                  backgroundColor: "common.white"
+                },
+                "& .MuiOutlinedInput-input": {
+                  padding: "14px 16px"
+                },
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "rgba(15, 23, 42, 0.18)"
+                },
+                "&:hover .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "rgba(15, 23, 42, 0.32)"
+                },
+                "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "primary.main"
+                }
               }}
-            >
-              <Box sx={{ height: 8, width: 110, borderRadius: 5, backgroundColor: "grey.200" }} />
-              <Box sx={{ mt: 1.5, height: 48, borderRadius: 2, backgroundColor: "grey.100" }} />
-              <Box sx={{ mt: 1.5, height: 10, width: 160, borderRadius: 5, backgroundColor: "grey.200" }} />
-            </Paper>
-          </Box>
-          <Box sx={{ position: "absolute", top: 140, right: 16 }}>
-            <Paper
-              elevation={0}
+            />
+            <TextField
+              label={t("auth.fields.password")}
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+              fullWidth
+              size="medium"
+              variant="outlined"
+              error={hasError}
+              InputLabelProps={{ shrink: true }}
               sx={{
-                width: 180,
-                p: 2,
-                borderRadius: 3,
-                backgroundColor: "rgba(255, 255, 255, 0.95)",
-                boxShadow: "0 18px 30px rgba(10, 20, 40, 0.2)"
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 1.5
+                },
+                "& .MuiInputBase-root": {
+                  backgroundColor: "common.white"
+                },
+                "& .MuiOutlinedInput-input": {
+                  padding: "14px 16px"
+                },
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "rgba(15, 23, 42, 0.18)"
+                },
+                "&:hover .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "rgba(15, 23, 42, 0.32)"
+                },
+                "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "primary.main"
+                }
               }}
+            />
+            <AppButton
+              type="submit"
+              variant="contained"
+              disabled={loading}
+              fullWidth
+              sx={(theme) => ({
+                height: 50,
+                borderRadius: 1.5,
+                textTransform: "none",
+                fontWeight: 600,
+                boxShadow: "none",
+                backgroundColor: theme.palette.primary.main,
+                "&:hover": {
+                  backgroundColor: darken(theme.palette.primary.main, 0.12),
+                  boxShadow: "none"
+                }
+              })}
             >
-              <Box sx={{ height: 8, width: 90, borderRadius: 5, backgroundColor: "grey.200" }} />
-              <Box sx={{ mt: 1.5, height: 36, borderRadius: 2, backgroundColor: "grey.100" }} />
-            </Paper>
-          </Box>
-          <Box sx={{ maxWidth: 360 }}>
-            <Box sx={{ typography: "h5", fontWeight: 600 }}>
-              {t("auth.promoTitle")}
-            </Box>
-            <Box sx={{ mt: 1, color: alpha("#ffffff", 0.78) }}>
-              {t("auth.promoSubtitle")}
-            </Box>
+              {t("auth.actions.submit")}
+            </AppButton>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ textAlign: "center", mt: 1.5, lineHeight: 1.4 }}
+            >
+              {t("auth.helper.accountCreation")}
+            </Typography>
           </Box>
         </Box>
       </Box>
     </Box>
   );
 }
-
-
-
-
-
