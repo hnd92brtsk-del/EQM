@@ -1,13 +1,52 @@
 ﻿import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, TextField, Typography } from "@mui/material";
-import { alpha, darken } from "@mui/material/styles";
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import { Box, Stack, TextField, Typography } from "@mui/material";
+import { alpha, styled } from "@mui/material/styles";
 import { useTranslation } from "react-i18next";
 
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
-import authBg from "../assets/auth/auth-bg.jpg";
+import authBg from "../assets/auth/imgstart2.jpg";
+
+const DarkTextField = styled(TextField)(() => ({
+  "& .MuiOutlinedInput-root": {
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 0,
+    height: 46,
+    color: "#fff"
+  },
+  "& .MuiOutlinedInput-notchedOutline": {
+    borderColor: "rgba(255,255,255,0.25)"
+  },
+  "&:hover .MuiOutlinedInput-notchedOutline": {
+    borderColor: "rgba(255,255,255,0.45)"
+  },
+  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+    borderColor: "rgba(255,255,255,0.7)"
+  },
+  "& .MuiInputLabel-root": {
+    color: "rgba(255,255,255,0.65)"
+  },
+  "& .MuiInputLabel-root.Mui-focused": {
+    color: "rgba(255,255,255,0.9)"
+  },
+  "& input": {
+    borderRadius: 0,
+    caretColor: "#fff",
+    color: "#fff"
+  },
+  "& input::placeholder": {
+    color: "rgba(255,255,255,0.6)",
+    opacity: 1
+  },
+  "& input:-webkit-autofill, & input:-webkit-autofill:hover, & input:-webkit-autofill:focus, & input:-webkit-autofill:active":
+    {
+      WebkitBoxShadow: "0 0 0 1000px rgba(0,0,0,0.35) inset !important",
+      WebkitTextFillColor: "#fff !important",
+      caretColor: "#fff !important",
+      transition: "background-color 9999s ease-out 0s"
+    }
+}));
 
 export default function LoginPage() {
   const { t } = useTranslation();
@@ -38,18 +77,19 @@ export default function LoginPage() {
       sx={{
         minHeight: "100vh",
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }
+        gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+        position: "relative",
+        backgroundImage: `url(${authBg})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center"
       }}
     >
       <Box
-        sx={(theme) => ({
+        sx={{
           position: "relative",
           display: { xs: "none", md: "block" },
-          backgroundImage: `url(${authBg})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
           color: "common.white"
-        })}
+        }}
       >
         <Box
           sx={{
@@ -74,44 +114,39 @@ export default function LoginPage() {
         </Box>
       </Box>
       <Box
-        sx={(theme) => ({
-          backgroundColor: theme.palette.grey[50],
+        sx={{
+          backgroundColor: "transparent",
+          position: "relative",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           p: { xs: 2, md: 6 }
-        })}
+        }}
       >
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            backgroundColor: alpha("#000000", 0.45)
+          }}
+        />
         <Box
           sx={{
             width: "100%",
             maxWidth: 460,
-            backgroundColor: "common.white",
-            border: "1px solid",
-            borderColor: "grey.200",
+            backgroundColor: "rgba(0, 0, 0, 0.65)",
+            backdropFilter: "blur(6px)",
+            border: "1px solid rgba(255,255,255,0.12)",
             borderRadius: 0,
-            boxShadow: "0 2px 10px rgba(15, 23, 42, 0.04)",
-            p: { xs: 3, md: 4 }
+            boxShadow: "0 12px 40px rgba(0,0,0,0.6)",
+            color: "common.white",
+            p: { xs: 3, md: 4 },
+            position: "relative",
+            zIndex: 1
           }}
         >
-          <Box
-            sx={{
-              width: 44,
-              height: 44,
-              borderRadius: 999,
-              border: "1px solid",
-              borderColor: "grey.200",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "text.secondary",
-              mb: 2
-            }}
-          >
-            <LockOutlinedIcon fontSize="small" />
-          </Box>
-          <Box component="form" onSubmit={handleSubmit} sx={{ display: "grid", gap: 2 }}>
-            <TextField
+          <Stack component="form" onSubmit={handleSubmit} spacing={2.5} sx={{ mt: 2 }}>
+            <DarkTextField
               label={t("auth.fields.login")}
               value={username}
               onChange={(event) => setUsername(event.target.value)}
@@ -121,28 +156,15 @@ export default function LoginPage() {
               variant="outlined"
               error={hasError}
               InputLabelProps={{ shrink: true }}
+              InputProps={{ sx: { backgroundColor: "transparent" } }}
+              inputProps={{ style: { color: "#fff" } }}
               sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: 1.5
-                },
-                "& .MuiInputBase-root": {
-                  backgroundColor: "common.white"
-                },
                 "& .MuiOutlinedInput-input": {
                   padding: "14px 16px"
-                },
-                "& .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "rgba(15, 23, 42, 0.18)"
-                },
-                "&:hover .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "rgba(15, 23, 42, 0.32)"
-                },
-                "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "primary.main"
                 }
               }}
             />
-            <TextField
+            <DarkTextField
               label={t("auth.fields.password")}
               type="password"
               value={password}
@@ -153,24 +175,11 @@ export default function LoginPage() {
               variant="outlined"
               error={hasError}
               InputLabelProps={{ shrink: true }}
+              InputProps={{ sx: { backgroundColor: "transparent" } }}
+              inputProps={{ style: { color: "#fff" } }}
               sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: 1.5
-                },
-                "& .MuiInputBase-root": {
-                  backgroundColor: "common.white"
-                },
                 "& .MuiOutlinedInput-input": {
                   padding: "14px 16px"
-                },
-                "& .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "rgba(15, 23, 42, 0.18)"
-                },
-                "&:hover .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "rgba(15, 23, 42, 0.32)"
-                },
-                "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "primary.main"
                 }
               }}
             />
@@ -180,14 +189,14 @@ export default function LoginPage() {
               disabled={loading}
               fullWidth
               sx={(theme) => ({
-                height: 50,
-                borderRadius: 1.5,
+                height: 48,
+                borderRadius: 0,
                 textTransform: "none",
                 fontWeight: 600,
                 boxShadow: "none",
                 backgroundColor: theme.palette.primary.main,
                 "&:hover": {
-                  backgroundColor: darken(theme.palette.primary.main, 0.12),
+                  backgroundColor: theme.palette.primary.dark,
                   boxShadow: "none"
                 }
               })}
@@ -201,7 +210,7 @@ export default function LoginPage() {
             >
               {t("auth.helper.accountCreation")}
             </Typography>
-          </Box>
+          </Stack>
         </Box>
       </Box>
     </Box>
