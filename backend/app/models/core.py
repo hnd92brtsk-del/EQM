@@ -79,6 +79,12 @@ class EquipmentType(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     )
     is_channel_forming: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
     channel_count: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)
+    ai_count: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)
+    di_count: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)
+    ao_count: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)
+    do_count: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)
+    is_network: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    network_ports: Mapped[list[dict] | None] = mapped_column(JSONB)
     meta_data: Mapped[dict | None] = mapped_column(JSONB)
 
     manufacturer: Mapped[Manufacturer] = relationship()

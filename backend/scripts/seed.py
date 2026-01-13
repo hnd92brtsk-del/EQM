@@ -95,6 +95,11 @@ def run():
                 manufacturer=siemens,
                 is_channel_forming=True,
                 channel_count=16,
+                ai_count=16,
+                di_count=0,
+                ao_count=0,
+                do_count=0,
+                is_network=False,
                 meta_data={"unit_price_rub": 100000},
             )
             db.add(et)

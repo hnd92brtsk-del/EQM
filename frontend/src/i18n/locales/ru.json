@@ -205,6 +205,10 @@
       "nomenclature": "Номенклатура",
       "channelForming": "Каналообразующее",
       "channelCount": "Количество каналов",
+      "isNetwork": "Сетевое",
+      "portsInterfaces": "Порты/Интерфейсы",
+      "portType": "Тип порта",
+      "portCount": "Количество",
       "priceRub": "Цена, руб.",
       "login": "Логин",
       "password": "Пароль",
@@ -287,7 +291,8 @@
         "restore": "Не удалось восстановить тип оборудования"
       },
       "columns": {
-        "channels": "Каналы"
+        "channels": "Каналы",
+        "channelsDetailed": "AI/DI/AO/DO"
       },
       "channelsWithCount": "Да ({{count}})",
       "dialogs": {

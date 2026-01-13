@@ -202,6 +202,10 @@
       "nomenclature": "Nomenclature",
       "channelForming": "Channel forming",
       "channelCount": "Channel count",
+      "isNetwork": "Network",
+      "portsInterfaces": "Ports / Interfaces",
+      "portType": "Port type",
+      "portCount": "Count",
       "priceRub": "Price, RUB",
       "login": "Login",
       "password": "Password",
@@ -287,7 +291,8 @@
         "restore": "Failed to restore equipment type"
       },
       "columns": {
-        "channels": "Channels"
+        "channels": "Channels",
+        "channelsDetailed": "AI/DI/AO/DO"
       },
       "channelsWithCount": "Yes ({{count}})",
       "dialogs": {

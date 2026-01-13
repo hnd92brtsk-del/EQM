@@ -1,5 +1,5 @@
 ﻿from fastapi import APIRouter, Depends
-from sqlalchemy import select, func, cast, Float, and_, or_
+from sqlalchemy import select, func, cast, Float, and_, or_, case
 
 from app.core.dependencies import get_db, get_current_user
 from app.models.core import Cabinet, EquipmentType, Warehouse
@@ -150,8 +150,18 @@ def get_dashboard_overview(db=Depends(get_db), user: User = Depends(get_current_
         )
     ) or 0
 
+    channel_sum_expr = (
+        EquipmentType.ai_count
+        + EquipmentType.di_count
+        + EquipmentType.ao_count
+        + EquipmentType.do_count
+    )
+    channel_total_expr = case(
+        (channel_sum_expr > 0, channel_sum_expr),
+        else_=EquipmentType.channel_count,
+    )
     total_channels = db.scalar(
-        select(func.coalesce(func.sum(CabinetItem.quantity * EquipmentType.channel_count), 0))
+        select(func.coalesce(func.sum(CabinetItem.quantity * channel_total_expr), 0))
         .join(EquipmentType, CabinetItem.equipment_type_id == EquipmentType.id)
         .where(
             CabinetItem.is_deleted == False,

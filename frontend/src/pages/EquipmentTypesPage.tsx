@@ -38,6 +38,12 @@ type EquipmentType = {
   equipment_category_id?: number | null;
   is_channel_forming: boolean;
   channel_count: number;
+  ai_count: number;
+  di_count: number;
+  ao_count: number;
+  do_count: number;
+  is_network: boolean;
+  network_ports?: { type: string; count: number }[] | null;
   unit_price_rub?: number | null;
   is_deleted: boolean;
   created_at?: string;
@@ -45,8 +51,18 @@ type EquipmentType = {
 
 type Manufacturer = { id: number; name: string };
 type EquipmentCategory = { id: number; name: string };
+type NetworkPort = { type: string; count: number };
 
 const pageSizeOptions = [10, 20, 50, 100];
+const networkPortOptions = [
+  { label: "RJ-45 (8p8c)", value: "RJ-45 (8p8c)" },
+  { label: "LC", value: "LC" },
+  { label: "SC", value: "SC" },
+  { label: "FC", value: "FC" },
+  { label: "ST", value: "ST" },
+  { label: "RS-485", value: "RS-485" },
+  { label: "RS-232", value: "RS-232" }
+];
 
 export default function EquipmentTypesPage() {
   const { t } = useTranslation();
@@ -219,11 +235,31 @@ export default function EquipmentTypesPage() {
         }
       },
       {
-        header: t("pagesUi.equipmentTypes.columns.channels"),
-        cell: ({ row }) =>
-          row.original.is_channel_forming
-            ? t("pagesUi.equipmentTypes.channelsWithCount", { count: row.original.channel_count })
-            : t("common.no")
+        header: t("pagesUi.equipmentTypes.columns.channelsDetailed"),
+        cell: ({ row }) => {
+          if (!row.original.is_channel_forming) {
+            return t("common.no");
+          }
+          const ai = row.original.ai_count || 0;
+          const di = row.original.di_count || 0;
+          const ao = row.original.ao_count || 0;
+          const doCount = row.original.do_count || 0;
+          const total = ai + di + ao + doCount;
+          const fallbackAi = total === 0 && row.original.channel_count > 0 ? row.original.channel_count : ai;
+          return `AI ${fallbackAi} / DI ${di} / AO ${ao} / DO ${doCount}`;
+        }
+      },
+      {
+        header: t("common.fields.portsInterfaces"),
+        cell: ({ row }) => {
+          if (!row.original.is_network || !row.original.network_ports?.length) {
+            return "-";
+          }
+          return row.original.network_ports
+            .filter((item) => item.type)
+            .map((item) => `${item.type}[${item.count ?? 0}]`)
+            .join(", ");
+        }
       },
       {
         header: t("common.fields.priceRub"),
@@ -282,7 +318,42 @@ export default function EquipmentTypesPage() {
                       label: t("common.fields.channelForming"),
                       type: "checkbox"
                     },
-                    { name: "channel_count", label: t("common.fields.channelCount"), type: "number" },
+                    {
+                      name: "ai_count",
+                      label: "AI",
+                      type: "number",
+                      visibleWhen: (values) => Boolean(values.is_channel_forming)
+                    },
+                    {
+                      name: "di_count",
+                      label: "DI",
+                      type: "number",
+                      visibleWhen: (values) => Boolean(values.is_channel_forming)
+                    },
+                    {
+                      name: "ao_count",
+                      label: "AO",
+                      type: "number",
+                      visibleWhen: (values) => Boolean(values.is_channel_forming)
+                    },
+                    {
+                      name: "do_count",
+                      label: "DO",
+                      type: "number",
+                      visibleWhen: (values) => Boolean(values.is_channel_forming)
+                    },
+                    {
+                      name: "is_network",
+                      label: t("common.fields.isNetwork"),
+                      type: "checkbox"
+                    },
+                    {
+                      name: "network_ports",
+                      label: t("common.fields.portsInterfaces"),
+                      type: "ports",
+                      options: networkPortOptions,
+                      visibleWhen: (values) => Boolean(values.is_network)
+                    },
                     { name: "unit_price_rub", label: t("common.fields.priceRub"), type: "number" }
                   ],
                   values: row.original,
@@ -303,7 +374,19 @@ export default function EquipmentTypesPage() {
                         manufacturer_id: manufacturerId,
                         equipment_category_id: equipmentCategoryId,
                         is_channel_forming: values.is_channel_forming,
-                        channel_count: values.channel_count,
+                        ai_count: Number(values.ai_count || 0),
+                        di_count: Number(values.di_count || 0),
+                        ao_count: Number(values.ao_count || 0),
+                        do_count: Number(values.do_count || 0),
+                        is_network: values.is_network,
+                        network_ports: values.is_network
+                          ? (values.network_ports || [])
+                              .filter((item: NetworkPort) => item?.type)
+                              .map((item: NetworkPort) => ({
+                                type: item.type,
+                                count: Number(item.count || 0)
+                              }))
+                          : undefined,
                         unit_price_rub: values.unit_price_rub === "" ? undefined : values.unit_price_rub
                       }
                     });
@@ -463,12 +546,47 @@ export default function EquipmentTypesPage() {
                           value: category.id
                         })) || []
                     },
+                    {
+                      name: "is_channel_forming",
+                      label: t("common.fields.channelForming"),
+                      type: "checkbox"
+                    },
                       {
-                        name: "is_channel_forming",
-                        label: t("common.fields.channelForming"),
+                        name: "ai_count",
+                        label: "AI",
+                        type: "number",
+                        visibleWhen: (values) => Boolean(values.is_channel_forming)
+                      },
+                      {
+                        name: "di_count",
+                        label: "DI",
+                        type: "number",
+                        visibleWhen: (values) => Boolean(values.is_channel_forming)
+                      },
+                      {
+                        name: "ao_count",
+                        label: "AO",
+                        type: "number",
+                        visibleWhen: (values) => Boolean(values.is_channel_forming)
+                      },
+                      {
+                        name: "do_count",
+                        label: "DO",
+                        type: "number",
+                        visibleWhen: (values) => Boolean(values.is_channel_forming)
+                      },
+                      {
+                        name: "is_network",
+                        label: t("common.fields.isNetwork"),
                         type: "checkbox"
                       },
-                      { name: "channel_count", label: t("common.fields.channelCount"), type: "number" },
+                      {
+                        name: "network_ports",
+                        label: t("common.fields.portsInterfaces"),
+                        type: "ports",
+                        options: networkPortOptions,
+                        visibleWhen: (values) => Boolean(values.is_network)
+                      },
                       { name: "unit_price_rub", label: t("common.fields.priceRub"), type: "number" }
                     ],
                     values: {
@@ -477,7 +595,12 @@ export default function EquipmentTypesPage() {
                       manufacturer_id: "",
                       equipment_category_id: "",
                       is_channel_forming: false,
-                      channel_count: 0,
+                      ai_count: 0,
+                      di_count: 0,
+                      ao_count: 0,
+                      do_count: 0,
+                      is_network: false,
+                      network_ports: [],
                       unit_price_rub: ""
                     },
                     onSave: (values) => {
@@ -497,7 +620,19 @@ export default function EquipmentTypesPage() {
                           manufacturer_id: manufacturerId,
                           equipment_category_id: equipmentCategoryId,
                           is_channel_forming: values.is_channel_forming,
-                          channel_count: values.channel_count,
+                          ai_count: Number(values.ai_count || 0),
+                          di_count: Number(values.di_count || 0),
+                          ao_count: Number(values.ao_count || 0),
+                          do_count: Number(values.do_count || 0),
+                          is_network: values.is_network,
+                          network_ports: values.is_network
+                            ? (values.network_ports || [])
+                                .filter((item: NetworkPort) => item?.type)
+                                .map((item: NetworkPort) => ({
+                                  type: item.type,
+                                  count: Number(item.count || 0)
+                                }))
+                            : undefined,
                           unit_price_rub: values.unit_price_rub === "" ? undefined : values.unit_price_rub
                         });
                         setDialog(null);

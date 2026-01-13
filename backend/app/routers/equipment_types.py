@@ -13,6 +13,27 @@ from app.schemas.equipment_types import EquipmentTypeOut, EquipmentTypeCreate, E
 
 router = APIRouter()
 
+def derive_channel_total(payload: EquipmentTypeCreate | EquipmentTypeUpdate) -> int:
+    return (
+        (payload.ai_count or 0)
+        + (payload.di_count or 0)
+        + (payload.ao_count or 0)
+        + (payload.do_count or 0)
+    )
+
+def derive_channel_total_update(payload: EquipmentTypeUpdate, equipment: EquipmentType) -> int:
+    return (
+        (payload.ai_count if payload.ai_count is not None else equipment.ai_count)
+        + (payload.di_count if payload.di_count is not None else equipment.di_count)
+        + (payload.ao_count if payload.ao_count is not None else equipment.ao_count)
+        + (payload.do_count if payload.do_count is not None else equipment.do_count)
+    )
+
+def normalize_network_ports(payload: EquipmentTypeCreate | EquipmentTypeUpdate):
+    if not payload.network_ports:
+        return None
+    return [item.model_dump() if hasattr(item, "model_dump") else item for item in payload.network_ports]
+
 def merge_unit_price(meta_data: dict | None, unit_price_rub: float | None, fields_set: set[str] | None) -> dict | None:
     result = dict(meta_data or {})
     if fields_set is None or "unit_price_rub" in fields_set:
@@ -109,7 +130,13 @@ def create_equipment_type(
         manufacturer_id=payload.manufacturer_id,
         equipment_category_id=payload.equipment_category_id,
         is_channel_forming=payload.is_channel_forming,
-        channel_count=payload.channel_count,
+        channel_count=payload.channel_count or derive_channel_total(payload),
+        ai_count=payload.ai_count,
+        di_count=payload.di_count,
+        ao_count=payload.ao_count,
+        do_count=payload.do_count,
+        is_network=payload.is_network,
+        network_ports=normalize_network_ports(payload) if payload.is_network else None,
         meta_data=merge_unit_price(payload.meta_data, payload.unit_price_rub, None),
     )
     db.add(equipment)
@@ -169,6 +196,27 @@ def update_equipment_type(
         equipment.is_channel_forming = payload.is_channel_forming
     if payload.channel_count is not None:
         equipment.channel_count = payload.channel_count
+        if payload.ai_count is None and payload.di_count is None and payload.ao_count is None and payload.do_count is None:
+            equipment.ai_count = payload.channel_count
+    if payload.ai_count is not None:
+        equipment.ai_count = payload.ai_count
+    if payload.di_count is not None:
+        equipment.di_count = payload.di_count
+    if payload.ao_count is not None:
+        equipment.ao_count = payload.ao_count
+    if payload.do_count is not None:
+        equipment.do_count = payload.do_count
+    if payload.is_network is not None:
+        equipment.is_network = payload.is_network
+        if not payload.is_network:
+            equipment.network_ports = None
+    if payload.network_ports is not None and payload.is_network is not False:
+        equipment.network_ports = normalize_network_ports(payload)
+    if any(
+        value is not None
+        for value in (payload.ai_count, payload.di_count, payload.ao_count, payload.do_count)
+    ):
+        equipment.channel_count = derive_channel_total_update(payload, equipment)
     meta_data_provided = "meta_data" in payload.__fields_set__
     unit_price_provided = "unit_price_rub" in payload.__fields_set__
     if meta_data_provided or unit_price_provided:
