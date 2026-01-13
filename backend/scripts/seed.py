@@ -12,7 +12,9 @@ load_dotenv(BASE_DIR / ".env")
 from app.db.session import SessionLocal
 from app.core.security import hash_password, verify_password
 from app.models.security import User, UserRole
-from app.models.core import Manufacturer, EquipmentType, EquipmentCategory, Warehouse, Personnel
+from app.models.core import Manufacturer, EquipmentType, EquipmentCategory, Warehouse, Personnel, Location
+from app.models.assemblies import Assembly
+from app.models.operations import AssemblyItem
 
 
 def run():
@@ -51,6 +53,35 @@ def run():
         if not wh:
             wh = Warehouse(name="Склад 1")
             db.add(wh)
+
+        location = db.scalar(
+            select(Location).where(Location.name == "Локация 1", Location.is_deleted == False)
+        )
+        if not location:
+            location = Location(name="Локация 1")
+            db.add(location)
+
+        assembly = db.scalar(
+            select(Assembly).where(Assembly.name == "Сборка 1", Assembly.is_deleted == False)
+        )
+        if not assembly:
+            assembly = Assembly(name="Сборка 1", location=location)
+            db.add(assembly)
+
+        if et and assembly:
+            assembly_item = db.scalar(
+                select(AssemblyItem).where(
+                    AssemblyItem.assembly_id == assembly.id,
+                    AssemblyItem.equipment_type_id == et.id,
+                )
+            )
+            if not assembly_item:
+                assembly_item = AssemblyItem(
+                    assembly_id=assembly.id,
+                    equipment_type_id=et.id,
+                    quantity=2,
+                )
+                db.add(assembly_item)
 
         et = db.scalar(
             select(EquipmentType).where(

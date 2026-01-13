@@ -9,9 +9,10 @@
     "warehouses": "Склады",
     "warehouseItems": "Складские позиции",
     "cabinets": "Шкафы",
-    "cabinetItems": "Шкафные позиции",
+    "cabinetItems": "Оборудование в эксплуатации",
     "movements": "Перемещения",
-    "ioSignals": "Сигналы I/O"
+    "ioSignals": "Сигналы I/O",
+    "assemblies": "Сборки"
   },
   "admin": {
     "title": "Администрирование",
@@ -77,8 +78,9 @@
     "dictionaries": "Справочники",
     "warehouses": "Склады",
     "cabinets": "Шкафы",
+    "assemblies": "Сборки",
     "warehouseItems": "Складские позиции",
-    "cabinetItems": "Шкафные позиции",
+    "cabinetItems": "Оборудование в эксплуатации",
     "movements": "Перемещения",
     "ioSignals": "Сигналы I/O",
     "help": "Помощь",
@@ -131,9 +133,10 @@
     "equipment": "Оборудование",
     "warehouse_items": "Складские позиции",
     "cabinets": "Шкафы",
+    "assemblies": "Сборки",
     "movements": "Перемещения",
-    "cabinets_group": "Шкафы",
-    "cabinet_items": "Шкафные позиции",
+    "cabinets_group": "Шкафы/Сборки",
+    "cabinet_items": "Оборудование в эксплуатации",
     "cabinet_composition": "Состав шкафа",
     "engineering": "Инженерия",
     "io_signals": "Сигналы I/O",
@@ -209,6 +212,7 @@
       "country": "Страна",
       "parent": "Родитель",
       "cabinet": "Шкаф",
+      "cabinetAssembly": "Шкаф/Сборка",
       "equipment": "Оборудование",
       "quantity": "Количество",
       "comment": "Комментарий",
@@ -375,6 +379,25 @@
       },
       "actions": {
         "openComposition": "Открыть состав"
+      }
+    },
+    "assemblies": {
+      "sort": {
+        "byNameAsc": "По названию (А-Я)",
+        "byNameDesc": "По названию (Я-А)",
+        "byCreatedOldest": "По дате создания (сначала старые)",
+        "byCreatedNewest": "По дате создания (сначала новые)"
+      },
+      "errors": {
+        "load": "Не удалось загрузить сборки",
+        "create": "Не удалось создать сборку",
+        "update": "Не удалось обновить сборку",
+        "delete": "Не удалось удалить сборку",
+        "restore": "Не удалось восстановить сборку"
+      },
+      "dialogs": {
+        "editTitle": "Редактировать сборку",
+        "createTitle": "Новая сборка"
       }
     },
     "warehouses": {

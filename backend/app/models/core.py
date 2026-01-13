@@ -54,6 +54,16 @@ class Location(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
         remote_side="Location.id", backref="children"
     )
 
+    def full_path(self) -> str:
+        parts: list[str] = []
+        current: Location | None = self
+        seen: set[int] = set()
+        while current and current.id not in seen:
+            parts.append(current.name)
+            seen.add(current.id)
+            current = current.parent
+        return " / ".join(reversed(parts))
+
 
 class EquipmentType(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     __tablename__ = "equipment_types"

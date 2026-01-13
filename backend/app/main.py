@@ -11,8 +11,10 @@ from app.routers import (
     equipment_types,
     warehouses,
     cabinets,
+    assemblies,
     warehouse_items,
     cabinet_items,
+    assembly_items,
     io_signals,
     movements,
     audit_logs,
@@ -20,6 +22,7 @@ from app.routers import (
     dashboard,
     personnel,
     chat,
+    equipment_in_operation,
 )
 
 settings = get_settings()
@@ -46,8 +49,15 @@ app.include_router(equipment_categories.router, prefix="/api/v1/equipment_catego
 app.include_router(equipment_types.router, prefix="/api/v1/equipment-types", tags=["equipment-types"])
 app.include_router(warehouses.router, prefix="/api/v1/warehouses", tags=["warehouses"])
 app.include_router(cabinets.router, prefix="/api/v1/cabinets", tags=["cabinets"])
+app.include_router(assemblies.router, prefix="/api/v1/assemblies", tags=["assemblies"])
 app.include_router(warehouse_items.router, prefix="/api/v1/warehouse-items", tags=["warehouse-items"])
 app.include_router(cabinet_items.router, prefix="/api/v1/cabinet-items", tags=["cabinet-items"])
+app.include_router(assembly_items.router, prefix="/api/v1/assembly-items", tags=["assembly-items"])
+app.include_router(
+    equipment_in_operation.router,
+    prefix="/api/v1/equipment-in-operation",
+    tags=["equipment-in-operation"],
+)
 app.include_router(io_signals.router, prefix="/api/v1/io-signals", tags=["io-signals"])
 app.include_router(movements.router, prefix="/api/v1/movements", tags=["movements"])
 app.include_router(audit_logs.router, prefix="/api/v1/audit-logs", tags=["audit-logs"])

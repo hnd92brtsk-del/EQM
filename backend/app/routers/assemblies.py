@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 
@@ -6,12 +6,14 @@ from app.core.dependencies import get_db, require_read_access, require_write_acc
 from app.core.pagination import paginate
 from app.core.query import apply_search, apply_sort, apply_date_filters
 from app.core.audit import add_audit_log, model_to_dict
-from app.models.core import Cabinet, Location
+from app.models.assemblies import Assembly
+from app.models.core import Location
 from app.models.security import User
 from app.schemas.common import Pagination
-from app.schemas.cabinets import CabinetOut, CabinetCreate, CabinetUpdate
+from app.schemas.assemblies import AssemblyOut, AssemblyCreate, AssemblyUpdate
 
 router = APIRouter()
+
 
 def build_location_full_path(location_id: int | None, locations_map: dict[int, Location]) -> str | None:
     if not location_id or location_id not in locations_map:
@@ -27,15 +29,15 @@ def build_location_full_path(location_id: int | None, locations_map: dict[int, L
     return " / ".join(reversed(parts))
 
 
-def attach_location_full_path(items: list[Cabinet], db) -> None:
+def attach_location_full_path(items: list[Assembly], db) -> None:
     locations = db.scalars(select(Location)).all()
     locations_map = {loc.id: loc for loc in locations}
     for item in items:
         item.location_full_path = build_location_full_path(item.location_id, locations_map)
 
 
-@router.get("/", response_model=Pagination[CabinetOut])
-def list_cabinets(
+@router.get("/", response_model=Pagination[AssemblyOut])
+def list_assemblies(
     page: int = 1,
     page_size: int = 50,
     q: str | None = None,
@@ -50,44 +52,44 @@ def list_cabinets(
     db=Depends(get_db),
     user: User = Depends(require_read_access()),
 ):
-    query = select(Cabinet)
+    query = select(Assembly)
     if is_deleted is None:
         if not include_deleted:
-            query = query.where(Cabinet.is_deleted == False)
+            query = query.where(Assembly.is_deleted == False)
     else:
-        query = query.where(Cabinet.is_deleted == is_deleted)
+        query = query.where(Assembly.is_deleted == is_deleted)
     if location_id is not None:
-        query = query.where(Cabinet.location_id == location_id)
+        query = query.where(Assembly.location_id == location_id)
 
-    query = apply_search(query, q, [Cabinet.name])
-    query = apply_date_filters(query, Cabinet, created_at_from, created_at_to, updated_at_from, updated_at_to)
-    query = apply_sort(query, Cabinet, sort)
+    query = apply_search(query, q, [Assembly.name])
+    query = apply_date_filters(query, Assembly, created_at_from, created_at_to, updated_at_from, updated_at_to)
+    query = apply_sort(query, Assembly, sort)
 
     total, items = paginate(query, db, page, page_size)
     attach_location_full_path(items, db)
     return Pagination(items=items, page=page, page_size=page_size, total=total)
 
 
-@router.get("/{cabinet_id}", response_model=CabinetOut)
-def get_cabinet(
-    cabinet_id: int,
+@router.get("/{assembly_id}", response_model=AssemblyOut)
+def get_assembly(
+    assembly_id: int,
     include_deleted: bool = False,
     db=Depends(get_db),
     user: User = Depends(require_read_access()),
 ):
-    query = select(Cabinet).where(Cabinet.id == cabinet_id)
+    query = select(Assembly).where(Assembly.id == assembly_id)
     if not include_deleted:
-        query = query.where(Cabinet.is_deleted == False)
-    cabinet = db.scalar(query)
-    if not cabinet:
-        raise HTTPException(status_code=404, detail="Cabinet not found")
-    attach_location_full_path([cabinet], db)
-    return cabinet
+        query = query.where(Assembly.is_deleted == False)
+    assembly = db.scalar(query)
+    if not assembly:
+        raise HTTPException(status_code=404, detail="Assembly not found")
+    attach_location_full_path([assembly], db)
+    return assembly
 
 
-@router.post("/", response_model=CabinetOut)
-def create_cabinet(
-    payload: CabinetCreate,
+@router.post("/", response_model=AssemblyOut)
+def create_assembly(
+    payload: AssemblyCreate,
     db=Depends(get_db),
     current_user: User = Depends(require_write_access()),
 ):
@@ -98,46 +100,46 @@ def create_cabinet(
         if not location:
             raise HTTPException(status_code=404, detail="Location not found")
 
-    cabinet = Cabinet(
+    assembly = Assembly(
         name=payload.name,
         location_id=payload.location_id,
         meta_data=payload.meta_data,
     )
-    db.add(cabinet)
+    db.add(assembly)
     db.flush()
 
     add_audit_log(
         db,
         actor_id=current_user.id,
         action="CREATE",
-        entity="cabinets",
-        entity_id=cabinet.id,
+        entity="assemblies",
+        entity_id=assembly.id,
         before=None,
-        after=model_to_dict(cabinet),
+        after=model_to_dict(assembly),
     )
 
     db.commit()
-    db.refresh(cabinet)
-    attach_location_full_path([cabinet], db)
-    return cabinet
+    db.refresh(assembly)
+    attach_location_full_path([assembly], db)
+    return assembly
 
 
-@router.patch("/{cabinet_id}", response_model=CabinetOut)
-def update_cabinet(
-    cabinet_id: int,
-    payload: CabinetUpdate,
+@router.patch("/{assembly_id}", response_model=AssemblyOut)
+def update_assembly(
+    assembly_id: int,
+    payload: AssemblyUpdate,
     db=Depends(get_db),
     current_user: User = Depends(require_write_access()),
 ):
-    cabinet = db.scalar(select(Cabinet).where(Cabinet.id == cabinet_id))
-    if not cabinet:
-        raise HTTPException(status_code=404, detail="Cabinet not found")
+    assembly = db.scalar(select(Assembly).where(Assembly.id == assembly_id))
+    if not assembly:
+        raise HTTPException(status_code=404, detail="Assembly not found")
 
-    before = model_to_dict(cabinet)
+    before = model_to_dict(assembly)
     data = payload.model_dump(exclude_unset=True)
 
     if payload.name is not None:
-        cabinet.name = payload.name
+        assembly.name = payload.name
     if "location_id" in data:
         if data["location_id"]:
             location = db.scalar(
@@ -145,91 +147,91 @@ def update_cabinet(
             )
             if not location:
                 raise HTTPException(status_code=404, detail="Location not found")
-        cabinet.location_id = data["location_id"]
+        assembly.location_id = data["location_id"]
     if payload.meta_data is not None:
-        cabinet.meta_data = payload.meta_data
+        assembly.meta_data = payload.meta_data
 
     add_audit_log(
         db,
         actor_id=current_user.id,
         action="UPDATE",
-        entity="cabinets",
-        entity_id=cabinet.id,
+        entity="assemblies",
+        entity_id=assembly.id,
         before=before,
-        after=model_to_dict(cabinet),
+        after=model_to_dict(assembly),
     )
 
     db.commit()
-    db.refresh(cabinet)
-    attach_location_full_path([cabinet], db)
-    return cabinet
+    db.refresh(assembly)
+    attach_location_full_path([assembly], db)
+    return assembly
 
 
-@router.put("/{cabinet_id}", response_model=CabinetOut)
-def update_cabinet_legacy(
-    cabinet_id: int,
-    payload: CabinetUpdate,
+@router.put("/{assembly_id}", response_model=AssemblyOut)
+def update_assembly_legacy(
+    assembly_id: int,
+    payload: AssemblyUpdate,
     db=Depends(get_db),
     current_user: User = Depends(require_write_access()),
 ):
-    return update_cabinet(cabinet_id, payload, db, current_user)
+    return update_assembly(assembly_id, payload, db, current_user)
 
 
-@router.delete("/{cabinet_id}")
-def delete_cabinet(
-    cabinet_id: int,
+@router.delete("/{assembly_id}")
+def delete_assembly(
+    assembly_id: int,
     db=Depends(get_db),
     current_user: User = Depends(require_write_access()),
 ):
-    cabinet = db.scalar(select(Cabinet).where(Cabinet.id == cabinet_id))
-    if not cabinet:
-        raise HTTPException(status_code=404, detail="Cabinet not found")
+    assembly = db.scalar(select(Assembly).where(Assembly.id == assembly_id))
+    if not assembly:
+        raise HTTPException(status_code=404, detail="Assembly not found")
 
-    before = model_to_dict(cabinet)
-    cabinet.is_deleted = True
-    cabinet.deleted_at = datetime.utcnow()
-    cabinet.deleted_by_id = current_user.id
+    before = model_to_dict(assembly)
+    assembly.is_deleted = True
+    assembly.deleted_at = datetime.utcnow()
+    assembly.deleted_by_id = current_user.id
 
     add_audit_log(
         db,
         actor_id=current_user.id,
         action="DELETE",
-        entity="cabinets",
-        entity_id=cabinet.id,
+        entity="assemblies",
+        entity_id=assembly.id,
         before=before,
-        after=model_to_dict(cabinet),
+        after=model_to_dict(assembly),
     )
 
     db.commit()
     return {"status": "ok"}
 
 
-@router.post("/{cabinet_id}/restore", response_model=CabinetOut)
-def restore_cabinet(
-    cabinet_id: int,
+@router.post("/{assembly_id}/restore", response_model=AssemblyOut)
+def restore_assembly(
+    assembly_id: int,
     db=Depends(get_db),
     current_user: User = Depends(require_write_access()),
 ):
-    cabinet = db.scalar(select(Cabinet).where(Cabinet.id == cabinet_id))
-    if not cabinet:
-        raise HTTPException(status_code=404, detail="Cabinet not found")
+    assembly = db.scalar(select(Assembly).where(Assembly.id == assembly_id))
+    if not assembly:
+        raise HTTPException(status_code=404, detail="Assembly not found")
 
-    before = model_to_dict(cabinet)
-    cabinet.is_deleted = False
-    cabinet.deleted_at = None
-    cabinet.deleted_by_id = None
+    before = model_to_dict(assembly)
+    assembly.is_deleted = False
+    assembly.deleted_at = None
+    assembly.deleted_by_id = None
 
     add_audit_log(
         db,
         actor_id=current_user.id,
         action="RESTORE",
-        entity="cabinets",
-        entity_id=cabinet.id,
+        entity="assemblies",
+        entity_id=assembly.id,
         before=before,
-        after=model_to_dict(cabinet),
+        after=model_to_dict(assembly),
     )
 
     db.commit()
-    db.refresh(cabinet)
-    attach_location_full_path([cabinet], db)
-    return cabinet
+    db.refresh(assembly)
+    attach_location_full_path([assembly], db)
+    return assembly

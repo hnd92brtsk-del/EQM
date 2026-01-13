@@ -9,7 +9,8 @@
     "warehouses": "Warehouses",
     "warehouseItems": "Warehouse Items",
     "cabinets": "Cabinets",
-    "cabinetItems": "Cabinet Items",
+    "assemblies": "Assemblies",
+    "cabinetItems": "Equipment in operation",
     "movements": "Movements",
     "ioSignals": "I/O Signals"
   },
@@ -77,8 +78,9 @@
     "dictionaries": "Dictionaries",
     "warehouses": "Warehouses",
     "cabinets": "Cabinets",
+    "assemblies": "Assemblies",
     "warehouseItems": "Warehouse Items",
-    "cabinetItems": "Cabinet Items",
+    "cabinetItems": "Equipment in operation",
     "movements": "Movements",
     "ioSignals": "I/O Signals",
     "help": "Help",
@@ -131,9 +133,10 @@
     "equipment": "Equipment",
     "warehouse_items": "Warehouse Items",
     "cabinets": "Cabinets",
+    "assemblies": "Assemblies",
     "movements": "Movements",
-    "cabinets_group": "Cabinets",
-    "cabinet_items": "Cabinet Items",
+    "cabinets_group": "Cabinets / Assemblies",
+    "cabinet_items": "Equipment in operation",
     "cabinet_composition": "Cabinet Composition",
     "engineering": "Engineering",
     "io_signals": "IO Signals",
@@ -206,6 +209,7 @@
       "country": "Country",
       "parent": "Parent",
       "cabinet": "Cabinet",
+      "cabinetAssembly": "Cabinet/Assembly",
       "equipment": "Equipment",
       "quantity": "Quantity",
       "comment": "Comment",
@@ -375,6 +379,25 @@
       },
       "actions": {
         "openComposition": "Open composition"
+      }
+    },
+    "assemblies": {
+      "sort": {
+        "byNameAsc": "By name (A-Z)",
+        "byNameDesc": "By name (Z-A)",
+        "byCreatedOldest": "By created date (oldest)",
+        "byCreatedNewest": "By created date (newest)"
+      },
+      "errors": {
+        "load": "Failed to load assemblies",
+        "create": "Failed to create assembly",
+        "update": "Failed to update assembly",
+        "delete": "Failed to delete assembly",
+        "restore": "Failed to restore assembly"
+      },
+      "dialogs": {
+        "editTitle": "Edit assembly",
+        "createTitle": "New assembly"
       }
     },
     "warehouses": {

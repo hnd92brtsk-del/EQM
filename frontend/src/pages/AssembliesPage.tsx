@@ -19,7 +19,6 @@ import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
 
 import { DataTable } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
@@ -29,7 +28,7 @@ import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
 
-type Cabinet = {
+type Assembly = {
   id: number;
   name: string;
   location_id?: number | null;
@@ -42,9 +41,8 @@ type Location = { id: number; name: string };
 
 const pageSizeOptions = [10, 20, 50, 100];
 
-export default function CabinetsPage() {
+export default function AssembliesPage() {
   const { t, i18n } = useTranslation();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const canWrite = user?.role === "admin" || user?.role === "engineer";
   const queryClient = useQueryClient();
@@ -60,18 +58,18 @@ export default function CabinetsPage() {
 
   const sortOptions = useMemo(
     () => [
-      { value: "name", label: t("pagesUi.cabinets.sort.byNameAsc") },
-      { value: "-name", label: t("pagesUi.cabinets.sort.byNameDesc") },
-      { value: "created_at", label: t("pagesUi.cabinets.sort.byCreatedOldest") },
-      { value: "-created_at", label: t("pagesUi.cabinets.sort.byCreatedNewest") }
+      { value: "name", label: t("pagesUi.assemblies.sort.byNameAsc") },
+      { value: "-name", label: t("pagesUi.assemblies.sort.byNameDesc") },
+      { value: "created_at", label: t("pagesUi.assemblies.sort.byCreatedOldest") },
+      { value: "-created_at", label: t("pagesUi.assemblies.sort.byCreatedNewest") }
     ],
     [t]
   );
 
-  const cabinetsQuery = useQuery({
-    queryKey: ["cabinets", page, pageSize, q, sort, locationFilter, showDeleted],
+  const assembliesQuery = useQuery({
+    queryKey: ["assemblies", page, pageSize, q, sort, locationFilter, showDeleted],
     queryFn: () =>
-      listEntity<Cabinet>("/cabinets", {
+      listEntity<Assembly>("/assemblies", {
         page,
         page_size: pageSize,
         q: q || undefined,
@@ -94,14 +92,14 @@ export default function CabinetsPage() {
   });
 
   useEffect(() => {
-    if (cabinetsQuery.error) {
+    if (assembliesQuery.error) {
       setErrorMessage(
-        cabinetsQuery.error instanceof Error
-          ? cabinetsQuery.error.message
-          : t("pagesUi.cabinets.errors.load")
+        assembliesQuery.error instanceof Error
+          ? assembliesQuery.error.message
+          : t("pagesUi.assemblies.errors.load")
       );
     }
-  }, [cabinetsQuery.error, t]);
+  }, [assembliesQuery.error, t]);
 
   const locationMap = useMemo(() => {
     const map = new Map<number, string>();
@@ -110,41 +108,41 @@ export default function CabinetsPage() {
   }, [locationsQuery.data?.items]);
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["cabinets"] });
+    queryClient.invalidateQueries({ queryKey: ["assemblies"] });
   };
 
   const createMutation = useMutation({
     mutationFn: (payload: { name: string; location_id?: number | null }) =>
-      createEntity("/cabinets", payload),
+      createEntity("/assemblies", payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.cabinets.errors.create"))
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.assemblies.errors.create"))
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: Partial<Cabinet> }) =>
-      updateEntity("/cabinets", id, payload),
+    mutationFn: ({ id, payload }: { id: number; payload: Partial<Assembly> }) =>
+      updateEntity("/assemblies", id, payload),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.cabinets.errors.update"))
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.assemblies.errors.update"))
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => deleteEntity("/cabinets", id),
+    mutationFn: (id: number) => deleteEntity("/assemblies", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.cabinets.errors.delete"))
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.assemblies.errors.delete"))
   });
 
   const restoreMutation = useMutation({
-    mutationFn: (id: number) => restoreEntity("/cabinets", id),
+    mutationFn: (id: number) => restoreEntity("/assemblies", id),
     onSuccess: refresh,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.cabinets.errors.restore"))
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.assemblies.errors.restore"))
   });
 
-  const columns = useMemo<ColumnDef<Cabinet>[]>(() => {
-    const base: ColumnDef<Cabinet>[] = [
+  const columns = useMemo<ColumnDef<Assembly>[]>(() => {
+    const base: ColumnDef<Assembly>[] = [
       { header: t("common.fields.name"), accessorKey: "name" },
       {
         header: t("common.fields.location"),
@@ -158,74 +156,69 @@ export default function CabinetsPage() {
             : "-";
         }
       },
-    ];
-
-    base.push({
-      header: t("actions.actions"),
+      {
+        header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <AppButton size="small" onClick={() => navigate(`/cabinets/${row.original.id}/composition`)}>
-            {t("pagesUi.cabinets.actions.openComposition")}
-          </AppButton>
-          {canWrite && (
-            <>
-              <AppButton
-                size="small"
-                startIcon={<EditRoundedIcon />}
-                onClick={() =>
-                  setDialog({
-                    open: true,
-                    title: t("pagesUi.cabinets.dialogs.editTitle"),
-                    fields: [
-                      { name: "name", label: t("common.fields.name"), type: "text" },
-                      {
-                        name: "location_id",
-                        label: t("common.fields.location"),
-                        type: "select",
-                        options:
-                          locationsQuery.data?.items.map((loc) => ({
-                            label: loc.name,
-                            value: loc.id
-                          })) || []
+            {canWrite && (
+              <>
+                <AppButton
+                  size="small"
+                  startIcon={<EditRoundedIcon />}
+                  onClick={() =>
+                    setDialog({
+                      open: true,
+                      title: t("pagesUi.assemblies.dialogs.editTitle"),
+                      fields: [
+                        { name: "name", label: t("common.fields.name"), type: "text" },
+                        {
+                          name: "location_id",
+                          label: t("common.fields.location"),
+                          type: "select",
+                          options:
+                            locationsQuery.data?.items.map((loc) => ({
+                              label: loc.name,
+                              value: loc.id
+                            })) || []
+                        }
+                      ],
+                      values: row.original,
+                      onSave: (values) => {
+                        const locationId =
+                          values.location_id === "" || values.location_id === undefined
+                            ? null
+                            : Number(values.location_id);
+                        updateMutation.mutate({
+                          id: row.original.id,
+                          payload: { name: values.name, location_id: locationId }
+                        });
+                        setDialog(null);
                       }
-                    ],
-                    values: row.original,
-                    onSave: (values) => {
-                      const locationId =
-                        values.location_id === "" || values.location_id === undefined
-                          ? null
-                          : Number(values.location_id);
-                      updateMutation.mutate({
-                        id: row.original.id,
-                        payload: { name: values.name, location_id: locationId }
-                      });
-                      setDialog(null);
-                    }
-                  })
-                }
-              >
-                {t("actions.edit")}
-              </AppButton>
-              <AppButton
-                size="small"
-                color={row.original.is_deleted ? "success" : "error"}
-                startIcon={
-                  row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />
-                }
-                onClick={() =>
-                  row.original.is_deleted
-                    ? restoreMutation.mutate(row.original.id)
-                    : deleteMutation.mutate(row.original.id)
-                }
-              >
-                {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
-              </AppButton>
-            </>
-          )}
-        </Box>
-      )
-    });
-
+                    })
+                  }
+                >
+                  {t("actions.edit")}
+                </AppButton>
+                <AppButton
+                  size="small"
+                  color={row.original.is_deleted ? "success" : "error"}
+                  startIcon={
+                    row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />
+                  }
+                  onClick={() =>
+                    row.original.is_deleted
+                      ? restoreMutation.mutate(row.original.id)
+                      : deleteMutation.mutate(row.original.id)
+                  }
+                >
+                  {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
+                </AppButton>
+              </>
+            )}
+          </Box>
+        )
+      }
+    ];
 
     return base;
   }, [
@@ -233,7 +226,6 @@ export default function CabinetsPage() {
     deleteMutation,
     locationMap,
     locationsQuery.data?.items,
-    navigate,
     restoreMutation,
     updateMutation,
     t,
@@ -242,7 +234,7 @@ export default function CabinetsPage() {
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">{t("pages.cabinets")}</Typography>
+      <Typography variant="h4">{t("pages.assemblies")}</Typography>
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Box
@@ -315,7 +307,7 @@ export default function CabinetsPage() {
                 onClick={() =>
                   setDialog({
                     open: true,
-                    title: t("pagesUi.cabinets.dialogs.createTitle"),
+                    title: t("pagesUi.assemblies.dialogs.createTitle"),
                     fields: [
                       { name: "name", label: t("common.fields.name"), type: "text" },
                       {
@@ -346,11 +338,11 @@ export default function CabinetsPage() {
             )}
           </Box>
 
-          <DataTable data={cabinetsQuery.data?.items || []} columns={columns} />
+          <DataTable data={assembliesQuery.data?.items || []} columns={columns} />
           <TablePagination
             component="div"
             {...getTablePaginationProps(t)}
-            count={cabinetsQuery.data?.total || 0}
+            count={assembliesQuery.data?.total || 0}
             page={page - 1}
             onPageChange={(_, value) => setPage(value + 1)}
             rowsPerPage={pageSize}
@@ -368,6 +360,3 @@ export default function CabinetsPage() {
     </Box>
   );
 }
-
-
-

@@ -30,12 +30,17 @@ export default function ChatDialog({ open, onClose }: Props) {
   async function handleSend() {
     if (!input.trim()) return;
 
-    const updated = [...messages, { role: "user", content: input }];
-    setMessages(updated);
+    const userMessage: Message = { role: "user", content: input };
+    let updated: Message[] = [];
+    setMessages((prev) => {
+      updated = [...prev, userMessage];
+      return updated;
+    });
     setInput("");
 
     const reply = await sendChat(updated, isAdmin);
-    setMessages([...updated, { role: "assistant", content: reply }]);
+    const assistantMessage: Message = { role: "assistant", content: reply };
+    setMessages((prev) => [...prev, assistantMessage]);
   }
 
   return (

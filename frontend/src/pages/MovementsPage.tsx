@@ -165,7 +165,7 @@ export default function MovementsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["movements"] });
       queryClient.invalidateQueries({ queryKey: ["warehouse-items"] });
-      queryClient.invalidateQueries({ queryKey: ["cabinet-items"] });
+      queryClient.invalidateQueries({ queryKey: ["equipment-in-operation"] });
       setMovementType("");
       setEquipmentTypeId("");
       setQuantity(1);

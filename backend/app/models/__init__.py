@@ -11,7 +11,8 @@ from app.models.core import (
     PersonnelCompetency,
     PersonnelTraining,
 )
-from app.models.operations import WarehouseItem, CabinetItem
+from app.models.assemblies import Assembly
+from app.models.operations import WarehouseItem, CabinetItem, AssemblyItem
 from app.models.io import IOSignal, SignalType, MeasurementType
 from app.models.movements import EquipmentMovement, MovementType
 from app.models.audit import AuditLog
@@ -27,8 +28,10 @@ __all__ = [
     "EquipmentType",
     "Warehouse",
     "Cabinet",
+    "Assembly",
     "WarehouseItem",
     "CabinetItem",
+    "AssemblyItem",
     "Personnel",
     "PersonnelCompetency",
     "PersonnelTraining",

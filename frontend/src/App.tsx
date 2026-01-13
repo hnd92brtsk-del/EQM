@@ -12,6 +12,7 @@ import EquipmentTypesPage from "./pages/EquipmentTypesPage";
 import WarehousesPage from "./pages/WarehousesPage";
 import WarehouseItemsPage from "./pages/WarehouseItemsPage";
 import CabinetsPage from "./pages/CabinetsPage";
+import AssembliesPage from "./pages/AssembliesPage";
 import CabinetItemsPage from "./pages/CabinetItemsPage";
 import MovementsPage from "./pages/MovementsPage";
 import IOSignalsPage from "./pages/IOSignalsPage";
@@ -62,6 +63,7 @@ export default function App() {
                 <Route path="/warehouses" element={<WarehousesPage />} />
                 <Route path="/warehouse-items" element={<WarehouseItemsPage />} />
                 <Route path="/cabinets" element={<CabinetsPage />} />
+                <Route path="/assemblies" element={<AssembliesPage />} />
                 <Route path="/cabinet-items" element={<CabinetItemsPage />} />
                 <Route path="/cabinets/:id/composition" element={<CabinetCompositionPage />} />
                 <Route path="/movements" element={<MovementsPage />} />

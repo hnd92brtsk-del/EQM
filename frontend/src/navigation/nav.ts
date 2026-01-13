@@ -78,6 +78,13 @@ export const navTree: NavItem[] = [
         roles: ["viewer", "engineer", "admin"]
       },
       {
+        id: "assemblies",
+        labelKey: "menu.assemblies",
+        path: "/assemblies",
+        icon: CabinetIcon,
+        roles: ["viewer", "engineer", "admin"]
+      },
+      {
         id: "cabinet-composition",
         labelKey: "menu.cabinet_composition",
         path: "/cabinets/:id/composition",

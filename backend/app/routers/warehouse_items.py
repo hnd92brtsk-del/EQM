@@ -25,6 +25,7 @@ def list_warehouse_items(
     is_deleted: bool | None = None,
     include_deleted: bool = False,
     warehouse_id: int | None = None,
+    location_id: int | None = None,
     equipment_type_id: int | None = None,
     manufacturer_id: int | None = None,
     equipment_category_id: int | None = None,
@@ -39,6 +40,7 @@ def list_warehouse_items(
 ):
     query = (
         select(WarehouseItem)
+        .join(Warehouse, WarehouseItem.warehouse_id == Warehouse.id)
         .join(EquipmentType, WarehouseItem.equipment_type_id == EquipmentType.id)
         .outerjoin(Manufacturer, EquipmentType.manufacturer_id == Manufacturer.id)
         .outerjoin(EquipmentCategory, EquipmentType.equipment_category_id == EquipmentCategory.id)
@@ -54,6 +56,8 @@ def list_warehouse_items(
         query = query.where(WarehouseItem.is_deleted == is_deleted)
     if warehouse_id:
         query = query.where(WarehouseItem.warehouse_id == warehouse_id)
+    if location_id:
+        query = query.where(Warehouse.location_id == location_id)
     if equipment_type_id:
         query = query.where(WarehouseItem.equipment_type_id == equipment_type_id)
     if manufacturer_id:

@@ -46,6 +46,8 @@ type WarehouseItem = {
 
 type Warehouse = { id: number; name: string };
 
+type Location = { id: number; name: string };
+
 type EquipmentType = { id: number; name: string };
 type EquipmentCategory = { id: number; name: string };
 type Manufacturer = { id: number; name: string };
@@ -61,6 +63,7 @@ export default function WarehouseItemsPage() {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("-updated_at");
   const [warehouseFilter, setWarehouseFilter] = useState<number | "">("");
+  const [locationFilter, setLocationFilter] = useState<number | "">("");
   const [equipmentFilter, setEquipmentFilter] = useState<number | "">("");
   const [manufacturerFilter, setManufacturerFilter] = useState<number | "">("");
   const [equipmentCategoryFilter, setEquipmentCategoryFilter] = useState<number | "">("");
@@ -96,6 +99,7 @@ export default function WarehouseItemsPage() {
       q,
       sort,
       warehouseFilter,
+      locationFilter,
       equipmentFilter,
       manufacturerFilter,
       equipmentCategoryFilter,
@@ -111,6 +115,7 @@ export default function WarehouseItemsPage() {
         sort: sort || undefined,
         filters: {
           warehouse_id: warehouseFilter || undefined,
+          location_id: locationFilter || undefined,
           equipment_type_id: equipmentFilter || undefined,
           manufacturer_id: manufacturerFilter || undefined,
           equipment_category_id: equipmentCategoryFilter || undefined,
@@ -124,6 +129,11 @@ export default function WarehouseItemsPage() {
   const warehousesQuery = useQuery({
     queryKey: ["warehouses-options"],
     queryFn: () => listEntity<Warehouse>("/warehouses", { page: 1, page_size: 200 })
+  });
+
+  const locationsQuery = useQuery({
+    queryKey: ["locations-options"],
+    queryFn: () => listEntity<Location>("/locations", { page: 1, page_size: 200, is_deleted: false })
   });
 
   const equipmentTypesQuery = useQuery({
@@ -199,7 +209,7 @@ export default function WarehouseItemsPage() {
     mutationFn: (payload: any) => createEntity("/movements", payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["warehouse-items"] });
-      queryClient.invalidateQueries({ queryKey: ["cabinet-items"] });
+      queryClient.invalidateQueries({ queryKey: ["equipment-in-operation"] });
       queryClient.invalidateQueries({ queryKey: ["movements"] });
       setDialog(null);
     },
@@ -365,15 +375,16 @@ export default function WarehouseItemsPage() {
   const columns = useMemo<ColumnDef<WarehouseItem>[]>(() => {
     const base: ColumnDef<WarehouseItem>[] = [
       {
-        header: t("common.fields.warehouse"),
-        cell: ({ row }) => warehouseMap.get(row.original.warehouse_id) || row.original.warehouse_id
-      },
-      {
         header: t("common.fields.equipment"),
         cell: ({ row }) =>
           row.original.equipment_type_name ||
           equipmentMap.get(row.original.equipment_type_id) ||
           row.original.equipment_type_id
+      },
+      { header: t("common.fields.quantity"), accessorKey: "quantity" },
+      {
+        header: t("common.fields.warehouse"),
+        cell: ({ row }) => warehouseMap.get(row.original.warehouse_id) || row.original.warehouse_id
       },
       {
         header: t("common.fields.equipmentCategory"),
@@ -390,7 +401,6 @@ export default function WarehouseItemsPage() {
             ? "-"
             : row.original.unit_price_rub
       },
-      { header: t("common.fields.quantity"), accessorKey: "quantity" },
       {
         header: t("common.fields.accounting"),
         cell: ({ row }) =>
@@ -398,7 +408,6 @@ export default function WarehouseItemsPage() {
             ? t("pagesUi.warehouseItems.accounted")
             : t("pagesUi.warehouseItems.notAccounted")
       },
-      { header: t("common.deleted"), cell: ({ row }) => (row.original.is_deleted ? t("common.yes") : t("common.no")) },
       {
         header: t("pagesUi.warehouseItems.columns.updated"),
         cell: ({ row }) => formatDateTime(row.original.updated_at || row.original.created_at)
@@ -516,9 +525,29 @@ export default function WarehouseItemsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>{t("common.fields.nomenclature")}</InputLabel>
+              <InputLabel>{t("common.fields.location")}</InputLabel>
               <Select
-                label={t("common.fields.nomenclature")}
+                label={t("common.fields.location")}
+                value={locationFilter}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setLocationFilter(value === "" ? "" : Number(value));
+                  setPage(1);
+                }}
+              >
+                <MenuItem value="">{t("common.all")}</MenuItem>
+                {locationsQuery.data?.items.map((item) => (
+                  <MenuItem key={item.id} value={item.id}>
+                    {item.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel>{t("common.fields.equipment")}</InputLabel>
+              <Select
+                label={t("common.fields.equipment")}
                 value={equipmentFilter}
                 onChange={(event) => {
                   const value = event.target.value;

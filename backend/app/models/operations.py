@@ -46,8 +46,8 @@ class WarehouseItem(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
         return self.equipment_type.unit_price_rub if self.equipment_type else None
 
 
-class CabinetItem(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
-    __tablename__ = "cabinet_items"
+class CabinetItem(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
+    __tablename__ = "cabinet_items"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     cabinet_id: Mapped[int] = mapped_column(ForeignKey("cabinets.id"), index=True, nullable=False)
@@ -68,7 +68,35 @@ class CabinetItem(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
         return self.equipment_type.name if self.equipment_type else None
 
     @property
-    def manufacturer_name(self) -> str | None:
-        if not self.equipment_type or not self.equipment_type.manufacturer:
-            return None
-        return self.equipment_type.manufacturer.name
+    def manufacturer_name(self) -> str | None:
+        if not self.equipment_type or not self.equipment_type.manufacturer:
+            return None
+        return self.equipment_type.manufacturer.name
+
+
+class AssemblyItem(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
+    __tablename__ = "assembly_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    assembly_id: Mapped[int] = mapped_column(ForeignKey("assemblies.id"), index=True, nullable=False)
+    equipment_type_id: Mapped[int] = mapped_column(
+        ForeignKey("equipment_types.id"), index=True, nullable=False
+    )
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+
+    assembly: Mapped["Assembly"] = relationship()
+    equipment_type: Mapped["EquipmentType"] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint("assembly_id", "equipment_type_id", name="uq_assembly_items_as_eqtype"),
+    )
+
+    @property
+    def equipment_type_name(self) -> str | None:
+        return self.equipment_type.name if self.equipment_type else None
+
+    @property
+    def manufacturer_name(self) -> str | None:
+        if not self.equipment_type or not self.equipment_type.manufacturer:
+            return None
+        return self.equipment_type.manufacturer.name

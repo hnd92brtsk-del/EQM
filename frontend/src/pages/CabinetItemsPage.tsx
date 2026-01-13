@@ -32,17 +32,22 @@ import { getTablePaginationProps } from "../components/tablePaginationI18n";
 
 const pageSizeOptions = [10, 20, 50, 100];
 
-type CabinetItem = {
+type EquipmentInOperationItem = {
   id: number;
-  cabinet_id: number;
+  source: "cabinet" | "assembly";
+  container_id: number;
+  container_name: string;
   equipment_type_id: number;
   quantity: number;
   is_deleted: boolean;
   equipment_type_name?: string | null;
   manufacturer_name?: string | null;
+  location_full_path?: string | null;
 };
 
 type Cabinet = { id: number; name: string };
+type Assembly = { id: number; name: string };
+type Location = { id: number; name: string };
 
 type EquipmentType = { id: number; name: string };
 type Manufacturer = { id: number; name: string };
@@ -57,14 +62,15 @@ export default function CabinetItemsPage() {
   const [pageSize, setPageSize] = useState(20);
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("-created_at");
-  const [cabinetFilter, setCabinetFilter] = useState<number | "">("");
+  const [containerFilter, setContainerFilter] = useState<string>("");
   const [equipmentFilter, setEquipmentFilter] = useState<number | "">("");
   const [manufacturerFilter, setManufacturerFilter] = useState<number | "">("");
+  const [locationFilter, setLocationFilter] = useState<number | "">("");
   const [showDeleted, setShowDeleted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [editOpen, setEditOpen] = useState(false);
-  const [editItem, setEditItem] = useState<CabinetItem | null>(null);
+  const [editItem, setEditItem] = useState<EquipmentInOperationItem | null>(null);
   const [editQuantity, setEditQuantity] = useState(0);
 
   const sortOptions = useMemo(
@@ -81,28 +87,39 @@ export default function CabinetItemsPage() {
     [t]
   );
 
+  const [containerType, containerId] = useMemo(() => {
+    if (!containerFilter) {
+      return ["", 0] as const;
+    }
+    const [type, idValue] = containerFilter.split(":");
+    return [type, Number(idValue)] as const;
+  }, [containerFilter]);
+
   const itemsQuery = useQuery({
     queryKey: [
-      "cabinet-items",
+      "equipment-in-operation",
       page,
       pageSize,
       q,
       sort,
-      cabinetFilter,
+      containerFilter,
       equipmentFilter,
       manufacturerFilter,
+      locationFilter,
       showDeleted
     ],
     queryFn: () =>
-      listEntity<CabinetItem>("/cabinet-items", {
+      listEntity<EquipmentInOperationItem>("/equipment-in-operation", {
         page,
         page_size: pageSize,
         q: q || undefined,
         sort: sort || undefined,
         filters: {
-          cabinet_id: cabinetFilter || undefined,
+          cabinet_id: containerType === "cabinet" ? containerId : undefined,
+          assembly_id: containerType === "assembly" ? containerId : undefined,
           equipment_type_id: equipmentFilter || undefined,
-          manufacturer_id: manufacturerFilter || undefined
+          manufacturer_id: manufacturerFilter || undefined,
+          location_id: locationFilter || undefined
         },
         is_deleted: showDeleted ? true : false
       })
@@ -113,6 +130,11 @@ export default function CabinetItemsPage() {
     queryFn: () => listEntity<Cabinet>("/cabinets", { page: 1, page_size: 200 })
   });
 
+  const assembliesQuery = useQuery({
+    queryKey: ["assemblies-options"],
+    queryFn: () => listEntity<Assembly>("/assemblies", { page: 1, page_size: 200 })
+  });
+
   const equipmentTypesQuery = useQuery({
     queryKey: ["equipment-types-options"],
     queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: 200 })
@@ -121,6 +143,11 @@ export default function CabinetItemsPage() {
   const manufacturersQuery = useQuery({
     queryKey: ["manufacturers-options"],
     queryFn: () => listEntity<Manufacturer>("/manufacturers", { page: 1, page_size: 200 })
+  });
+
+  const locationsQuery = useQuery({
+    queryKey: ["locations-options"],
+    queryFn: () => listEntity<Location>("/locations", { page: 1, page_size: 200, is_deleted: false })
   });
 
   useEffect(() => {
@@ -135,36 +162,39 @@ export default function CabinetItemsPage() {
 
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["cabinet-items"] });
+    queryClient.invalidateQueries({ queryKey: ["equipment-in-operation"] });
   };
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => deleteEntity("/cabinet-items", id),
+    mutationFn: ({ id, source }: { id: number; source: EquipmentInOperationItem["source"] }) =>
+      deleteEntity(source === "cabinet" ? "/cabinet-items" : "/assembly-items", id),
     onSuccess: refresh,
     onError: (error) =>
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.cabinetItems.errors.delete"))
   });
 
   const restoreMutation = useMutation({
-    mutationFn: (id: number) => restoreEntity("/cabinet-items", id),
+    mutationFn: ({ id, source }: { id: number; source: EquipmentInOperationItem["source"] }) =>
+      restoreEntity(source === "cabinet" ? "/cabinet-items" : "/assembly-items", id),
     onSuccess: refresh,
     onError: (error) =>
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.cabinetItems.errors.restore"))
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, quantity }: { id: number; quantity: number }) =>
-      updateEntity("/cabinet-items", id, { quantity }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cabinet-items"] }),
+    mutationFn: ({
+      id,
+      quantity,
+      source
+    }: {
+      id: number;
+      quantity: number;
+      source: EquipmentInOperationItem["source"];
+    }) => updateEntity(source === "cabinet" ? "/cabinet-items" : "/assembly-items", id, { quantity }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["equipment-in-operation"] }),
     onError: (error) =>
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.cabinetItems.errors.updateQuantity"))
   });
-
-  const cabinetMap = useMemo(() => {
-    const map = new Map<number, string>();
-    cabinetsQuery.data?.items.forEach((item) => map.set(item.id, item.name));
-    return map;
-  }, [cabinetsQuery.data?.items]);
 
   const equipmentMap = useMemo(() => {
     const map = new Map<number, string>();
@@ -172,12 +202,26 @@ export default function CabinetItemsPage() {
     return map;
   }, [equipmentTypesQuery.data?.items]);
 
-  const columns = useMemo<ColumnDef<CabinetItem>[]>(() => {
-    const base: ColumnDef<CabinetItem>[] = [
-      {
-        header: t("common.fields.cabinet"),
-        cell: ({ row }) => cabinetMap.get(row.original.cabinet_id) || row.original.cabinet_id
-      },
+  const containerOptions = useMemo(() => {
+    const options: { value: string; label: string }[] = [];
+    cabinetsQuery.data?.items.forEach((item) =>
+      options.push({
+        value: `cabinet:${item.id}`,
+        label: `${t("menu.cabinets")}: ${item.name}`
+      })
+    );
+    assembliesQuery.data?.items.forEach((item) =>
+      options.push({
+        value: `assembly:${item.id}`,
+        label: `${t("menu.assemblies")}: ${item.name}`
+      })
+    );
+    options.sort((a, b) => a.label.localeCompare(b.label, i18n.language));
+    return options;
+  }, [assembliesQuery.data?.items, cabinetsQuery.data?.items, i18n.language, t]);
+
+  const columns = useMemo<ColumnDef<EquipmentInOperationItem>[]>(() => {
+    const base: ColumnDef<EquipmentInOperationItem>[] = [
       {
         header: t("common.fields.equipment"),
         cell: ({ row }) =>
@@ -185,12 +229,19 @@ export default function CabinetItemsPage() {
           equipmentMap.get(row.original.equipment_type_id) ||
           row.original.equipment_type_id
       },
+      { header: t("common.fields.quantity"), accessorKey: "quantity" },
+      {
+        header: t("common.fields.cabinetAssembly"),
+        cell: ({ row }) => row.original.container_name || "-"
+      },
+      {
+        header: t("common.fields.location"),
+        cell: ({ row }) => row.original.location_full_path || "-"
+      },
       {
         header: t("common.fields.manufacturer"),
         cell: ({ row }) => row.original.manufacturer_name || "-"
-      },
-      { header: t("common.fields.quantity"), accessorKey: "quantity" },
-      { header: t("common.deleted"), cell: ({ row }) => (row.original.is_deleted ? t("common.yes") : t("common.no")) }
+      }
     ];
 
     if (canWrite) {
@@ -217,8 +268,8 @@ export default function CabinetItemsPage() {
               }
               onClick={() =>
                 row.original.is_deleted
-                  ? restoreMutation.mutate(row.original.id)
-                  : deleteMutation.mutate(row.original.id)
+                  ? restoreMutation.mutate({ id: row.original.id, source: row.original.source })
+                  : deleteMutation.mutate({ id: row.original.id, source: row.original.source })
               }
             >
               {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
@@ -229,7 +280,7 @@ export default function CabinetItemsPage() {
     }
 
     return base;
-  }, [cabinetMap, canWrite, deleteMutation, equipmentMap, restoreMutation, t, i18n.language]);
+  }, [canWrite, deleteMutation, equipmentMap, restoreMutation, t, i18n.language]);
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
@@ -265,29 +316,28 @@ export default function CabinetItemsPage() {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>{t("common.fields.cabinet")}</InputLabel>
+              <InputLabel>{t("common.fields.cabinetAssembly")}</InputLabel>
               <Select
-                label={t("common.fields.cabinet")}
-                value={cabinetFilter}
+                label={t("common.fields.cabinetAssembly")}
+                value={containerFilter}
                 onChange={(event) => {
-                  const value = event.target.value;
-                  setCabinetFilter(value === "" ? "" : Number(value));
+                  setContainerFilter(event.target.value);
                   setPage(1);
                 }}
               >
                 <MenuItem value="">{t("common.all")}</MenuItem>
-                {cabinetsQuery.data?.items.map((item) => (
-                  <MenuItem key={item.id} value={item.id}>
-                    {item.name}
+                {containerOptions.map((item) => (
+                  <MenuItem key={item.value} value={item.value}>
+                    {item.label}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel>{t("common.fields.nomenclature")}</InputLabel>
+              <InputLabel>{t("common.fields.equipment")}</InputLabel>
               <Select
-                label={t("common.fields.nomenclature")}
+                label={t("common.fields.equipment")}
                 value={equipmentFilter}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -317,6 +367,26 @@ export default function CabinetItemsPage() {
               >
                 <MenuItem value="">{t("common.all")}</MenuItem>
                 {manufacturersQuery.data?.items.map((item) => (
+                  <MenuItem key={item.id} value={item.id}>
+                    {item.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel>{t("common.fields.location")}</InputLabel>
+              <Select
+                label={t("common.fields.location")}
+                value={locationFilter}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setLocationFilter(value === "" ? "" : Number(value));
+                  setPage(1);
+                }}
+              >
+                <MenuItem value="">{t("common.all")}</MenuItem>
+                {locationsQuery.data?.items.map((item) => (
                   <MenuItem key={item.id} value={item.id}>
                     {item.name}
                   </MenuItem>
@@ -377,7 +447,11 @@ export default function CabinetItemsPage() {
               variant="contained"
               onClick={() => {
                 if (editItem) {
-                  updateMutation.mutate({ id: editItem.id, quantity: editQuantity });
+                  updateMutation.mutate({
+                    id: editItem.id,
+                    quantity: editQuantity,
+                    source: editItem.source
+                  });
                 }
                 setEditOpen(false);
               }}
