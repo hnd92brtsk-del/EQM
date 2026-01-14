@@ -11,6 +11,8 @@ class MovementType(enum.Enum):
     to_cabinet = "to_cabinet"
     from_cabinet = "from_cabinet"
     direct_to_cabinet = "direct_to_cabinet"
+    to_assembly = "to_assembly"
+    direct_to_assembly = "direct_to_assembly"
     to_warehouse = "to_warehouse"
     writeoff = "writeoff"
     adjustment = "adjustment"
@@ -34,6 +36,7 @@ class EquipmentMovement(Base, TimestampMixin):
 
     from_cabinet_id: Mapped[int | None] = mapped_column(ForeignKey("cabinets.id"), index=True)
     to_cabinet_id: Mapped[int | None] = mapped_column(ForeignKey("cabinets.id"), index=True)
+    to_assembly_id: Mapped[int | None] = mapped_column(ForeignKey("assemblies.id"), index=True)
 
     reference: Mapped[str | None] = mapped_column(String(200))
     comment: Mapped[str | None] = mapped_column(String(1000))

@@ -532,16 +532,20 @@
         "priceMin": "Price min",
         "priceMax": "Price max",
         "fromWarehouse": "From warehouse",
-        "toCabinet": "To cabinet"
+        "destinationType": "Destination",
+        "toCabinet": "To cabinet/assembly",
+        "toAssembly": "To assembly"
       },
       "dialogs": {
         "toWarehouseTitle": "To warehouse",
-        "toCabinetTitle": "From warehouse to cabinet",
+        "toCabinetTitle": "Introduce into operation",
+        "directToCabinetTitle": "Direct to cabinet/assembly",
         "editTitle": "Edit warehouse item"
       },
       "actions": {
         "toWarehouse": "To warehouse",
-        "toCabinet": "From warehouse to cabinet"
+        "toCabinet": "Introduce into operation",
+        "directToCabinet": "Direct to cabinet/assembly"
       },
       "columns": {
         "updated": "Updated"
@@ -553,7 +557,9 @@
       "types": {
         "toWarehouse": "To warehouse",
         "toCabinet": "From warehouse to cabinet",
-        "directToCabinet": "Direct to cabinet"
+        "directToCabinet": "Direct to cabinet",
+        "toAssembly": "From warehouse to assembly",
+        "directToAssembly": "Direct to assembly"
       },
       "sort": {
         "byDateNewest": "By date (newest)",
@@ -575,14 +581,17 @@
         "fromWarehouse": "From warehouse",
         "toWarehouse": "To warehouse",
         "fromCabinet": "From cabinet",
-        "toCabinet": "To cabinet"
+        "toCabinet": "To cabinet",
+        "toAssembly": "To assembly"
       },
       "validation": {
         "typeRequired": "Select a movement type.",
         "equipmentAndQuantity": "Provide equipment and quantity.",
         "toWarehouseRequired": "Select a destination warehouse.",
         "fromWarehouseAndCabinet": "Select a source warehouse and destination cabinet.",
-        "toCabinetRequired": "Select a destination cabinet."
+        "toCabinetRequired": "Select a destination cabinet.",
+        "fromWarehouseAndAssembly": "Select a source warehouse and destination assembly.",
+        "toAssemblyRequired": "Select a destination assembly."
       },
       "actions": {
         "create": "Create movement"

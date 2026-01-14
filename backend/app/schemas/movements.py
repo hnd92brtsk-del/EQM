@@ -10,6 +10,8 @@ class MovementType(str, Enum):
     to_cabinet = "to_cabinet"
     from_cabinet = "from_cabinet"
     direct_to_cabinet = "direct_to_cabinet"
+    to_assembly = "to_assembly"
+    direct_to_assembly = "direct_to_assembly"
     to_warehouse = "to_warehouse"
     writeoff = "writeoff"
     adjustment = "adjustment"
@@ -24,6 +26,7 @@ class MovementCreate(BaseModel):
     to_warehouse_id: Optional[int] = None
     from_cabinet_id: Optional[int] = None
     to_cabinet_id: Optional[int] = None
+    to_assembly_id: Optional[int] = None
 
     reference: Optional[str] = Field(default=None, max_length=200)
     comment: Optional[str] = Field(default=None, max_length=1000)
@@ -47,6 +50,12 @@ class MovementCreate(BaseModel):
         if mt == MovementType.direct_to_cabinet:
             if not self.to_cabinet_id:
                 raise ValueError("to_cabinet_id is required for direct_to_cabinet")
+        if mt == MovementType.to_assembly:
+            if not self.from_warehouse_id or not self.to_assembly_id:
+                raise ValueError("from_warehouse_id and to_assembly_id are required for to_assembly")
+        if mt == MovementType.direct_to_assembly:
+            if not self.to_assembly_id:
+                raise ValueError("to_assembly_id is required for direct_to_assembly")
         if mt == MovementType.to_warehouse:
             if not self.to_warehouse_id:
                 raise ValueError("to_warehouse_id is required for to_warehouse")
@@ -54,7 +63,13 @@ class MovementCreate(BaseModel):
             if not (self.from_warehouse_id or self.from_cabinet_id):
                 raise ValueError("from_warehouse_id or from_cabinet_id is required for writeoff")
         if mt == MovementType.adjustment:
-            if not (self.from_warehouse_id or self.from_cabinet_id or self.to_warehouse_id or self.to_cabinet_id):
+            if not (
+                self.from_warehouse_id
+                or self.from_cabinet_id
+                or self.to_warehouse_id
+                or self.to_cabinet_id
+                or self.to_assembly_id
+            ):
                 raise ValueError("from_* or to_* is required for adjustment")
         return self
 
@@ -67,6 +82,7 @@ class MovementOut(EntityBase):
     to_warehouse_id: Optional[int] = None
     from_cabinet_id: Optional[int] = None
     to_cabinet_id: Optional[int] = None
+    to_assembly_id: Optional[int] = None
     reference: Optional[str] = None
     comment: Optional[str] = None
     performed_by_id: int

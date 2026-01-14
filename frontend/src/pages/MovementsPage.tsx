@@ -33,6 +33,7 @@ type Movement = {
   to_warehouse_id?: number | null;
   from_cabinet_id?: number | null;
   to_cabinet_id?: number | null;
+  to_assembly_id?: number | null;
   performed_by_id: number;
   created_at?: string;
   reference?: string | null;
@@ -44,6 +45,7 @@ type EquipmentType = { id: number; name: string };
 type Warehouse = { id: number; name: string };
 
 type Cabinet = { id: number; name: string };
+type Assembly = { id: number; name: string };
 
 export default function MovementsPage() {
   const { t } = useTranslation();
@@ -57,6 +59,7 @@ export default function MovementsPage() {
   const [fromWarehouseId, setFromWarehouseId] = useState<number | "">("");
   const [toWarehouseId, setToWarehouseId] = useState<number | "">("");
   const [toCabinetId, setToCabinetId] = useState<number | "">("");
+  const [toAssemblyId, setToAssemblyId] = useState<number | "">("");
   const [reference, setReference] = useState("");
   const [comment, setComment] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -79,7 +82,9 @@ export default function MovementsPage() {
     () => [
       { value: "to_warehouse", label: t("pagesUi.movements.types.toWarehouse") },
       { value: "to_cabinet", label: t("pagesUi.movements.types.toCabinet") },
-      { value: "direct_to_cabinet", label: t("pagesUi.movements.types.directToCabinet") }
+      { value: "direct_to_cabinet", label: t("pagesUi.movements.types.directToCabinet") },
+      { value: "to_assembly", label: t("pagesUi.movements.types.toAssembly") },
+      { value: "direct_to_assembly", label: t("pagesUi.movements.types.directToAssembly") }
     ],
     [t]
   );
@@ -150,6 +155,11 @@ export default function MovementsPage() {
     queryFn: () => listEntity<Cabinet>("/cabinets", { page: 1, page_size: 200 })
   });
 
+  const assembliesQuery = useQuery({
+    queryKey: ["assemblies-options"],
+    queryFn: () => listEntity<Assembly>("/assemblies", { page: 1, page_size: 200 })
+  });
+
   useEffect(() => {
     if (movementsQuery.error) {
       setErrorMessage(
@@ -172,6 +182,7 @@ export default function MovementsPage() {
       setFromWarehouseId("");
       setToWarehouseId("");
       setToCabinetId("");
+      setToAssemblyId("");
       setReference("");
       setComment("");
       setFormError(null);
@@ -197,6 +208,12 @@ export default function MovementsPage() {
     cabinetsQuery.data?.items.forEach((item) => map.set(item.id, item.name));
     return map;
   }, [cabinetsQuery.data?.items]);
+
+  const assemblyMap = useMemo(() => {
+    const map = new Map<number, string>();
+    assembliesQuery.data?.items.forEach((item) => map.set(item.id, item.name));
+    return map;
+  }, [assembliesQuery.data?.items]);
 
   const columns = useMemo<ColumnDef<Movement>[]>(
     () => [
@@ -232,13 +249,16 @@ export default function MovementsPage() {
           if (row.original.to_cabinet_id) {
             return cabinetMap.get(row.original.to_cabinet_id) || row.original.to_cabinet_id;
           }
+          if (row.original.to_assembly_id) {
+            return assemblyMap.get(row.original.to_assembly_id) || row.original.to_assembly_id;
+          }
           return "-";
         }
       },
       { header: t("pagesUi.movements.columns.performedBy"), accessorKey: "performed_by_id" },
       { header: t("pagesUi.movements.columns.createdAt"), accessorKey: "created_at" }
     ],
-    [cabinetMap, equipmentMap, movementLabelMap, t, warehouseMap]
+    [assemblyMap, cabinetMap, equipmentMap, movementLabelMap, t, warehouseMap]
   );
 
   const handleSubmit = () => {
@@ -269,6 +289,16 @@ export default function MovementsPage() {
       return;
     }
 
+    if (movementType === "to_assembly" && (!fromWarehouseId || !toAssemblyId)) {
+      setFormError(t("pagesUi.movements.validation.fromWarehouseAndAssembly"));
+      return;
+    }
+
+    if (movementType === "direct_to_assembly" && !toAssemblyId) {
+      setFormError(t("pagesUi.movements.validation.toAssemblyRequired"));
+      return;
+    }
+
     const payload: Record<string, any> = {
       movement_type: movementType,
       equipment_type_id: equipmentTypeId,
@@ -288,6 +318,15 @@ export default function MovementsPage() {
 
     if (movementType === "direct_to_cabinet") {
       payload.to_cabinet_id = toCabinetId;
+    }
+
+    if (movementType === "to_assembly") {
+      payload.from_warehouse_id = fromWarehouseId;
+      payload.to_assembly_id = toAssemblyId;
+    }
+
+    if (movementType === "direct_to_assembly") {
+      payload.to_assembly_id = toAssemblyId;
     }
 
     movementMutation.mutate(payload);
@@ -409,6 +448,57 @@ export default function MovementsPage() {
                   {cabinetsQuery.data?.items.map((cabinet) => (
                     <MenuItem key={cabinet.id} value={cabinet.id}>
                       {cabinet.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            {movementType === "to_assembly" && (
+              <>
+                <FormControl fullWidth>
+                  <InputLabel>{t("pagesUi.movements.fields.fromWarehouse")}</InputLabel>
+                  <Select
+                    label={t("pagesUi.movements.fields.fromWarehouse")}
+                    value={fromWarehouseId}
+                    onChange={(event) => setFromWarehouseId(parseSelectValue(event.target.value))}
+                  >
+                    {warehousesQuery.data?.items.map((warehouse) => (
+                      <MenuItem key={warehouse.id} value={warehouse.id}>
+                        {warehouse.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl fullWidth>
+                  <InputLabel>{t("pagesUi.movements.fields.toAssembly")}</InputLabel>
+                  <Select
+                    label={t("pagesUi.movements.fields.toAssembly")}
+                    value={toAssemblyId}
+                    onChange={(event) => setToAssemblyId(parseSelectValue(event.target.value))}
+                  >
+                    {assembliesQuery.data?.items.map((assembly) => (
+                      <MenuItem key={assembly.id} value={assembly.id}>
+                        {assembly.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </>
+            )}
+
+            {movementType === "direct_to_assembly" && (
+              <FormControl fullWidth>
+                <InputLabel>{t("pagesUi.movements.fields.toAssembly")}</InputLabel>
+                <Select
+                  label={t("pagesUi.movements.fields.toAssembly")}
+                  value={toAssemblyId}
+                  onChange={(event) => setToAssemblyId(parseSelectValue(event.target.value))}
+                >
+                  {assembliesQuery.data?.items.map((assembly) => (
+                    <MenuItem key={assembly.id} value={assembly.id}>
+                      {assembly.name}
                     </MenuItem>
                   ))}
                 </Select>

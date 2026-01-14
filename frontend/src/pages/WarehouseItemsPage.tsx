@@ -48,10 +48,11 @@ type Warehouse = { id: number; name: string };
 
 type Location = { id: number; name: string };
 
-type EquipmentType = { id: number; name: string };
+type EquipmentType = { id: number; name: string; is_channel_forming: boolean; is_network: boolean };
 type EquipmentCategory = { id: number; name: string };
 type Manufacturer = { id: number; name: string };
 type Cabinet = { id: number; name: string };
+type Assembly = { id: number; name: string };
 
 export default function WarehouseItemsPage() {
   const { t } = useTranslation();
@@ -156,6 +157,11 @@ export default function WarehouseItemsPage() {
     queryFn: () => listEntity<Cabinet>("/cabinets", { page: 1, page_size: 200 })
   });
 
+  const assembliesQuery = useQuery({
+    queryKey: ["assemblies-options"],
+    queryFn: () => listEntity<Assembly>("/assemblies", { page: 1, page_size: 200 })
+  });
+
   useEffect(() => {
     if (itemsQuery.error) {
       setErrorMessage(
@@ -205,6 +211,12 @@ export default function WarehouseItemsPage() {
     return map;
   }, [equipmentTypesQuery.data?.items]);
 
+  const equipmentFlagsMap = useMemo(() => {
+    const map = new Map<number, EquipmentType>();
+    equipmentTypesQuery.data?.items.forEach((item) => map.set(item.id, item));
+    return map;
+  }, [equipmentTypesQuery.data?.items]);
+
   const movementMutation = useMutation({
     mutationFn: (payload: any) => createEntity("/movements", payload),
     onSuccess: () => {
@@ -225,6 +237,12 @@ export default function WarehouseItemsPage() {
       );
     }
   });
+
+  const isOperationQuantityLocked = (values: Record<string, any>) => {
+    const equipmentId = Number(values.equipment_type_id);
+    const equipment = equipmentFlagsMap.get(equipmentId);
+    return Boolean(equipment?.is_channel_forming || equipment?.is_network);
+  };
 
   const openToWarehouseDialog = () => {
     setDialog({
@@ -297,7 +315,14 @@ export default function WarehouseItemsPage() {
             equipmentTypesQuery.data?.items.map((item) => ({
               label: item.name,
               value: item.id
-            })) || []
+            })) || [],
+          onChange: (value) => {
+            const equipment = equipmentFlagsMap.get(Number(value));
+            if (equipment?.is_channel_forming || equipment?.is_network) {
+              return { quantity: 1 };
+            }
+            return {};
+          }
         },
         {
           name: "from_warehouse_id",
@@ -310,11 +335,128 @@ export default function WarehouseItemsPage() {
             })) || []
         },
         {
+          name: "destination_type",
+          label: t("pagesUi.warehouseItems.fields.destinationType"),
+          type: "select",
+          options: [
+            { label: t("menu.cabinets"), value: "cabinet" },
+            { label: t("menu.assemblies"), value: "assembly" }
+          ]
+        },
+        {
           name: "to_cabinet_id",
           label: t("pagesUi.warehouseItems.fields.toCabinet"),
           type: "select",
+          visibleWhen: (values) => values.destination_type === "cabinet",
           options:
             cabinetsQuery.data?.items.map((item) => ({
+              label: item.name,
+              value: item.id
+            })) || []
+        },
+        {
+          name: "to_assembly_id",
+          label: t("pagesUi.warehouseItems.fields.toAssembly"),
+          type: "select",
+          visibleWhen: (values) => values.destination_type === "assembly",
+          options:
+            assembliesQuery.data?.items.map((item) => ({
+              label: item.name,
+              value: item.id
+            })) || []
+        },
+        {
+          name: "quantity",
+          label: t("common.fields.quantity"),
+          type: "number",
+          disabledWhen: (values) => isOperationQuantityLocked(values)
+        },
+        { name: "comment", label: t("common.fields.comment"), type: "text" }
+      ],
+      values: {
+        equipment_type_id: "",
+        from_warehouse_id: "",
+        to_cabinet_id: "",
+        to_assembly_id: "",
+        destination_type: "cabinet",
+        quantity: 1,
+        comment: ""
+      },
+      onSave: (values) => {
+        const equipmentTypeId = values.equipment_type_id ? Number(values.equipment_type_id) : 0;
+        const fromWarehouseId = values.from_warehouse_id ? Number(values.from_warehouse_id) : 0;
+        const destinationType = values.destination_type;
+        const toCabinetId = values.to_cabinet_id ? Number(values.to_cabinet_id) : 0;
+        const toAssemblyId = values.to_assembly_id ? Number(values.to_assembly_id) : 0;
+        const quantity = isOperationQuantityLocked(values) ? 1 : Number(values.quantity);
+
+        if (
+          !equipmentTypeId ||
+          !fromWarehouseId ||
+          (destinationType === "cabinet" && !toCabinetId) ||
+          (destinationType === "assembly" && !toAssemblyId) ||
+          !Number.isFinite(quantity) ||
+          quantity < 1
+        ) {
+          setErrorMessage(t("validation.requiredFields"));
+          return;
+        }
+
+        movementMutation.mutate({
+          movement_type: destinationType === "assembly" ? "to_assembly" : "to_cabinet",
+          equipment_type_id: equipmentTypeId,
+          from_warehouse_id: fromWarehouseId,
+          to_cabinet_id: destinationType === "cabinet" ? toCabinetId : undefined,
+          to_assembly_id: destinationType === "assembly" ? toAssemblyId : undefined,
+          quantity,
+          comment: values.comment || undefined
+        });
+      }
+    });
+  };
+
+  const openDirectToOperationDialog = () => {
+    setDialog({
+      open: true,
+      title: t("pagesUi.warehouseItems.dialogs.directToCabinetTitle"),
+      fields: [
+        {
+          name: "equipment_type_id",
+          label: t("common.fields.equipment"),
+          type: "select",
+          options:
+            equipmentTypesQuery.data?.items.map((item) => ({
+              label: item.name,
+              value: item.id
+            })) || []
+        },
+        {
+          name: "destination_type",
+          label: t("pagesUi.warehouseItems.fields.destinationType"),
+          type: "select",
+          options: [
+            { label: t("menu.cabinets"), value: "cabinet" },
+            { label: t("menu.assemblies"), value: "assembly" }
+          ]
+        },
+        {
+          name: "to_cabinet_id",
+          label: t("pagesUi.warehouseItems.fields.toCabinet"),
+          type: "select",
+          visibleWhen: (values) => values.destination_type === "cabinet",
+          options:
+            cabinetsQuery.data?.items.map((item) => ({
+              label: item.name,
+              value: item.id
+            })) || []
+        },
+        {
+          name: "to_assembly_id",
+          label: t("pagesUi.warehouseItems.fields.toAssembly"),
+          type: "select",
+          visibleWhen: (values) => values.destination_type === "assembly",
+          options:
+            assembliesQuery.data?.items.map((item) => ({
               label: item.name,
               value: item.id
             })) || []
@@ -324,21 +466,23 @@ export default function WarehouseItemsPage() {
       ],
       values: {
         equipment_type_id: "",
-        from_warehouse_id: "",
         to_cabinet_id: "",
+        to_assembly_id: "",
+        destination_type: "cabinet",
         quantity: 1,
         comment: ""
       },
       onSave: (values) => {
         const equipmentTypeId = values.equipment_type_id ? Number(values.equipment_type_id) : 0;
-        const fromWarehouseId = values.from_warehouse_id ? Number(values.from_warehouse_id) : 0;
+        const destinationType = values.destination_type;
         const toCabinetId = values.to_cabinet_id ? Number(values.to_cabinet_id) : 0;
+        const toAssemblyId = values.to_assembly_id ? Number(values.to_assembly_id) : 0;
         const quantity = Number(values.quantity);
 
         if (
           !equipmentTypeId ||
-          !fromWarehouseId ||
-          !toCabinetId ||
+          (destinationType === "cabinet" && !toCabinetId) ||
+          (destinationType === "assembly" && !toAssemblyId) ||
           !Number.isFinite(quantity) ||
           quantity < 1
         ) {
@@ -347,10 +491,10 @@ export default function WarehouseItemsPage() {
         }
 
         movementMutation.mutate({
-          movement_type: "to_cabinet",
+          movement_type: destinationType === "assembly" ? "direct_to_assembly" : "direct_to_cabinet",
           equipment_type_id: equipmentTypeId,
-          from_warehouse_id: fromWarehouseId,
-          to_cabinet_id: toCabinetId,
+          to_cabinet_id: destinationType === "cabinet" ? toCabinetId : undefined,
+          to_assembly_id: destinationType === "assembly" ? toAssemblyId : undefined,
           quantity,
           comment: values.comment || undefined
         });
@@ -649,6 +793,9 @@ export default function WarehouseItemsPage() {
             </AppButton>
             <AppButton variant="contained" onClick={openToCabinetDialog}>
               {t("pagesUi.warehouseItems.actions.toCabinet")}
+            </AppButton>
+            <AppButton variant="contained" onClick={openDirectToOperationDialog}>
+              {t("pagesUi.warehouseItems.actions.directToCabinet")}
             </AppButton>
           </Box>
 

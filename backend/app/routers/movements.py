@@ -7,8 +7,9 @@ from app.core.pagination import paginate
 from app.core.query import apply_sort
 from app.core.audit import add_audit_log, model_to_dict
 from app.models.movements import EquipmentMovement, MovementType
-from app.models.operations import WarehouseItem, CabinetItem
+from app.models.operations import WarehouseItem, CabinetItem, AssemblyItem
 from app.models.core import EquipmentType, Warehouse, Cabinet
+from app.models.assemblies import Assembly
 from app.models.security import User
 from app.schemas.common import Pagination
 from app.schemas.movements import MovementOut, MovementCreate
@@ -48,6 +49,26 @@ def get_or_create_cabinet_item(db, cabinet_id: int, equipment_type_id: int, for_
     if not item:
         item = CabinetItem(
             cabinet_id=cabinet_id,
+            equipment_type_id=equipment_type_id,
+            quantity=0,
+        )
+        db.add(item)
+        db.flush()
+    return item
+
+
+def get_or_create_assembly_item(db, assembly_id: int, equipment_type_id: int, for_update: bool):
+    query = select(AssemblyItem).where(
+        AssemblyItem.assembly_id == assembly_id,
+        AssemblyItem.equipment_type_id == equipment_type_id,
+        AssemblyItem.is_deleted == False,
+    )
+    if for_update:
+        query = query.with_for_update()
+    item = db.scalar(query)
+    if not item:
+        item = AssemblyItem(
+            assembly_id=assembly_id,
             equipment_type_id=equipment_type_id,
             quantity=0,
         )
@@ -150,6 +171,12 @@ def create_movement(
         )
         if not to_cb:
             raise HTTPException(status_code=404, detail="Destination cabinet not found")
+    if payload.to_assembly_id:
+        to_assembly = db.scalar(
+            select(Assembly).where(Assembly.id == payload.to_assembly_id, Assembly.is_deleted == False)
+        )
+        if not to_assembly:
+            raise HTTPException(status_code=404, detail="Destination assembly not found")
 
     movement = EquipmentMovement(
         movement_type=MovementType(payload.movement_type),
@@ -159,6 +186,7 @@ def create_movement(
         to_warehouse_id=payload.to_warehouse_id,
         from_cabinet_id=payload.from_cabinet_id,
         to_cabinet_id=payload.to_cabinet_id,
+        to_assembly_id=payload.to_assembly_id,
         reference=payload.reference,
         comment=payload.comment,
         performed_by_id=current_user.id,
@@ -190,6 +218,14 @@ def create_movement(
     elif movement.movement_type == MovementType.direct_to_cabinet:
         to_item = get_or_create_cabinet_item(db, payload.to_cabinet_id, payload.equipment_type_id, True)
         change_quantity(to_item, payload.quantity)
+    elif movement.movement_type == MovementType.to_assembly:
+        from_item = get_or_create_warehouse_item(db, payload.from_warehouse_id, payload.equipment_type_id, True)
+        to_item = get_or_create_assembly_item(db, payload.to_assembly_id, payload.equipment_type_id, True)
+        change_quantity(from_item, -payload.quantity)
+        change_quantity(to_item, payload.quantity)
+    elif movement.movement_type == MovementType.direct_to_assembly:
+        to_item = get_or_create_assembly_item(db, payload.to_assembly_id, payload.equipment_type_id, True)
+        change_quantity(to_item, payload.quantity)
     elif movement.movement_type == MovementType.writeoff:
         if payload.from_warehouse_id and payload.from_cabinet_id:
             raise HTTPException(status_code=400, detail="Choose warehouse or cabinet for writeoff")
@@ -205,6 +241,7 @@ def create_movement(
             payload.from_cabinet_id,
             payload.to_warehouse_id,
             payload.to_cabinet_id,
+            payload.to_assembly_id,
         ]
         if len([val for val in ids if val is not None]) != 1:
             raise HTTPException(status_code=400, detail="Adjustment requires exactly one target")
@@ -220,6 +257,9 @@ def create_movement(
         if payload.to_cabinet_id:
             to_item = get_or_create_cabinet_item(db, payload.to_cabinet_id, payload.equipment_type_id, True)
             change_quantity(to_item, payload.quantity)
+        if payload.to_assembly_id:
+            to_item = get_or_create_assembly_item(db, payload.to_assembly_id, payload.equipment_type_id, True)
+            change_quantity(to_item, payload.quantity)
 
     db.add(movement)
     db.flush()
@@ -227,7 +267,7 @@ def create_movement(
     add_audit_log(
         db,
         actor_id=current_user.id,
-        action="MOVEMENT",
+        action=movement.movement_type.value.upper(),
         entity="equipment_movements",
         entity_id=movement.id,
         before=None,

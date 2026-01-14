@@ -24,6 +24,8 @@ export type FieldConfig = {
   type: "text" | "number" | "select" | "checkbox" | "ports";
   options?: FieldOption[];
   visibleWhen?: (values: Record<string, any>) => boolean;
+  disabledWhen?: (values: Record<string, any>) => boolean;
+  onChange?: (value: any, values: Record<string, any>) => Record<string, any> | void;
 };
 
 export type DialogState = {
@@ -42,6 +44,14 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
     setValues(state.values);
   }, [state.values]);
 
+  const applyFieldChange = (field: FieldConfig, value: any) => {
+    setValues((prev) => {
+      const next = { ...prev, [field.name]: value };
+      const extra = field.onChange ? field.onChange(value, next) : null;
+      return extra ? { ...next, ...extra } : next;
+    });
+  };
+
   return (
     <Dialog open={state.open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>{state.title}</DialogTitle>
@@ -58,9 +68,8 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
                 <Select
                   label={field.label}
                   value={values[field.name] ?? ""}
-                  onChange={(event) =>
-                    setValues((prev) => ({ ...prev, [field.name]: event.target.value }))
-                  }
+                  onChange={(event) => applyFieldChange(field, event.target.value)}
+                  disabled={field.disabledWhen?.(values)}
                 >
                   <MenuItem value="">
                     <em>{t("actions.notSelected")}</em>
@@ -82,9 +91,8 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
                 control={
                   <Checkbox
                     checked={Boolean(values[field.name])}
-                    onChange={(event) =>
-                      setValues((prev) => ({ ...prev, [field.name]: event.target.checked }))
-                    }
+                    onChange={(event) => applyFieldChange(field, event.target.checked)}
+                    disabled={field.disabledWhen?.(values)}
                   />
                 }
                 label={field.label}
@@ -171,16 +179,16 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
               type={field.type}
               value={values[field.name] ?? ""}
               onChange={(event) =>
-                setValues((prev) => ({
-                  ...prev,
-                  [field.name]:
-                    field.type === "number"
-                      ? event.target.value === ""
-                        ? ""
-                        : Number(event.target.value)
-                      : event.target.value
-                }))
+                applyFieldChange(
+                  field,
+                  field.type === "number"
+                    ? event.target.value === ""
+                      ? ""
+                      : Number(event.target.value)
+                    : event.target.value
+                )
               }
+              disabled={field.disabledWhen?.(values)}
               fullWidth
             />
           );

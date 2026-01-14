@@ -532,16 +532,20 @@
         "priceMin": "Цена от",
         "priceMax": "Цена до",
         "fromWarehouse": "Со склада",
-        "toCabinet": "В шкаф"
+        "destinationType": "Назначение",
+        "toCabinet": "В шкаф/сборку",
+        "toAssembly": "В сборку"
       },
       "dialogs": {
         "toWarehouseTitle": "На склад",
-        "toCabinetTitle": "Со склада в шкаф",
+        "toCabinetTitle": "Ввести в эксплуатацию",
+        "directToCabinetTitle": "Напрямую в шкаф/сборку",
         "editTitle": "Редактировать позицию склада"
       },
       "actions": {
         "toWarehouse": "На склад",
-        "toCabinet": "Со склада в шкаф"
+        "toCabinet": "Ввести в эксплуатацию",
+        "directToCabinet": "Напрямую в шкаф/сборку"
       },
       "columns": {
         "updated": "Обновлено"
@@ -553,7 +557,9 @@
       "types": {
         "toWarehouse": "На склад",
         "toCabinet": "Со склада в шкаф",
-        "directToCabinet": "Сразу в шкаф"
+        "directToCabinet": "Сразу в шкаф",
+        "toAssembly": "Со склада в сборку",
+        "directToAssembly": "Сразу в сборку"
       },
       "sort": {
         "byDateNewest": "По дате (сначала новые)",
@@ -575,14 +581,17 @@
         "fromWarehouse": "Со склада",
         "toWarehouse": "На склад",
         "fromCabinet": "Из шкафа",
-        "toCabinet": "В шкаф"
+        "toCabinet": "В шкаф",
+        "toAssembly": "В сборку"
       },
       "validation": {
         "typeRequired": "Выберите тип перемещения.",
         "equipmentAndQuantity": "Укажите оборудование и количество.",
         "toWarehouseRequired": "Выберите склад назначения.",
         "fromWarehouseAndCabinet": "Выберите склад-источник и шкаф назначения.",
-        "toCabinetRequired": "Выберите шкаф назначения."
+        "toCabinetRequired": "Выберите шкаф назначения.",
+        "fromWarehouseAndAssembly": "Выберите склад-источник и сборку назначения.",
+        "toAssemblyRequired": "Выберите сборку назначения."
       },
       "actions": {
         "create": "Создать перемещение"
