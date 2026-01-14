@@ -27,7 +27,7 @@ import { SidebarNavTree, useAutoOpenGroups } from "./SidebarNavTree";
 import { AppButton } from "./ui/AppButton";
 import ChatDialog from "./ChatDialog";
 
-const drawerWidth = 240;
+const drawerWidth = 300;
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
