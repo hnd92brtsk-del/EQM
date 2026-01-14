@@ -9,6 +9,7 @@ from app.routers import cabinets
 from app.routers import assemblies
 from app.routers import warehouse_items
 from app.routers import cabinet_items
+from app.routers import cabinet_files
 from app.routers import assembly_items
 from app.routers import equipment_in_operation
 from app.routers import io_signals
@@ -31,6 +32,7 @@ __all__ = [
     "assemblies",
     "warehouse_items",
     "cabinet_items",
+    "cabinet_files",
     "assembly_items",
     "equipment_in_operation",
     "io_signals",

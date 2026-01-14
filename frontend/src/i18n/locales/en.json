@@ -66,6 +66,9 @@
     "notSelected": "Not selected",
     "close": "Close",
     "downloadTemplate": "Download template",
+    "upload": "Upload",
+    "download": "Download",
+    "deleteFile": "Delete file",
     "import": "Import",
     "exportActiveCsv": "Export active (CSV)",
     "exportActiveXlsx": "Export active (XLSX)",
@@ -201,6 +204,9 @@
     },
     "fields": {
       "name": "Name",
+      "factoryNumber": "Factory number",
+      "nomenclatureNumber": "Cabinet nomenclature number",
+      "files": "Files",
       "location": "Location",
       "manufacturer": "Manufacturer",
       "equipmentCategory": "Equipment category",
@@ -381,7 +387,14 @@
         "create": "Failed to create cabinet",
         "update": "Failed to update cabinet",
         "delete": "Failed to delete cabinet",
-        "restore": "Failed to restore cabinet"
+        "restore": "Failed to restore cabinet",
+        "filesLoad": "Failed to load cabinet files",
+        "fileUpload": "Failed to upload file",
+        "fileDownload": "Failed to download file",
+        "fileDelete": "Failed to delete file"
+      },
+      "hints": {
+        "saveBeforeUpload": "Save the cabinet before uploading files."
       },
       "dialogs": {
         "editTitle": "Edit cabinet",

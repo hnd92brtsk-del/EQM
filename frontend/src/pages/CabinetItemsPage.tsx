@@ -29,6 +29,7 @@ import { deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/en
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
+import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
 
 const pageSizeOptions = [10, 20, 50, 100];
 
@@ -47,7 +48,6 @@ type EquipmentInOperationItem = {
 
 type Cabinet = { id: number; name: string };
 type Assembly = { id: number; name: string };
-type Location = { id: number; name: string };
 
 type EquipmentType = { id: number; name: string };
 type Manufacturer = { id: number; name: string };
@@ -145,10 +145,15 @@ export default function CabinetItemsPage() {
     queryFn: () => listEntity<Manufacturer>("/manufacturers", { page: 1, page_size: 200 })
   });
 
-  const locationsQuery = useQuery({
-    queryKey: ["locations-options"],
-    queryFn: () => listEntity<Location>("/locations", { page: 1, page_size: 200, is_deleted: false })
+  const locationsTreeQuery = useQuery({
+    queryKey: ["locations-tree-options", false],
+    queryFn: () => fetchLocationsTree(false)
   });
+
+  const { options: locationOptions } = useMemo(
+    () => buildLocationLookups(locationsTreeQuery.data || []),
+    [locationsTreeQuery.data]
+  );
 
   useEffect(() => {
     if (itemsQuery.error) {
@@ -386,9 +391,9 @@ export default function CabinetItemsPage() {
                 }}
               >
                 <MenuItem value="">{t("common.all")}</MenuItem>
-                {locationsQuery.data?.items.map((item) => (
-                  <MenuItem key={item.id} value={item.id}>
-                    {item.name}
+                {locationOptions.map((item) => (
+                  <MenuItem key={item.value} value={item.value}>
+                    {item.label}
                   </MenuItem>
                 ))}
               </Select>

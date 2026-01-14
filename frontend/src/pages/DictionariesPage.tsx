@@ -30,6 +30,7 @@ import { DataTable } from "../components/DataTable";
 import { createEntity, listEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
+import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
 
 const PAGE_SIZE = 200;
 
@@ -55,7 +56,14 @@ type EquipmentType = {
 
 type Warehouse = { id: number; name: string; location_id?: number | null; is_deleted: boolean };
 
-type Cabinet = { id: number; name: string; location_id?: number | null; is_deleted: boolean };
+type Cabinet = {
+  id: number;
+  name: string;
+  factory_number?: string | null;
+  nomenclature_number?: string | null;
+  location_id?: number | null;
+  is_deleted: boolean;
+};
 
 type FieldOption = { label: string; value: number | string };
 
@@ -262,6 +270,11 @@ export default function DictionariesPage() {
     queryFn: () => listEntity<Location>("/locations", { page: 1, page_size: PAGE_SIZE, include_deleted: showDeleted })
   });
 
+  const locationsTreeQuery = useQuery({
+    queryKey: ["locations-tree-options", showDeleted],
+    queryFn: () => fetchLocationsTree(showDeleted)
+  });
+
   const equipmentTypesQuery = useQuery({
     queryKey: ["equipment-types", showDeleted],
     queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: PAGE_SIZE, include_deleted: showDeleted })
@@ -280,10 +293,16 @@ export default function DictionariesPage() {
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["manufacturers", showDeleted] });
     queryClient.invalidateQueries({ queryKey: ["locations", showDeleted] });
+    queryClient.invalidateQueries({ queryKey: ["locations-tree-options", showDeleted] });
     queryClient.invalidateQueries({ queryKey: ["equipment-types", showDeleted] });
     queryClient.invalidateQueries({ queryKey: ["warehouses", showDeleted] });
     queryClient.invalidateQueries({ queryKey: ["cabinets", showDeleted] });
   };
+
+  const { options: locationOptions, breadcrumbMap: locationBreadcrumbs } = useMemo(
+    () => buildLocationLookups(locationsTreeQuery.data || []),
+    [locationsTreeQuery.data]
+  );
 
   const createMutation = useMutation({
     mutationFn: ({ path, payload }: { path: string; payload: any }) => createEntity(path, payload),
@@ -389,11 +408,7 @@ export default function DictionariesPage() {
                       name: "parent_id",
                       label: t("common.fields.parent"),
                       type: "select",
-                      options:
-                        locationsQuery.data?.items.map((loc) => ({
-                          label: loc.name,
-                          value: loc.id
-                        })) || []
+                      options: locationOptions.filter((option) => option.value !== row.original.id)
                     }
                   ],
                   values: row.original,
@@ -430,7 +445,7 @@ export default function DictionariesPage() {
         )
       }
     ],
-    [canEdit, locationsQuery.data?.items, updateMutation, t, i18n.language]
+    [canEdit, locationOptions, updateMutation, t, i18n.language]
   );
 
   const equipmentColumns = useMemo<ColumnDef<EquipmentType>[]>(
@@ -593,7 +608,13 @@ export default function DictionariesPage() {
   const warehouseColumns = useMemo<ColumnDef<Warehouse>[]>(
     () => [
       { header: t("common.fields.name"), accessorKey: "name" },
-      { header: t("common.fields.location"), accessorKey: "location_id" },
+      {
+        header: t("common.fields.location"),
+        cell: ({ row }) =>
+          row.original.location_id
+            ? locationBreadcrumbs.get(row.original.location_id) || row.original.location_id
+            : "-"
+      },
       {
         header: t("common.status.label"),
         cell: ({ row }) => (
@@ -615,15 +636,13 @@ export default function DictionariesPage() {
                   title: t("pagesUi.warehouses.dialogs.editTitle"),
                   fields: [
                     { name: "name", label: t("common.fields.name"), type: "text" },
+                    { name: "factory_number", label: t("common.fields.factoryNumber"), type: "text" },
+                    { name: "nomenclature_number", label: t("common.fields.nomenclatureNumber"), type: "text" },
                     {
                       name: "location_id",
                       label: t("common.fields.location"),
                       type: "select",
-                      options:
-                        locationsQuery.data?.items.map((loc) => ({
-                          label: loc.name,
-                          value: loc.id
-                        })) || []
+                      options: locationOptions
                     }
                   ],
                   values: row.original,
@@ -660,13 +679,27 @@ export default function DictionariesPage() {
         )
       }
     ],
-    [canEdit, locationsQuery.data?.items, updateMutation, t, i18n.language]
+    [canEdit, locationBreadcrumbs, locationOptions, updateMutation, t, i18n.language]
   );
 
   const cabinetColumns = useMemo<ColumnDef<Cabinet>[]>(
     () => [
       { header: t("common.fields.name"), accessorKey: "name" },
-      { header: t("common.fields.location"), accessorKey: "location_id" },
+      {
+        header: t("common.fields.factoryNumber"),
+        cell: ({ row }) => row.original.factory_number || "-"
+      },
+      {
+        header: t("common.fields.nomenclatureNumber"),
+        cell: ({ row }) => row.original.nomenclature_number || "-"
+      },
+      {
+        header: t("common.fields.location"),
+        cell: ({ row }) =>
+          row.original.location_id
+            ? locationBreadcrumbs.get(row.original.location_id) || row.original.location_id
+            : "-"
+      },
       {
         header: t("common.status.label"),
         cell: ({ row }) => (
@@ -688,15 +721,13 @@ export default function DictionariesPage() {
                   title: t("pagesUi.cabinets.dialogs.editTitle"),
                   fields: [
                     { name: "name", label: t("common.fields.name"), type: "text" },
+                    { name: "factory_number", label: t("common.fields.factoryNumber"), type: "text" },
+                    { name: "nomenclature_number", label: t("common.fields.nomenclatureNumber"), type: "text" },
                     {
                       name: "location_id",
                       label: t("common.fields.location"),
                       type: "select",
-                      options:
-                        locationsQuery.data?.items.map((loc) => ({
-                          label: loc.name,
-                          value: loc.id
-                        })) || []
+                      options: locationOptions
                     }
                   ],
                   values: row.original,
@@ -704,7 +735,12 @@ export default function DictionariesPage() {
                     updateMutation.mutate({
                       path: "/cabinets",
                       id: row.original.id,
-                      payload: { name: values.name, location_id: values.location_id || null }
+                      payload: {
+                        name: values.name,
+                        factory_number: values.factory_number || null,
+                        nomenclature_number: values.nomenclature_number || null,
+                        location_id: values.location_id || null
+                      }
                     });
                     setDialog(null);
                   }
@@ -733,7 +769,7 @@ export default function DictionariesPage() {
         )
       }
     ],
-    [canEdit, locationsQuery.data?.items, updateMutation, t, i18n.language]
+    [canEdit, locationBreadcrumbs, locationOptions, updateMutation, t, i18n.language]
   );
 
   const renderSection = () => {
@@ -794,11 +830,7 @@ export default function DictionariesPage() {
                         name: "parent_id",
                         label: t("common.fields.parent"),
                         type: "select",
-                        options:
-                          locationsQuery.data?.items.map((loc) => ({
-                            label: loc.name,
-                            value: loc.id
-                          })) || []
+                        options: locationOptions
                       }
                     ],
                     values: { name: "", parent_id: "" },
@@ -957,11 +989,7 @@ export default function DictionariesPage() {
                         name: "location_id",
                         label: t("common.fields.location"),
                         type: "select",
-                        options:
-                          locationsQuery.data?.items.map((loc) => ({
-                            label: loc.name,
-                            value: loc.id
-                          })) || []
+                        options: locationOptions
                       }
                     ],
                     values: { name: "", location_id: "" },
@@ -1004,18 +1032,19 @@ export default function DictionariesPage() {
                       name: "location_id",
                       label: t("common.fields.location"),
                       type: "select",
-                      options:
-                        locationsQuery.data?.items.map((loc) => ({
-                          label: loc.name,
-                          value: loc.id
-                        })) || []
+                      options: locationOptions
                     }
                   ],
-                  values: { name: "", location_id: "" },
+                  values: { name: "", factory_number: "", nomenclature_number: "", location_id: "" },
                   onSave: (values) => {
                     createMutation.mutate({
                       path: "/cabinets",
-                      payload: { name: values.name, location_id: values.location_id || null }
+                      payload: {
+                        name: values.name,
+                        factory_number: values.factory_number || null,
+                        nomenclature_number: values.nomenclature_number || null,
+                        location_id: values.location_id || null
+                      }
                     });
                     setDialog(null);
                   }

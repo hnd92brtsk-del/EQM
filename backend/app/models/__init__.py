@@ -17,6 +17,7 @@ from app.models.io import IOSignal, SignalType, MeasurementType
 from app.models.movements import EquipmentMovement, MovementType
 from app.models.audit import AuditLog
 from app.models.attachments import Attachment
+from app.models.cabinet_files import CabinetFile
 
 __all__ = [
     "User",
@@ -42,4 +43,5 @@ __all__ = [
     "MovementType",
     "AuditLog",
     "Attachment",
+    "CabinetFile",
 ]

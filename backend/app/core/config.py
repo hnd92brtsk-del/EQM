@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 5
     env: str = "development"
     upload_dir: str = "uploads"
+    cabinet_files_dir: str = "storage/cabinet_files"
+    cabinet_files_max_size: int | None = 10 * 1024 * 1024 * 1024
     lm_studio_base_url: HttpUrl = "http://localhost:1234"
     lm_studio_api_key: str | None = None
     lm_model: str = "phi-3-mini-4k-instruct"

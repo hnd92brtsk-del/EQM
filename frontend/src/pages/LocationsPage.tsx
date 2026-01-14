@@ -25,6 +25,7 @@ import { createEntity, deleteEntity, updateEntity, restoreEntity, Pagination } f
 import { apiFetch } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
+import { buildLocationLookups } from "../utils/locations";
 
 type Location = {
   id: number;
@@ -124,14 +125,7 @@ export default function LocationsPage() {
     return map;
   }, [locationsQuery.data]);
 
-  const parentOptions = useMemo(() => {
-    const options = (locationsQuery.data || []).map((loc) => ({
-      label: loc.name,
-      value: loc.id
-    }));
-    options.sort((a, b) => a.label.localeCompare(b.label));
-    return options;
-  }, [locationsQuery.data]);
+  const parentOptions = useMemo(() => buildLocationLookups(tree).options, [tree]);
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["locations-tree"] });

@@ -14,6 +14,7 @@ from app.routers import (
     assemblies,
     warehouse_items,
     cabinet_items,
+    cabinet_files,
     assembly_items,
     io_signals,
     movements,
@@ -52,6 +53,7 @@ app.include_router(cabinets.router, prefix="/api/v1/cabinets", tags=["cabinets"]
 app.include_router(assemblies.router, prefix="/api/v1/assemblies", tags=["assemblies"])
 app.include_router(warehouse_items.router, prefix="/api/v1/warehouse-items", tags=["warehouse-items"])
 app.include_router(cabinet_items.router, prefix="/api/v1/cabinet-items", tags=["cabinet-items"])
+app.include_router(cabinet_files.router, prefix="/api/v1", tags=["cabinet-files"])
 app.include_router(assembly_items.router, prefix="/api/v1/assembly-items", tags=["assembly-items"])
 app.include_router(
     equipment_in_operation.router,

@@ -100,6 +100,8 @@ def create_cabinet(
 
     cabinet = Cabinet(
         name=payload.name,
+        factory_number=payload.factory_number,
+        nomenclature_number=payload.nomenclature_number,
         location_id=payload.location_id,
         meta_data=payload.meta_data,
     )
@@ -138,6 +140,10 @@ def update_cabinet(
 
     if payload.name is not None:
         cabinet.name = payload.name
+    if "factory_number" in data:
+        cabinet.factory_number = data["factory_number"] or None
+    if "nomenclature_number" in data:
+        cabinet.nomenclature_number = data["nomenclature_number"] or None
     if "location_id" in data:
         if data["location_id"]:
             location = db.scalar(

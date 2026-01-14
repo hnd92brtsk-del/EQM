@@ -329,3 +329,7 @@ git --no-pager diff --staged --name-only
 - Проверить, что изменения в `backend/app/core/security.py` и `backend/app/core/config.py` не нарушают RBAC/авторизацию (быстрая ручная проверка через `uvicorn` и Swagger рекомендована).
 
 **Конец документа**
+# MIGRATION GUARDRAILS
+- Any DB/schema change requires a new Alembic migration.
+- Before work: run `alembic current -v` and `alembic heads`.
+- After work: run `alembic upgrade head`; `alembic current -v` must match head.

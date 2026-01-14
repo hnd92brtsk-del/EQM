@@ -27,6 +27,7 @@ import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } f
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
+import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
 
 type Warehouse = {
   id: number;
@@ -35,8 +36,6 @@ type Warehouse = {
   is_deleted: boolean;
   created_at?: string;
 };
-
-type Location = { id: number; name: string };
 
 const pageSizeOptions = [10, 20, 50, 100];
 
@@ -80,14 +79,9 @@ export default function WarehousesPage() {
       })
   });
 
-  const locationsQuery = useQuery({
-    queryKey: ["locations-options"],
-    queryFn: () =>
-      listEntity<Location>("/locations", {
-        page: 1,
-        page_size: 200,
-        is_deleted: false
-      })
+  const locationsTreeQuery = useQuery({
+    queryKey: ["locations-tree-options", false],
+    queryFn: () => fetchLocationsTree(false)
   });
 
   useEffect(() => {
@@ -100,11 +94,10 @@ export default function WarehousesPage() {
     }
   }, [warehousesQuery.error, t]);
 
-  const locationMap = useMemo(() => {
-    const map = new Map<number, string>();
-    locationsQuery.data?.items.forEach((item) => map.set(item.id, item.name));
-    return map;
-  }, [locationsQuery.data?.items]);
+  const { options: locationOptions, breadcrumbMap: locationBreadcrumbs } = useMemo(
+    () => buildLocationLookups(locationsTreeQuery.data || []),
+    [locationsTreeQuery.data]
+  );
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["warehouses"] });
@@ -147,7 +140,7 @@ export default function WarehousesPage() {
         header: t("common.fields.location"),
         cell: ({ row }) =>
           row.original.location_id
-            ? locationMap.get(row.original.location_id) || row.original.location_id
+            ? locationBreadcrumbs.get(row.original.location_id) || row.original.location_id
             : "-"
       },
       {
@@ -178,11 +171,7 @@ export default function WarehousesPage() {
                       name: "location_id",
                       label: t("common.fields.location"),
                       type: "select",
-                      options:
-                        locationsQuery.data?.items.map((loc) => ({
-                          label: loc.name,
-                          value: loc.id
-                        })) || []
+                      options: locationOptions
                     }
                   ],
                   values: row.original,
@@ -225,8 +214,8 @@ export default function WarehousesPage() {
   }, [
     canWrite,
     deleteMutation,
-    locationMap,
-    locationsQuery.data?.items,
+    locationBreadcrumbs,
+    locationOptions,
     restoreMutation,
     updateMutation,
     t,
@@ -278,9 +267,9 @@ export default function WarehousesPage() {
                 }}
               >
                 <MenuItem value="">{t("common.all")}</MenuItem>
-                {locationsQuery.data?.items.map((loc) => (
-                  <MenuItem key={loc.id} value={loc.id}>
-                    {loc.name}
+                {locationOptions.map((loc) => (
+                  <MenuItem key={loc.value} value={loc.value}>
+                    {loc.label}
                   </MenuItem>
                 ))}
               </Select>
@@ -315,11 +304,7 @@ export default function WarehousesPage() {
                         name: "location_id",
                         label: t("common.fields.location"),
                         type: "select",
-                        options:
-                          locationsQuery.data?.items.map((loc) => ({
-                            label: loc.name,
-                            value: loc.id
-                          })) || []
+                        options: locationOptions
                       }
                     ],
                     values: { name: "", location_id: "" },

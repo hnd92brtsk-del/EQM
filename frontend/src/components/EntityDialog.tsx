@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Checkbox,
@@ -34,6 +34,7 @@ export type DialogState = {
   fields: FieldConfig[];
   values: Record<string, any>;
   onSave: (values: Record<string, any>) => void;
+  renderExtra?: (values: Record<string, any>) => ReactNode;
 };
 
 export function EntityDialog({ state, onClose }: { state: DialogState; onClose: () => void }) {
@@ -193,6 +194,7 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
             />
           );
         })}
+        {state.renderExtra ? state.renderExtra(values) : null}
       </DialogContent>
       <DialogActions>
         <AppButton onClick={onClose}>{t("actions.cancel")}</AppButton>
