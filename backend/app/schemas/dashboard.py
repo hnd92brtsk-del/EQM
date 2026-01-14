@@ -43,6 +43,10 @@ class DashboardKpisOut(BaseModel):
     total_cabinets: int
     total_plc_in_cabinets: int
     total_plc_in_warehouses: int
+    ai_total: int
+    di_total: int
+    ao_total: int
+    do_total: int
     total_channels: int
     total_warehouse_value_rub: float
 

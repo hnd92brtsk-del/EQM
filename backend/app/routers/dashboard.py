@@ -1,9 +1,9 @@
 ﻿from fastapi import APIRouter, Depends
-from sqlalchemy import select, func, cast, Float, and_, or_, case
+from sqlalchemy import select, func, cast, Float, and_, or_, union_all
 
 from app.core.dependencies import get_db, get_current_user
 from app.models.core import Cabinet, EquipmentType, Warehouse
-from app.models.operations import WarehouseItem, CabinetItem
+from app.models.operations import WarehouseItem, CabinetItem, AssemblyItem
 from app.models.io import IOSignal
 from app.models.security import User
 from app.schemas.dashboard import (
@@ -150,25 +150,37 @@ def get_dashboard_overview(db=Depends(get_db), user: User = Depends(get_current_
         )
     ) or 0
 
-    channel_sum_expr = (
-        EquipmentType.ai_count
-        + EquipmentType.di_count
-        + EquipmentType.ao_count
-        + EquipmentType.do_count
-    )
-    channel_total_expr = case(
-        (channel_sum_expr > 0, channel_sum_expr),
-        else_=EquipmentType.channel_count,
-    )
-    total_channels = db.scalar(
-        select(func.coalesce(func.sum(CabinetItem.quantity * channel_total_expr), 0))
-        .join(EquipmentType, CabinetItem.equipment_type_id == EquipmentType.id)
+    operation_qty = union_all(
+        select(
+            CabinetItem.equipment_type_id.label("equipment_type_id"),
+            CabinetItem.quantity.label("quantity"),
+        ).where(CabinetItem.is_deleted == False),
+        select(
+            AssemblyItem.equipment_type_id.label("equipment_type_id"),
+            AssemblyItem.quantity.label("quantity"),
+        ).where(AssemblyItem.is_deleted == False),
+    ).subquery()
+
+    channel_totals = db.execute(
+        select(
+            func.coalesce(func.sum(operation_qty.c.quantity * EquipmentType.ai_count), 0).label("ai_total"),
+            func.coalesce(func.sum(operation_qty.c.quantity * EquipmentType.di_count), 0).label("di_total"),
+            func.coalesce(func.sum(operation_qty.c.quantity * EquipmentType.ao_count), 0).label("ao_total"),
+            func.coalesce(func.sum(operation_qty.c.quantity * EquipmentType.do_count), 0).label("do_total"),
+        )
+        .select_from(operation_qty)
+        .join(EquipmentType, operation_qty.c.equipment_type_id == EquipmentType.id)
         .where(
-            CabinetItem.is_deleted == False,
             EquipmentType.is_deleted == False,
             EquipmentType.is_channel_forming == True,
         )
-    ) or 0
+    ).one()
+
+    ai_total = int(channel_totals.ai_total or 0)
+    di_total = int(channel_totals.di_total or 0)
+    ao_total = int(channel_totals.ao_total or 0)
+    do_total = int(channel_totals.do_total or 0)
+    total_channels = ai_total + di_total + ao_total + do_total
 
     total_warehouse_value_rub = db.scalar(
         select(func.coalesce(func.sum(WarehouseItem.quantity * price_expr), 0))
@@ -275,6 +287,10 @@ def get_dashboard_overview(db=Depends(get_db), user: User = Depends(get_current_
         total_cabinets=total_cabinets,
         total_plc_in_cabinets=total_plc_in_cabinets,
         total_plc_in_warehouses=total_plc_in_warehouses,
+        ai_total=ai_total,
+        di_total=di_total,
+        ao_total=ao_total,
+        do_total=do_total,
         total_channels=total_channels,
         total_warehouse_value_rub=float(total_warehouse_value_rub or 0),
     )

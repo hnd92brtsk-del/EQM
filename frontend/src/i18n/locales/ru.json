@@ -96,6 +96,11 @@
       "total_plc_in_cabinets": "Всего ПЛК в шкафах",
       "total_plc_in_warehouses": "Всего ПЛК на складах",
       "total_channels": "Всего каналов",
+      "ai": "AI",
+      "di": "DI",
+      "ao": "AO",
+      "do": "DO",
+      "total": "Итого",
       "total_warehouse_value_rub": "Общая стоимость оборудования"
     },
     "titles": {

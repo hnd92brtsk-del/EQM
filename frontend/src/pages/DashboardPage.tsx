@@ -32,6 +32,10 @@ type DashboardOverview = {
     total_cabinets: number;
     total_plc_in_cabinets: number;
     total_plc_in_warehouses: number;
+    ai_total: number;
+    di_total: number;
+    ao_total: number;
+    do_total: number;
     total_channels: number;
     total_warehouse_value_rub: number;
   };
@@ -162,6 +166,80 @@ function KpiCard({ label, value, color, loading }: KpiCardProps) {
           ) : (
             <Typography variant="h5">{value}</Typography>
           )}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
+type ChannelTotalsCardProps = {
+  label: string;
+  labels: {
+    ai: string;
+    di: string;
+    ao: string;
+    do: string;
+    total: string;
+  };
+  color: string;
+  totals: {
+    ai: number;
+    di: number;
+    ao: number;
+    do: number;
+    total: number;
+  };
+  loading?: boolean;
+  formatter: Intl.NumberFormat;
+};
+
+function ChannelTotalsCard({ label, labels, color, totals, loading, formatter }: ChannelTotalsCardProps) {
+  const entries = [
+    { label: labels.ai, value: totals.ai },
+    { label: labels.di, value: totals.di },
+    { label: labels.ao, value: totals.ao },
+    { label: labels.do, value: totals.do },
+    { label: labels.total, value: totals.total }
+  ];
+
+  return (
+    <Card>
+      <CardContent sx={{ display: "flex", gap: 1.5, alignItems: "stretch" }}>
+        <Box
+          sx={{
+            width: 6,
+            borderRadius: 8,
+            backgroundColor: color
+          }}
+        />
+        <Box sx={{ display: "grid", gap: 1.5, flex: 1 }}>
+          <Typography color="text.secondary">{label}</Typography>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(4, minmax(0, 1fr))" },
+              gap: 1
+            }}
+          >
+            {entries.slice(0, 4).map((item) => (
+              <Box key={item.label} sx={{ display: "grid", gap: 0.25 }}>
+                <Typography variant="caption" color="text.secondary">
+                  {item.label}
+                </Typography>
+                <Typography variant="subtitle2">
+                  {loading ? "…" : formatter.format(item.value)}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+          <Box sx={{ borderTop: 1, borderColor: "divider", pt: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              {labels.total}
+            </Typography>
+            <Typography variant="h4">
+              {loading ? "…" : formatter.format(totals.total)}
+            </Typography>
+          </Box>
         </Box>
       </CardContent>
     </Card>
@@ -383,6 +461,10 @@ export default function DashboardPage() {
     total_cabinets: 0,
     total_plc_in_cabinets: 0,
     total_plc_in_warehouses: 0,
+    ai_total: 0,
+    di_total: 0,
+    ao_total: 0,
+    do_total: 0,
     total_channels: 0,
     total_warehouse_value_rub: 0
   };
@@ -399,42 +481,51 @@ export default function DashboardPage() {
       <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage(null)} />
       <Typography variant="h4">{t("pages.dashboard")}</Typography>
 
-      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 2 }}>
-        {[
-          {
-            label: t("dashboard.kpis.total_cabinets"),
-            value: numberFormatter.format(kpis.total_cabinets),
-            color: "#00c49a"
-          },
-          {
-            label: t("dashboard.kpis.total_plc_in_cabinets"),
-            value: numberFormatter.format(kpis.total_plc_in_cabinets),
-            color: "#2ba3ff"
-          },
-          {
-            label: t("dashboard.kpis.total_plc_in_warehouses"),
-            value: numberFormatter.format(kpis.total_plc_in_warehouses),
-            color: "#f4a300"
-          },
-          {
-            label: t("dashboard.kpis.total_channels"),
-            value: numberFormatter.format(kpis.total_channels),
-            color: "#14e0b0"
-          },
-          {
-            label: t("dashboard.kpis.total_warehouse_value_rub"),
-            value: currencyFormatter.format(kpis.total_warehouse_value_rub),
-            color: "#6ac5ff"
-          }
-        ].map((item) => (
-          <KpiCard
-            key={item.label}
-            label={item.label}
-            value={overviewQuery.isLoading ? t("dashboard.common.loading") : item.value}
-            color={item.color}
-            loading={overviewQuery.isLoading}
-          />
-        ))}
+      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 2 }}>
+        <KpiCard
+          label={t("dashboard.kpis.total_cabinets")}
+          value={numberFormatter.format(kpis.total_cabinets)}
+          color="#00c49a"
+          loading={overviewQuery.isLoading}
+        />
+        <KpiCard
+          label={t("dashboard.kpis.total_plc_in_cabinets")}
+          value={numberFormatter.format(kpis.total_plc_in_cabinets)}
+          color="#2ba3ff"
+          loading={overviewQuery.isLoading}
+        />
+        <KpiCard
+          label={t("dashboard.kpis.total_plc_in_warehouses")}
+          value={numberFormatter.format(kpis.total_plc_in_warehouses)}
+          color="#f4a300"
+          loading={overviewQuery.isLoading}
+        />
+        <ChannelTotalsCard
+          label={t("dashboard.kpis.total_channels")}
+          labels={{
+            ai: t("dashboard.kpis.ai"),
+            di: t("dashboard.kpis.di"),
+            ao: t("dashboard.kpis.ao"),
+            do: t("dashboard.kpis.do"),
+            total: t("dashboard.kpis.total")
+          }}
+          color="#14e0b0"
+          totals={{
+            ai: kpis.ai_total,
+            di: kpis.di_total,
+            ao: kpis.ao_total,
+            do: kpis.do_total,
+            total: kpis.total_channels
+          }}
+          loading={overviewQuery.isLoading}
+          formatter={numberFormatter}
+        />
+        <KpiCard
+          label={t("dashboard.kpis.total_warehouse_value_rub")}
+          value={currencyFormatter.format(kpis.total_warehouse_value_rub)}
+          color="#6ac5ff"
+          loading={overviewQuery.isLoading}
+        />
       </Box>
 
       <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 2 }}>
