@@ -1,6 +1,39 @@
 import { createTheme, type PaletteMode } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 
+const getScrollbarStyles = (mode: PaletteMode) => {
+  const isDark = mode === "dark";
+  const thumb = isDark ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.25)";
+  const thumbHover = isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.38)";
+
+  return {
+    body: {
+      scrollbarWidth: "thin",
+      scrollbarColor: `${thumb} transparent`
+    },
+    "*": {
+      scrollbarWidth: "thin",
+      scrollbarColor: `${thumb} transparent`
+    },
+    "*::-webkit-scrollbar": {
+      width: 8,
+      height: 8
+    },
+    "*::-webkit-scrollbar-track": {
+      background: "transparent"
+    },
+    "*::-webkit-scrollbar-thumb": {
+      backgroundColor: thumb,
+      borderRadius: 999,
+      border: "2px solid transparent",
+      backgroundClip: "content-box"
+    },
+    "*::-webkit-scrollbar-thumb:hover": {
+      backgroundColor: thumbHover
+    }
+  };
+};
+
 export function createAppTheme(mode: PaletteMode) {
   const isDark = mode === "dark";
 
@@ -28,6 +61,9 @@ export function createAppTheme(mode: PaletteMode) {
       borderRadius: 14
     },
     components: {
+      MuiCssBaseline: {
+        styleOverrides: getScrollbarStyles(mode)
+      },
       MuiDrawer: {
         styleOverrides: {
           paper: {
