@@ -524,6 +524,12 @@
         "delete": "Не удалось удалить шкафную позицию",
         "restore": "Не удалось восстановить шкафную позицию",
         "updateQuantity": "Не удалось обновить количество"
+      },
+      "dialogs": {
+        "addFinishedTitle": "Ввести готовое"
+      },
+      "actions": {
+        "addFinished": "Ввести готовое"
       }
     },
     "warehouseItems": {

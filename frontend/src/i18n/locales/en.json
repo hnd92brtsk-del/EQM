@@ -524,6 +524,12 @@
         "delete": "Failed to delete cabinet item",
         "restore": "Failed to restore cabinet item",
         "updateQuantity": "Failed to update quantity"
+      },
+      "dialogs": {
+        "addFinishedTitle": "Add finished"
+      },
+      "actions": {
+        "addFinished": "Add finished"
       }
     },
     "warehouseItems": {

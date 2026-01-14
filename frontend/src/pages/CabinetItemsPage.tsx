@@ -24,8 +24,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
+import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
-import { deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
+import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
@@ -49,7 +50,12 @@ type EquipmentInOperationItem = {
 type Cabinet = { id: number; name: string };
 type Assembly = { id: number; name: string };
 
-type EquipmentType = { id: number; name: string };
+type EquipmentType = {
+  id: number;
+  name: string;
+  is_channel_forming: boolean;
+  is_network: boolean;
+};
 type Manufacturer = { id: number; name: string };
 
 export default function CabinetItemsPage() {
@@ -68,6 +74,7 @@ export default function CabinetItemsPage() {
   const [locationFilter, setLocationFilter] = useState<number | "">("");
   const [showDeleted, setShowDeleted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<DialogState | null>(null);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editItem, setEditItem] = useState<EquipmentInOperationItem | null>(null);
@@ -201,9 +208,36 @@ export default function CabinetItemsPage() {
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.cabinetItems.errors.updateQuantity"))
   });
 
+  const movementMutation = useMutation({
+    mutationFn: (payload: any) => createEntity("/movements", payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["equipment-in-operation"] });
+      queryClient.invalidateQueries({ queryKey: ["warehouse-items"] });
+      queryClient.invalidateQueries({ queryKey: ["movements"] });
+      setDialog(null);
+    },
+    onError: (error) => {
+      if (error instanceof Error && /not found|404/i.test(error.message)) {
+        setErrorMessage(t("common.notImplemented"));
+        return;
+      }
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : t("pagesUi.warehouseItems.errors.actionFailed")
+      );
+    }
+  });
+
   const equipmentMap = useMemo(() => {
     const map = new Map<number, string>();
     equipmentTypesQuery.data?.items.forEach((item) => map.set(item.id, item.name));
+    return map;
+  }, [equipmentTypesQuery.data?.items]);
+
+  const equipmentFlagsMap = useMemo(() => {
+    const map = new Map<number, EquipmentType>();
+    equipmentTypesQuery.data?.items.forEach((item) => map.set(item.id, item));
     return map;
   }, [equipmentTypesQuery.data?.items]);
 
@@ -224,6 +258,84 @@ export default function CabinetItemsPage() {
     options.sort((a, b) => a.label.localeCompare(b.label, i18n.language));
     return options;
   }, [assembliesQuery.data?.items, cabinetsQuery.data?.items, i18n.language, t]);
+
+  const shouldForceQtyOne = (values: Record<string, any>) => {
+    const equipmentId = Number(values.equipment_type_id);
+    const equipment = equipmentFlagsMap.get(equipmentId);
+    return Boolean(equipment?.is_channel_forming || equipment?.is_network);
+  };
+
+  const openAddFinishedDialog = () => {
+    setDialog({
+      open: true,
+      title: t("pagesUi.cabinetItems.dialogs.addFinishedTitle"),
+      fields: [
+        {
+          name: "equipment_type_id",
+          label: t("common.fields.equipment"),
+          type: "select",
+          options:
+            equipmentTypesQuery.data?.items.map((item) => ({
+              label: item.name,
+              value: item.id
+            })) || [],
+          onChange: (value) => {
+            const equipment = equipmentFlagsMap.get(Number(value));
+            if (equipment?.is_channel_forming || equipment?.is_network) {
+              return { quantity: 1 };
+            }
+            return {};
+          }
+        },
+        {
+          name: "container_id",
+          label: t("common.fields.cabinetAssembly"),
+          type: "select",
+          options: containerOptions
+        },
+        {
+          name: "quantity",
+          label: t("common.fields.quantity"),
+          type: "number",
+          disabledWhen: (values) => shouldForceQtyOne(values)
+        },
+        { name: "comment", label: t("common.fields.comment"), type: "text" }
+      ],
+      values: {
+        equipment_type_id: "",
+        container_id: "",
+        quantity: 1,
+        comment: ""
+      },
+      onSave: (values) => {
+        const equipmentTypeId = values.equipment_type_id ? Number(values.equipment_type_id) : 0;
+        const containerValue = String(values.container_id || "");
+        const [containerType, containerIdValue] = containerValue.split(":");
+        const containerId = Number(containerIdValue);
+        const quantity = shouldForceQtyOne(values) ? 1 : Number(values.quantity);
+
+        if (
+          !equipmentTypeId ||
+          !containerValue ||
+          !containerId ||
+          !Number.isFinite(quantity) ||
+          quantity < 1
+        ) {
+          setErrorMessage(t("validation.requiredFields"));
+          return;
+        }
+
+        movementMutation.mutate({
+          movement_type: containerType === "assembly" ? "direct_to_assembly" : "direct_to_cabinet",
+          equipment_type_id: equipmentTypeId,
+          to_cabinet_id: containerType === "cabinet" ? containerId : undefined,
+          to_assembly_id: containerType === "assembly" ? containerId : undefined,
+          quantity,
+          comment: values.comment || undefined
+        });
+      }
+    });
+  };
 
   const columns = useMemo<ColumnDef<EquipmentInOperationItem>[]>(() => {
     const base: ColumnDef<EquipmentInOperationItem>[] = [
@@ -414,6 +526,12 @@ export default function CabinetItemsPage() {
               }
               label={t("common.showDeleted")}
             />
+            <Box sx={{ flexGrow: 1 }} />
+            {canWrite && (
+              <AppButton variant="contained" onClick={openAddFinishedDialog}>
+                {t("pagesUi.cabinetItems.actions.addFinished")}
+              </AppButton>
+            )}
           </Box>
 
           <DataTable data={itemsQuery.data?.items || []} columns={columns} />
@@ -467,6 +585,7 @@ export default function CabinetItemsPage() {
         </Dialog>
       )}
 
+      {dialog && <EntityDialog state={dialog} onClose={() => setDialog(null)} />}
       <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage(null)} />
     </Box>
   );

@@ -22,7 +22,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
-import { DictionariesTabs } from "../components/DictionariesTabs";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
@@ -432,8 +431,6 @@ export default function EquipmentTypesPage() {
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
       <Typography variant="h4">{t("pagesUi.equipmentTypes.title")}</Typography>
-      <DictionariesTabs />
-
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Box

@@ -43,6 +43,13 @@ export const navTree: NavItem[] = [
     roles: ["viewer", "engineer", "admin"],
     children: [
       {
+        id: "nomenclature",
+        labelKey: "menu.nomenclature",
+        path: "/dictionaries/equipment-types",
+        icon: IndexIcon,
+        roles: ["viewer", "engineer", "admin"]
+      },
+      {
         id: "warehouse-items",
         labelKey: "menu.warehouse_items",
         path: "/warehouse-items",
@@ -130,13 +137,6 @@ export const navTree: NavItem[] = [
         id: "manufacturers",
         labelKey: "menu.manufacturers",
         path: "/dictionaries/manufacturers",
-        icon: IndexIcon,
-        roles: ["viewer", "engineer", "admin"]
-      },
-      {
-        id: "nomenclature",
-        labelKey: "menu.nomenclature",
-        path: "/dictionaries/equipment-types",
         icon: IndexIcon,
         roles: ["viewer", "engineer", "admin"]
       },
