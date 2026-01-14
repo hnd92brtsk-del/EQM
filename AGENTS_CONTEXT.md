@@ -28,7 +28,7 @@
 > Стек: FastAPI + SQLAlchemy + Alembic + PostgreSQL 16, React/Vite + TypeScript.  
 > Авторизация: простая **JWT** (логин выдаёт access_token).  
 > Миграции Alembic: `0001_initial`, `0002_align_architecture` (JSONB + deleted_by_id FKs), `0003_add_to_warehouse_movement`.  
-> **НЕЛЬЗЯ** редактировать уже применённые миграции 0001–0003; любые изменения схемы — только новой миграцией `0004+`.  
+> **НЕЛЬЗЯ** редактировать уже применённые миграции ; любые изменения схемы — только новой миграцией `000x+`.  
 > Реализовано: RBAC (viewer read-only, engineer write, admin users-management), soft-delete/restore, единые list params (`page`, `page_size`, `q`, `sort`, фильтры), audit_logs JSONB безопасно сериализуются.  
 > Movements: `to_warehouse` (увеличивает склад), `to_cabinet` (со склада в шкаф), `direct_to_cabinet` (в шкаф без склада).  
 > Любые изменения должны быть минимальными, дифф-ориентированными, не ломать работающие endpoints и UI.  
@@ -67,8 +67,7 @@ git reset --hard checkpoint_x
 ```
 
 ### 3.2. Никаких правок в applied миграциях
-- **НЕ править** `0001`, `0002`, `0003` после применения.
-- Любая новая таблица/колонка/индекс/constraint → **Alembic migration 0004+**.
+- Любая новая таблица/колонка/индекс/constraint → **Alembic migration 000x+**.
 
 ### 3.3. Разделяй изменения
 Делай изменения по слоям:
@@ -93,7 +92,7 @@ git reset --hard checkpoint_x
 ### 4.1. Добавить колонку в существующую таблицу (DB → API → UI)
 
 **Шаги:**
-1) **Alembic**: создать миграцию `0004_add_<field>.py`
+1) **Alembic**: создать миграцию `000x_add_<field>.py`
 2) Обновить SQLAlchemy model
 3) Обновить Pydantic схемы: `Create/Update/Read`
 4) Обновить роутер: разрешить фильтры/сортировку при необходимости
@@ -116,7 +115,7 @@ uvicorn app.main:app --reload
 ### 4.2. Добавить новую таблицу + связи между таблицами
 
 **Шаги:**
-1) Alembic миграция `0004_create_<table>.py`:
+1) Alembic миграция `000x_create_<table>.py`:
    - create_table
    - foreign keys
    - indexes
@@ -198,8 +197,8 @@ uvicorn app.main:app --reload
 ## 5) Шаблоны запросов к Codex (короткие и безопасные)
 
 ### 5.1. “Сделай только DB миграцию”
-> Создай Alembic migration `0004_...` для: <описание>.  
-> Не меняй applied миграции 0001–0003.  
+> Создай Alembic migration `000x_...` для: <описание>.  
+> Не меняй applied миграции.  
 > Обнови models только если нужно для autogenerate.  
 > В конце дай команды проверки и SQL для проверки.
 
@@ -271,7 +270,7 @@ npm run dev
 ## 7) Мини-правила по “чтобы ничего не упало”
 
 1) **Одна задача — один слой** (или максимум два слоя)  
-2) **Миграции только вперёд** (`0004+`)  
+2) **Миграции только вперёд** (`000x+`)  
 3) **После каждого шага**: `alembic upgrade head` + логин в `/docs`  
 4) UI меняем после того, как API стабилен  
 5) Любая бизнес-логика → покрыть smoke-тестами руками (через Swagger + SQL запросы)
@@ -329,7 +328,3 @@ git --no-pager diff --staged --name-only
 - Проверить, что изменения в `backend/app/core/security.py` и `backend/app/core/config.py` не нарушают RBAC/авторизацию (быстрая ручная проверка через `uvicorn` и Swagger рекомендована).
 
 **Конец документа**
-# MIGRATION GUARDRAILS
-- Any DB/schema change requires a new Alembic migration.
-- Before work: run `alembic current -v` and `alembic heads`.
-- After work: run `alembic upgrade head`; `alembic current -v` must match head.
