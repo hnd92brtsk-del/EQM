@@ -161,7 +161,8 @@
     "admin_audit": "Audit Logs",
     "help": "Help",
     "personnel": "Personnel",
-    "chat": "Chatbot"
+    "chat": "Chatbot",
+    "measurement_units": "Measurement units"
   },
   "chat": {
     "title": "Chatbot",
@@ -230,7 +231,8 @@
       "comment": "Comment",
       "accounting": "Accounting",
       "warehouse": "Warehouse",
-      "reference": "Reference"
+      "reference": "Reference",
+      "sortOrder": "Sort order"
     },
     "rowsPerPage": "Rows per page",
     "rowsDisplayed": "{{from}}-{{to}} of {{countLabel}}",
@@ -639,7 +641,8 @@
         "tag": "Tag",
         "signal": "Signal",
         "signalType": "Signal type",
-        "measurementType": "Measurement type"
+        "measurementType": "Measurement type",
+        "units": "Units"
       },
       "fields": {
         "component": "Component",
@@ -747,6 +750,24 @@
         "editTrainingTitle": "Edit training",
         "competencyAttachmentsTitle": "Competency attachments",
         "trainingAttachmentsTitle": "Training attachments"
+      }
+    },
+    "measurementUnits": {
+      "title": "Measurement units",
+      "dialogs": {
+        "createTitle": "New measurement unit",
+        "editTitle": "Edit measurement unit"
+      },
+      "actions": {
+        "addChild": "Add unit",
+        "addRoot": "Add root"
+      },
+      "errors": {
+        "load": "Failed to load measurement units",
+        "create": "Failed to create measurement unit",
+        "update": "Failed to update measurement unit",
+        "delete": "Failed to delete measurement unit",
+        "restore": "Failed to restore measurement unit"
       }
     }
   }

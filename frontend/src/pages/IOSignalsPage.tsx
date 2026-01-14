@@ -27,6 +27,7 @@ import { AppButton } from "../components/ui/AppButton";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
+import { buildMeasurementUnitLookups, fetchMeasurementUnitsTree } from "../utils/measurementUnits";
 
 type IOSignal = {
   id: number;
@@ -39,6 +40,8 @@ type IOSignal = {
   terminal_connection?: string | null;
   sensor_range?: string | null;
   engineering_units?: string | null;
+  measurement_unit_id?: number | null;
+  measurement_unit_full_path?: string | null;
   is_deleted: boolean;
   created_at?: string;
 };
@@ -141,6 +144,11 @@ export default function IOSignalsPage() {
     queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: 200 })
   });
 
+  const measurementUnitsTreeQuery = useQuery({
+    queryKey: ["measurement-units-tree-options", false],
+    queryFn: () => fetchMeasurementUnitsTree(false)
+  });
+
   useEffect(() => {
     if (signalsQuery.error) {
       setErrorMessage(
@@ -176,6 +184,21 @@ export default function IOSignalsPage() {
     });
     return map;
   }, [cabinetItemsQuery.data?.items, cabinetMap, equipmentMap, t]);
+
+  const { options: measurementUnitOptions, breadcrumbMap: measurementUnitBreadcrumbs, leafIds } =
+    useMemo(() => buildMeasurementUnitLookups(measurementUnitsTreeQuery.data || []), [
+      measurementUnitsTreeQuery.data
+    ]);
+  const measurementUnitLeafOptions = useMemo(
+    () =>
+      measurementUnitOptions
+        .filter((option) => leafIds.has(option.value))
+        .map((option) => ({
+          ...option,
+          label: measurementUnitBreadcrumbs.get(option.value) || option.label
+        })),
+    [measurementUnitOptions, measurementUnitBreadcrumbs, leafIds]
+  );
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["io-signals"] });
@@ -221,6 +244,15 @@ export default function IOSignalsPage() {
       { header: t("pagesUi.ioSignals.columns.signal"), accessorKey: "signal_name" },
       { header: t("pagesUi.ioSignals.columns.signalType"), accessorKey: "signal_type" },
       { header: t("pagesUi.ioSignals.columns.measurementType"), accessorKey: "measurement_type" },
+      {
+        header: t("pagesUi.ioSignals.columns.units"),
+        cell: ({ row }) =>
+          row.original.measurement_unit_full_path ||
+          (row.original.measurement_unit_id
+            ? measurementUnitBreadcrumbs.get(row.original.measurement_unit_id) ||
+              row.original.measurement_unit_id
+            : row.original.engineering_units || "-")
+      },
       {
         header: t("common.status.label"),
         cell: ({ row }) => (
@@ -275,12 +307,21 @@ export default function IOSignalsPage() {
                       type: "select",
                       options: measurementOptions
                     },
+                    {
+                      name: "measurement_unit_id",
+                      label: t("pagesUi.ioSignals.fields.units"),
+                      type: "select",
+                      options: measurementUnitLeafOptions
+                    },
                     { name: "terminal_connection", label: t("pagesUi.ioSignals.fields.terminal"), type: "text" },
-                    { name: "sensor_range", label: t("pagesUi.ioSignals.fields.range"), type: "text" },
-                    { name: "engineering_units", label: t("pagesUi.ioSignals.fields.units"), type: "text" }
+                    { name: "sensor_range", label: t("pagesUi.ioSignals.fields.range"), type: "text" }
                   ],
                   values: row.original,
                   onSave: (values) => {
+                    const measurementUnitId =
+                      values.measurement_unit_id === "" || values.measurement_unit_id === undefined
+                        ? null
+                        : Number(values.measurement_unit_id);
                     updateMutation.mutate({
                       id: row.original.id,
                       payload: {
@@ -290,9 +331,9 @@ export default function IOSignalsPage() {
                         plc_channel_address: values.plc_channel_address,
                         signal_type: values.signal_type,
                         measurement_type: values.measurement_type,
+                        measurement_unit_id: measurementUnitId,
                         terminal_connection: values.terminal_connection,
-                        sensor_range: values.sensor_range,
-                        engineering_units: values.engineering_units
+                        sensor_range: values.sensor_range
                       }
                     });
                     setDialog(null);
@@ -327,6 +368,8 @@ export default function IOSignalsPage() {
     cabinetItemsQuery.data?.items,
     canWrite,
     deleteMutation,
+    measurementUnitBreadcrumbs,
+    measurementUnitLeafOptions,
     restoreMutation,
     updateMutation,
     t,
@@ -474,41 +517,50 @@ export default function IOSignalsPage() {
                         type: "select",
                         options: signalTypeOptions
                       },
-                      {
-                        name: "measurement_type",
-                        label: t("pagesUi.ioSignals.fields.measurementType"),
-                        type: "select",
-                        options: measurementOptions
-                      },
-                      { name: "terminal_connection", label: t("pagesUi.ioSignals.fields.terminal"), type: "text" },
-                      { name: "sensor_range", label: t("pagesUi.ioSignals.fields.range"), type: "text" },
-                      { name: "engineering_units", label: t("pagesUi.ioSignals.fields.units"), type: "text" }
-                    ],
-                    values: {
-                      cabinet_component_id: "",
-                      tag_name: "",
-                      signal_name: "",
-                      plc_channel_address: "",
-                      signal_type: "AI",
-                      measurement_type: "4-20mA (AI)",
-                      terminal_connection: "",
-                      sensor_range: "",
-                      engineering_units: ""
+                    {
+                      name: "measurement_type",
+                      label: t("pagesUi.ioSignals.fields.measurementType"),
+                      type: "select",
+                      options: measurementOptions
                     },
-                    onSave: (values) => {
-                      createMutation.mutate({
-                        cabinet_component_id: values.cabinet_component_id,
-                        tag_name: values.tag_name,
-                        signal_name: values.signal_name,
-                        plc_channel_address: values.plc_channel_address,
-                        signal_type: values.signal_type,
-                        measurement_type: values.measurement_type,
-                        terminal_connection: values.terminal_connection,
-                        sensor_range: values.sensor_range,
-                        engineering_units: values.engineering_units
-                      });
-                      setDialog(null);
-                    }
+                    {
+                      name: "measurement_unit_id",
+                      label: t("pagesUi.ioSignals.fields.units"),
+                      type: "select",
+                      options: measurementUnitLeafOptions
+                    },
+                    { name: "terminal_connection", label: t("pagesUi.ioSignals.fields.terminal"), type: "text" },
+                    { name: "sensor_range", label: t("pagesUi.ioSignals.fields.range"), type: "text" }
+                  ],
+                  values: {
+                    cabinet_component_id: "",
+                    tag_name: "",
+                    signal_name: "",
+                    plc_channel_address: "",
+                    signal_type: "AI",
+                    measurement_type: "4-20mA (AI)",
+                    measurement_unit_id: "",
+                    terminal_connection: "",
+                    sensor_range: ""
+                  },
+                  onSave: (values) => {
+                    const measurementUnitId =
+                      values.measurement_unit_id === "" || values.measurement_unit_id === undefined
+                        ? null
+                        : Number(values.measurement_unit_id);
+                    createMutation.mutate({
+                      cabinet_component_id: values.cabinet_component_id,
+                      tag_name: values.tag_name,
+                      signal_name: values.signal_name,
+                      plc_channel_address: values.plc_channel_address,
+                      signal_type: values.signal_type,
+                      measurement_type: values.measurement_type,
+                      measurement_unit_id: measurementUnitId,
+                      terminal_connection: values.terminal_connection,
+                      sensor_range: values.sensor_range
+                    });
+                    setDialog(null);
+                  }
                   })
                 }
               >

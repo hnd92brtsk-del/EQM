@@ -65,6 +65,39 @@ class Location(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
         return " / ".join(reversed(parts))
 
 
+class MeasurementUnit(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
+    __tablename__ = "measurement_units"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    parent_id: Mapped[int | None] = mapped_column(
+        ForeignKey("measurement_units.id", ondelete="SET NULL"), index=True
+    )
+    sort_order: Mapped[int | None] = mapped_column(Integer)
+    parent: Mapped["MeasurementUnit | None"] = relationship(
+        remote_side="MeasurementUnit.id", backref="children"
+    )
+
+    def full_path(self) -> str:
+        parts: list[str] = []
+        current: MeasurementUnit | None = self
+        seen: set[int] = set()
+        while current and current.id not in seen:
+            parts.append(current.name)
+            seen.add(current.id)
+            current = current.parent
+        return " / ".join(reversed(parts))
+
+
+Index(
+    "ix_measurement_units_parent_name_active_unique",
+    MeasurementUnit.parent_id,
+    MeasurementUnit.name,
+    unique=True,
+    postgresql_where=(MeasurementUnit.is_deleted == False),
+)
+
+
 class EquipmentType(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     __tablename__ = "equipment_types"
 

@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 const tabs = [
   { labelKey: "menu.manufacturers", to: "/dictionaries/manufacturers" },
   { labelKey: "menu.locations", to: "/dictionaries/locations" },
+  { labelKey: "menu.measurement_units", to: "/dictionaries/measurement-units" },
   { labelKey: "menu.equipment_categories", to: "/dictionaries/equipment-categories" },
   { labelKey: "menu.nomenclature", to: "/dictionaries/equipment-types" }
 ];

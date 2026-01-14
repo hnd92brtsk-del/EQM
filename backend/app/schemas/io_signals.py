@@ -32,6 +32,8 @@ class IOSignalOut(EntityBase, SoftDeleteFields):
     terminal_connection: str | None = None
     sensor_range: str | None = None
     engineering_units: str | None = None
+    measurement_unit_id: int | None = None
+    measurement_unit_full_path: str | None = None
 
 
 class IOSignalCreate(BaseModel):
@@ -44,6 +46,7 @@ class IOSignalCreate(BaseModel):
     terminal_connection: str | None = Field(default=None, max_length=100)
     sensor_range: str | None = Field(default=None, max_length=100)
     engineering_units: str | None = Field(default=None, max_length=50)
+    measurement_unit_id: int | None = None
 
 
 class IOSignalUpdate(BaseModel):
@@ -55,4 +58,5 @@ class IOSignalUpdate(BaseModel):
     terminal_connection: str | None = Field(default=None, max_length=100)
     sensor_range: str | None = Field(default=None, max_length=100)
     engineering_units: str | None = Field(default=None, max_length=50)
+    measurement_unit_id: int | None = None
     is_deleted: bool | None = None

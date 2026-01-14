@@ -56,5 +56,9 @@ class IOSignal(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     terminal_connection: Mapped[str | None] = mapped_column(String(100))
     sensor_range: Mapped[str | None] = mapped_column(String(100))
     engineering_units: Mapped[str | None] = mapped_column(String(50))
+    measurement_unit_id: Mapped[int | None] = mapped_column(
+        ForeignKey("measurement_units.id", ondelete="SET NULL"), index=True
+    )
 
     cabinet_component: Mapped["CabinetItem"] = relationship()
+    measurement_unit: Mapped["MeasurementUnit | None"] = relationship()

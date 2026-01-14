@@ -3,6 +3,7 @@ from app.models.sessions import UserSession
 from app.models.core import (
     Manufacturer,
     Location,
+    MeasurementUnit,
     EquipmentCategory,
     EquipmentType,
     Warehouse,
@@ -25,6 +26,7 @@ __all__ = [
     "UserSession",
     "Manufacturer",
     "Location",
+    "MeasurementUnit",
     "EquipmentCategory",
     "EquipmentType",
     "Warehouse",
