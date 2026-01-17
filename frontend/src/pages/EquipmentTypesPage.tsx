@@ -72,6 +72,20 @@ const serialPortOptions = [
 ];
 const legacyNetworkPortValues = new Set(["RS-485", "RS-232"]);
 
+const formatSerialPorts = (ports: SerialPort[] | null | undefined, enabled: boolean) => {
+  if (!enabled || !Array.isArray(ports) || ports.length === 0) {
+    return "-";
+  }
+  const formatted = ports
+    .filter((item) => item?.type)
+    .map((item) => {
+      const count = Number(item.count ?? 0);
+      return count > 0 ? `${item.type}×${count}` : item.type;
+    })
+    .filter(Boolean);
+  return formatted.length ? formatted.join(", ") : "-";
+};
+
 export default function EquipmentTypesPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -286,7 +300,8 @@ export default function EquipmentTypesPage() {
       },
       {
         header: t("pagesUi.equipmentTypes.fields.hasSerialInterfaces"),
-        cell: ({ row }) => (row.original.has_serial_interfaces ? t("common.yes") : t("common.no"))
+        cell: ({ row }) =>
+          formatSerialPorts(row.original.serial_ports, row.original.has_serial_interfaces)
       },
       {
         header: t("common.fields.priceRub"),
