@@ -103,6 +103,7 @@ class EquipmentType(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
+    article: Mapped[str | None] = mapped_column(String(100))
     nomenclature_number: Mapped[str] = mapped_column(String(100), nullable=False)
     manufacturer_id: Mapped[int] = mapped_column(
         ForeignKey("manufacturers.id"), index=True, nullable=False
@@ -118,6 +119,8 @@ class EquipmentType(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     do_count: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)
     is_network: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
     network_ports: Mapped[list[dict] | None] = mapped_column(JSONB)
+    has_serial_interfaces: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    serial_ports: Mapped[list[dict]] = mapped_column(JSONB, server_default="[]", nullable=False)
     meta_data: Mapped[dict | None] = mapped_column(JSONB)
 
     manufacturer: Mapped[Manufacturer] = relationship()

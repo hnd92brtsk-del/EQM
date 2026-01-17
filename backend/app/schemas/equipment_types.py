@@ -3,16 +3,40 @@ from typing import Optional, Dict, Any, Literal
 from app.schemas.common import EntityBase, SoftDeleteFields
 
 
-NetworkPortType = Literal["RJ-45 (8p8c)", "LC", "SC", "FC", "ST", "RS-485", "RS-232"]
+NETWORK_PORT_TYPES = ("RJ-45 (8p8c)", "LC", "SC", "FC", "ST")
+NETWORK_PORT_TYPES_WITH_LEGACY = (*NETWORK_PORT_TYPES, "RS-485", "RS-232")
+SERIAL_PORT_TYPES = ("RS-485", "RS-232", "RS-485(DB-9)", "COM")
+
+NetworkPortTypeOut = Literal[
+    "RJ-45 (8p8c)",
+    "LC",
+    "SC",
+    "FC",
+    "ST",
+    "RS-485",
+    "RS-232",
+]
+SerialPortType = Literal["RS-485", "RS-232", "RS-485(DB-9)", "COM"]
 
 
-class NetworkPort(BaseModel):
-    type: NetworkPortType
+class NetworkPortOut(BaseModel):
+    type: NetworkPortTypeOut
+    count: int = Field(default=0, ge=0)
+
+
+class NetworkPortIn(BaseModel):
+    type: str
+    count: int = Field(default=0, ge=0)
+
+
+class SerialPort(BaseModel):
+    type: SerialPortType
     count: int = Field(default=0, ge=0)
 
 
 class EquipmentTypeOut(EntityBase, SoftDeleteFields):
     name: str
+    article: str | None = None
     nomenclature_number: str
     manufacturer_id: int
     equipment_category_id: int | None = None
@@ -23,13 +47,16 @@ class EquipmentTypeOut(EntityBase, SoftDeleteFields):
     ao_count: int
     do_count: int
     is_network: bool
-    network_ports: list[NetworkPort] | None = None
+    network_ports: list[NetworkPortOut] | None = None
+    has_serial_interfaces: bool
+    serial_ports: list[SerialPort]
     unit_price_rub: float | None = None
     meta_data: Optional[Dict[str, Any]] = None
 
 
 class EquipmentTypeCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
+    article: str | None = None
     nomenclature_number: str = Field(min_length=1, max_length=100)
     manufacturer_id: int
     equipment_category_id: int | None = None
@@ -40,13 +67,16 @@ class EquipmentTypeCreate(BaseModel):
     ao_count: int = Field(default=0, ge=0)
     do_count: int = Field(default=0, ge=0)
     is_network: bool = False
-    network_ports: list[NetworkPort] | None = None
+    network_ports: list[NetworkPortIn] | None = None
+    has_serial_interfaces: bool = False
+    serial_ports: list[SerialPort] = Field(default_factory=list)
     unit_price_rub: float | None = Field(default=None, ge=0)
     meta_data: Optional[Dict[str, Any]] = None
 
 
 class EquipmentTypeUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
+    article: str | None = None
     manufacturer_id: int | None = None
     equipment_category_id: int | None = None
     is_channel_forming: bool | None = None
@@ -56,7 +86,9 @@ class EquipmentTypeUpdate(BaseModel):
     ao_count: int | None = Field(default=None, ge=0)
     do_count: int | None = Field(default=None, ge=0)
     is_network: bool | None = None
-    network_ports: list[NetworkPort] | None = None
+    network_ports: list[NetworkPortIn] | None = None
+    has_serial_interfaces: bool | None = None
+    serial_ports: list[SerialPort] | None = None
     unit_price_rub: float | None = Field(default=None, ge=0)
     meta_data: Optional[Dict[str, Any]] = None
     is_deleted: bool | None = None

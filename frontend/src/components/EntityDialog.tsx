@@ -16,13 +16,19 @@ import {
 } from "@mui/material";
 import { AppButton } from "./ui/AppButton";
 
-export type FieldOption = { label: string; value: number | string };
+export type FieldOption = { label: string; value: number | string; disabled?: boolean };
 
 export type FieldConfig = {
   name: string;
   label: string;
   type: "text" | "number" | "select" | "checkbox" | "ports";
   options?: FieldOption[];
+  portsLabels?: {
+    title?: string;
+    add?: string;
+    portType?: string;
+    count?: string;
+  };
   visibleWhen?: (values: Record<string, any>) => boolean;
   disabledWhen?: (values: Record<string, any>) => boolean;
   onChange?: (value: any, values: Record<string, any>) => Record<string, any> | void;
@@ -76,7 +82,7 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
                     <em>{t("actions.notSelected")}</em>
                   </MenuItem>
                   {field.options?.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
+                    <MenuItem key={option.value} value={option.value} disabled={option.disabled}>
                       {option.label}
                     </MenuItem>
                   ))}
@@ -103,18 +109,22 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
 
           if (field.type === "ports") {
             const ports = Array.isArray(values[field.name]) ? values[field.name] : [];
+            const portTypeLabel = field.portsLabels?.portType || t("common.fields.portType");
+            const portCountLabel = field.portsLabels?.count || t("common.fields.portCount");
+            const portsTitle = field.portsLabels?.title || field.label;
+            const addLabel = field.portsLabels?.add || t("actions.add");
             return (
               <Box key={field.name} sx={{ display: "grid", gap: 1 }}>
-                <Box sx={{ fontWeight: 600 }}>{field.label}</Box>
+                <Box sx={{ fontWeight: 600 }}>{portsTitle}</Box>
                 {ports.map((item: any, index: number) => (
                   <Box
                     key={`${field.name}-${index}`}
                     sx={{ display: "grid", gap: 1, gridTemplateColumns: "1fr 120px auto" }}
                   >
                     <FormControl fullWidth>
-                      <InputLabel>{t("common.fields.portType")}</InputLabel>
+                      <InputLabel>{portTypeLabel}</InputLabel>
                       <Select
-                        label={t("common.fields.portType")}
+                        label={portTypeLabel}
                         value={item?.type ?? ""}
                         onChange={(event) => {
                           const next = [...ports];
@@ -126,14 +136,14 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
                           <em>{t("actions.notSelected")}</em>
                         </MenuItem>
                         {field.options?.map((option) => (
-                          <MenuItem key={option.value} value={option.value}>
+                          <MenuItem key={option.value} value={option.value} disabled={option.disabled}>
                             {option.label}
                           </MenuItem>
                         ))}
                       </Select>
                     </FormControl>
                     <TextField
-                      label={t("common.fields.portCount")}
+                      label={portCountLabel}
                       type="number"
                       value={item?.count ?? 0}
                       onChange={(event) => {
@@ -167,7 +177,7 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
                     }))
                   }
                 >
-                  {t("actions.add")}
+                  {addLabel}
                 </AppButton>
               </Box>
             );

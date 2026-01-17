@@ -32,6 +32,7 @@ import { getTablePaginationProps } from "../components/tablePaginationI18n";
 type EquipmentType = {
   id: number;
   name: string;
+  article?: string | null;
   nomenclature_number: string;
   manufacturer_id: number;
   equipment_category_id?: number | null;
@@ -43,6 +44,8 @@ type EquipmentType = {
   do_count: number;
   is_network: boolean;
   network_ports?: { type: string; count: number }[] | null;
+  has_serial_interfaces: boolean;
+  serial_ports?: { type: string; count: number }[] | null;
   unit_price_rub?: number | null;
   is_deleted: boolean;
   created_at?: string;
@@ -51,6 +54,7 @@ type EquipmentType = {
 type Manufacturer = { id: number; name: string };
 type EquipmentCategory = { id: number; name: string };
 type NetworkPort = { type: string; count: number };
+type SerialPort = { type: string; count: number };
 
 const pageSizeOptions = [10, 20, 50, 100];
 const networkPortOptions = [
@@ -58,10 +62,15 @@ const networkPortOptions = [
   { label: "LC", value: "LC" },
   { label: "SC", value: "SC" },
   { label: "FC", value: "FC" },
-  { label: "ST", value: "ST" },
-  { label: "RS-485", value: "RS-485" },
-  { label: "RS-232", value: "RS-232" }
+  { label: "ST", value: "ST" }
 ];
+const serialPortOptions = [
+  { label: "RS-485", value: "RS-485" },
+  { label: "RS-232", value: "RS-232" },
+  { label: "RS-485(DB-9)", value: "RS-485(DB-9)" },
+  { label: "COM", value: "COM" }
+];
+const legacyNetworkPortValues = new Set(["RS-485", "RS-232"]);
 
 export default function EquipmentTypesPage() {
   const { t } = useTranslation();
@@ -78,6 +87,17 @@ export default function EquipmentTypesPage() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const buildNetworkPortOptions = (ports?: NetworkPort[] | null) => {
+    const options = [...networkPortOptions];
+    const legacy = new Set(
+      (ports || []).map((item) => item.type).filter((type) => legacyNetworkPortValues.has(type))
+    );
+    legacy.forEach((value) => {
+      options.push({ label: value, value, disabled: true });
+    });
+    return options;
+  };
 
   const sortOptions = useMemo(
     () => [
@@ -197,6 +217,10 @@ export default function EquipmentTypesPage() {
   const columns = useMemo<ColumnDef<EquipmentType>[]>(() => {
     const base: ColumnDef<EquipmentType>[] = [
       { header: t("common.fields.name"), accessorKey: "name" },
+      {
+        header: t("pagesUi.equipmentTypes.fields.article"),
+        cell: ({ row }) => row.original.article || "-"
+      },
       { header: t("common.fields.nomenclature"), accessorKey: "nomenclature_number" },
       {
         header: t("common.fields.manufacturer"),
@@ -261,6 +285,10 @@ export default function EquipmentTypesPage() {
         }
       },
       {
+        header: t("pagesUi.equipmentTypes.fields.hasSerialInterfaces"),
+        cell: ({ row }) => (row.original.has_serial_interfaces ? t("common.yes") : t("common.no"))
+      },
+      {
         header: t("common.fields.priceRub"),
         cell: ({ row }) =>
           row.original.unit_price_rub === null || row.original.unit_price_rub === undefined
@@ -292,6 +320,7 @@ export default function EquipmentTypesPage() {
                   fields: [
                     { name: "name", label: t("common.fields.name"), type: "text" },
                     { name: "nomenclature_number", label: t("common.fields.nomenclature"), type: "text" },
+                    { name: "article", label: t("pagesUi.equipmentTypes.fields.article"), type: "text" },
                     {
                       name: "manufacturer_id",
                       label: t("common.fields.manufacturer"),
@@ -350,13 +379,40 @@ export default function EquipmentTypesPage() {
                       name: "network_ports",
                       label: t("common.fields.portsInterfaces"),
                       type: "ports",
-                      options: networkPortOptions,
+                      options: buildNetworkPortOptions(row.original.network_ports),
                       visibleWhen: (values) => Boolean(values.is_network)
+                    },
+                    {
+                      name: "has_serial_interfaces",
+                      label: t("pagesUi.equipmentTypes.fields.hasSerialInterfaces"),
+                      type: "checkbox"
+                    },
+                    {
+                      name: "serial_ports",
+                      label: t("pagesUi.equipmentTypes.serialPorts.title"),
+                      type: "ports",
+                      options: serialPortOptions,
+                      visibleWhen: (values) => Boolean(values.has_serial_interfaces),
+                      portsLabels: {
+                        title: t("pagesUi.equipmentTypes.serialPorts.title"),
+                        add: t("pagesUi.equipmentTypes.serialPorts.add"),
+                        portType: t("pagesUi.equipmentTypes.serialPorts.portType"),
+                        count: t("pagesUi.equipmentTypes.serialPorts.count")
+                      }
                     },
                     { name: "unit_price_rub", label: t("common.fields.priceRub"), type: "number" }
                   ],
                   values: row.original,
                   onSave: (values) => {
+                    if (
+                      values.is_network &&
+                      (values.network_ports || []).some(
+                        (item: NetworkPort) => legacyNetworkPortValues.has(item?.type)
+                      )
+                    ) {
+                      setErrorMessage(t("pagesUi.equipmentTypes.validation.networkPortsDisallowSerial"));
+                      return;
+                    }
                     const manufacturerId =
                       values.manufacturer_id === "" || values.manufacturer_id === undefined
                         ? undefined
@@ -370,6 +426,7 @@ export default function EquipmentTypesPage() {
                       payload: {
                         name: values.name,
                         nomenclature_number: values.nomenclature_number,
+                        article: values.article || null,
                         manufacturer_id: manufacturerId,
                         equipment_category_id: equipmentCategoryId,
                         is_channel_forming: values.is_channel_forming,
@@ -386,6 +443,15 @@ export default function EquipmentTypesPage() {
                                 count: Number(item.count || 0)
                               }))
                           : undefined,
+                        has_serial_interfaces: values.has_serial_interfaces,
+                        serial_ports: values.has_serial_interfaces
+                          ? (values.serial_ports || [])
+                              .filter((item: SerialPort) => item?.type)
+                              .map((item: SerialPort) => ({
+                                type: item.type,
+                                count: Number(item.count || 0)
+                              }))
+                          : [],
                         unit_price_rub: values.unit_price_rub === "" ? undefined : values.unit_price_rub
                       }
                     });
@@ -523,6 +589,7 @@ export default function EquipmentTypesPage() {
                     fields: [
                       { name: "name", label: t("common.fields.name"), type: "text" },
                       { name: "nomenclature_number", label: t("common.fields.nomenclature"), type: "text" },
+                      { name: "article", label: t("pagesUi.equipmentTypes.fields.article"), type: "text" },
                       {
                         name: "manufacturer_id",
                         label: t("common.fields.manufacturer"),
@@ -584,10 +651,29 @@ export default function EquipmentTypesPage() {
                         options: networkPortOptions,
                         visibleWhen: (values) => Boolean(values.is_network)
                       },
+                      {
+                        name: "has_serial_interfaces",
+                        label: t("pagesUi.equipmentTypes.fields.hasSerialInterfaces"),
+                        type: "checkbox"
+                      },
+                      {
+                        name: "serial_ports",
+                        label: t("pagesUi.equipmentTypes.serialPorts.title"),
+                        type: "ports",
+                        options: serialPortOptions,
+                        visibleWhen: (values) => Boolean(values.has_serial_interfaces),
+                        portsLabels: {
+                          title: t("pagesUi.equipmentTypes.serialPorts.title"),
+                          add: t("pagesUi.equipmentTypes.serialPorts.add"),
+                          portType: t("pagesUi.equipmentTypes.serialPorts.portType"),
+                          count: t("pagesUi.equipmentTypes.serialPorts.count")
+                        }
+                      },
                       { name: "unit_price_rub", label: t("common.fields.priceRub"), type: "number" }
                     ],
                     values: {
                       name: "",
+                      article: "",
                       nomenclature_number: "",
                       manufacturer_id: "",
                       equipment_category_id: "",
@@ -598,10 +684,21 @@ export default function EquipmentTypesPage() {
                       do_count: 0,
                       is_network: false,
                       network_ports: [],
+                      has_serial_interfaces: false,
+                      serial_ports: [],
                       unit_price_rub: ""
                     },
                     onSave: (values) => {
                       try {
+                        if (
+                          values.is_network &&
+                          (values.network_ports || []).some(
+                            (item: NetworkPort) => legacyNetworkPortValues.has(item?.type)
+                          )
+                        ) {
+                          setErrorMessage(t("pagesUi.equipmentTypes.validation.networkPortsDisallowSerial"));
+                          return;
+                        }
                         const manufacturerId =
                           values.manufacturer_id === "" || values.manufacturer_id === undefined
                             ? undefined
@@ -614,6 +711,7 @@ export default function EquipmentTypesPage() {
                         createMutation.mutate({
                           name: values.name,
                           nomenclature_number: values.nomenclature_number,
+                          article: values.article || null,
                           manufacturer_id: manufacturerId,
                           equipment_category_id: equipmentCategoryId,
                           is_channel_forming: values.is_channel_forming,
@@ -630,6 +728,15 @@ export default function EquipmentTypesPage() {
                                   count: Number(item.count || 0)
                                 }))
                             : undefined,
+                          has_serial_interfaces: values.has_serial_interfaces,
+                          serial_ports: values.has_serial_interfaces
+                            ? (values.serial_ports || [])
+                                .filter((item: SerialPort) => item?.type)
+                                .map((item: SerialPort) => ({
+                                  type: item.type,
+                                  count: Number(item.count || 0)
+                                }))
+                            : [],
                           unit_price_rub: values.unit_price_rub === "" ? undefined : values.unit_price_rub
                         });
                         setDialog(null);

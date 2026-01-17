@@ -9,7 +9,13 @@ from app.core.audit import add_audit_log, model_to_dict
 from app.models.core import EquipmentType, Manufacturer, EquipmentCategory
 from app.models.security import User
 from app.schemas.common import Pagination
-from app.schemas.equipment_types import EquipmentTypeOut, EquipmentTypeCreate, EquipmentTypeUpdate
+from app.schemas.equipment_types import (
+    EquipmentTypeOut,
+    EquipmentTypeCreate,
+    EquipmentTypeUpdate,
+    NETWORK_PORT_TYPES,
+    NETWORK_PORT_TYPES_WITH_LEGACY,
+)
 
 router = APIRouter()
 
@@ -33,6 +39,31 @@ def normalize_network_ports(payload: EquipmentTypeCreate | EquipmentTypeUpdate):
     if not payload.network_ports:
         return None
     return [item.model_dump() if hasattr(item, "model_dump") else item for item in payload.network_ports]
+
+def normalize_serial_ports(payload: EquipmentTypeCreate | EquipmentTypeUpdate):
+    if not payload.serial_ports:
+        return []
+    return [item.model_dump() if hasattr(item, "model_dump") else item for item in payload.serial_ports]
+
+def validate_network_ports(payload: EquipmentTypeCreate | EquipmentTypeUpdate):
+    if not payload.network_ports:
+        return
+    invalid = {
+        item.type
+        for item in payload.network_ports
+        if item.type not in NETWORK_PORT_TYPES_WITH_LEGACY
+    }
+    if invalid:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported network port type: {', '.join(sorted(invalid))}",
+        )
+    disallowed = {item.type for item in payload.network_ports if item.type not in NETWORK_PORT_TYPES}
+    if disallowed:
+        raise HTTPException(
+            status_code=400,
+            detail="RS-485 и RS-232 нельзя добавлять как сетевые порты. Используйте \"Последовательные интерфейсы\".",
+        )
 
 def merge_unit_price(meta_data: dict | None, unit_price_rub: float | None, fields_set: set[str] | None) -> dict | None:
     result = dict(meta_data or {})
@@ -99,6 +130,7 @@ def create_equipment_type(
     db=Depends(get_db),
     current_user: User = Depends(require_write_access()),
 ):
+    validate_network_ports(payload)
     manufacturer = db.scalar(
         select(Manufacturer).where(Manufacturer.id == payload.manufacturer_id, Manufacturer.is_deleted == False)
     )
@@ -126,6 +158,7 @@ def create_equipment_type(
 
     equipment = EquipmentType(
         name=payload.name,
+        article=payload.article,
         nomenclature_number=payload.nomenclature_number,
         manufacturer_id=payload.manufacturer_id,
         equipment_category_id=payload.equipment_category_id,
@@ -137,6 +170,8 @@ def create_equipment_type(
         do_count=payload.do_count,
         is_network=payload.is_network,
         network_ports=normalize_network_ports(payload) if payload.is_network else None,
+        has_serial_interfaces=payload.has_serial_interfaces,
+        serial_ports=normalize_serial_ports(payload) if payload.has_serial_interfaces else [],
         meta_data=merge_unit_price(payload.meta_data, payload.unit_price_rub, None),
     )
     db.add(equipment)
@@ -164,6 +199,7 @@ def update_equipment_type(
     db=Depends(get_db),
     current_user: User = Depends(require_write_access()),
 ):
+    validate_network_ports(payload)
     equipment = db.scalar(select(EquipmentType).where(EquipmentType.id == equipment_type_id))
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment type not found")
@@ -172,6 +208,8 @@ def update_equipment_type(
 
     if payload.name is not None:
         equipment.name = payload.name
+    if "article" in payload.__fields_set__:
+        equipment.article = payload.article
     if payload.manufacturer_id is not None:
         manufacturer = db.scalar(
             select(Manufacturer).where(Manufacturer.id == payload.manufacturer_id, Manufacturer.is_deleted == False)
@@ -212,6 +250,12 @@ def update_equipment_type(
             equipment.network_ports = None
     if payload.network_ports is not None and payload.is_network is not False:
         equipment.network_ports = normalize_network_ports(payload)
+    if payload.has_serial_interfaces is not None:
+        equipment.has_serial_interfaces = payload.has_serial_interfaces
+        if not payload.has_serial_interfaces:
+            equipment.serial_ports = []
+    if payload.serial_ports is not None and payload.has_serial_interfaces is not False:
+        equipment.serial_ports = normalize_serial_ports(payload)
     if any(
         value is not None
         for value in (payload.ai_count, payload.di_count, payload.ao_count, payload.do_count)

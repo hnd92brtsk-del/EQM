@@ -303,9 +303,22 @@
         "delete": "Failed to delete equipment type",
         "restore": "Failed to restore equipment type"
       },
+      "fields": {
+        "article": "Article",
+        "hasSerialInterfaces": "Serial interfaces"
+      },
       "columns": {
         "channels": "Channels",
         "channelsDetailed": "AI/DI/AO/DO"
+      },
+      "serialPorts": {
+        "title": "Serial interfaces",
+        "add": "Add interface",
+        "portType": "Port type",
+        "count": "Count"
+      },
+      "validation": {
+        "networkPortsDisallowSerial": "RS-485 and RS-232 cannot be added as network ports. Use \"Serial interfaces\"."
       },
       "channelsWithCount": "Yes ({{count}})",
       "dialogs": {
