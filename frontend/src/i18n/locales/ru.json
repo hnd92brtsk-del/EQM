@@ -219,7 +219,9 @@
       "channelForming": "Каналообразующее",
       "channelCount": "Количество каналов",
       "isNetwork": "Сетевое",
-      "portsInterfaces": "Порты/Интерфейсы",
+      "portsInterfaces": "Сетевые интерфейсы",
+      "photo": "Фото",
+      "datasheet": "Datasheet",
       "portType": "Тип порта",
       "portCount": "Количество",
       "priceRub": "Цена, руб.",
@@ -257,7 +259,10 @@
     "no_attachment": "Нет вложения.",
     "attachment_upload_failed": "Не удалось загрузить вложение.",
     "attachment_download_failed": "Не удалось скачать вложение.",
-    "photo_upload_failed": "Не удалось загрузить фото."
+    "photo_upload_failed": "Не удалось загрузить фото.",
+    "fileTooLarge": "Файл слишком большой.",
+    "invalidFormat": "Недопустимый формат.",
+    "downloadFailed": "Не удалось скачать."
   },
   "roles": {
     "admin": "Администратор",
@@ -326,6 +331,10 @@
       "dialogs": {
         "editTitle": "Тип оборудования",
         "createTitle": "Новый тип оборудования"
+      },
+      "actions": {
+        "uploadPhoto": "Загрузить фото",
+        "uploadDatasheet": "Загрузить datasheet"
       }
     },
     "auditLogs": {

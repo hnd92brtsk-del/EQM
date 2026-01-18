@@ -52,6 +52,9 @@ class EquipmentTypeOut(EntityBase, SoftDeleteFields):
     serial_ports: list[SerialPort]
     unit_price_rub: float | None = None
     meta_data: Optional[Dict[str, Any]] = None
+    photo_url: str | None = None
+    datasheet_url: str | None = None
+    datasheet_name: str | None = None
 
 
 class EquipmentTypeCreate(BaseModel):

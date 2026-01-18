@@ -42,8 +42,26 @@ class WarehouseItem(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
         return self.equipment_type.manufacturer.name
 
     @property
-    def unit_price_rub(self) -> float | None:
-        return self.equipment_type.unit_price_rub if self.equipment_type else None
+    def unit_price_rub(self) -> float | None:
+        return self.equipment_type.unit_price_rub if self.equipment_type else None
+
+    @property
+    def equipment_type_photo_url(self) -> str | None:
+        if not self.equipment_type:
+            return None
+        return self.equipment_type.photo_url
+
+    @property
+    def equipment_type_datasheet_url(self) -> str | None:
+        if not self.equipment_type:
+            return None
+        return self.equipment_type.datasheet_url
+
+    @property
+    def equipment_type_datasheet_name(self) -> str | None:
+        if not self.equipment_type:
+            return None
+        return self.equipment_type.datasheet_name
 
 
 class CabinetItem(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):

@@ -155,6 +155,11 @@ class EquipmentType(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     has_serial_interfaces: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
     serial_ports: Mapped[list[dict]] = mapped_column(JSONB, server_default="[]", nullable=False)
     meta_data: Mapped[dict | None] = mapped_column(JSONB)
+    photo_filename: Mapped[str | None] = mapped_column(String(255))
+    photo_mime: Mapped[str | None] = mapped_column(String(100))
+    datasheet_filename: Mapped[str | None] = mapped_column(String(255))
+    datasheet_mime: Mapped[str | None] = mapped_column(String(100))
+    datasheet_original_name: Mapped[str | None] = mapped_column(String(255))
 
     manufacturer: Mapped[Manufacturer] = relationship()
     equipment_category: Mapped[EquipmentCategory | None] = relationship(
@@ -172,6 +177,22 @@ class EquipmentType(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
             return float(value)
         except (TypeError, ValueError):
             return None
+
+    @property
+    def photo_url(self) -> str | None:
+        if not self.photo_filename:
+            return None
+        return f"/equipment-types/{self.id}/photo"
+
+    @property
+    def datasheet_url(self) -> str | None:
+        if not self.datasheet_filename:
+            return None
+        return f"/equipment-types/{self.id}/datasheet"
+
+    @property
+    def datasheet_name(self) -> str | None:
+        return self.datasheet_original_name
 
 
 Index(

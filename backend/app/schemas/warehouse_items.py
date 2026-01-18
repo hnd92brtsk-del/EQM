@@ -11,6 +11,9 @@ class WarehouseItemOut(EntityBase, SoftDeleteFields):
     equipment_category_name: str | None = None
     manufacturer_name: str | None = None
     unit_price_rub: float | None = None
+    equipment_type_photo_url: str | None = None
+    equipment_type_datasheet_url: str | None = None
+    equipment_type_datasheet_name: str | None = None
 
 
 class WarehouseItemCreate(BaseModel):

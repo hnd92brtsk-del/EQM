@@ -216,7 +216,9 @@
       "channelForming": "Channel forming",
       "channelCount": "Channel count",
       "isNetwork": "Network",
-      "portsInterfaces": "Ports / Interfaces",
+      "portsInterfaces": "Network interfaces",
+      "photo": "Photo",
+      "datasheet": "Datasheet",
       "portType": "Port type",
       "portCount": "Count",
       "priceRub": "Price, RUB",
@@ -257,7 +259,10 @@
     "no_attachment": "No attachment available.",
     "attachment_upload_failed": "Failed to upload attachment.",
     "attachment_download_failed": "Failed to download attachment.",
-    "photo_upload_failed": "Failed to upload photo."
+    "photo_upload_failed": "Failed to upload photo.",
+    "fileTooLarge": "File is too large.",
+    "invalidFormat": "Invalid file format.",
+    "downloadFailed": "Failed to download."
   },
   "roles": {
     "admin": "Admin",
@@ -326,6 +331,10 @@
       "dialogs": {
         "editTitle": "Equipment type",
         "createTitle": "New equipment type"
+      },
+      "actions": {
+        "uploadPhoto": "Upload photo",
+        "uploadDatasheet": "Upload datasheet"
       }
     },
     "auditLogs": {

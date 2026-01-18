@@ -60,6 +60,9 @@ def list_equipment_in_operation(
             EquipmentType.name.label("equipment_type_name"),
             EquipmentType.article.label("equipment_type_article"),
             EquipmentType.nomenclature_number.label("equipment_type_inventory_number"),
+            EquipmentType.photo_filename.label("equipment_type_photo_filename"),
+            EquipmentType.datasheet_filename.label("equipment_type_datasheet_filename"),
+            EquipmentType.datasheet_original_name.label("equipment_type_datasheet_name"),
             EquipmentType.network_ports.label("network_ports"),
             EquipmentType.serial_ports.label("serial_ports"),
             EquipmentType.is_channel_forming.label("is_channel_forming"),
@@ -96,6 +99,9 @@ def list_equipment_in_operation(
             EquipmentType.name.label("equipment_type_name"),
             EquipmentType.article.label("equipment_type_article"),
             EquipmentType.nomenclature_number.label("equipment_type_inventory_number"),
+            EquipmentType.photo_filename.label("equipment_type_photo_filename"),
+            EquipmentType.datasheet_filename.label("equipment_type_datasheet_filename"),
+            EquipmentType.datasheet_original_name.label("equipment_type_datasheet_name"),
             EquipmentType.network_ports.label("network_ports"),
             EquipmentType.serial_ports.label("serial_ports"),
             EquipmentType.is_channel_forming.label("is_channel_forming"),
@@ -201,6 +207,19 @@ def list_equipment_in_operation(
     items: list[dict] = []
     for row in rows:
         data = dict(row._mapping)
+        equipment_type_id = data.get("equipment_type_id")
+        photo_filename = data.pop("equipment_type_photo_filename", None)
+        datasheet_filename = data.pop("equipment_type_datasheet_filename", None)
+        datasheet_name = data.pop("equipment_type_datasheet_name", None)
+        data["equipment_type_photo_url"] = (
+            f"/equipment-types/{equipment_type_id}/photo" if equipment_type_id and photo_filename else None
+        )
+        if equipment_type_id and datasheet_filename:
+            data["equipment_type_datasheet_url"] = f"/equipment-types/{equipment_type_id}/datasheet"
+            data["equipment_type_datasheet_name"] = datasheet_name
+        else:
+            data["equipment_type_datasheet_url"] = None
+            data["equipment_type_datasheet_name"] = None
         data["location_full_path"] = build_location_full_path(data.get("location_id"), locations_map)
         data.pop("location_id", None)
         items.append(data)

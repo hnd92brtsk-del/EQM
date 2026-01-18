@@ -15,6 +15,10 @@ import {
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import PictureAsPdfRoundedIcon from "@mui/icons-material/PictureAsPdfRounded";
+import TableChartRoundedIcon from "@mui/icons-material/TableChartRounded";
+import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
+import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -27,8 +31,25 @@ import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } f
 import { useAuth } from "../context/AuthContext";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
+import { ProtectedImage } from "../components/ProtectedImage";
+import { ProtectedDownloadLink } from "../components/ProtectedDownloadLink";
 
 const pageSizeOptions = [10, 20, 50, 100];
+
+const getFileIcon = (filename?: string | null) => {
+  const ext = filename?.split(".").pop()?.toLowerCase() || "";
+  switch (ext) {
+    case "pdf":
+      return <PictureAsPdfRoundedIcon fontSize="small" />;
+    case "xlsx":
+      return <TableChartRoundedIcon fontSize="small" />;
+    case "doc":
+    case "docx":
+      return <DescriptionRoundedIcon fontSize="small" />;
+    default:
+      return <InsertDriveFileOutlinedIcon fontSize="small" />;
+  }
+};
 
 type WarehouseItem = {
   id: number;
@@ -43,6 +64,9 @@ type WarehouseItem = {
   equipment_category_name?: string | null;
   manufacturer_name?: string | null;
   unit_price_rub?: number | null;
+  equipment_type_photo_url?: string | null;
+  equipment_type_datasheet_url?: string | null;
+  equipment_type_datasheet_name?: string | null;
 };
 
 type Warehouse = { id: number; name: string };
@@ -438,10 +462,35 @@ export default function WarehouseItemsPage() {
     const base: ColumnDef<WarehouseItem>[] = [
       {
         header: t("common.fields.equipment"),
-        cell: ({ row }) =>
-          row.original.equipment_type_name ||
-          equipmentMap.get(row.original.equipment_type_id) ||
-          row.original.equipment_type_id
+        cell: ({ row }) => {
+          const name =
+            row.original.equipment_type_name ||
+            equipmentMap.get(row.original.equipment_type_id) ||
+            row.original.equipment_type_id;
+          return (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <ProtectedImage
+                url={row.original.equipment_type_photo_url || null}
+                alt={String(name)}
+                width={28}
+                height={28}
+                fallback={null}
+              />
+              <span>{name}</span>
+            </Box>
+          );
+        }
+      },
+      {
+        header: t("common.fields.datasheet"),
+        cell: ({ row }) => (
+          <ProtectedDownloadLink
+            url={row.original.equipment_type_datasheet_url || null}
+            filename={row.original.equipment_type_datasheet_name}
+            icon={getFileIcon(row.original.equipment_type_datasheet_name)}
+            size="small"
+          />
+        )
       },
       { header: t("common.fields.quantity"), accessorKey: "quantity" },
       {

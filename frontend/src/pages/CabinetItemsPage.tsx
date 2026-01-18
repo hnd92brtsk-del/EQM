@@ -26,6 +26,10 @@ import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
+import PictureAsPdfRoundedIcon from "@mui/icons-material/PictureAsPdfRounded";
+import TableChartRoundedIcon from "@mui/icons-material/TableChartRounded";
+import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
+import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
@@ -36,6 +40,8 @@ import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
+import { ProtectedImage } from "../components/ProtectedImage";
+import { ProtectedDownloadLink } from "../components/ProtectedDownloadLink";
 
 const pageSizeOptions = [10, 20, 50, 100];
 
@@ -81,6 +87,21 @@ const formatSerialPorts = (
   return formatted.length ? formatted.join(", ") : "-";
 };
 
+const getFileIcon = (filename?: string | null) => {
+  const ext = filename?.split(".").pop()?.toLowerCase() || "";
+  switch (ext) {
+    case "pdf":
+      return <PictureAsPdfRoundedIcon fontSize="small" />;
+    case "xlsx":
+      return <TableChartRoundedIcon fontSize="small" />;
+    case "doc":
+    case "docx":
+      return <DescriptionRoundedIcon fontSize="small" />;
+    default:
+      return <InsertDriveFileOutlinedIcon fontSize="small" />;
+  }
+};
+
 type EquipmentInOperationItem = {
   id: number;
   source: "cabinet" | "assembly";
@@ -94,6 +115,9 @@ type EquipmentInOperationItem = {
   equipment_type_name?: string | null;
   equipment_type_article?: string | null;
   equipment_type_inventory_number?: string | null;
+  equipment_type_photo_url?: string | null;
+  equipment_type_datasheet_url?: string | null;
+  equipment_type_datasheet_name?: string | null;
   network_ports?: { type: string; count: number }[] | null;
   serial_ports?: { type: string; count: number }[] | null;
   is_channel_forming?: boolean;
@@ -128,6 +152,9 @@ type EquipmentGroup = {
   manufacturer_name: string;
   article: string;
   inventory_number: string;
+  photo_url?: string | null;
+  datasheet_url?: string | null;
+  datasheet_name?: string | null;
   network_ports?: { type: string; count: number }[] | null;
   serial_ports?: { type: string; count: number }[] | null;
   is_channel_forming?: boolean;
@@ -527,6 +554,9 @@ export default function CabinetItemsPage() {
             manufacturer_name: manufacturerName,
             article: item.equipment_type_article || "-",
             inventory_number: item.equipment_type_inventory_number || "-",
+            photo_url: item.equipment_type_photo_url || null,
+            datasheet_url: item.equipment_type_datasheet_url || null,
+            datasheet_name: item.equipment_type_datasheet_name || null,
             network_ports: item.network_ports,
             serial_ports: item.serial_ports,
             is_channel_forming: item.is_channel_forming,
@@ -813,12 +843,19 @@ export default function CabinetItemsPage() {
                               sx={{
                                 display: "grid",
                                 gridTemplateColumns:
-                                  "minmax(220px, 2fr) minmax(160px, 1fr) minmax(140px, 1fr) minmax(160px, 1fr) minmax(80px, 0.5fr) auto",
+                                  "48px minmax(220px, 2fr) minmax(160px, 1fr) minmax(140px, 1fr) minmax(160px, 1fr) minmax(80px, 0.5fr) auto",
                                 gap: 2,
                                 alignItems: "center",
                                 width: "100%"
                               }}
                             >
+                              <ProtectedImage
+                                url={group.photo_url || null}
+                                alt={group.equipment_type_name}
+                                width={32}
+                                height={32}
+                                fallback={null}
+                              />
                               <Typography>{group.equipment_type_name}</Typography>
                               <Typography variant="body2" color="text.secondary">
                                 {group.manufacturer_name || "-"}
@@ -966,6 +1003,17 @@ export default function CabinetItemsPage() {
                                   <InfoRow
                                     label={t("pagesUi.equipmentTypes.fields.hasSerialInterfaces")}
                                     value={formatSerialPorts(group.serial_ports)}
+                                  />
+                                  <InfoRow
+                                    label={t("common.fields.datasheet")}
+                                    value={
+                                      <ProtectedDownloadLink
+                                        url={group.datasheet_url || null}
+                                        filename={group.datasheet_name}
+                                        icon={getFileIcon(group.datasheet_name)}
+                                        size="small"
+                                      />
+                                    }
                                   />
                                   {group.is_channel_forming ? (
                                     <InfoRow

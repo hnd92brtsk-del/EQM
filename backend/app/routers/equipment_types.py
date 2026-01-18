@@ -1,11 +1,13 @@
 ﻿from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 
 from app.core.dependencies import get_db, require_read_access, require_write_access
 from app.core.pagination import paginate
 from app.core.query import apply_search, apply_sort, apply_date_filters
 from app.core.audit import add_audit_log, model_to_dict
+from app.core.file_storage import save_upload, get_storage_dir
 from app.models.core import EquipmentType, Manufacturer, EquipmentCategory
 from app.models.security import User
 from app.schemas.common import Pagination
@@ -190,6 +192,92 @@ def create_equipment_type(
     db.commit()
     db.refresh(equipment)
     return equipment
+
+
+@router.post("/{equipment_type_id}/photo", response_model=EquipmentTypeOut)
+def upload_equipment_type_photo(
+    equipment_type_id: int,
+    file: UploadFile = File(...),
+    db=Depends(get_db),
+    current_user: User = Depends(require_write_access()),
+):
+    equipment = db.scalar(select(EquipmentType).where(EquipmentType.id == equipment_type_id))
+    if not equipment:
+        raise HTTPException(status_code=404, detail="Equipment type not found")
+
+    stored = save_upload(file, "photo")
+    if equipment.photo_filename:
+        old_path = get_storage_dir("photo") / equipment.photo_filename
+        old_path.unlink(missing_ok=True)
+
+    equipment.photo_filename = stored.filename
+    equipment.photo_mime = stored.mime
+    db.commit()
+    db.refresh(equipment)
+    return equipment
+
+
+@router.post("/{equipment_type_id}/datasheet", response_model=EquipmentTypeOut)
+def upload_equipment_type_datasheet(
+    equipment_type_id: int,
+    file: UploadFile = File(...),
+    db=Depends(get_db),
+    current_user: User = Depends(require_write_access()),
+):
+    equipment = db.scalar(select(EquipmentType).where(EquipmentType.id == equipment_type_id))
+    if not equipment:
+        raise HTTPException(status_code=404, detail="Equipment type not found")
+
+    stored = save_upload(file, "datasheet")
+    if equipment.datasheet_filename:
+        old_path = get_storage_dir("datasheet") / equipment.datasheet_filename
+        old_path.unlink(missing_ok=True)
+
+    equipment.datasheet_filename = stored.filename
+    equipment.datasheet_mime = stored.mime
+    equipment.datasheet_original_name = stored.original_name
+    db.commit()
+    db.refresh(equipment)
+    return equipment
+
+
+@router.get("/{equipment_type_id}/photo")
+def download_equipment_type_photo(
+    equipment_type_id: int,
+    db=Depends(get_db),
+    user: User = Depends(require_read_access()),
+):
+    equipment = db.scalar(select(EquipmentType).where(EquipmentType.id == equipment_type_id))
+    if not equipment or not equipment.photo_filename:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    file_path = get_storage_dir("photo") / equipment.photo_filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Photo not found")
+    return FileResponse(
+        path=str(file_path),
+        media_type=equipment.photo_mime or "application/octet-stream",
+        headers={"Content-Disposition": f'inline; filename="{equipment.photo_filename}"'},
+    )
+
+
+@router.get("/{equipment_type_id}/datasheet")
+def download_equipment_type_datasheet(
+    equipment_type_id: int,
+    db=Depends(get_db),
+    user: User = Depends(require_read_access()),
+):
+    equipment = db.scalar(select(EquipmentType).where(EquipmentType.id == equipment_type_id))
+    if not equipment or not equipment.datasheet_filename:
+        raise HTTPException(status_code=404, detail="Datasheet not found")
+    file_path = get_storage_dir("datasheet") / equipment.datasheet_filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Datasheet not found")
+    filename = equipment.datasheet_original_name or "datasheet"
+    return FileResponse(
+        path=str(file_path),
+        media_type=equipment.datasheet_mime or "application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.patch("/{equipment_type_id}", response_model=EquipmentTypeOut)

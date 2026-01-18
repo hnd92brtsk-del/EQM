@@ -17,6 +17,10 @@ import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import PictureAsPdfRoundedIcon from "@mui/icons-material/PictureAsPdfRounded";
+import TableChartRoundedIcon from "@mui/icons-material/TableChartRounded";
+import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
+import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -25,9 +29,12 @@ import { DataTable } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
+import { uploadEquipmentTypeDatasheet, uploadEquipmentTypePhoto } from "../api/equipmentTypeMedia";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
+import { ProtectedImage } from "../components/ProtectedImage";
+import { ProtectedDownloadLink } from "../components/ProtectedDownloadLink";
 
 type EquipmentType = {
   id: number;
@@ -47,6 +54,9 @@ type EquipmentType = {
   has_serial_interfaces: boolean;
   serial_ports?: { type: string; count: number }[] | null;
   unit_price_rub?: number | null;
+  photo_url?: string | null;
+  datasheet_url?: string | null;
+  datasheet_name?: string | null;
   is_deleted: boolean;
   created_at?: string;
 };
@@ -71,6 +81,25 @@ const serialPortOptions = [
   { label: "COM", value: "COM" }
 ];
 const legacyNetworkPortValues = new Set(["RS-485", "RS-232"]);
+const photoExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+const datasheetExtensions = [".pdf", ".xlsx", ".doc", ".docx"];
+const maxPhotoSize = 500 * 1024;
+const maxDatasheetSize = 5 * 1024 * 1024;
+
+const getFileIcon = (filename?: string | null) => {
+  const ext = filename?.split(".").pop()?.toLowerCase() || "";
+  switch (ext) {
+    case "pdf":
+      return <PictureAsPdfRoundedIcon fontSize="small" />;
+    case "xlsx":
+      return <TableChartRoundedIcon fontSize="small" />;
+    case "doc":
+    case "docx":
+      return <DescriptionRoundedIcon fontSize="small" />;
+    default:
+      return <InsertDriveFileOutlinedIcon fontSize="small" />;
+  }
+};
 
 const formatSerialPorts = (ports: SerialPort[] | null | undefined, enabled: boolean) => {
   if (!enabled || !Array.isArray(ports) || ports.length === 0) {
@@ -101,6 +130,26 @@ export default function EquipmentTypesPage() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [datasheetFile, setDatasheetFile] = useState<File | null>(null);
+
+  const validateFile = (file: File, maxSize: number, allowedExts: string[]) => {
+    const extension = `.${file.name.split(".").pop()?.toLowerCase() || ""}`;
+    if (!allowedExts.includes(extension)) {
+      setErrorMessage(t("errors.invalidFormat"));
+      return false;
+    }
+    if (file.size > maxSize) {
+      setErrorMessage(t("errors.fileTooLarge"));
+      return false;
+    }
+    return true;
+  };
+
+  const resetMediaFiles = () => {
+    setPhotoFile(null);
+    setDatasheetFile(null);
+  };
 
   const buildNetworkPortOptions = (ports?: NetworkPort[] | null) => {
     const options = [...networkPortOptions];
@@ -199,19 +248,91 @@ export default function EquipmentTypesPage() {
     queryClient.invalidateQueries({ queryKey: ["equipment-categories-options"] });
   };
 
+  const handleDialogClose = () => {
+    setDialog(null);
+    resetMediaFiles();
+  };
+
+  const uploadMedia = async (equipmentId: number) => {
+    if (photoFile) {
+      await uploadEquipmentTypePhoto(equipmentId, photoFile);
+    }
+    if (datasheetFile) {
+      await uploadEquipmentTypeDatasheet(equipmentId, datasheetFile);
+    }
+  };
+
+  const saveEquipmentType = async (payload: Partial<EquipmentType>, equipmentId?: number) => {
+    const fallbackMessage = equipmentId
+      ? t("pagesUi.equipmentTypes.errors.update")
+      : t("pagesUi.equipmentTypes.errors.create");
+    try {
+      const result = equipmentId
+        ? await updateMutation.mutateAsync({ id: equipmentId, payload })
+        : await createMutation.mutateAsync(payload);
+      const targetId = equipmentId ?? result.id;
+      if (photoFile || datasheetFile) {
+        await uploadMedia(targetId);
+      }
+      refresh();
+      handleDialogClose();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : fallbackMessage);
+    }
+  };
+
+  const renderMediaInputs = () => (
+    <Box sx={{ display: "grid", gap: 1 }}>
+      <Typography variant="subtitle2">{t("common.fields.photo")}</Typography>
+      <AppButton component="label" size="small">
+        {t("pagesUi.equipmentTypes.actions.uploadPhoto")}
+        <input
+          hidden
+          type="file"
+          accept={photoExtensions.join(",")}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file && validateFile(file, maxPhotoSize, photoExtensions)) {
+              setPhotoFile(file);
+            }
+          }}
+        />
+      </AppButton>
+      {photoFile ? (
+        <Typography variant="caption" color="text.secondary">
+          {photoFile.name}
+        </Typography>
+      ) : null}
+      <Typography variant="subtitle2">{t("common.fields.datasheet")}</Typography>
+      <AppButton component="label" size="small">
+        {t("pagesUi.equipmentTypes.actions.uploadDatasheet")}
+        <input
+          hidden
+          type="file"
+          accept={datasheetExtensions.join(",")}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file && validateFile(file, maxDatasheetSize, datasheetExtensions)) {
+              setDatasheetFile(file);
+            }
+          }}
+        />
+      </AppButton>
+      {datasheetFile ? (
+        <Typography variant="caption" color="text.secondary">
+          {datasheetFile.name}
+        </Typography>
+      ) : null}
+    </Box>
+  );
+
   const createMutation = useMutation({
-    mutationFn: (payload: Partial<EquipmentType>) => createEntity("/equipment-types", payload),
-    onSuccess: refresh,
-    onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.equipmentTypes.errors.create"))
+    mutationFn: (payload: Partial<EquipmentType>) => createEntity<EquipmentType>("/equipment-types", payload)
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: Partial<EquipmentType> }) =>
-      updateEntity("/equipment-types", id, payload),
-    onSuccess: refresh,
-    onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.equipmentTypes.errors.update"))
+      updateEntity<EquipmentType>("/equipment-types", id, payload)
   });
 
   const deleteMutation = useMutation({
@@ -231,6 +352,29 @@ export default function EquipmentTypesPage() {
   const columns = useMemo<ColumnDef<EquipmentType>[]>(() => {
     const base: ColumnDef<EquipmentType>[] = [
       { header: t("common.fields.name"), accessorKey: "name" },
+      {
+        header: t("common.fields.photo"),
+        cell: ({ row }) => (
+          <ProtectedImage
+            url={row.original.photo_url || null}
+            alt={row.original.name}
+            width={36}
+            height={36}
+            fallback="-"
+          />
+        )
+      },
+      {
+        header: t("common.fields.datasheet"),
+        cell: ({ row }) => (
+          <ProtectedDownloadLink
+            url={row.original.datasheet_url || null}
+            filename={row.original.datasheet_name}
+            icon={getFileIcon(row.original.datasheet_name)}
+            size="small"
+          />
+        )
+      },
       {
         header: t("pagesUi.equipmentTypes.fields.article"),
         cell: ({ row }) => row.original.article || "-"
@@ -309,14 +453,6 @@ export default function EquipmentTypesPage() {
           row.original.unit_price_rub === null || row.original.unit_price_rub === undefined
             ? "-"
             : row.original.unit_price_rub
-      },
-      {
-        header: t("common.status.label"),
-        cell: ({ row }) => (
-          <span className="status-pill">
-            {row.original.is_deleted ? t("common.status.deleted") : t("common.status.active")}
-          </span>
-        )
       }
     ];
 
@@ -328,7 +464,8 @@ export default function EquipmentTypesPage() {
             <AppButton
               size="small"
               startIcon={<EditRoundedIcon />}
-              onClick={() =>
+              onClick={() => {
+                resetMediaFiles();
                 setDialog({
                   open: true,
                   title: t("pagesUi.equipmentTypes.dialogs.editTitle"),
@@ -418,6 +555,7 @@ export default function EquipmentTypesPage() {
                     { name: "unit_price_rub", label: t("common.fields.priceRub"), type: "number" }
                   ],
                   values: row.original,
+                  renderExtra: renderMediaInputs,
                   onSave: (values) => {
                     if (
                       values.is_network &&
@@ -436,9 +574,8 @@ export default function EquipmentTypesPage() {
                       values.equipment_category_id === "" || values.equipment_category_id === undefined
                         ? undefined
                         : Number(values.equipment_category_id);
-                    updateMutation.mutate({
-                      id: row.original.id,
-                      payload: {
+                    saveEquipmentType(
+                      {
                         name: values.name,
                         nomenclature_number: values.nomenclature_number,
                         article: values.article || null,
@@ -468,12 +605,12 @@ export default function EquipmentTypesPage() {
                               }))
                           : [],
                         unit_price_rub: values.unit_price_rub === "" ? undefined : values.unit_price_rub
-                      }
-                    });
-                    setDialog(null);
+                      },
+                      row.original.id
+                    );
                   }
-                })
-              }
+                });
+              }}
             >
               {t("actions.edit")}
             </AppButton>
@@ -505,6 +642,9 @@ export default function EquipmentTypesPage() {
     manufacturerMap,
     manufacturersQuery.data?.items,
     restoreMutation,
+    renderMediaInputs,
+    resetMediaFiles,
+    saveEquipmentType,
     t,
     updateMutation
   ]);
@@ -597,7 +737,8 @@ export default function EquipmentTypesPage() {
               <AppButton
                 variant="contained"
                 startIcon={<AddRoundedIcon />}
-                onClick={() =>
+                onClick={() => {
+                  resetMediaFiles();
                   setDialog({
                     open: true,
                     title: t("pagesUi.equipmentTypes.dialogs.createTitle"),
@@ -703,6 +844,7 @@ export default function EquipmentTypesPage() {
                       serial_ports: [],
                       unit_price_rub: ""
                     },
+                    renderExtra: renderMediaInputs,
                     onSave: (values) => {
                       try {
                         if (
@@ -723,7 +865,7 @@ export default function EquipmentTypesPage() {
                           values.equipment_category_id === undefined
                             ? undefined
                             : Number(values.equipment_category_id);
-                        createMutation.mutate({
+                        saveEquipmentType({
                           name: values.name,
                           nomenclature_number: values.nomenclature_number,
                           article: values.article || null,
@@ -754,7 +896,6 @@ export default function EquipmentTypesPage() {
                             : [],
                           unit_price_rub: values.unit_price_rub === "" ? undefined : values.unit_price_rub
                         });
-                        setDialog(null);
                       } catch (error) {
                         setErrorMessage(
                           error instanceof Error
@@ -763,8 +904,8 @@ export default function EquipmentTypesPage() {
                         );
                       }
                     }
-                  })
-                }
+                  });
+                }}
               >
                 {t("actions.add")}
               </AppButton>
@@ -788,7 +929,7 @@ export default function EquipmentTypesPage() {
         </CardContent>
       </Card>
 
-      {dialog && <EntityDialog state={dialog} onClose={() => setDialog(null)} />}
+      {dialog && <EntityDialog state={dialog} onClose={handleDialogClose} />}
       <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage(null)} />
     </Box>
   );
