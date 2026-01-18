@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Accordion,
   AccordionDetails,
@@ -13,10 +13,10 @@ import {
   DialogTitle,
   FormControl,
   FormControlLabel,
+  Grid,
   InputLabel,
   MenuItem,
   Select,
-  Stack,
   Switch,
   TablePagination,
   TextField,
@@ -38,6 +38,19 @@ import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
 
 const pageSizeOptions = [10, 20, 50, 100];
+
+const InfoRow = ({ label, value }: { label: string; value?: ReactNode }) => {
+  const displayValue =
+    value === null || value === undefined || value === "" ? "-" : value;
+  return (
+    <Box sx={{ display: "grid" }}>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      <Typography variant="body2">{displayValue}</Typography>
+    </Box>
+  );
+};
 
 const formatNetworkPorts = (
   ports: { type: string; count: number }[] | null | undefined
@@ -62,7 +75,7 @@ const formatSerialPorts = (
     .filter((item) => item?.type)
     .map((item) => {
       const count = Number(item.count ?? 0);
-      return count > 0 ? `${item.type}ƒ-${count}` : item.type;
+      return count > 0 ? `${item.type}-${count}` : item.type;
     })
     .filter(Boolean);
   return formatted.length ? formatted.join(", ") : "-";
@@ -100,6 +113,11 @@ type EquipmentType = {
   is_channel_forming: boolean;
   is_network: boolean;
   has_serial_interfaces: boolean;
+  channel_count?: number | null;
+  ai_count?: number | null;
+  di_count?: number | null;
+  ao_count?: number | null;
+  do_count?: number | null;
 };
 type Manufacturer = { id: number; name: string };
 
@@ -764,6 +782,25 @@ export default function CabinetItemsPage() {
                   <Box sx={{ display: "grid", gap: 1 }}>
                     {container.equipmentGroups.map((group) => {
                       const singleItem = group.items.length === 1 ? group.items[0] : null;
+                      const equipmentDetails = equipmentFlagsMap.get(group.equipment_type_id);
+                      const channelCount =
+                        group.channel_count ?? equipmentDetails?.channel_count ?? null;
+                      const aiCount = equipmentDetails?.ai_count ?? 0;
+                      const diCount = equipmentDetails?.di_count ?? 0;
+                      const aoCount = equipmentDetails?.ao_count ?? 0;
+                      const doCount = equipmentDetails?.do_count ?? 0;
+                      const channelParts: string[] = [];
+                      if (channelCount) {
+                        channelParts.push(`${t("common.fields.channelCount")}: ${channelCount}`);
+                      }
+                      if (aiCount || diCount || aoCount || doCount) {
+                        channelParts.push(
+                          `AI ${aiCount} / DI ${diCount} / AO ${aoCount} / DO ${doCount}`
+                        );
+                      }
+                      const channelValue = channelParts.length
+                        ? `${t("common.yes")}, ${channelParts.join(", ")}`
+                        : t("common.yes");
                       return (
                         <Accordion
                           key={`${container.key}:${group.key}`}
@@ -881,84 +918,67 @@ export default function CabinetItemsPage() {
                             </Box>
                           </AccordionSummary>
                           <AccordionDetails>
-                            <Stack spacing={2}>
-                              <Stack spacing={1}>
-                                <Typography variant="subtitle2">
-                                  {t("pagesUi.cabinetItems.sections.fields")}
-                                </Typography>
+                            <Grid container spacing={2} alignItems="stretch">
+                              <Grid item xs={12} md={5}>
                                 <Box sx={{ display: "grid", gap: 1 }}>
-                                  <Box sx={{ display: "grid" }}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      {t("common.fields.manufacturer")}
-                                    </Typography>
-                                    <Typography variant="body2">
-                                      {group.manufacturer_name || "-"}
-                                    </Typography>
-                                  </Box>
-                                  <Box sx={{ display: "grid" }}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      {t("pagesUi.equipmentTypes.fields.article")}
-                                    </Typography>
-                                    <Typography variant="body2">{group.article || "-"}</Typography>
-                                  </Box>
-                                  <Box sx={{ display: "grid" }}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      {t("common.fields.nomenclature")}
-                                    </Typography>
-                                    <Typography variant="body2">{group.inventory_number || "-"}</Typography>
-                                  </Box>
-                                  <Box sx={{ display: "grid" }}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      {t("common.fields.quantity")}
-                                    </Typography>
-                                    <Typography variant="body2">
-                                      {group.quantity_sum}
-                                      {group.can_edit_quantity
-                                        ? ""
-                                        : ` (${t("pagesUi.cabinetItems.placeholders.quantityLocked")})`}
-                                    </Typography>
-                                  </Box>
+                                  <Typography variant="subtitle2">
+                                    {t("pagesUi.cabinetItems.sections.fields")}
+                                  </Typography>
+                                  <InfoRow
+                                    label={t("common.fields.manufacturer")}
+                                    value={group.manufacturer_name || "-"}
+                                  />
+                                  <InfoRow
+                                    label={t("pagesUi.equipmentTypes.fields.article")}
+                                    value={group.article || "-"}
+                                  />
+                                  <InfoRow
+                                    label={t("common.fields.nomenclature")}
+                                    value={group.inventory_number || "-"}
+                                  />
+                                  <InfoRow
+                                    label={t("common.fields.quantity")}
+                                    value={
+                                      group.can_edit_quantity
+                                        ? group.quantity_sum
+                                        : `${group.quantity_sum} (${t("pagesUi.cabinetItems.placeholders.quantityLocked")})`
+                                    }
+                                  />
                                 </Box>
-                              </Stack>
-                              <Divider />
-                              <Stack spacing={1}>
-                                <Typography variant="subtitle2">
-                                  {t("pagesUi.cabinetItems.sections.properties")}
-                                </Typography>
+                              </Grid>
+                              <Grid item xs={12} md="auto">
+                                <Divider sx={{ display: { xs: "block", md: "none" } }} />
+                                <Divider
+                                  orientation="vertical"
+                                  flexItem
+                                  sx={{ display: { xs: "none", md: "block" } }}
+                                />
+                              </Grid>
+                              <Grid item xs={12} md>
                                 <Box sx={{ display: "grid", gap: 1 }}>
-                                  <Box sx={{ display: "grid" }}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      {t("common.fields.portsInterfaces")}
-                                    </Typography>
-                                    <Typography variant="body2">
-                                      {formatNetworkPorts(group.network_ports)}
-                                    </Typography>
-                                  </Box>
-                                  <Box sx={{ display: "grid" }}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      {t("pagesUi.equipmentTypes.fields.hasSerialInterfaces")}
-                                    </Typography>
-                                    <Typography variant="body2">
-                                      {formatSerialPorts(group.serial_ports)}
-                                    </Typography>
-                                  </Box>
+                                  <Typography variant="subtitle2">
+                                    {t("pagesUi.cabinetItems.sections.properties")}
+                                  </Typography>
+                                  <InfoRow
+                                    label={t("common.fields.portsInterfaces")}
+                                    value={formatNetworkPorts(group.network_ports)}
+                                  />
+                                  <InfoRow
+                                    label={t("pagesUi.equipmentTypes.fields.hasSerialInterfaces")}
+                                    value={formatSerialPorts(group.serial_ports)}
+                                  />
                                   {group.is_channel_forming ? (
-                                    <Box sx={{ display: "grid" }}>
-                                      <Typography variant="caption" color="text.secondary">
-                                        {t("common.fields.channelForming")}
-                                      </Typography>
-                                      <Typography variant="body2">
-                                        {t("common.yes")}
-                                        {group.channel_count ? ` · ${t("common.fields.channelCount")}: ${group.channel_count}` : ""}
-                                      </Typography>
-                                    </Box>
+                                    <InfoRow
+                                      label={t("common.fields.channelForming")}
+                                      value={channelValue}
+                                    />
                                   ) : null}
                                 </Box>
-                              </Stack>
-                              <Typography variant="body2" color="text.secondary">
-                                {t("pagesUi.cabinetItems.placeholders.details")}
-                              </Typography>
-                            </Stack>
+                              </Grid>
+                            </Grid>
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 2 }}>
+                              {t("pagesUi.cabinetItems.placeholders.details")}
+                            </Typography>
                             {/* TODO: render item-level rows inside the equipment group. */}
                           </AccordionDetails>
                         </Accordion>
