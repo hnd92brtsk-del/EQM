@@ -1,6 +1,6 @@
 from datetime import datetime
 from fastapi import APIRouter, Depends
-from sqlalchemy import select, func, union_all, literal
+from sqlalchemy import select, func, union_all, literal, or_, not_
 
 from app.core.dependencies import get_db, require_read_access
 from app.models.operations import CabinetItem, AssemblyItem
@@ -53,9 +53,24 @@ def list_equipment_in_operation(
             literal("cabinet").label("source"),
             CabinetItem.cabinet_id.label("container_id"),
             Cabinet.name.label("container_name"),
+            Cabinet.factory_number.label("container_factory_number"),
+            Cabinet.nomenclature_number.label("container_inventory_number"),
             Cabinet.location_id.label("location_id"),
             CabinetItem.equipment_type_id.label("equipment_type_id"),
             EquipmentType.name.label("equipment_type_name"),
+            EquipmentType.article.label("equipment_type_article"),
+            EquipmentType.nomenclature_number.label("equipment_type_inventory_number"),
+            EquipmentType.network_ports.label("network_ports"),
+            EquipmentType.serial_ports.label("serial_ports"),
+            EquipmentType.is_channel_forming.label("is_channel_forming"),
+            EquipmentType.channel_count.label("channel_count"),
+            not_(
+                or_(
+                    EquipmentType.is_network == True,
+                    EquipmentType.is_channel_forming == True,
+                    EquipmentType.has_serial_interfaces == True,
+                )
+            ).label("can_edit_quantity"),
             Manufacturer.name.label("manufacturer_name"),
             CabinetItem.quantity.label("quantity"),
             CabinetItem.is_deleted.label("is_deleted"),
@@ -74,9 +89,24 @@ def list_equipment_in_operation(
             literal("assembly").label("source"),
             AssemblyItem.assembly_id.label("container_id"),
             Assembly.name.label("container_name"),
+            Assembly.factory_number.label("container_factory_number"),
+            Assembly.nomenclature_number.label("container_inventory_number"),
             Assembly.location_id.label("location_id"),
             AssemblyItem.equipment_type_id.label("equipment_type_id"),
             EquipmentType.name.label("equipment_type_name"),
+            EquipmentType.article.label("equipment_type_article"),
+            EquipmentType.nomenclature_number.label("equipment_type_inventory_number"),
+            EquipmentType.network_ports.label("network_ports"),
+            EquipmentType.serial_ports.label("serial_ports"),
+            EquipmentType.is_channel_forming.label("is_channel_forming"),
+            EquipmentType.channel_count.label("channel_count"),
+            not_(
+                or_(
+                    EquipmentType.is_network == True,
+                    EquipmentType.is_channel_forming == True,
+                    EquipmentType.has_serial_interfaces == True,
+                )
+            ).label("can_edit_quantity"),
             Manufacturer.name.label("manufacturer_name"),
             AssemblyItem.quantity.label("quantity"),
             AssemblyItem.is_deleted.label("is_deleted"),

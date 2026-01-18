@@ -1,4 +1,4 @@
-{
+﻿{
   "app": {
     "title": "EQM",
     "greeting": "Hi, {{name}}"
@@ -162,7 +162,8 @@
     "help": "Help",
     "personnel": "Personnel",
     "chat": "Chatbot",
-    "measurement_units": "Measurement units"
+    "measurement_units": "Measurement units",
+    "signal_types": "Signal types"
   },
   "chat": {
     "title": "Chatbot",
@@ -206,7 +207,7 @@
     "fields": {
       "name": "Name",
       "factoryNumber": "Factory number",
-      "nomenclatureNumber": "Cabinet nomenclature number",
+      "nomenclatureNumber": "Inventory number",
       "files": "Files",
       "location": "Location",
       "manufacturer": "Manufacturer",
@@ -225,6 +226,7 @@
       "country": "Country",
       "parent": "Parent",
       "cabinet": "Cabinet",
+      "assembly": "Assembly",
       "cabinetAssembly": "Cabinet/Assembly",
       "equipment": "Equipment",
       "quantity": "Quantity",
@@ -543,6 +545,14 @@
       },
       "actions": {
         "addFinished": "Add finished"
+      },
+      "placeholders": {
+        "quantityLocked": "Quantity is fixed = 1",
+        "details": "Details will be added later."
+      },
+      "sections": {
+        "fields": "Fields",
+        "properties": "Properties"
       }
     },
     "warehouseItems": {
@@ -787,6 +797,24 @@
         "update": "Failed to update measurement unit",
         "delete": "Failed to delete measurement unit",
         "restore": "Failed to restore measurement unit"
+      }
+    },
+    "signalTypes": {
+      "title": "Signal types",
+      "dialogs": {
+        "createTitle": "New signal type",
+        "editTitle": "Edit signal type"
+      },
+      "actions": {
+        "addChild": "Add type",
+        "addRoot": "Add root"
+      },
+      "errors": {
+        "load": "Failed to load signal types",
+        "create": "Failed to create signal type",
+        "update": "Failed to update signal type",
+        "delete": "Failed to delete signal type",
+        "restore": "Failed to restore signal type"
       }
     }
   }

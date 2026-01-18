@@ -98,6 +98,39 @@ Index(
 )
 
 
+class SignalTypeDictionary(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
+    __tablename__ = "signal_types"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    parent_id: Mapped[int | None] = mapped_column(
+        ForeignKey("signal_types.id", ondelete="SET NULL"), index=True
+    )
+    sort_order: Mapped[int | None] = mapped_column(Integer)
+    parent: Mapped["SignalTypeDictionary | None"] = relationship(
+        remote_side="SignalTypeDictionary.id", backref="children"
+    )
+
+    def full_path(self) -> str:
+        parts: list[str] = []
+        current: SignalTypeDictionary | None = self
+        seen: set[int] = set()
+        while current and current.id not in seen:
+            parts.append(current.name)
+            seen.add(current.id)
+            current = current.parent
+        return " / ".join(reversed(parts))
+
+
+Index(
+    "ix_signal_types_parent_name_active_unique",
+    SignalTypeDictionary.parent_id,
+    SignalTypeDictionary.name,
+    unique=True,
+    postgresql_where=(SignalTypeDictionary.is_deleted == False),
+)
+
+
 class EquipmentType(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     __tablename__ = "equipment_types"
 

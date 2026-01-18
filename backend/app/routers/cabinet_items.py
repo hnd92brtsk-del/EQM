@@ -15,6 +15,11 @@ from app.schemas.cabinet_items import CabinetItemOut, CabinetItemCreate, Cabinet
 
 router = APIRouter()
 
+def should_force_quantity_one(equipment: EquipmentType) -> bool:
+    return bool(
+        equipment.is_network or equipment.is_channel_forming or equipment.has_serial_interfaces
+    )
+
 
 def build_location_full_path(location_id: int | None, locations_map: dict[int, Location]) -> str | None:
     if not location_id or location_id not in locations_map:
@@ -134,6 +139,7 @@ def create_cabinet_item(
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment type not found")
 
+    quantity = 1 if should_force_quantity_one(equipment) else payload.quantity
     item = db.scalar(
         select(CabinetItem).where(
             CabinetItem.cabinet_id == payload.cabinet_id,
@@ -144,7 +150,7 @@ def create_cabinet_item(
     before = None
     if item:
         before = model_to_dict(item)
-        item.quantity = payload.quantity
+        item.quantity = quantity
         item.is_deleted = False
         item.deleted_at = None
         item.deleted_by_id = None
@@ -153,7 +159,7 @@ def create_cabinet_item(
         item = CabinetItem(
             cabinet_id=payload.cabinet_id,
             equipment_type_id=payload.equipment_type_id,
-            quantity=payload.quantity,
+            quantity=quantity,
         )
         db.add(item)
     db.flush()
@@ -185,9 +191,13 @@ def update_cabinet_item(
     if not item:
         raise HTTPException(status_code=404, detail="Cabinet item not found")
 
+    equipment = db.scalar(select(EquipmentType).where(EquipmentType.id == item.equipment_type_id))
+    if not equipment:
+        raise HTTPException(status_code=404, detail="Equipment type not found")
+
     before = model_to_dict(item)
     if payload.quantity is not None:
-        item.quantity = payload.quantity
+        item.quantity = 1 if should_force_quantity_one(equipment) else payload.quantity
 
     add_audit_log(
         db,

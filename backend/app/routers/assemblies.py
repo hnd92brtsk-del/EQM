@@ -102,6 +102,8 @@ def create_assembly(
 
     assembly = Assembly(
         name=payload.name,
+        factory_number=payload.factory_number,
+        nomenclature_number=payload.nomenclature_number,
         location_id=payload.location_id,
         meta_data=payload.meta_data,
     )
@@ -140,6 +142,10 @@ def update_assembly(
 
     if payload.name is not None:
         assembly.name = payload.name
+    if payload.factory_number is not None:
+        assembly.factory_number = payload.factory_number
+    if payload.nomenclature_number is not None:
+        assembly.nomenclature_number = payload.nomenclature_number
     if "location_id" in data:
         if data["location_id"]:
             location = db.scalar(

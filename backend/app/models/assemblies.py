@@ -11,6 +11,8 @@ class Assembly(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
+    factory_number: Mapped[str | None] = mapped_column(String(100))
+    nomenclature_number: Mapped[str | None] = mapped_column(String(100))
     location_id: Mapped[int | None] = mapped_column(
         ForeignKey("locations.id", ondelete="SET NULL"), index=True
     )

@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Box,Card,
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Box,
+  Card,
   CardContent,
+  Divider,
   Dialog,
   DialogActions,
   DialogContent,
@@ -11,6 +16,7 @@ import {
   InputLabel,
   MenuItem,
   Select,
+  Stack,
   Switch,
   TablePagination,
   TextField,
@@ -19,11 +25,10 @@ import {
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
-import { ColumnDef } from "@tanstack/react-table";
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { DataTable } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
@@ -34,17 +39,56 @@ import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
 
 const pageSizeOptions = [10, 20, 50, 100];
 
+const formatNetworkPorts = (
+  ports: { type: string; count: number }[] | null | undefined
+): string => {
+  if (!Array.isArray(ports) || ports.length === 0) {
+    return "-";
+  }
+  const formatted = ports
+    .filter((item) => item?.type)
+    .map((item) => `${item.type}[${item.count ?? 0}]`)
+    .filter(Boolean);
+  return formatted.length ? formatted.join(", ") : "-";
+};
+
+const formatSerialPorts = (
+  ports: { type: string; count: number }[] | null | undefined
+): string => {
+  if (!Array.isArray(ports) || ports.length === 0) {
+    return "-";
+  }
+  const formatted = ports
+    .filter((item) => item?.type)
+    .map((item) => {
+      const count = Number(item.count ?? 0);
+      return count > 0 ? `${item.type}ƒ-${count}` : item.type;
+    })
+    .filter(Boolean);
+  return formatted.length ? formatted.join(", ") : "-";
+};
+
 type EquipmentInOperationItem = {
   id: number;
   source: "cabinet" | "assembly";
   container_id: number;
   container_name: string;
+  container_factory_number?: string | null;
+  container_inventory_number?: string | null;
   equipment_type_id: number;
   quantity: number;
   is_deleted: boolean;
   equipment_type_name?: string | null;
+  equipment_type_article?: string | null;
+  equipment_type_inventory_number?: string | null;
+  network_ports?: { type: string; count: number }[] | null;
+  serial_ports?: { type: string; count: number }[] | null;
+  is_channel_forming?: boolean;
+  channel_count?: number | null;
+  can_edit_quantity?: boolean;
   manufacturer_name?: string | null;
   location_full_path?: string | null;
+  created_at?: string;
 };
 
 type Cabinet = { id: number; name: string };
@@ -55,8 +99,43 @@ type EquipmentType = {
   name: string;
   is_channel_forming: boolean;
   is_network: boolean;
+  has_serial_interfaces: boolean;
 };
 type Manufacturer = { id: number; name: string };
+
+type EquipmentGroup = {
+  key: string;
+  equipment_type_id: number;
+  equipment_type_name: string;
+  manufacturer_name: string;
+  article: string;
+  inventory_number: string;
+  network_ports?: { type: string; count: number }[] | null;
+  serial_ports?: { type: string; count: number }[] | null;
+  is_channel_forming?: boolean;
+  channel_count?: number | null;
+  can_edit_quantity: boolean;
+  quantity_sum: number;
+  items: EquipmentInOperationItem[];
+};
+
+type ContainerGroup = {
+  key: string;
+  container_id: number;
+  container_name: string;
+  container_type: EquipmentInOperationItem["source"];
+  container_type_label: string;
+  factory_number: string;
+  inventory_number: string;
+  location_full_path: string;
+  items: EquipmentInOperationItem[];
+  equipmentGroups: EquipmentGroup[];
+  created_at_min: number;
+  created_at_max: number;
+  quantity_sum: number;
+  equipment_name_sort: string;
+  manufacturer_name_sort: string;
+};
 
 export default function CabinetItemsPage() {
   const { t, i18n } = useTranslation();
@@ -262,7 +341,9 @@ export default function CabinetItemsPage() {
   const shouldForceQtyOne = (values: Record<string, any>) => {
     const equipmentId = Number(values.equipment_type_id);
     const equipment = equipmentFlagsMap.get(equipmentId);
-    return Boolean(equipment?.is_channel_forming || equipment?.is_network);
+    return Boolean(
+      equipment?.is_channel_forming || equipment?.is_network || equipment?.has_serial_interfaces
+    );
   };
 
   const openAddFinishedDialog = () => {
@@ -281,7 +362,11 @@ export default function CabinetItemsPage() {
             })) || [],
           onChange: (value) => {
             const equipment = equipmentFlagsMap.get(Number(value));
-            if (equipment?.is_channel_forming || equipment?.is_network) {
+            if (
+              equipment?.is_channel_forming ||
+              equipment?.is_network ||
+              equipment?.has_serial_interfaces
+            ) {
               return { quantity: 1 };
             }
             return {};
@@ -337,67 +422,166 @@ export default function CabinetItemsPage() {
     });
   };
 
-  const columns = useMemo<ColumnDef<EquipmentInOperationItem>[]>(() => {
-    const base: ColumnDef<EquipmentInOperationItem>[] = [
-      {
-        header: t("common.fields.equipment"),
-        cell: ({ row }) =>
-          row.original.equipment_type_name ||
-          equipmentMap.get(row.original.equipment_type_id) ||
-          row.original.equipment_type_id
-      },
-      { header: t("common.fields.quantity"), accessorKey: "quantity" },
-      {
-        header: t("common.fields.cabinetAssembly"),
-        cell: ({ row }) => row.original.container_name || "-"
-      },
-      {
-        header: t("common.fields.location"),
-        cell: ({ row }) => row.original.location_full_path || "-"
-      },
-      {
-        header: t("common.fields.manufacturer"),
-        cell: ({ row }) => row.original.manufacturer_name || "-"
+  const containerGroups = useMemo<ContainerGroup[]>(() => {
+    const items = itemsQuery.data?.items || [];
+    const containerMap = new Map<string, ContainerGroup>();
+
+    items.forEach((item) => {
+      const containerKey = `${item.source}:${item.container_id}`;
+      const createdAtMs = item.created_at ? new Date(item.created_at).getTime() : 0;
+      const equipmentName =
+        item.equipment_type_name ||
+        equipmentMap.get(item.equipment_type_id) ||
+        String(item.equipment_type_id);
+      const manufacturerName = item.manufacturer_name || "-";
+      let group = containerMap.get(containerKey);
+
+      if (!group) {
+        group = {
+          key: containerKey,
+          container_id: item.container_id,
+          container_name: item.container_name || "-",
+          container_type: item.source,
+          container_type_label:
+            item.source === "assembly"
+              ? t("common.fields.assembly")
+              : t("common.fields.cabinet"),
+          factory_number: item.container_factory_number || "-",
+          inventory_number: item.container_inventory_number || "-",
+          location_full_path: item.location_full_path || "-",
+          items: [],
+          equipmentGroups: [],
+          created_at_min: createdAtMs,
+          created_at_max: createdAtMs,
+          quantity_sum: 0,
+          equipment_name_sort: equipmentName,
+          manufacturer_name_sort: manufacturerName
+        };
+        containerMap.set(containerKey, group);
       }
-    ];
 
-    if (canWrite) {
-      base.push({
-        header: t("actions.actions"),
-        cell: ({ row }) => (
-          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <AppButton
-              size="small"
-              startIcon={<EditRoundedIcon />}
-              onClick={() => {
-                setEditItem(row.original);
-                setEditQuantity(row.original.quantity);
-                setEditOpen(true);
-              }}
-            >
-              {t("actions.edit")}
-            </AppButton>
-            <AppButton
-              size="small"
-              color={row.original.is_deleted ? "success" : "error"}
-              startIcon={
-                row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />
-              }
-              onClick={() =>
-                row.original.is_deleted
-                  ? restoreMutation.mutate({ id: row.original.id, source: row.original.source })
-                  : deleteMutation.mutate({ id: row.original.id, source: row.original.source })
-              }
-            >
-              {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
-            </AppButton>
-          </Box>
-        )
+      group.items.push(item);
+      group.quantity_sum += item.quantity || 0;
+      if (createdAtMs) {
+        group.created_at_min = Math.min(group.created_at_min, createdAtMs);
+        group.created_at_max = Math.max(group.created_at_max, createdAtMs);
+      }
+      if (equipmentName && group.equipment_name_sort) {
+        if (equipmentName.localeCompare(group.equipment_name_sort, i18n.language) < 0) {
+          group.equipment_name_sort = equipmentName;
+        }
+      }
+      if (manufacturerName && group.manufacturer_name_sort) {
+        if (manufacturerName.localeCompare(group.manufacturer_name_sort, i18n.language) < 0) {
+          group.manufacturer_name_sort = manufacturerName;
+        }
+      }
+      if (item.location_full_path) {
+        group.location_full_path = item.location_full_path;
+      }
+      if (item.container_factory_number) {
+        group.factory_number = item.container_factory_number;
+      }
+      if (item.container_inventory_number) {
+        group.inventory_number = item.container_inventory_number;
+      }
+    });
+
+    const containers = Array.from(containerMap.values());
+
+    containers.forEach((container) => {
+      const equipmentGroupsMap = new Map<string, EquipmentGroup>();
+
+      container.items.forEach((item) => {
+        const equipmentName =
+          item.equipment_type_name ||
+          equipmentMap.get(item.equipment_type_id) ||
+          String(item.equipment_type_id);
+        const manufacturerName = item.manufacturer_name || "-";
+        const groupKey = String(item.equipment_type_id || equipmentName);
+        let equipmentGroup = equipmentGroupsMap.get(groupKey);
+
+        if (!equipmentGroup) {
+          equipmentGroup = {
+            key: groupKey,
+            equipment_type_id: item.equipment_type_id,
+            equipment_type_name: equipmentName,
+            manufacturer_name: manufacturerName,
+            article: item.equipment_type_article || "-",
+            inventory_number: item.equipment_type_inventory_number || "-",
+            network_ports: item.network_ports,
+            serial_ports: item.serial_ports,
+            is_channel_forming: item.is_channel_forming,
+            channel_count: item.channel_count ?? null,
+            can_edit_quantity: item.can_edit_quantity ?? true,
+            quantity_sum: 0,
+            items: []
+          };
+          equipmentGroupsMap.set(groupKey, equipmentGroup);
+        }
+
+        equipmentGroup.can_edit_quantity =
+          equipmentGroup.can_edit_quantity && (item.can_edit_quantity ?? true);
+        if (item.is_channel_forming) {
+          equipmentGroup.is_channel_forming = true;
+        }
+        if (item.channel_count !== undefined && item.channel_count !== null) {
+          equipmentGroup.channel_count = item.channel_count;
+        }
+        equipmentGroup.quantity_sum += item.quantity || 0;
+        equipmentGroup.items.push(item);
       });
-    }
 
-    return base;
-  }, [canWrite, deleteMutation, equipmentMap, restoreMutation, t, i18n.language]);
+      container.equipmentGroups = Array.from(equipmentGroupsMap.values()).sort((a, b) =>
+        a.equipment_type_name.localeCompare(b.equipment_type_name, i18n.language)
+      );
+    });
+
+    const sortField = sort.startsWith("-") ? sort.slice(1) : sort;
+    const sortDirection = sort.startsWith("-") ? -1 : 1;
+
+    containers.sort((a, b) => {
+      if (sortField === "quantity") {
+        return sortDirection * (a.quantity_sum - b.quantity_sum);
+      }
+      if (sortField === "equipment_type_name") {
+        return (
+          sortDirection *
+          (a.equipment_name_sort || "").localeCompare(b.equipment_name_sort || "", i18n.language)
+        );
+      }
+      if (sortField === "manufacturer_name") {
+        return (
+          sortDirection *
+          (a.manufacturer_name_sort || "").localeCompare(
+            b.manufacturer_name_sort || "",
+            i18n.language
+          )
+        );
+      }
+
+      const aDate =
+        sortDirection < 0 ? a.created_at_max || a.created_at_min : a.created_at_min || a.created_at_max;
+      const bDate =
+        sortDirection < 0 ? b.created_at_max || b.created_at_min : b.created_at_min || b.created_at_max;
+      return sortDirection * (aDate - bDate);
+    });
+
+    return containers;
+  }, [equipmentMap, i18n.language, itemsQuery.data?.items, sort, t]);
+
+  const totalContainers = containerGroups.length;
+  const pagedContainers = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return containerGroups.slice(start, start + pageSize);
+  }, [containerGroups, page, pageSize]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(totalContainers / pageSize));
+    if (page > maxPage) {
+      setPage(1);
+    }
+  }, [page, pageSize, totalContainers]);
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
@@ -534,11 +718,271 @@ export default function CabinetItemsPage() {
             )}
           </Box>
 
-          <DataTable data={itemsQuery.data?.items || []} columns={columns} />
+          <Box sx={{ display: "grid", gap: 1 }}>
+            {pagedContainers.map((container) => (
+              <Accordion key={container.key} disableGutters>
+                <AccordionSummary expandIcon={<ExpandMoreRoundedIcon />}>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "minmax(220px, 2fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(200px, 1fr)",
+                      gap: 2,
+                      alignItems: "center",
+                      width: "100%"
+                    }}
+                  >
+                    <Box sx={{ display: "grid" }}>
+                      <Typography sx={{ fontWeight: 600 }}>{container.container_name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {container.container_type_label}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: "grid" }}>
+                      <Typography variant="caption" color="text.secondary">
+                        {t("common.fields.factoryNumber")}
+                      </Typography>
+                      <Typography variant="body2">{container.factory_number || "-"}</Typography>
+                    </Box>
+                    <Box sx={{ display: "grid" }}>
+                      <Typography variant="caption" color="text.secondary">
+                        {t("common.fields.nomenclatureNumber")}
+                      </Typography>
+                      <Typography variant="body2">{container.inventory_number || "-"}</Typography>
+                    </Box>
+                    <Box sx={{ display: "grid" }}>
+                      <Typography variant="caption" color="text.secondary">
+                        {t("common.fields.location")}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {container.location_full_path || "-"}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Box sx={{ display: "grid", gap: 1 }}>
+                    {container.equipmentGroups.map((group) => {
+                      const singleItem = group.items.length === 1 ? group.items[0] : null;
+                      return (
+                        <Accordion
+                          key={`${container.key}:${group.key}`}
+                          disableGutters
+                          elevation={0}
+                          sx={{ border: "1px solid", borderColor: "divider" }}
+                        >
+                          <AccordionSummary expandIcon={<ExpandMoreRoundedIcon />}>
+                            <Box
+                              sx={{
+                                display: "grid",
+                                gridTemplateColumns:
+                                  "minmax(220px, 2fr) minmax(160px, 1fr) minmax(140px, 1fr) minmax(160px, 1fr) minmax(80px, 0.5fr) auto",
+                                gap: 2,
+                                alignItems: "center",
+                                width: "100%"
+                              }}
+                            >
+                              <Typography>{group.equipment_type_name}</Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {group.manufacturer_name || "-"}
+                              </Typography>
+                              <Box sx={{ display: "grid" }}>
+                                <Typography variant="caption" color="text.secondary">
+                                  {t("pagesUi.equipmentTypes.fields.article")}
+                                </Typography>
+                                <Typography variant="body2">{group.article || "-"}</Typography>
+                              </Box>
+                              <Box sx={{ display: "grid" }}>
+                                <Typography variant="caption" color="text.secondary">
+                                  {t("common.fields.nomenclature")}
+                                </Typography>
+                                <Typography variant="body2">{group.inventory_number || "-"}</Typography>
+                              </Box>
+                              <Typography sx={{ fontWeight: 600 }}>{group.quantity_sum}</Typography>
+                              {canWrite && singleItem && singleItem.can_edit_quantity !== false ? (
+                                <Box
+                                  sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}
+                                  onClick={(event) => event.stopPropagation()}
+                                >
+                                  <AppButton
+                                    size="small"
+                                    startIcon={<EditRoundedIcon />}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      setEditItem(singleItem);
+                                      setEditQuantity(singleItem.quantity);
+                                      setEditOpen(true);
+                                    }}
+                                  >
+                                    {t("actions.edit")}
+                                  </AppButton>
+                                  <AppButton
+                                    size="small"
+                                    color={singleItem.is_deleted ? "success" : "error"}
+                                    startIcon={
+                                      singleItem.is_deleted ? (
+                                        <RestoreRoundedIcon />
+                                      ) : (
+                                        <DeleteOutlineRoundedIcon />
+                                      )
+                                    }
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      if (singleItem.is_deleted) {
+                                        restoreMutation.mutate({
+                                          id: singleItem.id,
+                                          source: singleItem.source
+                                        });
+                                      } else {
+                                        deleteMutation.mutate({
+                                          id: singleItem.id,
+                                          source: singleItem.source
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    {singleItem.is_deleted ? t("actions.restore") : t("actions.delete")}
+                                  </AppButton>
+                                </Box>
+                              ) : canWrite && singleItem ? (
+                                <Box
+                                  sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}
+                                  onClick={(event) => event.stopPropagation()}
+                                >
+                                  <AppButton
+                                    size="small"
+                                    color={singleItem.is_deleted ? "success" : "error"}
+                                    startIcon={
+                                      singleItem.is_deleted ? (
+                                        <RestoreRoundedIcon />
+                                      ) : (
+                                        <DeleteOutlineRoundedIcon />
+                                      )
+                                    }
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      if (singleItem.is_deleted) {
+                                        restoreMutation.mutate({
+                                          id: singleItem.id,
+                                          source: singleItem.source
+                                        });
+                                      } else {
+                                        deleteMutation.mutate({
+                                          id: singleItem.id,
+                                          source: singleItem.source
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    {singleItem.is_deleted ? t("actions.restore") : t("actions.delete")}
+                                  </AppButton>
+                                </Box>
+                              ) : null}
+                            </Box>
+                          </AccordionSummary>
+                          <AccordionDetails>
+                            <Stack spacing={2}>
+                              <Stack spacing={1}>
+                                <Typography variant="subtitle2">
+                                  {t("pagesUi.cabinetItems.sections.fields")}
+                                </Typography>
+                                <Box sx={{ display: "grid", gap: 1 }}>
+                                  <Box sx={{ display: "grid" }}>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {t("common.fields.manufacturer")}
+                                    </Typography>
+                                    <Typography variant="body2">
+                                      {group.manufacturer_name || "-"}
+                                    </Typography>
+                                  </Box>
+                                  <Box sx={{ display: "grid" }}>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {t("pagesUi.equipmentTypes.fields.article")}
+                                    </Typography>
+                                    <Typography variant="body2">{group.article || "-"}</Typography>
+                                  </Box>
+                                  <Box sx={{ display: "grid" }}>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {t("common.fields.nomenclature")}
+                                    </Typography>
+                                    <Typography variant="body2">{group.inventory_number || "-"}</Typography>
+                                  </Box>
+                                  <Box sx={{ display: "grid" }}>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {t("common.fields.quantity")}
+                                    </Typography>
+                                    <Typography variant="body2">
+                                      {group.quantity_sum}
+                                      {group.can_edit_quantity
+                                        ? ""
+                                        : ` (${t("pagesUi.cabinetItems.placeholders.quantityLocked")})`}
+                                    </Typography>
+                                  </Box>
+                                </Box>
+                              </Stack>
+                              <Divider />
+                              <Stack spacing={1}>
+                                <Typography variant="subtitle2">
+                                  {t("pagesUi.cabinetItems.sections.properties")}
+                                </Typography>
+                                <Box sx={{ display: "grid", gap: 1 }}>
+                                  <Box sx={{ display: "grid" }}>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {t("common.fields.portsInterfaces")}
+                                    </Typography>
+                                    <Typography variant="body2">
+                                      {formatNetworkPorts(group.network_ports)}
+                                    </Typography>
+                                  </Box>
+                                  <Box sx={{ display: "grid" }}>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {t("pagesUi.equipmentTypes.fields.hasSerialInterfaces")}
+                                    </Typography>
+                                    <Typography variant="body2">
+                                      {formatSerialPorts(group.serial_ports)}
+                                    </Typography>
+                                  </Box>
+                                  {group.is_channel_forming ? (
+                                    <Box sx={{ display: "grid" }}>
+                                      <Typography variant="caption" color="text.secondary">
+                                        {t("common.fields.channelForming")}
+                                      </Typography>
+                                      <Typography variant="body2">
+                                        {t("common.yes")}
+                                        {group.channel_count ? ` · ${t("common.fields.channelCount")}: ${group.channel_count}` : ""}
+                                      </Typography>
+                                    </Box>
+                                  ) : null}
+                                </Box>
+                              </Stack>
+                              <Typography variant="body2" color="text.secondary">
+                                {t("pagesUi.cabinetItems.placeholders.details")}
+                              </Typography>
+                            </Stack>
+                            {/* TODO: render item-level rows inside the equipment group. */}
+                          </AccordionDetails>
+                        </Accordion>
+                      );
+                    })}
+                    {container.equipmentGroups.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary">
+                        {t("dashboard.common.no_data")}
+                      </Typography>
+                    ) : null}
+                  </Box>
+                </AccordionDetails>
+              </Accordion>
+            ))}
+            {pagedContainers.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                {t("dashboard.common.no_data")}
+              </Typography>
+            ) : null}
+          </Box>
           <TablePagination
             component="div"
             {...getTablePaginationProps(t)}
-            count={itemsQuery.data?.total || 0}
+            count={totalContainers}
             page={page - 1}
             onPageChange={(_, value) => setPage(value + 1)}
             rowsPerPage={pageSize}
@@ -561,6 +1005,12 @@ export default function CabinetItemsPage() {
               value={editQuantity}
               onChange={(event) => setEditQuantity(Number(event.target.value))}
               inputProps={{ min: 0 }}
+              disabled={editItem?.can_edit_quantity === false}
+              helperText={
+                editItem?.can_edit_quantity === false
+                  ? t("pagesUi.cabinetItems.placeholders.quantityLocked")
+                  : undefined
+              }
               fullWidth
             />
           </DialogContent>
@@ -568,8 +1018,9 @@ export default function CabinetItemsPage() {
             <AppButton onClick={() => setEditOpen(false)}>{t("actions.cancel")}</AppButton>
             <AppButton
               variant="contained"
+              disabled={editItem?.can_edit_quantity === false}
               onClick={() => {
-                if (editItem) {
+                if (editItem && editItem.can_edit_quantity !== false) {
                   updateMutation.mutate({
                     id: editItem.id,
                     quantity: editQuantity,

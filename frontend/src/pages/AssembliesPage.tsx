@@ -32,6 +32,8 @@ import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
 type Assembly = {
   id: number;
   name: string;
+  factory_number?: string | null;
+  nomenclature_number?: string | null;
   location_id?: number | null;
   location_full_path?: string | null;
   is_deleted: boolean;
@@ -105,8 +107,12 @@ export default function AssembliesPage() {
   };
 
   const createMutation = useMutation({
-    mutationFn: (payload: { name: string; location_id?: number | null }) =>
-      createEntity("/assemblies", payload),
+    mutationFn: (payload: {
+      name: string;
+      factory_number?: string | null;
+      nomenclature_number?: string | null;
+      location_id?: number | null;
+    }) => createEntity("/assemblies", payload),
     onSuccess: refresh,
     onError: (error) =>
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.assemblies.errors.create"))
@@ -138,6 +144,14 @@ export default function AssembliesPage() {
     const base: ColumnDef<Assembly>[] = [
       { header: t("common.fields.name"), accessorKey: "name" },
       {
+        header: t("common.fields.factoryNumber"),
+        cell: ({ row }) => row.original.factory_number || "-"
+      },
+      {
+        header: t("common.fields.nomenclatureNumber"),
+        cell: ({ row }) => row.original.nomenclature_number || "-"
+      },
+      {
         header: t("common.fields.location"),
         cell: ({ row }) => {
           const fullPath = row.original.location_full_path;
@@ -164,6 +178,12 @@ export default function AssembliesPage() {
                       title: t("pagesUi.assemblies.dialogs.editTitle"),
                       fields: [
                         { name: "name", label: t("common.fields.name"), type: "text" },
+                        { name: "factory_number", label: t("common.fields.factoryNumber"), type: "text" },
+                        {
+                          name: "nomenclature_number",
+                          label: t("common.fields.nomenclatureNumber"),
+                          type: "text"
+                        },
                         {
                           name: "location_id",
                           label: t("common.fields.location"),
@@ -177,9 +197,20 @@ export default function AssembliesPage() {
                           values.location_id === "" || values.location_id === undefined
                             ? null
                             : Number(values.location_id);
+                        const factoryNumber = values.factory_number
+                          ? String(values.factory_number).trim()
+                          : "";
+                        const nomenclatureNumber = values.nomenclature_number
+                          ? String(values.nomenclature_number).trim()
+                          : "";
                         updateMutation.mutate({
                           id: row.original.id,
-                          payload: { name: values.name, location_id: locationId }
+                          payload: {
+                            name: values.name,
+                            factory_number: factoryNumber || null,
+                            nomenclature_number: nomenclatureNumber || null,
+                            location_id: locationId
+                          }
                         });
                         setDialog(null);
                       }
@@ -299,6 +330,12 @@ export default function AssembliesPage() {
                     title: t("pagesUi.assemblies.dialogs.createTitle"),
                     fields: [
                       { name: "name", label: t("common.fields.name"), type: "text" },
+                      { name: "factory_number", label: t("common.fields.factoryNumber"), type: "text" },
+                      {
+                        name: "nomenclature_number",
+                        label: t("common.fields.nomenclatureNumber"),
+                        type: "text"
+                      },
                       {
                         name: "location_id",
                         label: t("common.fields.location"),
@@ -306,13 +343,24 @@ export default function AssembliesPage() {
                         options: locationOptions
                       }
                     ],
-                    values: { name: "", location_id: "" },
+                    values: { name: "", factory_number: "", nomenclature_number: "", location_id: "" },
                     onSave: (values) => {
                       const locationId =
                         values.location_id === "" || values.location_id === undefined
                           ? null
                           : Number(values.location_id);
-                      createMutation.mutate({ name: values.name, location_id: locationId });
+                      const factoryNumber = values.factory_number
+                        ? String(values.factory_number).trim()
+                        : "";
+                      const nomenclatureNumber = values.nomenclature_number
+                        ? String(values.nomenclature_number).trim()
+                        : "";
+                      createMutation.mutate({
+                        name: values.name,
+                        factory_number: factoryNumber || null,
+                        nomenclature_number: nomenclatureNumber || null,
+                        location_id: locationId
+                      });
                       setDialog(null);
                     }
                   })

@@ -155,6 +155,13 @@ export const navTree: NavItem[] = [
         roles: ["viewer", "engineer", "admin"]
       },
       {
+        id: "signal-types",
+        labelKey: "menu.signal_types",
+        path: "/dictionaries/signal-types",
+        icon: IndexIcon,
+        roles: ["viewer", "engineer", "admin"]
+      },
+      {
         id: "equipment-categories",
         labelKey: "menu.equipment_categories",
         path: "/dictionaries/equipment-categories",

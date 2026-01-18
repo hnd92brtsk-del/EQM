@@ -8,6 +8,7 @@ from app.routers import (
     manufacturers,
     locations,
     measurement_units,
+    signal_types,
     equipment_categories,
     equipment_types,
     warehouses,
@@ -47,6 +48,7 @@ app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(manufacturers.router, prefix="/api/v1/manufacturers", tags=["manufacturers"])
 app.include_router(locations.router, prefix="/api/v1/locations", tags=["locations"])
 app.include_router(measurement_units.router, prefix="/api/v1/measurement-units", tags=["measurement-units"])
+app.include_router(signal_types.router, prefix="/api/v1/signal-types", tags=["signal-types"])
 app.include_router(equipment_categories.router, prefix="/api/v1/equipment-categories", tags=["equipment-categories"])
 app.include_router(equipment_categories.router, prefix="/api/v1/equipment_categories", tags=["equipment-categories"])
 app.include_router(equipment_types.router, prefix="/api/v1/equipment-types", tags=["equipment-types"])
