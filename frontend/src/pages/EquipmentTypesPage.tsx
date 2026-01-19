@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   Autocomplete,
   Box,Card,
   CardContent,
+  Button,
   FormControl,
   FormControlLabel,
   InputLabel,
@@ -132,6 +133,33 @@ export default function EquipmentTypesPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [datasheetFile, setDatasheetFile] = useState<File | null>(null);
+  const photoFileRef = useRef<File | null>(null);
+  const datasheetFileRef = useRef<File | null>(null);
+  const onPickPhoto = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    console.log("[ET] picked photo", file?.name, file?.size);
+    if (file && validateFile(file, maxPhotoSize, photoExtensions)) {
+      photoFileRef.current = file;
+      setPhotoFile(file);
+    } else {
+      photoFileRef.current = null;
+      setPhotoFile(null);
+    }
+    event.currentTarget.value = "";
+  };
+
+  const onPickDatasheet = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    console.log("[ET] picked datasheet", file?.name, file?.size);
+    if (file && validateFile(file, maxDatasheetSize, datasheetExtensions)) {
+      datasheetFileRef.current = file;
+      setDatasheetFile(file);
+    } else {
+      datasheetFileRef.current = null;
+      setDatasheetFile(null);
+    }
+    event.currentTarget.value = "";
+  };
 
   const validateFile = (file: File, maxSize: number, allowedExts: string[]) => {
     const extension = `.${file.name.split(".").pop()?.toLowerCase() || ""}`;
@@ -147,6 +175,8 @@ export default function EquipmentTypesPage() {
   };
 
   const resetMediaFiles = () => {
+    photoFileRef.current = null;
+    datasheetFileRef.current = null;
     setPhotoFile(null);
     setDatasheetFile(null);
   };
@@ -266,65 +296,89 @@ export default function EquipmentTypesPage() {
     const fallbackMessage = equipmentId
       ? t("pagesUi.equipmentTypes.errors.update")
       : t("pagesUi.equipmentTypes.errors.create");
+    const photo = photoFileRef.current;
+    const datasheet = datasheetFileRef.current;
+    const isEdit = Boolean(equipmentId);
+    const editId = equipmentId ?? null;
+    console.log("[ET] submit start", {
+      isEdit,
+      editId,
+      hasPhoto: Boolean(photo),
+      hasDatasheet: Boolean(datasheet)
+    });
     try {
       const result = equipmentId
         ? await updateMutation.mutateAsync({ id: equipmentId, payload })
         : await createMutation.mutateAsync(payload);
+      console.log("[ET] saved", result);
       const targetId = equipmentId ?? result.id;
-      if (photoFile || datasheetFile) {
-        await uploadMedia(targetId);
+      console.log("[ET] id for upload", targetId);
+      if (photo || datasheet) {
+        if (photo) {
+          console.log("[ET] uploading photo...", {
+            id: targetId,
+            name: photo?.name,
+            size: photo?.size
+          });
+          await uploadEquipmentTypePhoto(targetId, photo);
+          console.log("[ET] uploaded photo OK");
+        }
+        if (datasheet) {
+          console.log("[ET] uploading datasheet...", {
+            id: targetId,
+            name: datasheet?.name,
+            size: datasheet?.size
+          });
+          await uploadEquipmentTypeDatasheet(targetId, datasheet);
+          console.log("[ET] uploaded datasheet OK");
+        }
       }
       refresh();
-      handleDialogClose();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : fallbackMessage);
+      console.error(error);
+      const message = error instanceof Error ? error.message : fallbackMessage;
+      setErrorMessage(`Upload failed: ${message}`);
+      throw error;
     }
   };
 
   const renderMediaInputs = () => (
     <Box sx={{ display: "grid", gap: 1 }}>
       <Typography variant="subtitle2">{t("common.fields.photo")}</Typography>
-      <AppButton component="label" size="small">
+      <Button component="label" variant="outlined" size="small">
         {t("pagesUi.equipmentTypes.actions.uploadPhoto")}
         <input
           hidden
           type="file"
-          accept={photoExtensions.join(",")}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file && validateFile(file, maxPhotoSize, photoExtensions)) {
-              setPhotoFile(file);
-            }
-          }}
+          accept="image/png,image/jpeg,image/webp"
+          onChange={onPickPhoto}
         />
-      </AppButton>
-      {photoFile ? (
-        <Typography variant="caption" color="text.secondary">
-          {photoFile.name}
-        </Typography>
-      ) : null}
+      </Button>
+      <Typography variant="caption" color="text.secondary">
+        {photoFile ? photoFile.name : "-"}
+      </Typography>
       <Typography variant="subtitle2">{t("common.fields.datasheet")}</Typography>
-      <AppButton component="label" size="small">
+      <Button component="label" variant="outlined" size="small">
         {t("pagesUi.equipmentTypes.actions.uploadDatasheet")}
         <input
           hidden
           type="file"
-          accept={datasheetExtensions.join(",")}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file && validateFile(file, maxDatasheetSize, datasheetExtensions)) {
-              setDatasheetFile(file);
-            }
-          }}
+          accept=".pdf,.xlsx,.doc,.docx,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          onChange={onPickDatasheet}
         />
-      </AppButton>
-      {datasheetFile ? (
-        <Typography variant="caption" color="text.secondary">
-          {datasheetFile.name}
-        </Typography>
-      ) : null}
+      </Button>
+      <Typography variant="caption" color="text.secondary">
+        {datasheetFile ? datasheetFile.name : "-"}
+      </Typography>
     </Box>
   );
+
+  useEffect(() => {
+    if (!dialog?.open) {
+      return;
+    }
+    setDialog((prev) => (prev ? { ...prev, renderExtra: renderMediaInputs } : prev));
+  }, [datasheetFile, dialog?.open, photoFile]);
 
   const createMutation = useMutation({
     mutationFn: (payload: Partial<EquipmentType>) => createEntity<EquipmentType>("/equipment-types", payload)

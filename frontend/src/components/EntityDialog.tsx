@@ -15,6 +15,7 @@ import {
   TextField
 } from "@mui/material";
 import { AppButton } from "./ui/AppButton";
+import { ErrorSnackbar } from "./ErrorSnackbar";
 
 export type FieldOption = { label: string; value: number | string; disabled?: boolean };
 
@@ -39,12 +40,14 @@ export type DialogState = {
   title: string;
   fields: FieldConfig[];
   values: Record<string, any>;
-  onSave: (values: Record<string, any>) => void;
-  renderExtra?: (values: Record<string, any>) => ReactNode;
+  onSave: (values: Record<string, any>) => Promise<void> | void;
+  renderExtra?: () => ReactNode;
 };
 
 export function EntityDialog({ state, onClose }: { state: DialogState; onClose: () => void }) {
   const [values, setValues] = useState(state.values);
+  const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -76,7 +79,7 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
                   label={field.label}
                   value={values[field.name] ?? ""}
                   onChange={(event) => applyFieldChange(field, event.target.value)}
-                  disabled={field.disabledWhen?.(values)}
+                  disabled={saving || field.disabledWhen?.(values)}
                 >
                   <MenuItem value="">
                     <em>{t("actions.notSelected")}</em>
@@ -99,7 +102,7 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
                   <Checkbox
                     checked={Boolean(values[field.name])}
                     onChange={(event) => applyFieldChange(field, event.target.checked)}
-                    disabled={field.disabledWhen?.(values)}
+                    disabled={saving || field.disabledWhen?.(values)}
                   />
                 }
                 label={field.label}
@@ -131,6 +134,7 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
                           next[index] = { ...next[index], type: event.target.value };
                           setValues((prev) => ({ ...prev, [field.name]: next }));
                         }}
+                        disabled={saving}
                       >
                         <MenuItem value="">
                           <em>{t("actions.notSelected")}</em>
@@ -154,6 +158,7 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
                         };
                         setValues((prev) => ({ ...prev, [field.name]: next }));
                       }}
+                      disabled={saving}
                       fullWidth
                     />
                     <AppButton
@@ -163,6 +168,7 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
                         const next = ports.filter((_: any, i: number) => i !== index);
                         setValues((prev) => ({ ...prev, [field.name]: next }));
                       }}
+                      disabled={saving}
                     >
                       {t("actions.delete")}
                     </AppButton>
@@ -176,6 +182,7 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
                       [field.name]: [...ports, { type: "", count: 0 }]
                     }))
                   }
+                  disabled={saving}
                 >
                   {addLabel}
                 </AppButton>
@@ -199,19 +206,38 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
                     : event.target.value
                 )
               }
-              disabled={field.disabledWhen?.(values)}
+              disabled={saving || field.disabledWhen?.(values)}
               fullWidth
             />
           );
         })}
-        {state.renderExtra ? state.renderExtra(values) : null}
+        {state.renderExtra ? <Box sx={{ mt: 2 }}>{state.renderExtra()}</Box> : null}
       </DialogContent>
       <DialogActions>
-        <AppButton onClick={onClose}>{t("actions.cancel")}</AppButton>
-        <AppButton onClick={() => state.onSave(values)} variant="contained">
+        <AppButton onClick={onClose} disabled={saving}>
+          {t("actions.cancel")}
+        </AppButton>
+        <AppButton
+          onClick={async () => {
+            setSaving(true);
+            try {
+              await state.onSave(values);
+              onClose();
+            } catch (error) {
+              setErrorMessage(
+                error instanceof Error ? error.message : t("errors.saveFailed")
+              );
+            } finally {
+              setSaving(false);
+            }
+          }}
+          variant="contained"
+          disabled={saving}
+        >
           {t("actions.save")}
         </AppButton>
       </DialogActions>
+      <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage(null)} />
     </Dialog>
   );
 }

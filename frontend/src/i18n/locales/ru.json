@@ -262,7 +262,8 @@
     "photo_upload_failed": "Не удалось загрузить фото.",
     "fileTooLarge": "Файл слишком большой.",
     "invalidFormat": "Недопустимый формат.",
-    "downloadFailed": "Не удалось скачать."
+    "downloadFailed": "Не удалось скачать.",
+    "saveFailed": "Не удалось сохранить."
   },
   "roles": {
     "admin": "Администратор",

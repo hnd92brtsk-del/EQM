@@ -262,7 +262,8 @@
     "photo_upload_failed": "Failed to upload photo.",
     "fileTooLarge": "File is too large.",
     "invalidFormat": "Invalid file format.",
-    "downloadFailed": "Failed to download."
+    "downloadFailed": "Failed to download.",
+    "saveFailed": "Failed to save."
   },
   "roles": {
     "admin": "Admin",
