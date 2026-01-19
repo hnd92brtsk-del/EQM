@@ -6,14 +6,12 @@ import {
   Box,
   Card,
   CardContent,
-  Divider,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   FormControl,
   FormControlLabel,
-  Grid,
   InputLabel,
   MenuItem,
   Select,
@@ -843,22 +841,12 @@ export default function CabinetItemsPage() {
                               sx={{
                                 display: "grid",
                                 gridTemplateColumns:
-                                  "48px minmax(220px, 2fr) minmax(160px, 1fr) minmax(140px, 1fr) minmax(160px, 1fr) minmax(80px, 0.5fr) auto",
+                                  "minmax(220px, 2fr) minmax(160px, 1fr) minmax(140px, 1fr) minmax(160px, 1fr) minmax(80px, 0.5fr) auto",
                                 gap: 2,
                                 alignItems: "center",
                                 width: "100%"
                               }}
                             >
-                              <ProtectedImage
-                                url={group.photo_url || null}
-                                alt={group.equipment_type_name}
-                                width={72}
-                                height={48}
-                                previewOnHover={true}
-                                previewMaxWidth={700}
-                                previewMaxHeight={700}
-                                fallback="-"
-                              />
                               <Typography>{group.equipment_type_name}</Typography>
                               <Typography variant="body2" color="text.secondary">
                                 {group.manufacturer_name || "-"}
@@ -958,75 +946,98 @@ export default function CabinetItemsPage() {
                             </Box>
                           </AccordionSummary>
                           <AccordionDetails>
-                            <Grid container spacing={2} alignItems="stretch">
-                              <Grid item xs={12} md={5}>
-                                <Box sx={{ display: "grid", gap: 1 }}>
-                                  <Typography variant="subtitle2">
-                                    {t("pagesUi.cabinetItems.sections.fields")}
-                                  </Typography>
-                                  <InfoRow
-                                    label={t("common.fields.manufacturer")}
-                                    value={group.manufacturer_name || "-"}
-                                  />
-                                  <InfoRow
-                                    label={t("pagesUi.equipmentTypes.fields.article")}
-                                    value={group.article || "-"}
-                                  />
-                                  <InfoRow
-                                    label={t("common.fields.nomenclature")}
-                                    value={group.inventory_number || "-"}
-                                  />
-                                  <InfoRow
-                                    label={t("common.fields.quantity")}
-                                    value={
-                                      group.can_edit_quantity
-                                        ? group.quantity_sum
-                                        : `${group.quantity_sum} (${t("pagesUi.cabinetItems.placeholders.quantityLocked")})`
-                                    }
-                                  />
-                                </Box>
-                              </Grid>
-                              <Grid item xs={12} md="auto">
-                                <Divider sx={{ display: { xs: "block", md: "none" } }} />
-                                <Divider
-                                  orientation="vertical"
-                                  flexItem
-                                  sx={{ display: { xs: "none", md: "block" } }}
+                            <Box
+                              sx={{
+                                display: "grid",
+                                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 260px" },
+                                gap: 3,
+                                alignItems: "start"
+                              }}
+                            >
+                              <Box sx={{ display: "grid", gap: 1 }}>
+                                <Typography variant="subtitle2">
+                                  {t("pagesUi.cabinetItems.sections.fields")}
+                                </Typography>
+                                <InfoRow
+                                  label={t("common.fields.manufacturer")}
+                                  value={group.manufacturer_name || "-"}
                                 />
-                              </Grid>
-                              <Grid item xs={12} md>
-                                <Box sx={{ display: "grid", gap: 1 }}>
-                                  <Typography variant="subtitle2">
-                                    {t("pagesUi.cabinetItems.sections.properties")}
-                                  </Typography>
-                                  <InfoRow
-                                    label={t("common.fields.portsInterfaces")}
-                                    value={formatNetworkPorts(group.network_ports)}
-                                  />
-                                  <InfoRow
-                                    label={t("pagesUi.equipmentTypes.fields.hasSerialInterfaces")}
-                                    value={formatSerialPorts(group.serial_ports)}
-                                  />
-                                  <InfoRow
-                                    label={t("common.fields.datasheet")}
-                                    value={
-                                      <ProtectedDownloadLink
-                                        url={group.datasheet_url || null}
-                                        filename={group.datasheet_name}
-                                        icon={getFileIcon(group.datasheet_name)}
-                                        size="small"
-                                      />
-                                    }
-                                  />
-                                  {group.is_channel_forming ? (
-                                    <InfoRow
-                                      label={t("common.fields.channelForming")}
-                                      value={channelValue}
+                                <InfoRow
+                                  label={t("pagesUi.equipmentTypes.fields.article")}
+                                  value={group.article || "-"}
+                                />
+                                <InfoRow
+                                  label={t("common.fields.nomenclature")}
+                                  value={group.inventory_number || "-"}
+                                />
+                                <InfoRow
+                                  label={t("common.fields.quantity")}
+                                  value={
+                                    group.can_edit_quantity
+                                      ? group.quantity_sum
+                                      : `${group.quantity_sum} (${t("pagesUi.cabinetItems.placeholders.quantityLocked")})`
+                                  }
+                                />
+                              </Box>
+                              <Box sx={{ display: "grid", gap: 1 }}>
+                                <Typography variant="subtitle2">
+                                  {t("pagesUi.cabinetItems.sections.properties")}
+                                </Typography>
+                                <InfoRow
+                                  label={t("common.fields.portsInterfaces")}
+                                  value={formatNetworkPorts(group.network_ports)}
+                                />
+                                <InfoRow
+                                  label={t("pagesUi.equipmentTypes.fields.hasSerialInterfaces")}
+                                  value={formatSerialPorts(group.serial_ports)}
+                                />
+                                <InfoRow
+                                  label={t("common.fields.datasheet")}
+                                  value={
+                                    <ProtectedDownloadLink
+                                      url={group.datasheet_url || null}
+                                      filename={group.datasheet_name}
+                                      icon={getFileIcon(group.datasheet_name)}
+                                      size="small"
                                     />
-                                  ) : null}
-                                </Box>
-                              </Grid>
-                            </Grid>
+                                  }
+                                />
+                                {group.is_channel_forming ? (
+                                  <InfoRow
+                                    label={t("common.fields.channelForming")}
+                                    value={channelValue}
+                                  />
+                                ) : null}
+                              </Box>
+                              <Box
+                                sx={{
+                                  display: "grid",
+                                  gap: 1,
+                                  justifyItems: { xs: "start", md: "end" },
+                                  textAlign: { xs: "left", md: "right" },
+                                  "& .MuiAvatar-root": { borderRadius: "8px" },
+                                  "& .MuiAvatar-img": { objectFit: "contain" }
+                                }}
+                              >
+                                <Typography variant="subtitle2">
+                                  {t("common.fields.photo")}
+                                </Typography>
+                                <ProtectedImage
+                                  url={group.photo_url || null}
+                                  alt={group.equipment_type_name}
+                                  width={240}
+                                  height={180}
+                                  previewOnHover={true}
+                                  previewMaxWidth={700}
+                                  previewMaxHeight={700}
+                                  fallback={
+                                    <Typography variant="body2" color="text.secondary">
+                                      {t("pagesUi.personnelDetails.noPhoto")}
+                                    </Typography>
+                                  }
+                                />
+                              </Box>
+                            </Box>
                             <Typography variant="caption" color="text.secondary" sx={{ mt: 2 }}>
                               {t("pagesUi.cabinetItems.placeholders.details")}
                             </Typography>

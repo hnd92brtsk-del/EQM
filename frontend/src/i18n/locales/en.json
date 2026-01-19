@@ -165,6 +165,10 @@
     "measurement_units": "Measurement units",
     "signal_types": "Signal types"
   },
+  "sidebar": {
+    "pin": "Pin sidebar",
+    "unpin": "Unpin sidebar"
+  },
   "chat": {
     "title": "Chatbot",
     "placeholder": "Enter your message…",

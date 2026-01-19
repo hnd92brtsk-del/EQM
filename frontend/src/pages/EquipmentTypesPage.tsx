@@ -68,7 +68,7 @@ type NetworkPort = { type: string; count: number };
 type SerialPort = { type: string; count: number };
 
 const pageSizeOptions = [10, 20, 50, 100];
-const networkPortOptions = [
+const networkPortOptions: { label: string; value: string; disabled?: boolean }[] = [
   { label: "RJ-45 (8p8c)", value: "RJ-45 (8p8c)" },
   { label: "LC", value: "LC" },
   { label: "SC", value: "SC" },
@@ -281,15 +281,6 @@ export default function EquipmentTypesPage() {
   const handleDialogClose = () => {
     setDialog(null);
     resetMediaFiles();
-  };
-
-  const uploadMedia = async (equipmentId: number) => {
-    if (photoFile) {
-      await uploadEquipmentTypePhoto(equipmentId, photoFile);
-    }
-    if (datasheetFile) {
-      await uploadEquipmentTypeDatasheet(equipmentId, datasheetFile);
-    }
   };
 
   const saveEquipmentType = async (payload: Partial<EquipmentType>, equipmentId?: number) => {

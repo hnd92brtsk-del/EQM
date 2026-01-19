@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import {
   AppBar,
   Box,
@@ -16,6 +16,8 @@ import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
 import ChatRoundedIcon from "@mui/icons-material/ChatRounded";
+import PushPinRoundedIcon from "@mui/icons-material/PushPinRounded";
+import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
@@ -26,8 +28,11 @@ import { navTree } from "../navigation/nav";
 import { SidebarNavTree, useAutoOpenGroups } from "./SidebarNavTree";
 import { AppButton } from "./ui/AppButton";
 import ChatDialog from "./ChatDialog";
+import { CollapsibleSidebar } from "./CollapsibleSidebar";
 
-const drawerWidth = 300;
+const drawerWidth = 260;
+const drawerHandleWidth = 12;
+const sidebarPinnedKey = "eqm.sidebar.pinned";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
@@ -35,6 +40,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { mode, toggleTheme } = useThemeMode();
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [chatOpen, setChatOpen] = React.useState(false);
+  const [sidebarPinned, setSidebarPinned] = React.useState(() => {
+    try {
+      return localStorage.getItem(sidebarPinnedKey) === "true";
+    } catch {
+      return false;
+    }
+  });
   const navigate = useNavigate();
 
   const toggleDrawer = () => setMobileOpen((prev) => !prev);
@@ -42,11 +54,33 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const navSections = useMemo(() => navTree, []);
   const { openGroups, setOpenGroups } = useAutoOpenGroups(navSections, user?.role);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(sidebarPinnedKey, String(sidebarPinned));
+    } catch {
+      // Ignore write errors in restrictive environments.
+    }
+  }, [sidebarPinned]);
+
   const drawer = (
     <Box sx={{ p: 2 }}>
-      <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
-        {t("app.title")}
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, flexGrow: 1 }}>
+          {t("app.title")}
+        </Typography>
+        <Tooltip
+          title={sidebarPinned ? t("sidebar.unpin") : t("sidebar.pin")}
+          placement="right"
+        >
+          <IconButton
+            size="small"
+            onClick={() => setSidebarPinned((prev) => !prev)}
+            aria-pressed={sidebarPinned}
+          >
+            {sidebarPinned ? <PushPinRoundedIcon /> : <PushPinOutlinedIcon />}
+          </IconButton>
+        </Tooltip>
+      </Box>
       <SidebarNavTree
         items={navSections}
         role={user?.role}
@@ -105,7 +139,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <ChatDialog open={chatOpen} onClose={() => setChatOpen(false)} />
 
       <Box sx={{ display: "flex", flex: 1 }}>
-        <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}>
+        <Box
+          component="nav"
+          sx={{ width: { xs: 0, md: drawerHandleWidth }, flexShrink: { md: 0 } }}
+        >
           <Drawer
             variant="temporary"
             open={mobileOpen}
@@ -118,16 +155,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           >
             {drawer}
           </Drawer>
-          <Drawer
-            variant="permanent"
-            sx={{
-              display: { xs: "none", md: "block" },
-              "& .MuiDrawer-paper": { width: drawerWidth, borderRight: "none" }
-            }}
-            open
+          <CollapsibleSidebar
+            pinned={sidebarPinned}
+            drawerWidth={drawerWidth}
+            handleWidth={drawerHandleWidth}
           >
             {drawer}
-          </Drawer>
+          </CollapsibleSidebar>
         </Box>
 
         <Box component="main" sx={{ flexGrow: 1 }}>

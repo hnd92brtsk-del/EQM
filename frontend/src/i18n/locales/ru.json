@@ -165,6 +165,10 @@
     "measurement_units": "Единицы измерения",
     "signal_types": "Тип сигнала"
   },
+  "sidebar": {
+    "pin": "Закрепить меню",
+    "unpin": "Открепить меню"
+  },
   "chat": {
     "title": "Чат-бот",
     "placeholder": "Введите запрос…",
