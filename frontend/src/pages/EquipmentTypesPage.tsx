@@ -412,8 +412,11 @@ export default function EquipmentTypesPage() {
           <ProtectedImage
             url={row.original.photo_url || null}
             alt={row.original.name}
-            width={36}
-            height={36}
+            width={44}
+            height={44}
+            previewOnHover={true}
+            previewMaxWidth={700}
+            previewMaxHeight={700}
             fallback="-"
           />
         )

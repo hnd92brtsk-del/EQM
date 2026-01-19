@@ -852,9 +852,12 @@ export default function CabinetItemsPage() {
                               <ProtectedImage
                                 url={group.photo_url || null}
                                 alt={group.equipment_type_name}
-                                width={32}
-                                height={32}
-                                fallback={null}
+                                width={72}
+                                height={48}
+                                previewOnHover={true}
+                                previewMaxWidth={700}
+                                previewMaxHeight={700}
+                                fallback="-"
                               />
                               <Typography>{group.equipment_type_name}</Typography>
                               <Typography variant="body2" color="text.secondary">

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { Avatar } from "@mui/material";
+import { Avatar, Tooltip } from "@mui/material";
 
 import { getApiUrl, getToken } from "../api/client";
 
@@ -12,6 +12,9 @@ type ProtectedImageProps = {
   variant?: "rounded" | "circular" | "square";
   fallback?: ReactNode;
   cacheKey?: string;
+  previewOnHover?: boolean;
+  previewMaxWidth?: number;
+  previewMaxHeight?: number;
 };
 
 const cache = new Map<string, string>();
@@ -41,7 +44,10 @@ export function ProtectedImage({
   height = 32,
   variant = "rounded",
   fallback = null,
-  cacheKey
+  cacheKey,
+  previewOnHover = false,
+  previewMaxWidth = 700,
+  previewMaxHeight = 700
 }: ProtectedImageProps) {
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
@@ -92,5 +98,27 @@ export function ProtectedImage({
     return <>{fallback}</>;
   }
 
-  return <Avatar src={objectUrl} alt={alt} variant={variant} sx={{ width, height }} />;
+  const image = <Avatar src={objectUrl} alt={alt} variant={variant} sx={{ width, height }} />;
+  if (!previewOnHover) {
+    return image;
+  }
+  return (
+    <Tooltip
+      title={
+        <img
+          src={objectUrl}
+          alt={alt}
+          style={{
+            maxWidth: previewMaxWidth,
+            maxHeight: previewMaxHeight,
+            objectFit: "contain",
+            display: "block"
+          }}
+        />
+      }
+      placement="right"
+    >
+      <span style={{ display: "inline-flex" }}>{image}</span>
+    </Tooltip>
+  );
 }

@@ -472,9 +472,12 @@ export default function WarehouseItemsPage() {
               <ProtectedImage
                 url={row.original.equipment_type_photo_url || null}
                 alt={String(name)}
-                width={28}
-                height={28}
-                fallback={null}
+                width={72}
+                height={48}
+                previewOnHover={true}
+                previewMaxWidth={700}
+                previewMaxHeight={700}
+                fallback="-"
               />
               <span>{name}</span>
             </Box>
