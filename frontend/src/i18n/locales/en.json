@@ -566,6 +566,7 @@
       },
       "sections": {
         "fields": "Fields",
+        "info": "Information",
         "properties": "Properties"
       }
     },

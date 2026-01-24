@@ -767,19 +767,34 @@ export default function CabinetItemsPage() {
           <Box sx={{ display: "grid", gap: 1 }}>
             {pagedContainers.map((container) => (
               <Accordion key={container.key} disableGutters>
-                <AccordionSummary expandIcon={<ExpandMoreRoundedIcon />}>
+                <AccordionSummary
+                  expandIcon={<ExpandMoreRoundedIcon />}
+                  sx={{
+                    "& .MuiAccordionSummary-expandIconWrapper": {
+                      width: 36,
+                      justifyContent: "center"
+                    },
+                    "& .MuiAccordionSummary-content": {
+                      minWidth: 0
+                    }
+                  }}
+                >
                   <Box
                     sx={{
                       display: "grid",
-                      gridTemplateColumns:
-                        "minmax(220px, 2fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(200px, 1fr)",
-                      gap: 2,
+                      gridTemplateColumns: {
+                        xs: "1fr",
+                        sm: "minmax(220px, 1.2fr) minmax(140px, 0.7fr) minmax(160px, 0.8fr) minmax(220px, 1fr)"
+                      },
+                      gap: 1.5,
                       alignItems: "center",
                       width: "100%"
                     }}
                   >
-                    <Box sx={{ display: "grid" }}>
-                      <Typography sx={{ fontWeight: 600 }}>{container.container_name}</Typography>
+                    <Box sx={{ display: "grid", minWidth: 0 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                        {container.container_name}
+                      </Typography>
                       <Typography variant="caption" color="text.secondary">
                         {container.container_type_label}
                       </Typography>
@@ -800,7 +815,15 @@ export default function CabinetItemsPage() {
                       <Typography variant="caption" color="text.secondary">
                         {t("common.fields.location")}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis"
+                        }}
+                      >
                         {container.location_full_path || "-"}
                       </Typography>
                     </Box>
@@ -840,29 +863,16 @@ export default function CabinetItemsPage() {
                             <Box
                               sx={{
                                 display: "grid",
-                                gridTemplateColumns:
-                                  "minmax(220px, 2fr) minmax(160px, 1fr) minmax(140px, 1fr) minmax(160px, 1fr) minmax(80px, 0.5fr) auto",
-                                gap: 2,
+                                gridTemplateColumns: {
+                                  xs: "1fr",
+                                  sm: "minmax(240px, 2fr) minmax(80px, 0.5fr) auto"
+                                },
+                                gap: 1.5,
                                 alignItems: "center",
                                 width: "100%"
                               }}
                             >
                               <Typography>{group.equipment_type_name}</Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {group.manufacturer_name || "-"}
-                              </Typography>
-                              <Box sx={{ display: "grid" }}>
-                                <Typography variant="caption" color="text.secondary">
-                                  {t("pagesUi.equipmentTypes.fields.article")}
-                                </Typography>
-                                <Typography variant="body2">{group.article || "-"}</Typography>
-                              </Box>
-                              <Box sx={{ display: "grid" }}>
-                                <Typography variant="caption" color="text.secondary">
-                                  {t("common.fields.nomenclature")}
-                                </Typography>
-                                <Typography variant="body2">{group.inventory_number || "-"}</Typography>
-                              </Box>
                               <Typography sx={{ fontWeight: 600 }}>{group.quantity_sum}</Typography>
                               {canWrite && singleItem && singleItem.can_edit_quantity !== false ? (
                                 <Box
@@ -956,7 +966,7 @@ export default function CabinetItemsPage() {
                             >
                               <Box sx={{ display: "grid", gap: 1 }}>
                                 <Typography variant="subtitle2">
-                                  {t("pagesUi.cabinetItems.sections.fields")}
+                                  {t("pagesUi.cabinetItems.sections.info")}
                                 </Typography>
                                 <InfoRow
                                   label={t("common.fields.manufacturer")}
