@@ -36,7 +36,13 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || "Request failed");
+    const statusText = response.statusText || "Request failed";
+    const detail = message || statusText;
+    const error = new Error(`${response.status} ${statusText}: ${detail}`);
+    (error as Error & { status?: number; statusText?: string; body?: string }).status = response.status;
+    (error as Error & { status?: number; statusText?: string; body?: string }).statusText = statusText;
+    (error as Error & { status?: number; statusText?: string; body?: string }).body = message;
+    throw error;
   }
 
   if (response.status === 204) {

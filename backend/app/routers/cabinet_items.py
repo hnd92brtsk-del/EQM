@@ -12,6 +12,7 @@ from app.models.core import Cabinet, EquipmentType, Manufacturer, Location
 from app.models.security import User
 from app.schemas.common import Pagination
 from app.schemas.cabinet_items import CabinetItemOut, CabinetItemCreate, CabinetItemUpdate
+from app.services.io_signals import ensure_io_signals_for_equipment_in_operation
 
 router = APIRouter()
 
@@ -163,6 +164,8 @@ def create_cabinet_item(
         )
         db.add(item)
     db.flush()
+    if equipment.is_channel_forming:
+        ensure_io_signals_for_equipment_in_operation(db, item.id)
 
     add_audit_log(
         db,
@@ -198,6 +201,8 @@ def update_cabinet_item(
     before = model_to_dict(item)
     if payload.quantity is not None:
         item.quantity = 1 if should_force_quantity_one(equipment) else payload.quantity
+    if equipment.is_channel_forming:
+        ensure_io_signals_for_equipment_in_operation(db, item.id)
 
     add_audit_log(
         db,

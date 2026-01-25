@@ -206,7 +206,8 @@
     "status": {
       "label": "Status",
       "deleted": "Deleted",
-      "active": "Active"
+      "active": "Active",
+      "inactive": "Inactive"
     },
     "fields": {
       "name": "Name",
@@ -664,44 +665,48 @@
       "historyTitle": "Movement history"
     },
     "ioSignals": {
-      "sort": {
-        "byDateNewest": "By date (newest)",
-        "byDateOldest": "By date (oldest)"
-      },
       "errors": {
-        "load": "Failed to load I/O signals",
-        "create": "Failed to create signal",
+        "loadTree": "Failed to load I/O tree",
+        "loadSignals": "Failed to load I/O signals",
         "update": "Failed to update signal",
-        "delete": "Failed to delete signal",
-        "restore": "Failed to restore signal"
+        "rebuild": "Failed to sync signals"
       },
       "labels": {
-        "cabinetFallback": "Cabinet {{id}}",
-        "equipmentFallback": "Nomenclature {{id}}",
-        "componentFallback": "Component {{id}}"
+        "locations": "Locations",
+        "selectEquipment": "Select channel-forming equipment",
+        "cabinetMetaFallback": "No numbers",
+        "channelDeviceMetaFallback": "No metadata",
+        "signalsTotal": "{{count}} signals"
+      },
+      "actions": {
+        "rebuild": "Sync"
       },
       "columns": {
-        "component": "Component",
+        "channelIndex": "Channel",
         "tag": "Tag",
         "signal": "Signal",
         "signalType": "Signal type",
+        "signalKind": "Signal kind",
         "measurementType": "Measurement type",
         "units": "Units"
       },
       "fields": {
-        "component": "Component",
+        "channelIndex": "Channel",
         "tag": "Tag",
         "signal": "Signal",
-        "plcAddress": "PLC address",
         "signalType": "Signal type",
+        "signalKind": "Signal kind",
         "measurementType": "Measurement type",
-        "terminal": "Terminal",
-        "range": "Range",
-        "units": "Units"
+        "units": "Units",
+        "status": "Status"
       },
       "dialogs": {
-        "editTitle": "I/O signal",
-        "createTitle": "New I/O signal"
+        "editTitle": "I/O signal"
+      },
+      "empty": {
+        "tree": "No locations yet.",
+        "select": "Select a device in the tree to see signals.",
+        "noSignals": "No signals yet. Click Sync to generate."
       }
     },
     "personnel": {

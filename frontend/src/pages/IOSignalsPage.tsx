@@ -1,21 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Box,Card,
+  Box,
+  Card,
   CardContent,
-  FormControl,
-  FormControlLabel,
-  InputLabel,
-  MenuItem,
-  Select,
-  Switch,
-  TablePagination,
-  TextField,
+  Collapse,
+  IconButton,
   Typography
 } from "@mui/material";
-import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
+import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
+import SyncRoundedIcon from "@mui/icons-material/SyncRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
-import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
-import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -24,37 +19,19 @@ import { DataTable } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { AppButton } from "../components/ui/AppButton";
-import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
-import { getTablePaginationProps } from "../components/tablePaginationI18n";
+import {
+  getIOTree,
+  listIOSignals,
+  rebuildIOSignals,
+  updateIOSignal,
+  type IOSignal,
+  type IOTreeLocation,
+  type IOTreeCabinet,
+  type IOTreeChannelDevice
+} from "../api/ioSignals";
 import { buildMeasurementUnitLookups, fetchMeasurementUnitsTree } from "../utils/measurementUnits";
-
-type IOSignal = {
-  id: number;
-  cabinet_component_id: number;
-  tag_name?: string | null;
-  signal_name?: string | null;
-  plc_channel_address?: string | null;
-  signal_type: string;
-  measurement_type: string;
-  terminal_connection?: string | null;
-  sensor_range?: string | null;
-  engineering_units?: string | null;
-  measurement_unit_id?: number | null;
-  measurement_unit_full_path?: string | null;
-  is_deleted: boolean;
-  created_at?: string;
-};
-
-type CabinetItem = {
-  id: number;
-  cabinet_id: number;
-  equipment_type_id: number;
-};
-
-type Cabinet = { id: number; name: string };
-
-type EquipmentType = { id: number; name: string };
+import { buildSignalTypeLookups, fetchSignalTypesTree } from "../utils/signalTypes";
 
 const signalTypeOptions = [
   { value: "AI", label: "AI" },
@@ -75,73 +52,26 @@ const measurementOptions = [
   { value: "8-16mA (DI)", label: "8-16mA (DI)" }
 ];
 
-const pageSizeOptions = [10, 20, 50, 100];
-
 export default function IOSignalsPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const canWrite = user?.role === "admin" || user?.role === "engineer";
   const queryClient = useQueryClient();
 
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [q, setQ] = useState("");
-  const [sort, setSort] = useState("-created_at");
-  const [cabinetFilter, setCabinetFilter] = useState<number | "">("");
-  const [equipmentFilter, setEquipmentFilter] = useState<number | "">("");
-  const [signalTypeFilter, setSignalTypeFilter] = useState("");
-  const [showDeleted, setShowDeleted] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [selectedDevice, setSelectedDevice] = useState<IOTreeChannelDevice | null>(null);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const sortOptions = useMemo(
-    () => [
-      { value: "-created_at", label: t("pagesUi.ioSignals.sort.byDateNewest") },
-      { value: "created_at", label: t("pagesUi.ioSignals.sort.byDateOldest") }
-    ],
-    [t]
-  );
+  const ioTreeQuery = useQuery({
+    queryKey: ["io-tree"],
+    queryFn: getIOTree
+  });
 
   const signalsQuery = useQuery({
-    queryKey: [
-      "io-signals",
-      page,
-      pageSize,
-      q,
-      sort,
-      cabinetFilter,
-      equipmentFilter,
-      signalTypeFilter,
-      showDeleted
-    ],
-    queryFn: () =>
-      listEntity<IOSignal>("/io-signals", {
-        page,
-        page_size: pageSize,
-        q: q || undefined,
-        sort: sort || undefined,
-        is_deleted: showDeleted ? true : false,
-        filters: {
-          cabinet_id: cabinetFilter || undefined,
-          equipment_type_id: equipmentFilter || undefined,
-          signal_type: signalTypeFilter || undefined
-        }
-      })
-  });
-
-  const cabinetItemsQuery = useQuery({
-    queryKey: ["cabinet-items-options"],
-    queryFn: () => listEntity<CabinetItem>("/cabinet-items", { page: 1, page_size: 200 })
-  });
-
-  const cabinetsQuery = useQuery({
-    queryKey: ["cabinets-options"],
-    queryFn: () => listEntity<Cabinet>("/cabinets", { page: 1, page_size: 200 })
-  });
-
-  const equipmentTypesQuery = useQuery({
-    queryKey: ["equipment-types-options"],
-    queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: 200 })
+    queryKey: ["io-signals", selectedDevice?.equipment_in_operation_id],
+    queryFn: () => listIOSignals(selectedDevice!.equipment_in_operation_id),
+    enabled: Boolean(selectedDevice)
   });
 
   const measurementUnitsTreeQuery = useQuery({
@@ -149,41 +79,29 @@ export default function IOSignalsPage() {
     queryFn: () => fetchMeasurementUnitsTree(false)
   });
 
+  const signalTypesTreeQuery = useQuery({
+    queryKey: ["signal-types-tree-options", false],
+    queryFn: () => fetchSignalTypesTree(false)
+  });
+
+  const formatErrorMessage = (error: unknown, fallbackKey: string) => {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return t(fallbackKey);
+  };
+
+  useEffect(() => {
+    if (ioTreeQuery.error) {
+      setErrorMessage(formatErrorMessage(ioTreeQuery.error, "pagesUi.ioSignals.errors.loadTree"));
+    }
+  }, [ioTreeQuery.error, t]);
+
   useEffect(() => {
     if (signalsQuery.error) {
-      setErrorMessage(
-        signalsQuery.error instanceof Error
-          ? signalsQuery.error.message
-          : t("pagesUi.ioSignals.errors.load")
-      );
+      setErrorMessage(formatErrorMessage(signalsQuery.error, "pagesUi.ioSignals.errors.loadSignals"));
     }
   }, [signalsQuery.error, t]);
-
-  const cabinetMap = useMemo(() => {
-    const map = new Map<number, string>();
-    cabinetsQuery.data?.items.forEach((item) => map.set(item.id, item.name));
-    return map;
-  }, [cabinetsQuery.data?.items]);
-
-  const equipmentMap = useMemo(() => {
-    const map = new Map<number, string>();
-    equipmentTypesQuery.data?.items.forEach((item) => map.set(item.id, item.name));
-    return map;
-  }, [equipmentTypesQuery.data?.items]);
-
-  const cabinetItemMap = useMemo(() => {
-    const map = new Map<number, string>();
-    cabinetItemsQuery.data?.items.forEach((item) => {
-      const cabinetLabel =
-        cabinetMap.get(item.cabinet_id) ||
-        t("pagesUi.ioSignals.labels.cabinetFallback", { id: item.cabinet_id });
-      const equipmentLabel =
-        equipmentMap.get(item.equipment_type_id) ||
-        t("pagesUi.ioSignals.labels.equipmentFallback", { id: item.equipment_type_id });
-      map.set(item.id, `${cabinetLabel} - ${equipmentLabel}`);
-    });
-    return map;
-  }, [cabinetItemsQuery.data?.items, cabinetMap, equipmentMap, t]);
 
   const { options: measurementUnitOptions, breadcrumbMap: measurementUnitBreadcrumbs, leafIds } =
     useMemo(() => buildMeasurementUnitLookups(measurementUnitsTreeQuery.data || []), [
@@ -200,49 +118,167 @@ export default function IOSignalsPage() {
     [measurementUnitOptions, measurementUnitBreadcrumbs, leafIds]
   );
 
-  const refresh = () => {
+  const {
+    options: signalKindOptions,
+    breadcrumbMap: signalKindBreadcrumbs,
+    leafIds: signalKindLeafIds
+  } = useMemo(() => buildSignalTypeLookups(signalTypesTreeQuery.data || []), [signalTypesTreeQuery.data]);
+
+  const signalKindLeafOptions = useMemo(
+    () =>
+      signalKindOptions
+        .filter((option) => signalKindLeafIds.has(option.value))
+        .map((option) => ({
+          ...option,
+          label: signalKindBreadcrumbs.get(option.value) || option.label
+        })),
+    [signalKindOptions, signalKindBreadcrumbs, signalKindLeafIds]
+  );
+
+  const refreshSignals = () => {
     queryClient.invalidateQueries({ queryKey: ["io-signals"] });
   };
 
-  const createMutation = useMutation({
-    mutationFn: (payload: Partial<IOSignal>) => createEntity("/io-signals", payload),
-    onSuccess: refresh,
-    onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.ioSignals.errors.create"))
-  });
-
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: Partial<IOSignal> }) =>
-      updateEntity("/io-signals", id, payload),
-    onSuccess: refresh,
+      updateIOSignal(id, payload),
+    onSuccess: refreshSignals,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.ioSignals.errors.update"))
+      setErrorMessage(formatErrorMessage(error, "pagesUi.ioSignals.errors.update"))
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => deleteEntity("/io-signals", id),
-    onSuccess: refresh,
+  const rebuildMutation = useMutation({
+    mutationFn: (equipmentInOperationId: number) => rebuildIOSignals(equipmentInOperationId),
+    onSuccess: refreshSignals,
     onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.ioSignals.errors.delete"))
+      setErrorMessage(formatErrorMessage(error, "pagesUi.ioSignals.errors.rebuild"))
   });
 
-  const restoreMutation = useMutation({
-    mutationFn: (id: number) => restoreEntity("/io-signals", id),
-    onSuccess: refresh,
-    onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.ioSignals.errors.restore"))
-  });
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const renderDevice = (device: IOTreeChannelDevice, level: number) => {
+    const isSelected = selectedDevice?.equipment_in_operation_id === device.equipment_in_operation_id;
+    const labelParts = [
+      device.manufacturer_name,
+      device.article,
+      device.nomenclature_number
+    ].filter(Boolean);
+    return (
+      <Box
+        key={`device-${device.equipment_in_operation_id}`}
+        sx={{
+          pl: `${level * 16 + 32}px`,
+          py: 0.75,
+          borderRadius: 1,
+          cursor: "pointer",
+          backgroundColor: isSelected ? "action.selected" : "transparent",
+          "&:hover": { backgroundColor: "action.hover" }
+        }}
+        onClick={() => setSelectedDevice(device)}
+      >
+        <Typography sx={{ fontWeight: 500 }}>{device.equipment_name}</Typography>
+        <Typography variant="body2" color="text.secondary">
+          {labelParts.length ? labelParts.join(" • ") : t("pagesUi.ioSignals.labels.channelDeviceMetaFallback")}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          AI {device.ai_count} • DI {device.di_count} • AO {device.ao_count} • DO {device.do_count} •{" "}
+          {t("pagesUi.ioSignals.labels.signalsTotal", { count: device.signals_total })}
+        </Typography>
+      </Box>
+    );
+  };
+
+  const renderCabinet = (cabinet: IOTreeCabinet, level: number) => {
+    const id = `cabinet-${cabinet.id}`;
+    const expanded = expandedIds.has(id);
+    const hasChildren = (cabinet.channel_devices || []).length > 0;
+    const metaParts = [cabinet.factory_number, cabinet.inventory_number].filter(Boolean);
+    return (
+      <Box key={id}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, pl: `${level * 16}px` }}>
+          {hasChildren ? (
+            <IconButton size="small" onClick={() => toggleExpanded(id)}>
+              {expanded ? <ExpandMoreRoundedIcon /> : <ChevronRightRoundedIcon />}
+            </IconButton>
+          ) : (
+            <Box sx={{ width: 36 }} />
+          )}
+          <Box sx={{ display: "grid" }}>
+            <Typography sx={{ fontWeight: 600 }}>{cabinet.name}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {metaParts.length
+                ? metaParts.join(" • ")
+                : t("pagesUi.ioSignals.labels.cabinetMetaFallback")}
+            </Typography>
+          </Box>
+        </Box>
+        {hasChildren && (
+          <Collapse in={expanded} timeout="auto" unmountOnExit>
+            <Box sx={{ display: "grid", gap: 0.5 }}>
+              {cabinet.channel_devices.map((device) => renderDevice(device, level + 1))}
+            </Box>
+          </Collapse>
+        )}
+      </Box>
+    );
+  };
+
+  const renderLocation = (location: IOTreeLocation, level: number) => {
+    const id = `location-${location.id}`;
+    const expanded = expandedIds.has(id);
+    const children = location.children || [];
+    const cabinets = location.cabinets || [];
+    const hasChildren = children.length > 0 || cabinets.length > 0;
+    return (
+      <Box key={id}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, pl: `${level * 16}px` }}>
+          {hasChildren ? (
+            <IconButton size="small" onClick={() => toggleExpanded(id)}>
+              {expanded ? <ExpandMoreRoundedIcon /> : <ChevronRightRoundedIcon />}
+            </IconButton>
+          ) : (
+            <Box sx={{ width: 36 }} />
+          )}
+          <Typography sx={{ fontWeight: 700 }}>{location.name}</Typography>
+        </Box>
+        {hasChildren && (
+          <Collapse in={expanded} timeout="auto" unmountOnExit>
+            <Box sx={{ display: "grid", gap: 0.5 }}>
+              {children.map((child) => renderLocation(child, level + 1))}
+              {cabinets.map((cabinet) => renderCabinet(cabinet, level + 1))}
+            </Box>
+          </Collapse>
+        )}
+      </Box>
+    );
+  };
 
   const columns = useMemo<ColumnDef<IOSignal>[]>(() => {
     const base: ColumnDef<IOSignal>[] = [
       {
-        header: t("pagesUi.ioSignals.columns.component"),
-        cell: ({ row }) =>
-          cabinetItemMap.get(row.original.cabinet_component_id) || row.original.cabinet_component_id
+        header: t("pagesUi.ioSignals.columns.channelIndex"),
+        cell: ({ row }) => `${row.original.signal_type}-${row.original.channel_index}`
       },
-      { header: t("pagesUi.ioSignals.columns.tag"), accessorKey: "tag_name" },
-      { header: t("pagesUi.ioSignals.columns.signal"), accessorKey: "signal_name" },
+      { header: t("pagesUi.ioSignals.columns.tag"), accessorKey: "tag" },
+      { header: t("pagesUi.ioSignals.columns.signal"), accessorKey: "signal" },
       { header: t("pagesUi.ioSignals.columns.signalType"), accessorKey: "signal_type" },
+      {
+        header: t("pagesUi.ioSignals.columns.signalKind"),
+        cell: ({ row }) =>
+          row.original.signal_kind_id
+            ? signalKindBreadcrumbs.get(row.original.signal_kind_id) || row.original.signal_kind_id
+            : "-"
+      },
       { header: t("pagesUi.ioSignals.columns.measurementType"), accessorKey: "measurement_type" },
       {
         header: t("pagesUi.ioSignals.columns.units"),
@@ -251,13 +287,13 @@ export default function IOSignalsPage() {
           (row.original.measurement_unit_id
             ? measurementUnitBreadcrumbs.get(row.original.measurement_unit_id) ||
               row.original.measurement_unit_id
-            : row.original.engineering_units || "-")
+            : "-")
       },
       {
         header: t("common.status.label"),
         cell: ({ row }) => (
           <span className="status-pill">
-            {row.original.is_deleted ? t("common.status.deleted") : t("common.status.active")}
+            {row.original.is_active ? t("common.status.active") : t("common.status.inactive")}
           </span>
         )
       }
@@ -267,330 +303,177 @@ export default function IOSignalsPage() {
       base.push({
         header: t("actions.actions"),
         cell: ({ row }) => (
-          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <AppButton
-              size="small"
-              startIcon={<EditRoundedIcon />}
-              onClick={() =>
-                setDialog({
-                  open: true,
-                  title: t("pagesUi.ioSignals.dialogs.editTitle"),
-                  fields: [
-                    {
-                      name: "cabinet_component_id",
-                      label: t("pagesUi.ioSignals.fields.component"),
-                      type: "select",
-                      options:
-                        cabinetItemsQuery.data?.items.map((item) => ({
-                          label:
-                            cabinetItemMap.get(item.id) ||
-                            t("pagesUi.ioSignals.labels.componentFallback", { id: item.id }),
-                          value: item.id
-                        })) || []
-                    },
-                    { name: "tag_name", label: t("pagesUi.ioSignals.fields.tag"), type: "text" },
-                    { name: "signal_name", label: t("pagesUi.ioSignals.fields.signal"), type: "text" },
-                    {
-                      name: "plc_channel_address",
-                      label: t("pagesUi.ioSignals.fields.plcAddress"),
-                      type: "text"
-                    },
-                    {
-                      name: "signal_type",
-                      label: t("pagesUi.ioSignals.fields.signalType"),
-                      type: "select",
-                      options: signalTypeOptions
-                    },
-                    {
-                      name: "measurement_type",
-                      label: t("pagesUi.ioSignals.fields.measurementType"),
-                      type: "select",
-                      options: measurementOptions
-                    },
-                    {
-                      name: "measurement_unit_id",
-                      label: t("pagesUi.ioSignals.fields.units"),
-                      type: "select",
-                      options: measurementUnitLeafOptions
-                    },
-                    { name: "terminal_connection", label: t("pagesUi.ioSignals.fields.terminal"), type: "text" },
-                    { name: "sensor_range", label: t("pagesUi.ioSignals.fields.range"), type: "text" }
-                  ],
-                  values: row.original,
-                  onSave: (values) => {
-                    const measurementUnitId =
-                      values.measurement_unit_id === "" || values.measurement_unit_id === undefined
-                        ? null
-                        : Number(values.measurement_unit_id);
-                    updateMutation.mutate({
-                      id: row.original.id,
-                      payload: {
-                        cabinet_component_id: values.cabinet_component_id,
-                        tag_name: values.tag_name,
-                        signal_name: values.signal_name,
-                        plc_channel_address: values.plc_channel_address,
-                        signal_type: values.signal_type,
-                        measurement_type: values.measurement_type,
-                        measurement_unit_id: measurementUnitId,
-                        terminal_connection: values.terminal_connection,
-                        sensor_range: values.sensor_range
-                      }
-                    });
-                    setDialog(null);
-                  }
-                })
-              }
-            >
-              {t("actions.edit")}
-            </AppButton>
-            <AppButton
-              size="small"
-              color={row.original.is_deleted ? "success" : "error"}
-              startIcon={
-                row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />
-              }
-              onClick={() =>
-                row.original.is_deleted
-                  ? restoreMutation.mutate(row.original.id)
-                  : deleteMutation.mutate(row.original.id)
-              }
-            >
-              {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
-            </AppButton>
-          </Box>
+          <AppButton
+            size="small"
+            startIcon={<EditRoundedIcon />}
+            onClick={() =>
+              setDialog({
+                open: true,
+                title: t("pagesUi.ioSignals.dialogs.editTitle"),
+                fields: [
+                  {
+                    name: "signal_type",
+                    label: t("pagesUi.ioSignals.fields.signalType"),
+                    type: "select",
+                    options: signalTypeOptions,
+                    disabledWhen: () => true
+                  },
+                  {
+                    name: "channel_index",
+                    label: t("pagesUi.ioSignals.fields.channelIndex"),
+                    type: "number",
+                    disabledWhen: () => true
+                  },
+                  { name: "tag", label: t("pagesUi.ioSignals.fields.tag"), type: "text" },
+                  { name: "signal", label: t("pagesUi.ioSignals.fields.signal"), type: "text" },
+                  {
+                    name: "signal_kind_id",
+                    label: t("pagesUi.ioSignals.fields.signalKind"),
+                    type: "select",
+                    options: signalKindLeafOptions
+                  },
+                  {
+                    name: "measurement_type",
+                    label: t("pagesUi.ioSignals.fields.measurementType"),
+                    type: "select",
+                    options: measurementOptions
+                  },
+                  {
+                    name: "measurement_unit_id",
+                    label: t("pagesUi.ioSignals.fields.units"),
+                    type: "select",
+                    options: measurementUnitLeafOptions
+                  },
+                  { name: "is_active", label: t("pagesUi.ioSignals.fields.status"), type: "checkbox" }
+                ],
+                values: {
+                  ...row.original,
+                  measurement_unit_id: row.original.measurement_unit_id ?? "",
+                  signal_kind_id: row.original.signal_kind_id ?? "",
+                  measurement_type: row.original.measurement_type ?? ""
+                },
+                onSave: (values) => {
+                  const measurementUnitId =
+                    values.measurement_unit_id === "" || values.measurement_unit_id === undefined
+                      ? null
+                      : Number(values.measurement_unit_id);
+                  const signalKindId =
+                    values.signal_kind_id === "" || values.signal_kind_id === undefined
+                      ? null
+                      : Number(values.signal_kind_id);
+                  const measurementType = values.measurement_type === "" ? null : values.measurement_type;
+                  updateMutation.mutate({
+                    id: row.original.id,
+                    payload: {
+                      tag: values.tag,
+                      signal: values.signal,
+                      signal_kind_id: signalKindId,
+                      measurement_type: measurementType,
+                      measurement_unit_id: measurementUnitId,
+                      is_active: values.is_active
+                    }
+                  });
+                  setDialog(null);
+                }
+              })
+            }
+          >
+            {t("actions.edit")}
+          </AppButton>
         )
       });
     }
 
     return base;
   }, [
-    cabinetItemMap,
-    cabinetItemsQuery.data?.items,
     canWrite,
-    deleteMutation,
     measurementUnitBreadcrumbs,
     measurementUnitLeafOptions,
-    restoreMutation,
-    updateMutation,
+    signalKindBreadcrumbs,
+    signalKindLeafOptions,
     t,
-    i18n.language
+    updateMutation
   ]);
+
+  const locations = ioTreeQuery.data?.locations || [];
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
       <Typography variant="h4">{t("pages.ioSignals")}</Typography>
-      <Card>
-        <CardContent sx={{ display: "grid", gap: 2 }}>
-          <Box
-            sx={{
-              display: "grid",
-              gap: 2,
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))"
-            }}
-          >
-            <TextField
-              label={t("actions.search")}
-              value={q}
-              onChange={(event) => {
-                setQ(event.target.value);
-                setPage(1);
-              }}
-              fullWidth
-            />
 
-            <FormControl fullWidth>
-              <InputLabel>{t("common.sort")}</InputLabel>
-              <Select label={t("common.sort")} value={sort} onChange={(event) => setSort(event.target.value)}>
-                {sortOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel>{t("common.fields.cabinet")}</InputLabel>
-              <Select
-                label={t("common.fields.cabinet")}
-                value={cabinetFilter}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setCabinetFilter(value === "" ? "" : Number(value));
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                {cabinetsQuery.data?.items.map((item) => (
-                  <MenuItem key={item.id} value={item.id}>
-                    {item.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel>{t("common.fields.nomenclature")}</InputLabel>
-              <Select
-                label={t("common.fields.nomenclature")}
-                value={equipmentFilter}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setEquipmentFilter(value === "" ? "" : Number(value));
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                {equipmentTypesQuery.data?.items.map((item) => (
-                  <MenuItem key={item.id} value={item.id}>
-                    {item.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel>{t("pagesUi.ioSignals.fields.signalType")}</InputLabel>
-              <Select
-                label={t("pagesUi.ioSignals.fields.signalType")}
-                value={signalTypeFilter}
-                onChange={(event) => {
-                  setSignalTypeFilter(event.target.value);
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                {signalTypeOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={showDeleted}
-                  onChange={(event) => {
-                    setShowDeleted(event.target.checked);
-                    setPage(1);
-                  }}
-                />
-              }
-              label={t("common.showDeleted")}
-            />
-            <Box sx={{ flexGrow: 1 }} />
-            {canWrite && (
-              <AppButton
-                variant="contained"
-                startIcon={<AddRoundedIcon />}
-                onClick={() =>
-                  setDialog({
-                    open: true,
-                    title: t("pagesUi.ioSignals.dialogs.createTitle"),
-                    fields: [
-                      {
-                        name: "cabinet_component_id",
-                        label: t("pagesUi.ioSignals.fields.component"),
-                        type: "select",
-                        options:
-                          cabinetItemsQuery.data?.items.map((item) => ({
-                            label:
-                              cabinetItemMap.get(item.id) ||
-                              t("pagesUi.ioSignals.labels.componentFallback", { id: item.id }),
-                            value: item.id
-                          })) || []
-                      },
-                      { name: "tag_name", label: t("pagesUi.ioSignals.fields.tag"), type: "text" },
-                      { name: "signal_name", label: t("pagesUi.ioSignals.fields.signal"), type: "text" },
-                      {
-                        name: "plc_channel_address",
-                        label: t("pagesUi.ioSignals.fields.plcAddress"),
-                        type: "text"
-                      },
-                      {
-                        name: "signal_type",
-                        label: t("pagesUi.ioSignals.fields.signalType"),
-                        type: "select",
-                        options: signalTypeOptions
-                      },
-                    {
-                      name: "measurement_type",
-                      label: t("pagesUi.ioSignals.fields.measurementType"),
-                      type: "select",
-                      options: measurementOptions
-                    },
-                    {
-                      name: "measurement_unit_id",
-                      label: t("pagesUi.ioSignals.fields.units"),
-                      type: "select",
-                      options: measurementUnitLeafOptions
-                    },
-                    { name: "terminal_connection", label: t("pagesUi.ioSignals.fields.terminal"), type: "text" },
-                    { name: "sensor_range", label: t("pagesUi.ioSignals.fields.range"), type: "text" }
-                  ],
-                  values: {
-                    cabinet_component_id: "",
-                    tag_name: "",
-                    signal_name: "",
-                    plc_channel_address: "",
-                    signal_type: "AI",
-                    measurement_type: "4-20mA (AI)",
-                    measurement_unit_id: "",
-                    terminal_connection: "",
-                    sensor_range: ""
-                  },
-                  onSave: (values) => {
-                    const measurementUnitId =
-                      values.measurement_unit_id === "" || values.measurement_unit_id === undefined
-                        ? null
-                        : Number(values.measurement_unit_id);
-                    createMutation.mutate({
-                      cabinet_component_id: values.cabinet_component_id,
-                      tag_name: values.tag_name,
-                      signal_name: values.signal_name,
-                      plc_channel_address: values.plc_channel_address,
-                      signal_type: values.signal_type,
-                      measurement_type: values.measurement_type,
-                      measurement_unit_id: measurementUnitId,
-                      terminal_connection: values.terminal_connection,
-                      sensor_range: values.sensor_range
-                    });
-                    setDialog(null);
-                  }
-                  })
-                }
-              >
-                {t("actions.add")}
-              </AppButton>
+      <Box
+        sx={{
+          display: "grid",
+          gap: 2,
+          gridTemplateColumns: { xs: "1fr", md: "minmax(260px, 380px) minmax(0, 1fr)" },
+          alignItems: "start"
+        }}
+      >
+        <Card>
+          <CardContent sx={{ display: "grid", gap: 1 }}>
+            <Typography variant="h6">{t("pagesUi.ioSignals.labels.locations")}</Typography>
+            {locations.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                {t("pagesUi.ioSignals.empty.tree")}
+              </Typography>
+            ) : (
+              <Box sx={{ display: "grid", gap: 0.5 }}>
+                {locations.map((location) => renderLocation(location, 0))}
+              </Box>
             )}
-          </Box>
+          </CardContent>
+        </Card>
 
-          <DataTable data={signalsQuery.data?.items || []} columns={columns} />
-          <TablePagination
-            component="div"
-            {...getTablePaginationProps(t)}
-            count={signalsQuery.data?.total || 0}
-            page={page - 1}
-            onPageChange={(_, value) => setPage(value + 1)}
-            rowsPerPage={pageSize}
-            onRowsPerPageChange={(event) => {
-              setPageSize(Number(event.target.value));
-              setPage(1);
-            }}
-            rowsPerPageOptions={pageSizeOptions}
-          />
-        </CardContent>
-      </Card>
+        <Card>
+          <CardContent sx={{ display: "grid", gap: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <Box sx={{ display: "grid" }}>
+                <Typography variant="h6">
+                  {selectedDevice
+                    ? selectedDevice.equipment_name
+                    : t("pagesUi.ioSignals.labels.selectEquipment")}
+                </Typography>
+                {selectedDevice ? (
+                  <Typography variant="body2" color="text.secondary">
+                    {[
+                      selectedDevice.manufacturer_name,
+                      selectedDevice.article,
+                      selectedDevice.nomenclature_number
+                    ]
+                      .filter(Boolean)
+                      .join(" • ")}
+                  </Typography>
+                ) : null}
+              </Box>
+              <Box sx={{ flexGrow: 1 }} />
+              {selectedDevice && (
+                <AppButton
+                  startIcon={<SyncRoundedIcon />}
+                  onClick={() => rebuildMutation.mutate(selectedDevice.equipment_in_operation_id)}
+                  disabled={!canWrite || rebuildMutation.isPending}
+                >
+                  {t("pagesUi.ioSignals.actions.rebuild")}
+                </AppButton>
+              )}
+            </Box>
+
+            {!selectedDevice ? (
+              <Typography variant="body2" color="text.secondary">
+                {t("pagesUi.ioSignals.empty.select")}
+              </Typography>
+            ) : signalsQuery.data && signalsQuery.data.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                {t("pagesUi.ioSignals.empty.noSignals")}
+              </Typography>
+            ) : (
+              <DataTable data={signalsQuery.data || []} columns={columns} />
+            )}
+          </CardContent>
+        </Card>
+      </Box>
 
       {dialog && <EntityDialog state={dialog} onClose={() => setDialog(null)} />}
       <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage(null)} />
     </Box>
   );
 }
-
-
-

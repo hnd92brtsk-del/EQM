@@ -19,6 +19,7 @@ from app.routers import (
     cabinet_files,
     assembly_items,
     io_signals,
+    io_tree,
     movements,
     audit_logs,
     sessions,
@@ -65,6 +66,7 @@ app.include_router(
     tags=["equipment-in-operation"],
 )
 app.include_router(io_signals.router, prefix="/api/v1/io-signals", tags=["io-signals"])
+app.include_router(io_tree.router, prefix="/api/v1", tags=["io-tree"])
 app.include_router(movements.router, prefix="/api/v1/movements", tags=["movements"])
 app.include_router(audit_logs.router, prefix="/api/v1/audit-logs", tags=["audit-logs"])
 app.include_router(sessions.router, prefix="/api/v1/sessions", tags=["sessions"])

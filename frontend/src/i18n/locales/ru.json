@@ -209,7 +209,8 @@
     "status": {
       "label": "Статус",
       "deleted": "Удалено",
-      "active": "Активно"
+      "active": "Активно",
+      "inactive": "Неактивно"
     },
     "fields": {
       "name": "Название",
@@ -664,44 +665,48 @@
       "historyTitle": "История перемещений"
     },
     "ioSignals": {
-      "sort": {
-        "byDateNewest": "По дате (сначала новые)",
-        "byDateOldest": "По дате (сначала старые)"
-      },
       "errors": {
-        "load": "Не удалось загрузить сигналы I/O",
-        "create": "Не удалось создать сигнал",
+        "loadTree": "Не удалось загрузить дерево I/O",
+        "loadSignals": "Не удалось загрузить сигналы I/O",
         "update": "Не удалось обновить сигнал",
-        "delete": "Не удалось удалить сигнал",
-        "restore": "Не удалось восстановить сигнал"
+        "rebuild": "Не удалось синхронизировать сигнал-лист"
       },
       "labels": {
-        "cabinetFallback": "Шкаф {{id}}",
-        "equipmentFallback": "Номенклатура {{id}}",
-        "componentFallback": "Компонент {{id}}"
+        "locations": "Локации",
+        "selectEquipment": "Выберите каналообразующее оборудование",
+        "cabinetMetaFallback": "Нет номеров",
+        "channelDeviceMetaFallback": "Нет данных",
+        "signalsTotal": "{{count}} сигналов"
+      },
+      "actions": {
+        "rebuild": "Синхронизировать"
       },
       "columns": {
-        "component": "Компонент",
+        "channelIndex": "Канал",
         "tag": "Тег",
         "signal": "Сигнал",
         "signalType": "Тип сигнала",
+        "signalKind": "Тип сигнала (справочник)",
         "measurementType": "Тип измерения",
         "units": "Ед. измерения"
       },
       "fields": {
-        "component": "Компонент",
+        "channelIndex": "Канал",
         "tag": "Тег",
         "signal": "Сигнал",
-        "plcAddress": "Адрес PLC",
         "signalType": "Тип сигнала",
+        "signalKind": "Тип сигнала (справочник)",
         "measurementType": "Тип измерения",
-        "terminal": "Клемма",
-        "range": "Диапазон",
-        "units": "Ед. измерения"
+        "units": "Ед. измерения",
+        "status": "Статус"
       },
       "dialogs": {
-        "editTitle": "Сигнал I/O",
-        "createTitle": "Новый сигнал I/O"
+        "editTitle": "Сигнал I/O"
+      },
+      "empty": {
+        "tree": "Локации не найдены.",
+        "select": "Выберите устройство в дереве, чтобы увидеть сигналы.",
+        "noSignals": "Сигналов еще нет. Нажмите «Синхронизировать»."
       }
     },
     "personnel": {

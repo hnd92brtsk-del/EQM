@@ -14,9 +14,7 @@ export type SignalTypeLookups = {
   leafIds: Set<number>;
 };
 
-export async function fetchSignalTypesTree(
-  includeDeleted = false
-): Promise<SignalTypeTreeNode[]> {
+export async function fetchSignalTypesTree(includeDeleted = false): Promise<SignalTypeTreeNode[]> {
   const query = includeDeleted ? "?include_deleted=true" : "";
   return apiFetch<SignalTypeTreeNode[]>(`/signal-types/tree${query}`);
 }

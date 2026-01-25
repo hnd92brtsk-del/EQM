@@ -15,6 +15,7 @@ from app.routers import cabinet_files
 from app.routers import assembly_items
 from app.routers import equipment_in_operation
 from app.routers import io_signals
+from app.routers import io_tree
 from app.routers import movements
 from app.routers import audit_logs
 from app.routers import sessions
@@ -40,6 +41,7 @@ __all__ = [
     "assembly_items",
     "equipment_in_operation",
     "io_signals",
+    "io_tree",
     "movements",
     "audit_logs",
     "sessions",

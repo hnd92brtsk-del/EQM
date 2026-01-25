@@ -1,5 +1,6 @@
-﻿from pydantic import BaseModel, Field
 from enum import Enum
+from pydantic import BaseModel, Field
+
 from app.schemas.common import EntityBase, SoftDeleteFields
 
 
@@ -23,40 +24,22 @@ class MeasurementType(str, Enum):
 
 
 class IOSignalOut(EntityBase, SoftDeleteFields):
-    cabinet_component_id: int
-    tag_name: str | None = None
-    signal_name: str | None = None
-    plc_channel_address: str | None = None
+    equipment_in_operation_id: int
     signal_type: SignalType
-    measurement_type: MeasurementType
-    terminal_connection: str | None = None
-    sensor_range: str | None = None
-    engineering_units: str | None = None
+    channel_index: int
+    tag: str | None = None
+    signal: str | None = None
+    signal_kind_id: int | None = None
+    measurement_type: MeasurementType | None = None
     measurement_unit_id: int | None = None
     measurement_unit_full_path: str | None = None
-
-
-class IOSignalCreate(BaseModel):
-    cabinet_component_id: int
-    tag_name: str | None = Field(default=None, max_length=200)
-    signal_name: str | None = Field(default=None, max_length=500)
-    plc_channel_address: str | None = Field(default=None, max_length=100)
-    signal_type: SignalType
-    measurement_type: MeasurementType
-    terminal_connection: str | None = Field(default=None, max_length=100)
-    sensor_range: str | None = Field(default=None, max_length=100)
-    engineering_units: str | None = Field(default=None, max_length=50)
-    measurement_unit_id: int | None = None
+    is_active: bool
 
 
 class IOSignalUpdate(BaseModel):
-    tag_name: str | None = Field(default=None, max_length=200)
-    signal_name: str | None = Field(default=None, max_length=500)
-    plc_channel_address: str | None = Field(default=None, max_length=100)
-    signal_type: SignalType | None = None
+    tag: str | None = Field(default=None, max_length=200)
+    signal: str | None = Field(default=None, max_length=500)
+    signal_kind_id: int | None = None
     measurement_type: MeasurementType | None = None
-    terminal_connection: str | None = Field(default=None, max_length=100)
-    sensor_range: str | None = Field(default=None, max_length=100)
-    engineering_units: str | None = Field(default=None, max_length=50)
     measurement_unit_id: int | None = None
-    is_deleted: bool | None = None
+    is_active: bool | None = None
