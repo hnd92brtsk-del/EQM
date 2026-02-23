@@ -163,7 +163,8 @@
     "personnel": "Personnel",
     "chat": "Chatbot",
     "measurement_units": "Measurement units",
-    "signal_types": "Signal types"
+    "signal_types": "Signal types",
+    "main_equipment": "Main equipment"
   },
   "sidebar": {
     "pin": "Pin sidebar",
@@ -185,7 +186,8 @@
     "cabinetComposition": "Cabinet composition is a dedicated view for the cabinet structure and items. It is a focused area for cabinet details and composition-related actions.",
     "engineering": "Engineering includes IO Signals and DCL. These screens manage signals, connections, and related definitions using add/edit/delete/restore actions.",
     "engineeringSecondary": "Use filters and sorting to navigate large signal lists.",
-    "dictionaries": "Dictionaries include Warehouses, Manufacturers, Nomenclature, Locations, and Equipment Categories. Records can be viewed, added, edited, deleted, and restored.",
+    "main_equipment": "The Main equipment dictionary is a hierarchical tree with unlimited depth. Node level is calculated automatically from the selected parent.",
+    "dictionaries": "Dictionaries include Warehouses, Manufacturers, Nomenclature, Locations, Main equipment, and Equipment Categories. Records can be viewed, added, edited, deleted, and restored. Main equipment is stored as a tree.",
     "admin": "Admin contains Users, Sessions, and Audit Logs. Access is limited to the admin role."
   },
   "common": {
@@ -536,6 +538,30 @@
         "update": "Failed to update location",
         "delete": "Failed to delete location",
         "restore": "Failed to restore location"
+      }
+    },
+    "mainEquipment": {
+      "title": "Main equipment",
+      "dialogs": {
+        "createTitle": "New main equipment",
+        "editTitle": "Edit main equipment"
+      },
+      "actions": {
+        "addChild": "Add child",
+        "addRoot": "Add root"
+      },
+      "labels": {
+        "category": "Category",
+        "equipment": "Equipment",
+        "subtype": "Subtype"
+      },
+      "errors": {
+        "load": "Failed to load main equipment",
+        "create": "Failed to create record",
+        "update": "Failed to update record",
+        "delete": "Failed to delete record",
+        "restore": "Failed to restore record",
+        "maxLevel": "Cannot create a level deeper than 3"
       }
     },
     "cabinetItems": {

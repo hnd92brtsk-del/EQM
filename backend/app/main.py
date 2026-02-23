@@ -7,6 +7,7 @@ from app.routers import (
     users,
     manufacturers,
     locations,
+    main_equipment,
     measurement_units,
     signal_types,
     equipment_categories,
@@ -48,6 +49,7 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(manufacturers.router, prefix="/api/v1/manufacturers", tags=["manufacturers"])
 app.include_router(locations.router, prefix="/api/v1/locations", tags=["locations"])
+app.include_router(main_equipment.router, prefix="/api/v1/main-equipment", tags=["main-equipment"])
 app.include_router(measurement_units.router, prefix="/api/v1/measurement-units", tags=["measurement-units"])
 app.include_router(signal_types.router, prefix="/api/v1/signal-types", tags=["signal-types"])
 app.include_router(equipment_categories.router, prefix="/api/v1/equipment-categories", tags=["equipment-categories"])

@@ -65,6 +65,30 @@ class Location(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
         return " / ".join(reversed(parts))
 
 
+class MainEquipment(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
+    __tablename__ = "main_equipment"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    parent_id: Mapped[int | None] = mapped_column(
+        ForeignKey("main_equipment.id", ondelete="SET NULL"), index=True
+    )
+    level: Mapped[int] = mapped_column(Integer, nullable=False)
+    code: Mapped[str] = mapped_column(String(50), nullable=False)
+    meta_data: Mapped[dict | None] = mapped_column(JSONB)
+    parent: Mapped["MainEquipment | None"] = relationship(
+        remote_side="MainEquipment.id", backref="children"
+    )
+
+
+Index(
+    "ix_main_equipment_code_active_unique",
+    MainEquipment.code,
+    unique=True,
+    postgresql_where=(MainEquipment.is_deleted == False),
+)
+
+
 class MeasurementUnit(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     __tablename__ = "measurement_units"
 
