@@ -162,6 +162,13 @@ export const navTree: NavItem[] = [
         roles: ["viewer", "engineer", "admin"]
       },
       {
+        id: "data-types",
+        labelKey: "menu.data_types",
+        path: "/dictionaries/data-types",
+        icon: IndexIcon,
+        roles: ["viewer", "engineer", "admin"]
+      },
+      {
         id: "measurement-units",
         labelKey: "menu.measurement_units",
         path: "/dictionaries/measurement-units",

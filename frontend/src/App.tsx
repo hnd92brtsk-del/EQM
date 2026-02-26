@@ -8,6 +8,7 @@ import DashboardPage from "./pages/DashboardPage";
 import ManufacturersPage from "./pages/ManufacturersPage";
 import EquipmentCategoriesPage from "./pages/EquipmentCategoriesPage";
 import MainEquipmentPage from "./pages/MainEquipmentPage";
+import DataTypesPage from "./pages/DataTypesPage";
 import LocationsPage from "./pages/LocationsPage";
 import FieldEquipmentsPage from "./pages/FieldEquipmentsPage";
 import MeasurementUnitsPage from "./pages/MeasurementUnitsPage";
@@ -64,6 +65,7 @@ export default function App() {
                 <Route path="/dictionaries/locations" element={<LocationsPage />} />
                 <Route path="/dictionaries/field-equipments" element={<FieldEquipmentsPage />} />
                 <Route path="/dictionaries/main-equipment" element={<MainEquipmentPage />} />
+                <Route path="/dictionaries/data-types" element={<DataTypesPage />} />
                 <Route path="/dictionaries/measurement-units" element={<MeasurementUnitsPage />} />
                 <Route path="/dictionaries/signal-types" element={<SignalTypesPage />} />
                 <Route path="/dictionaries/equipment-categories" element={<EquipmentCategoriesPage />} />

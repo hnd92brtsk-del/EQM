@@ -187,6 +187,39 @@ Index(
 )
 
 
+class DataType(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
+    __tablename__ = "data_types"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    parent_id: Mapped[int | None] = mapped_column(
+        ForeignKey("data_types.id", ondelete="SET NULL"), index=True
+    )
+    tooltip: Mapped[str | None] = mapped_column(Text)
+    parent: Mapped["DataType | None"] = relationship(
+        remote_side="DataType.id", backref="children"
+    )
+
+    def full_path(self) -> str:
+        parts: list[str] = []
+        current: DataType | None = self
+        seen: set[int] = set()
+        while current and current.id not in seen:
+            parts.append(current.name)
+            seen.add(current.id)
+            current = current.parent
+        return " / ".join(reversed(parts))
+
+
+Index(
+    "ix_data_types_parent_name_active_unique",
+    DataType.parent_id,
+    DataType.name,
+    unique=True,
+    postgresql_where=(DataType.is_deleted == False),
+)
+
+
 class EquipmentType(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     __tablename__ = "equipment_types"
 

@@ -7,6 +7,7 @@ const tabs = [
   { labelKey: "menu.locations", to: "/dictionaries/locations" },
   { labelKey: "menu.field_equipments", to: "/dictionaries/field-equipments" },
   { labelKey: "menu.main_equipment", to: "/dictionaries/main-equipment" },
+  { labelKey: "menu.data_types", to: "/dictionaries/data-types" },
   { labelKey: "menu.measurement_units", to: "/dictionaries/measurement-units" },
   { labelKey: "menu.signal_types", to: "/dictionaries/signal-types" },
   { labelKey: "menu.equipment_categories", to: "/dictionaries/equipment-categories" }

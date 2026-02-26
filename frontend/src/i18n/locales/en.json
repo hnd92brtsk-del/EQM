@@ -165,7 +165,8 @@
     "measurement_units": "Measurement units",
     "signal_types": "Signal types",
     "field_equipments": "Field equipment",
-    "main_equipment": "Main equipment"
+    "main_equipment": "Main equipment",
+    "data_types": "Data types"
   },
   "sidebar": {
     "pin": "Pin sidebar",
@@ -189,6 +190,7 @@
     "engineeringSecondary": "Use filters and sorting to navigate large signal lists.",
     "main_equipment": "The Main equipment dictionary is a hierarchical tree with unlimited depth. Node level is calculated automatically from the selected parent.",
     "field_equipments": "The Field equipment dictionary is a hierarchical tree. It supports creating root and child nodes, editing, soft delete, and restore.",
+    "data_types": "The Data types dictionary is a tree. You can create root and child nodes, edit name, parent, and tooltip. Tooltip is shown on hover over the node name and may be empty.",
     "dictionaries": "Dictionaries include Warehouses, Manufacturers, Nomenclature, Locations, Main equipment, and Equipment Categories. Records can be viewed, added, edited, deleted, and restored. Main equipment is stored as a tree.",
     "admin": "Admin contains Users, Sessions, and Audit Logs. Access is limited to the admin role."
   },
@@ -245,7 +247,8 @@
       "accounting": "Accounting",
       "warehouse": "Warehouse",
       "reference": "Reference",
-      "sortOrder": "Sort order"
+      "sortOrder": "Sort order",
+      "tooltip": "Tooltip"
     },
     "rowsPerPage": "Rows per page",
     "rowsDisplayed": "{{from}}-{{to}} of {{countLabel}}",
@@ -903,6 +906,24 @@
         "update": "Failed to update signal type",
         "delete": "Failed to delete signal type",
         "restore": "Failed to restore signal type"
+      }
+    },
+    "dataTypes": {
+      "title": "Data types",
+      "dialogs": {
+        "createTitle": "New data type",
+        "editTitle": "Edit data type"
+      },
+      "actions": {
+        "addChild": "Add child",
+        "addRoot": "Add root"
+      },
+      "errors": {
+        "load": "Failed to load data types",
+        "create": "Failed to create data type",
+        "update": "Failed to update data type",
+        "delete": "Failed to delete data type",
+        "restore": "Failed to restore data type"
       }
     }
   }

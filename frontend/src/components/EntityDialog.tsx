@@ -23,6 +23,8 @@ export type FieldConfig = {
   name: string;
   label: string;
   type: "text" | "number" | "select" | "checkbox" | "ports";
+  multiline?: boolean;
+  rows?: number;
   min?: number;
   step?: number | "any";
   placeholder?: string;
@@ -198,6 +200,8 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
               key={field.name}
               label={field.label}
               type={field.type}
+              multiline={field.multiline}
+              rows={field.multiline ? field.rows ?? 3 : undefined}
               placeholder={field.placeholder}
               value={values[field.name] ?? ""}
               onChange={(event) =>

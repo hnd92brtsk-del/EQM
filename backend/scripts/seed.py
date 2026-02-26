@@ -25,6 +25,7 @@ from app.models.core import (
     MeasurementUnit,
     MainEquipment,
     FieldEquipment,
+    DataType,
 )
 from app.models.assemblies import Assembly
 from app.models.operations import AssemblyItem
@@ -96,6 +97,81 @@ FIELD_EQUIPMENTS_TREE: list[tuple[str, list]] = [
             )
         ],
     )
+]
+
+DATA_TYPES_TREE: list[tuple[str, str | None, list]] = [
+    (
+        "BOOL",
+        "1 бит, TRUE / FALSE. Самый распространённый тип: состояние кнопки, концевика, реле.",
+        [],
+    ),
+    (
+        "Целочисленные",
+        None,
+        [
+            ("BYTE", "8 бит, беззнаковый (0…255)", []),
+            ("WORD", "16 бит, беззнаковый (0…65535)", []),
+            ("DWORD", "32 бита, беззнаковый", []),
+            ("LWORD", "64 бита, беззнаковый", []),
+            ("SINT", "8 бит, знаковый (-128…127)", []),
+            ("INT", "16 бит, знаковый (-32768…32767)", []),
+            ("DINT", "32 бита, знаковый. Часто используется для счётчиков, позиций энкодера.", []),
+            ("LINT", "64 бита, знаковый", []),
+            ("USINT", "беззнаковая версия INT-типов", []),
+            ("UINT", "беззнаковая версия INT-типов", []),
+            ("UDINT", "беззнаковая версия INT-типов", []),
+            ("ULINT", "беззнаковая версия INT-типов", []),
+        ],
+    ),
+    (
+        "Числа с плавающей точкой",
+        None,
+        [
+            ("REAL", "32 бита (IEEE 754). Основной тип для физических величин: температура, давление, расход.", []),
+            ("LREAL", "64 бита, повышенная точность", []),
+        ],
+    ),
+    (
+        "Временны́е",
+        None,
+        [
+            ("TIME", "длительность (например T#5s, T#1h30m)", []),
+            ("DATE", "календарная дата", []),
+            ("TIME_OF_DAY / TOD", "время суток", []),
+            ("DATE_AND_TIME / DT", "дата + время", []),
+        ],
+    ),
+    (
+        "Строковые",
+        None,
+        [
+            (
+                "STRING",
+                "строка символов (ASCII), длина по умолчанию 80 символов, задаётся как STRING[n]",
+                [],
+            ),
+            ("WSTRING", "строка в Unicode (широкие символы)", []),
+            ("CHAR", "один символ", []),
+        ],
+    ),
+    (
+        "Производные (пользовательские)",
+        None,
+        [
+            ("ARRAY", "массив однотипных элементов: ARRAY[0..99] OF REAL", []),
+            (
+                "STRUCT",
+                "структура из разнотипных полей (аналог struct в C), удобно для хранения параметров одного устройства",
+                [],
+            ),
+            ("ENUM", "перечисление именованных состояний (например: STOPPED, RUNNING, FAULT)", []),
+            (
+                "FUNCTION_BLOCK",
+                "функциональный блок со своими входами, выходами и внутренним состоянием",
+                [],
+            ),
+        ],
+    ),
 ]
 
 
@@ -375,6 +451,65 @@ def seed_field_equipments(db) -> dict[str, int]:
     return {"created": created, "restored": restored, "existing": existing}
 
 
+def seed_data_types(db) -> dict[str, int]:
+    created = 0
+    restored = 0
+    existing = 0
+    updated = 0
+
+    def get_or_create_node(name: str, tooltip: str | None, parent_id: int | None) -> DataType:
+        nonlocal created, restored, existing, updated
+
+        active = db.scalar(
+            select(DataType).where(
+                DataType.name == name,
+                DataType.parent_id == parent_id,
+                DataType.is_deleted == False,
+            )
+        )
+        if active:
+            existing += 1
+            if active.tooltip != tooltip:
+                active.tooltip = tooltip
+                updated += 1
+            return active
+
+        deleted = db.scalar(
+            select(DataType).where(
+                DataType.name == name,
+                DataType.parent_id == parent_id,
+                DataType.is_deleted == True,
+            )
+        )
+        if deleted:
+            deleted.is_deleted = False
+            deleted.deleted_at = None
+            deleted.deleted_by_id = None
+            deleted.tooltip = tooltip
+            restored += 1
+            return deleted
+
+        node = DataType(name=name, parent_id=parent_id, tooltip=tooltip)
+        db.add(node)
+        db.flush()
+        created += 1
+        return node
+
+    def walk(nodes: list[tuple[str, str | None, list]], parent_id: int | None = None) -> None:
+        for name, tooltip, children in nodes:
+            node = get_or_create_node(name, tooltip, parent_id)
+            if children:
+                walk(children, node.id)
+
+    walk(DATA_TYPES_TREE)
+    return {
+        "created": created,
+        "restored": restored,
+        "existing": existing,
+        "updated": updated,
+    }
+
+
 def run():
     db = SessionLocal()
     try:
@@ -589,6 +724,7 @@ def run():
 
         main_equipment_stats = seed_main_equipment_from_excel(db)
         field_equipments_stats = seed_field_equipments(db)
+        data_types_stats = seed_data_types(db)
 
         db.commit()
         existing_personnel = db.scalar(select(Personnel).limit(1))
@@ -617,6 +753,13 @@ def run():
             f"created={field_equipments_stats['created']}, "
             f"restored={field_equipments_stats['restored']}, "
             f"existing={field_equipments_stats['existing']}"
+        )
+        print(
+            "Data types seed: "
+            f"created={data_types_stats['created']}, "
+            f"restored={data_types_stats['restored']}, "
+            f"existing={data_types_stats['existing']}, "
+            f"updated={data_types_stats['updated']}"
         )
         print("Seed completed.")
     finally:
