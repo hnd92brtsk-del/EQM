@@ -42,6 +42,9 @@ type EquipmentType = {
   name: string;
   article?: string | null;
   nomenclature_number: string;
+  current_type?: string | null;
+  supply_voltage?: string | null;
+  current_consumption_a?: number | null;
   manufacturer_id: number;
   equipment_category_id?: number | null;
   is_channel_forming: boolean;
@@ -66,8 +69,14 @@ type Manufacturer = { id: number; name: string };
 type EquipmentCategory = { id: number; name: string };
 type NetworkPort = { type: string; count: number };
 type SerialPort = { type: string; count: number };
+type ElectricalFields = {
+  current_type?: string | null;
+  supply_voltage?: string | null;
+  current_consumption_a?: number | null;
+};
 
 const pageSizeOptions = [10, 20, 50, 100];
+const equipmentElectricalFieldsStorageKey = "equipment-types-electrical-fields";
 const networkPortOptions: { label: string; value: string; disabled?: boolean }[] = [
   { label: "RJ-45 (8p8c)", value: "RJ-45 (8p8c)" },
   { label: "LC", value: "LC" },
@@ -133,8 +142,70 @@ export default function EquipmentTypesPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [datasheetFile, setDatasheetFile] = useState<File | null>(null);
+  const [electricalFieldsByEquipmentId, setElectricalFieldsByEquipmentId] = useState<
+    Record<number, ElectricalFields>
+  >(() => {
+    try {
+      const raw = localStorage.getItem(equipmentElectricalFieldsStorageKey);
+      if (!raw) {
+        return {};
+      }
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  });
   const photoFileRef = useRef<File | null>(null);
   const datasheetFileRef = useRef<File | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem(
+      equipmentElectricalFieldsStorageKey,
+      JSON.stringify(electricalFieldsByEquipmentId)
+    );
+  }, [electricalFieldsByEquipmentId]);
+
+  const currentTypeOptions = useMemo(
+    () => [
+      { value: "Постоянный", label: t("pagesUi.equipmentTypes.options.currentType.direct") },
+      { value: "Переменный", label: t("pagesUi.equipmentTypes.options.currentType.alternating") },
+      { value: "N/A", label: t("pagesUi.equipmentTypes.options.currentType.na") }
+    ],
+    [t]
+  );
+
+  const supplyVoltageOptions = useMemo(
+    () => [
+      { value: "220В", label: t("pagesUi.equipmentTypes.options.supplyVoltage.v220") },
+      { value: "24В", label: t("pagesUi.equipmentTypes.options.supplyVoltage.v24") },
+      { value: "220В/24В", label: t("pagesUi.equipmentTypes.options.supplyVoltage.v220v24") },
+      { value: "12В", label: t("pagesUi.equipmentTypes.options.supplyVoltage.v12") },
+      { value: "9В", label: t("pagesUi.equipmentTypes.options.supplyVoltage.v9") },
+      { value: "5В", label: t("pagesUi.equipmentTypes.options.supplyVoltage.v5") },
+      { value: "3В", label: t("pagesUi.equipmentTypes.options.supplyVoltage.v3") },
+      { value: "N/A", label: t("pagesUi.equipmentTypes.options.supplyVoltage.na") }
+    ],
+    [t]
+  );
+
+  const getEquipmentElectricalFields = (equipment: EquipmentType): ElectricalFields => {
+    const localFields = electricalFieldsByEquipmentId[equipment.id];
+    return {
+      current_type:
+        localFields && Object.prototype.hasOwnProperty.call(localFields, "current_type")
+          ? localFields.current_type
+          : equipment.current_type ?? null,
+      supply_voltage:
+        localFields && Object.prototype.hasOwnProperty.call(localFields, "supply_voltage")
+          ? localFields.supply_voltage
+          : equipment.supply_voltage ?? null,
+      current_consumption_a:
+        localFields && Object.prototype.hasOwnProperty.call(localFields, "current_consumption_a")
+          ? localFields.current_consumption_a
+          : equipment.current_consumption_a ?? null
+    };
+  };
   const onPickPhoto = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     console.log("[ET] picked photo", file?.name, file?.size);
@@ -283,7 +354,10 @@ export default function EquipmentTypesPage() {
     resetMediaFiles();
   };
 
-  const saveEquipmentType = async (payload: Partial<EquipmentType>, equipmentId?: number) => {
+  const saveEquipmentType = async (
+    payload: Partial<EquipmentType>,
+    equipmentId?: number
+  ): Promise<EquipmentType> => {
     const fallbackMessage = equipmentId
       ? t("pagesUi.equipmentTypes.errors.update")
       : t("pagesUi.equipmentTypes.errors.create");
@@ -325,6 +399,7 @@ export default function EquipmentTypesPage() {
         }
       }
       refresh();
+      return result;
     } catch (error) {
       console.error(error);
       const message = error instanceof Error ? error.message : fallbackMessage;
@@ -429,6 +504,21 @@ export default function EquipmentTypesPage() {
       },
       { header: t("common.fields.nomenclature"), accessorKey: "nomenclature_number" },
       {
+        header: t("pagesUi.equipmentTypes.fields.currentType"),
+        cell: ({ row }) => getEquipmentElectricalFields(row.original).current_type || "-"
+      },
+      {
+        header: t("pagesUi.equipmentTypes.fields.supplyVoltage"),
+        cell: ({ row }) => getEquipmentElectricalFields(row.original).supply_voltage || "-"
+      },
+      {
+        header: t("pagesUi.equipmentTypes.fields.currentConsumptionA"),
+        cell: ({ row }) => {
+          const value = getEquipmentElectricalFields(row.original).current_consumption_a;
+          return value === null || value === undefined ? "-" : value;
+        }
+      },
+      {
         header: t("common.fields.manufacturer"),
         cell: ({ row }) =>
           manufacturerMap.get(row.original.manufacturer_id) || row.original.manufacturer_id
@@ -522,6 +612,25 @@ export default function EquipmentTypesPage() {
                     { name: "nomenclature_number", label: t("common.fields.nomenclature"), type: "text" },
                     { name: "article", label: t("pagesUi.equipmentTypes.fields.article"), type: "text" },
                     {
+                      name: "current_type",
+                      label: t("pagesUi.equipmentTypes.fields.currentType"),
+                      type: "select",
+                      options: currentTypeOptions
+                    },
+                    {
+                      name: "supply_voltage",
+                      label: t("pagesUi.equipmentTypes.fields.supplyVoltage"),
+                      type: "select",
+                      options: supplyVoltageOptions
+                    },
+                    {
+                      name: "current_consumption_a",
+                      label: t("pagesUi.equipmentTypes.fields.currentConsumptionA"),
+                      type: "number",
+                      min: 0,
+                      step: "any"
+                    },
+                    {
                       name: "manufacturer_id",
                       label: t("common.fields.manufacturer"),
                       type: "select",
@@ -602,9 +711,12 @@ export default function EquipmentTypesPage() {
                     },
                     { name: "unit_price_rub", label: t("common.fields.priceRub"), type: "number" }
                   ],
-                  values: row.original,
+                  values: {
+                    ...row.original,
+                    ...getEquipmentElectricalFields(row.original)
+                  },
                   renderExtra: renderMediaInputs,
-                  onSave: (values) => {
+                  onSave: async (values) => {
                     if (
                       values.is_network &&
                       (values.network_ports || []).some(
@@ -622,7 +734,24 @@ export default function EquipmentTypesPage() {
                       values.equipment_category_id === "" || values.equipment_category_id === undefined
                         ? undefined
                         : Number(values.equipment_category_id);
-                    saveEquipmentType(
+                    let currentConsumptionValue: number | null = null;
+                    if (
+                      values.current_consumption_a !== "" &&
+                      values.current_consumption_a !== undefined &&
+                      values.current_consumption_a !== null
+                    ) {
+                      const parsedCurrentConsumption = Number(values.current_consumption_a);
+                      if (Number.isNaN(parsedCurrentConsumption)) {
+                        setErrorMessage(t("pagesUi.equipmentTypes.validation.currentConsumptionInvalid"));
+                        return;
+                      }
+                      if (parsedCurrentConsumption < 0) {
+                        setErrorMessage(t("pagesUi.equipmentTypes.validation.currentConsumptionNonNegative"));
+                        return;
+                      }
+                      currentConsumptionValue = parsedCurrentConsumption;
+                    }
+                    const result = await saveEquipmentType(
                       {
                         name: values.name,
                         nomenclature_number: values.nomenclature_number,
@@ -644,18 +773,26 @@ export default function EquipmentTypesPage() {
                               }))
                           : undefined,
                         has_serial_interfaces: values.has_serial_interfaces,
-                        serial_ports: values.has_serial_interfaces
-                          ? (values.serial_ports || [])
-                              .filter((item: SerialPort) => item?.type)
-                              .map((item: SerialPort) => ({
-                                type: item.type,
-                                count: Number(item.count || 0)
-                              }))
-                          : [],
+                          serial_ports: values.has_serial_interfaces
+                            ? (values.serial_ports || [])
+                                .filter((item: SerialPort) => item?.type)
+                                .map((item: SerialPort) => ({
+                                  type: item.type,
+                                  count: Number(item.count || 0)
+                                }))
+                            : [],
                         unit_price_rub: values.unit_price_rub === "" ? undefined : values.unit_price_rub
                       },
                       row.original.id
                     );
+                    setElectricalFieldsByEquipmentId((prev) => ({
+                      ...prev,
+                      [result.id]: {
+                        current_type: values.current_type ? String(values.current_type) : null,
+                        supply_voltage: values.supply_voltage ? String(values.supply_voltage) : null,
+                        current_consumption_a: currentConsumptionValue
+                      }
+                    }));
                   }
                 });
               }}
@@ -693,6 +830,9 @@ export default function EquipmentTypesPage() {
     renderMediaInputs,
     resetMediaFiles,
     saveEquipmentType,
+    currentTypeOptions,
+    supplyVoltageOptions,
+    electricalFieldsByEquipmentId,
     t,
     updateMutation
   ]);
@@ -795,6 +935,25 @@ export default function EquipmentTypesPage() {
                       { name: "nomenclature_number", label: t("common.fields.nomenclature"), type: "text" },
                       { name: "article", label: t("pagesUi.equipmentTypes.fields.article"), type: "text" },
                       {
+                        name: "current_type",
+                        label: t("pagesUi.equipmentTypes.fields.currentType"),
+                        type: "select",
+                        options: currentTypeOptions
+                      },
+                      {
+                        name: "supply_voltage",
+                        label: t("pagesUi.equipmentTypes.fields.supplyVoltage"),
+                        type: "select",
+                        options: supplyVoltageOptions
+                      },
+                      {
+                        name: "current_consumption_a",
+                        label: t("pagesUi.equipmentTypes.fields.currentConsumptionA"),
+                        type: "number",
+                        min: 0,
+                        step: "any"
+                      },
+                      {
                         name: "manufacturer_id",
                         label: t("common.fields.manufacturer"),
                         type: "select",
@@ -879,6 +1038,9 @@ export default function EquipmentTypesPage() {
                       name: "",
                       article: "",
                       nomenclature_number: "",
+                      current_type: "",
+                      supply_voltage: "",
+                      current_consumption_a: "",
                       manufacturer_id: "",
                       equipment_category_id: "",
                       is_channel_forming: false,
@@ -893,64 +1055,81 @@ export default function EquipmentTypesPage() {
                       unit_price_rub: ""
                     },
                     renderExtra: renderMediaInputs,
-                    onSave: (values) => {
-                      try {
-                        if (
-                          values.is_network &&
-                          (values.network_ports || []).some(
-                            (item: NetworkPort) => legacyNetworkPortValues.has(item?.type)
-                          )
-                        ) {
-                          setErrorMessage(t("pagesUi.equipmentTypes.validation.networkPortsDisallowSerial"));
+                    onSave: async (values) => {
+                      if (
+                        values.is_network &&
+                        (values.network_ports || []).some(
+                          (item: NetworkPort) => legacyNetworkPortValues.has(item?.type)
+                        )
+                      ) {
+                        setErrorMessage(t("pagesUi.equipmentTypes.validation.networkPortsDisallowSerial"));
+                        return;
+                      }
+                      const manufacturerId =
+                        values.manufacturer_id === "" || values.manufacturer_id === undefined
+                          ? undefined
+                          : Number(values.manufacturer_id);
+                      const equipmentCategoryId =
+                        values.equipment_category_id === "" ||
+                        values.equipment_category_id === undefined
+                          ? undefined
+                          : Number(values.equipment_category_id);
+                      let currentConsumptionValue: number | null = null;
+                      if (
+                        values.current_consumption_a !== "" &&
+                        values.current_consumption_a !== undefined &&
+                        values.current_consumption_a !== null
+                      ) {
+                        const parsedCurrentConsumption = Number(values.current_consumption_a);
+                        if (Number.isNaN(parsedCurrentConsumption)) {
+                          setErrorMessage(t("pagesUi.equipmentTypes.validation.currentConsumptionInvalid"));
                           return;
                         }
-                        const manufacturerId =
-                          values.manufacturer_id === "" || values.manufacturer_id === undefined
-                            ? undefined
-                            : Number(values.manufacturer_id);
-                        const equipmentCategoryId =
-                          values.equipment_category_id === "" ||
-                          values.equipment_category_id === undefined
-                            ? undefined
-                            : Number(values.equipment_category_id);
-                        saveEquipmentType({
-                          name: values.name,
-                          nomenclature_number: values.nomenclature_number,
-                          article: values.article || null,
-                          manufacturer_id: manufacturerId,
-                          equipment_category_id: equipmentCategoryId,
-                          is_channel_forming: values.is_channel_forming,
-                          ai_count: Number(values.ai_count || 0),
-                          di_count: Number(values.di_count || 0),
-                          ao_count: Number(values.ao_count || 0),
-                          do_count: Number(values.do_count || 0),
-                          is_network: values.is_network,
-                          network_ports: values.is_network
-                            ? (values.network_ports || [])
-                                .filter((item: NetworkPort) => item?.type)
-                                .map((item: NetworkPort) => ({
-                                  type: item.type,
-                                  count: Number(item.count || 0)
-                                }))
-                            : undefined,
-                          has_serial_interfaces: values.has_serial_interfaces,
-                          serial_ports: values.has_serial_interfaces
-                            ? (values.serial_ports || [])
-                                .filter((item: SerialPort) => item?.type)
-                                .map((item: SerialPort) => ({
-                                  type: item.type,
-                                  count: Number(item.count || 0)
-                                }))
-                            : [],
-                          unit_price_rub: values.unit_price_rub === "" ? undefined : values.unit_price_rub
-                        });
-                      } catch (error) {
-                        setErrorMessage(
-                          error instanceof Error
-                            ? error.message
-                            : t("pagesUi.equipmentTypes.errors.create")
-                        );
+                        if (parsedCurrentConsumption < 0) {
+                          setErrorMessage(t("pagesUi.equipmentTypes.validation.currentConsumptionNonNegative"));
+                          return;
+                        }
+                        currentConsumptionValue = parsedCurrentConsumption;
                       }
+                      const result = await saveEquipmentType({
+                        name: values.name,
+                        nomenclature_number: values.nomenclature_number,
+                        article: values.article || null,
+                        manufacturer_id: manufacturerId,
+                        equipment_category_id: equipmentCategoryId,
+                        is_channel_forming: values.is_channel_forming,
+                        ai_count: Number(values.ai_count || 0),
+                        di_count: Number(values.di_count || 0),
+                        ao_count: Number(values.ao_count || 0),
+                        do_count: Number(values.do_count || 0),
+                        is_network: values.is_network,
+                        network_ports: values.is_network
+                          ? (values.network_ports || [])
+                              .filter((item: NetworkPort) => item?.type)
+                              .map((item: NetworkPort) => ({
+                                type: item.type,
+                                count: Number(item.count || 0)
+                              }))
+                          : undefined,
+                        has_serial_interfaces: values.has_serial_interfaces,
+                        serial_ports: values.has_serial_interfaces
+                          ? (values.serial_ports || [])
+                              .filter((item: SerialPort) => item?.type)
+                              .map((item: SerialPort) => ({
+                                type: item.type,
+                                count: Number(item.count || 0)
+                              }))
+                          : [],
+                        unit_price_rub: values.unit_price_rub === "" ? undefined : values.unit_price_rub
+                      });
+                      setElectricalFieldsByEquipmentId((prev) => ({
+                        ...prev,
+                        [result.id]: {
+                          current_type: values.current_type ? String(values.current_type) : null,
+                          supply_voltage: values.supply_voltage ? String(values.supply_voltage) : null,
+                          current_consumption_a: currentConsumptionValue
+                        }
+                      }));
                     }
                   });
                 }}

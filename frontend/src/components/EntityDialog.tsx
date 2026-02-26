@@ -23,6 +23,9 @@ export type FieldConfig = {
   name: string;
   label: string;
   type: "text" | "number" | "select" | "checkbox" | "ports";
+  min?: number;
+  step?: number | "any";
+  placeholder?: string;
   options?: FieldOption[];
   portsLabels?: {
     title?: string;
@@ -195,18 +198,38 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
               key={field.name}
               label={field.label}
               type={field.type}
+              placeholder={field.placeholder}
               value={values[field.name] ?? ""}
               onChange={(event) =>
-                applyFieldChange(
-                  field,
-                  field.type === "number"
-                    ? event.target.value === ""
-                      ? ""
-                      : Number(event.target.value)
-                    : event.target.value
-                )
+                {
+                  if (field.type === "number") {
+                    const rawValue = event.target.value;
+                    if (rawValue === "") {
+                      applyFieldChange(field, "");
+                      return;
+                    }
+                    const parsed = Number(rawValue);
+                    if (Number.isNaN(parsed)) {
+                      return;
+                    }
+                    if (field.min !== undefined && parsed < field.min) {
+                      return;
+                    }
+                    applyFieldChange(field, parsed);
+                    return;
+                  }
+                  applyFieldChange(field, event.target.value);
+                }
               }
               disabled={saving || field.disabledWhen?.(values)}
+              inputProps={
+                field.type === "number"
+                  ? {
+                      ...(field.min !== undefined ? { min: field.min } : {}),
+                      ...(field.step !== undefined ? { step: field.step } : {})
+                    }
+                  : undefined
+              }
               fullWidth
             />
           );

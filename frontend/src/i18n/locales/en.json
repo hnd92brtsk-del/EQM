@@ -322,7 +322,27 @@
       },
       "fields": {
         "article": "Article",
-        "hasSerialInterfaces": "Serial interfaces"
+        "hasSerialInterfaces": "Serial interfaces",
+        "currentType": "Current type",
+        "supplyVoltage": "Supply voltage",
+        "currentConsumptionA": "Current consumption, A"
+      },
+      "options": {
+        "currentType": {
+          "direct": "Direct current",
+          "alternating": "Alternating current",
+          "na": "N/A"
+        },
+        "supplyVoltage": {
+          "v220": "220V",
+          "v24": "24V",
+          "v220v24": "220V/24V",
+          "v12": "12V",
+          "v9": "9V",
+          "v5": "5V",
+          "v3": "3V",
+          "na": "N/A"
+        }
       },
       "columns": {
         "channels": "Channels",
@@ -335,7 +355,9 @@
         "count": "Count"
       },
       "validation": {
-        "networkPortsDisallowSerial": "RS-485 and RS-232 cannot be added as network ports. Use \"Serial interfaces\"."
+        "networkPortsDisallowSerial": "RS-485 and RS-232 cannot be added as network ports. Use \"Serial interfaces\".",
+        "currentConsumptionNonNegative": "Current consumption cannot be negative.",
+        "currentConsumptionInvalid": "Enter a valid numeric current consumption value."
       },
       "channelsWithCount": "Yes ({{count}})",
       "dialogs": {

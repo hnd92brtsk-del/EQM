@@ -322,7 +322,27 @@
       },
       "fields": {
         "article": "Артикул",
-        "hasSerialInterfaces": "Последовательные интерфейсы"
+        "hasSerialInterfaces": "Последовательные интерфейсы",
+        "currentType": "Род тока",
+        "supplyVoltage": "Напряжение питания",
+        "currentConsumptionA": "Ток потребления, А"
+      },
+      "options": {
+        "currentType": {
+          "direct": "Постоянный",
+          "alternating": "Переменный",
+          "na": "N/A"
+        },
+        "supplyVoltage": {
+          "v220": "220В",
+          "v24": "24В",
+          "v220v24": "220В/24В",
+          "v12": "12В",
+          "v9": "9В",
+          "v5": "5В",
+          "v3": "3В",
+          "na": "N/A"
+        }
       },
       "serialPorts": {
         "title": "Последовательные интерфейсы",
@@ -331,7 +351,9 @@
         "count": "Количество"
       },
       "validation": {
-        "networkPortsDisallowSerial": "RS-485 и RS-232 нельзя добавлять как сетевые порты. Используйте \"Последовательные интерфейсы\"."
+        "networkPortsDisallowSerial": "RS-485 и RS-232 нельзя добавлять как сетевые порты. Используйте \"Последовательные интерфейсы\".",
+        "currentConsumptionNonNegative": "Ток потребления не может быть отрицательным.",
+        "currentConsumptionInvalid": "Введите корректное числовое значение тока потребления."
       },
       "columns": {
         "channels": "Каналы",
