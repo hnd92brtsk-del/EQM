@@ -29,21 +29,6 @@ def build_location_tree(locations: list[Location]) -> tuple[dict[int, IOTreeLoca
     return nodes, roots
 
 
-def build_location_ancestors(locations: list[Location]) -> dict[int, list[int]]:
-    parent_map = {location.id: location.parent_id for location in locations}
-    ancestors_map: dict[int, list[int]] = {}
-    for location_id in parent_map:
-        current_id = location_id
-        ancestors: list[int] = []
-        seen: set[int] = set()
-        while current_id and current_id not in seen:
-            ancestors.append(current_id)
-            seen.add(current_id)
-            current_id = parent_map.get(current_id)
-        ancestors_map[location_id] = ancestors
-    return ancestors_map
-
-
 @router.get("/io-tree", response_model=IOTreeResponse)
 def get_io_tree(
     db=Depends(get_db),
@@ -53,7 +38,6 @@ def get_io_tree(
         select(Location).where(Location.is_deleted == False).order_by(Location.id)
     ).all()
     nodes_map, roots = build_location_tree(locations)
-    ancestors_map = build_location_ancestors(locations)
 
     cabinets = db.scalars(
         select(Cabinet).where(Cabinet.is_deleted == False).order_by(Cabinet.id)
@@ -110,9 +94,7 @@ def get_io_tree(
             inventory_number=cabinet.nomenclature_number,
             channel_devices=devices_by_cabinet.get(cabinet.id, []),
         )
-        if cabinet.location_id and cabinet.location_id in ancestors_map:
-            for location_id in ancestors_map[cabinet.location_id]:
-                if location_id in nodes_map:
-                    nodes_map[location_id].cabinets.append(cabinet_node)
+        if cabinet.location_id and cabinet.location_id in nodes_map:
+            nodes_map[cabinet.location_id].cabinets.append(cabinet_node)
 
     return IOTreeResponse(locations=roots)
