@@ -24,11 +24,79 @@ from app.models.core import (
     Location,
     MeasurementUnit,
     MainEquipment,
+    FieldEquipment,
 )
 from app.models.assemblies import Assembly
 from app.models.operations import AssemblyItem
 
 MAIN_EQUIPMENT_CODE_RE = re.compile(r"^\d+(?:\.\d+)*$")
+
+FIELD_EQUIPMENTS_TREE: list[tuple[str, list]] = [
+    (
+        "Полевое оборудование",
+        [
+            (
+                "Оборудование КИПиА",
+                [
+                    (
+                        "Температура",
+                        [
+                            ("Термопары (ТХА, ТХК, ТПП и др.)", []),
+                            ("Термометры сопротивления (ТСП, ТСМ, Pt100)", []),
+                            ("Пирометры (инфракрасные, оптические)", []),
+                            ("Биметаллические и жидкостные термометры", []),
+                        ],
+                    ),
+                    (
+                        "Давление",
+                        [
+                            ("Манометры (показывающие, электроконтактные)", []),
+                            ("Мановакуумметры и вакуумметры", []),
+                            ("Датчики давления (абсолютного, избыточного, дифференциального)", []),
+                            ("Реле давления", []),
+                        ],
+                    ),
+                    (
+                        "Расход",
+                        [
+                            ("Расходомеры переменного перепада давления (диафрагмы, сопла, трубки Вентури)", []),
+                            ("Электромагнитные расходомеры", []),
+                            ("Вихревые расходомеры", []),
+                            ("Ультразвуковые расходомеры", []),
+                            ("Кориолисовые расходомеры (массовые)", []),
+                            ("Ротаметры", []),
+                            ("Счётчики газа, воды, пара", []),
+                        ],
+                    ),
+                    (
+                        "Уровень",
+                        [
+                            ("Поплавковые уровнемеры", []),
+                            ("Буйковые уровнемеры", []),
+                            ("Гидростатические уровнемеры", []),
+                            ("Радарные (микроволновые) уровнемеры", []),
+                            ("Ультразвуковые уровнемеры", []),
+                            ("Ёмкостные уровнемеры", []),
+                            ("Вибрационные и магнитострикционные уровнемеры", []),
+                        ],
+                    ),
+                    (
+                        "Аналитические приборы",
+                        [
+                            ("Газоанализаторы (O₂, CO, CO₂, H₂S и др.)", []),
+                            ("pH-метры и окислительно-восстановительные потенциометры", []),
+                            ("Кондуктометры", []),
+                            ("Хроматографы", []),
+                            ("Анализаторы влажности и точки росы", []),
+                            ("Турбидиметры (мутность)", []),
+                        ],
+                    ),
+                    ("Исполнительные механизмы", []),
+                ],
+            )
+        ],
+    )
+]
 
 
 def find_main_equipment_xlsx() -> Path | None:
@@ -258,6 +326,55 @@ def seed_main_equipment_from_excel(db) -> dict[str, int | str | None]:
     }
 
 
+def seed_field_equipments(db) -> dict[str, int]:
+    created = 0
+    restored = 0
+    existing = 0
+
+    def get_or_create_node(name: str, parent_id: int | None) -> FieldEquipment:
+        nonlocal created, restored, existing
+
+        active = db.scalar(
+            select(FieldEquipment).where(
+                FieldEquipment.name == name,
+                FieldEquipment.parent_id == parent_id,
+                FieldEquipment.is_deleted == False,
+            )
+        )
+        if active:
+            existing += 1
+            return active
+
+        deleted = db.scalar(
+            select(FieldEquipment).where(
+                FieldEquipment.name == name,
+                FieldEquipment.parent_id == parent_id,
+                FieldEquipment.is_deleted == True,
+            )
+        )
+        if deleted:
+            deleted.is_deleted = False
+            deleted.deleted_at = None
+            deleted.deleted_by_id = None
+            restored += 1
+            return deleted
+
+        node = FieldEquipment(name=name, parent_id=parent_id)
+        db.add(node)
+        db.flush()
+        created += 1
+        return node
+
+    def walk(nodes: list[tuple[str, list]], parent_id: int | None = None) -> None:
+        for name, children in nodes:
+            node = get_or_create_node(name, parent_id)
+            if children:
+                walk(children, node.id)
+
+    walk(FIELD_EQUIPMENTS_TREE)
+    return {"created": created, "restored": restored, "existing": existing}
+
+
 def run():
     db = SessionLocal()
     try:
@@ -471,6 +588,7 @@ def run():
                     skipped += 1
 
         main_equipment_stats = seed_main_equipment_from_excel(db)
+        field_equipments_stats = seed_field_equipments(db)
 
         db.commit()
         existing_personnel = db.scalar(select(Personnel).limit(1))
@@ -493,6 +611,12 @@ def run():
             f"skipped_invalid={main_equipment_stats['skipped_invalid']}, "
             f"skipped_missing_parent={main_equipment_stats['skipped_missing_parent']}, "
             f"source={main_equipment_stats['path']}"
+        )
+        print(
+            "Field equipments seed: "
+            f"created={field_equipments_stats['created']}, "
+            f"restored={field_equipments_stats['restored']}, "
+            f"existing={field_equipments_stats['existing']}"
         )
         print("Seed completed.")
     finally:

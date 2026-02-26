@@ -164,6 +164,7 @@
     "chat": "Chatbot",
     "measurement_units": "Measurement units",
     "signal_types": "Signal types",
+    "field_equipments": "Field equipment",
     "main_equipment": "Main equipment"
   },
   "sidebar": {
@@ -187,6 +188,7 @@
     "engineering": "Engineering includes IO Signals and DCL. These screens manage signals, connections, and related definitions using add/edit/delete/restore actions.",
     "engineeringSecondary": "Use filters and sorting to navigate large signal lists.",
     "main_equipment": "The Main equipment dictionary is a hierarchical tree with unlimited depth. Node level is calculated automatically from the selected parent.",
+    "field_equipments": "The Field equipment dictionary is a hierarchical tree. It supports creating root and child nodes, editing, soft delete, and restore.",
     "dictionaries": "Dictionaries include Warehouses, Manufacturers, Nomenclature, Locations, Main equipment, and Equipment Categories. Records can be viewed, added, edited, deleted, and restored. Main equipment is stored as a tree.",
     "admin": "Admin contains Users, Sessions, and Audit Logs. Access is limited to the admin role."
   },
@@ -538,6 +540,24 @@
         "update": "Failed to update location",
         "delete": "Failed to delete location",
         "restore": "Failed to restore location"
+      }
+    },
+    "fieldEquipments": {
+      "title": "Field equipment",
+      "dialogs": {
+        "createTitle": "New field equipment node",
+        "editTitle": "Edit field equipment node"
+      },
+      "actions": {
+        "addChild": "Add child",
+        "addRoot": "Add root"
+      },
+      "errors": {
+        "load": "Failed to load field equipment",
+        "create": "Failed to create record",
+        "update": "Failed to update record",
+        "delete": "Failed to delete record",
+        "restore": "Failed to restore record"
       }
     },
     "mainEquipment": {

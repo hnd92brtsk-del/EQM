@@ -148,6 +148,13 @@ export const navTree: NavItem[] = [
         roles: ["viewer", "engineer", "admin"]
       },
       {
+        id: "field-equipments",
+        labelKey: "menu.field_equipments",
+        path: "/dictionaries/field-equipments",
+        icon: IndexIcon,
+        roles: ["viewer", "engineer", "admin"]
+      },
+      {
         id: "main-equipment",
         labelKey: "menu.main_equipment",
         path: "/dictionaries/main-equipment",

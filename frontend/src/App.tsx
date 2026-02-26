@@ -9,6 +9,7 @@ import ManufacturersPage from "./pages/ManufacturersPage";
 import EquipmentCategoriesPage from "./pages/EquipmentCategoriesPage";
 import MainEquipmentPage from "./pages/MainEquipmentPage";
 import LocationsPage from "./pages/LocationsPage";
+import FieldEquipmentsPage from "./pages/FieldEquipmentsPage";
 import MeasurementUnitsPage from "./pages/MeasurementUnitsPage";
 import SignalTypesPage from "./pages/SignalTypesPage";
 import EquipmentTypesPage from "./pages/EquipmentTypesPage";
@@ -61,6 +62,7 @@ export default function App() {
                 <Route path="/dictionaries" element={<Navigate to="/dictionaries/manufacturers" replace />} />
                 <Route path="/dictionaries/manufacturers" element={<ManufacturersPage />} />
                 <Route path="/dictionaries/locations" element={<LocationsPage />} />
+                <Route path="/dictionaries/field-equipments" element={<FieldEquipmentsPage />} />
                 <Route path="/dictionaries/main-equipment" element={<MainEquipmentPage />} />
                 <Route path="/dictionaries/measurement-units" element={<MeasurementUnitsPage />} />
                 <Route path="/dictionaries/signal-types" element={<SignalTypesPage />} />

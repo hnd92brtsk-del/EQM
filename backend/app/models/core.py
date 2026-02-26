@@ -155,6 +155,38 @@ Index(
 )
 
 
+class FieldEquipment(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
+    __tablename__ = "field_equipments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    parent_id: Mapped[int | None] = mapped_column(
+        ForeignKey("field_equipments.id", ondelete="SET NULL"), index=True
+    )
+    parent: Mapped["FieldEquipment | None"] = relationship(
+        remote_side="FieldEquipment.id", backref="children"
+    )
+
+    def full_path(self) -> str:
+        parts: list[str] = []
+        current: FieldEquipment | None = self
+        seen: set[int] = set()
+        while current and current.id not in seen:
+            parts.append(current.name)
+            seen.add(current.id)
+            current = current.parent
+        return " / ".join(reversed(parts))
+
+
+Index(
+    "ix_field_equipments_parent_name_active_unique",
+    FieldEquipment.parent_id,
+    FieldEquipment.name,
+    unique=True,
+    postgresql_where=(FieldEquipment.is_deleted == False),
+)
+
+
 class EquipmentType(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     __tablename__ = "equipment_types"
 

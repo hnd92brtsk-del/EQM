@@ -10,6 +10,7 @@ from app.routers import (
     main_equipment,
     measurement_units,
     signal_types,
+    field_equipments,
     equipment_categories,
     equipment_types,
     warehouses,
@@ -52,6 +53,7 @@ app.include_router(locations.router, prefix="/api/v1/locations", tags=["location
 app.include_router(main_equipment.router, prefix="/api/v1/main-equipment", tags=["main-equipment"])
 app.include_router(measurement_units.router, prefix="/api/v1/measurement-units", tags=["measurement-units"])
 app.include_router(signal_types.router, prefix="/api/v1/signal-types", tags=["signal-types"])
+app.include_router(field_equipments.router, prefix="/api/v1/field-equipments", tags=["field-equipments"])
 app.include_router(equipment_categories.router, prefix="/api/v1/equipment-categories", tags=["equipment-categories"])
 app.include_router(equipment_categories.router, prefix="/api/v1/equipment_categories", tags=["equipment-categories"])
 app.include_router(equipment_types.router, prefix="/api/v1/equipment-types", tags=["equipment-types"])
