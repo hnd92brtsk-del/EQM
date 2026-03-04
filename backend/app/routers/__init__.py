@@ -25,6 +25,7 @@ from app.routers import sessions
 from app.routers import dashboard
 from app.routers import personnel
 from app.routers import chat
+from app.routers import pid
 
 __all__ = [
     "auth",
@@ -53,4 +54,5 @@ __all__ = [
     "sessions",
     "dashboard",
     "chat",
+    "pid",
 ]

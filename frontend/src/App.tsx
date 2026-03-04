@@ -29,6 +29,7 @@ import CabinetCompositionPage from "./pages/CabinetCompositionPage";
 import HelpPage from "./pages/HelpPage";
 import PersonnelPage from "./pages/PersonnelPage";
 import PersonnelDetailsPage from "./pages/PersonnelDetailsPage";
+import TechnologicalEquipmentPage from "./pages/TechnologicalEquipmentPage";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
@@ -75,6 +76,7 @@ export default function App() {
                 <Route path="/cabinets" element={<CabinetsPage />} />
                 <Route path="/assemblies" element={<AssembliesPage />} />
                 <Route path="/cabinet-items" element={<CabinetItemsPage />} />
+                <Route path="/equipment/technological" element={<TechnologicalEquipmentPage />} />
                 <Route path="/cabinets/:id/composition" element={<CabinetCompositionPage />} />
                 <Route path="/movements" element={<MovementsPage />} />
                 <Route path="/io-signals" element={<IOSignalsPage />} />

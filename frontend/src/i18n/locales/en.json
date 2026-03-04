@@ -1,930 +1,1014 @@
 ﻿{
-  "app": {
-    "title": "EQM",
-    "greeting": "Hi, {{name}}"
-  },
-  "nav": {
-    "dashboard": "Overview",
-    "dictionaries": "Dictionaries",
-    "warehouses": "Warehouses",
-    "warehouseItems": "Warehouse Items",
-    "cabinets": "Cabinets",
-    "assemblies": "Assemblies",
-    "cabinetItems": "Equipment in operation",
-    "movements": "Movements",
-    "ioSignals": "I/O Signals"
-  },
-  "admin": {
-    "title": "Admin",
-    "users": "Users",
-    "sessions": "Sessions",
-    "audit": "Audit Logs"
-  },
-  "theme": {
-    "light": "Light",
-    "dark": "Dark",
-    "label": "Theme"
-  },
-  "language": {
-    "label": "Language",
-    "ru": "RU",
-    "en": "EN"
-  },
-  "auth": {
-    "loginTitle": "Sign in to EQM",
-    "loginHint": "Use admin/admin12345 for the first login.",
-    "username": "Username",
-    "password": "Password",
-    "signIn": "Sign in",
-    "invalidCredentials": "Invalid username or password",
-    "promoTitle": "Unified control center for equipment",
-    "promoSubtitle": "Monitor assets, track movements, and keep inventory aligned in one workspace.",
-    "fields": {
-      "login": "Login",
-      "password": "Password"
-    },
-    "actions": {
-      "submit": "Sign in"
-    },
-    "helper": {
-      "accountCreation": "To create an account, contact the administrator via corporate email or TrueConf"
-    },
-    "brandTitle": "EQM Platform",
-    "brandSubtitle": "Manage assets, workflows, and inventory from a single secure workspace."
-  },
-  "actions": {
-    "add": "Add",
-    "edit": "Edit",
-    "delete": "Delete",
-    "restore": "Restore",
-    "save": "Save",
-    "cancel": "Cancel",
-    "logout": "Sign out",
-    "search": "Search",
-    "filters": "Filters",
-    "actions": "Actions",
-    "notSelected": "Not selected",
-    "close": "Close",
-    "downloadTemplate": "Download template",
-    "upload": "Upload",
-    "download": "Download",
-    "deleteFile": "Delete file",
-    "import": "Import",
-    "exportActiveCsv": "Export active (CSV)",
-    "exportActiveXlsx": "Export active (XLSX)",
-    "exportDeletedCsv": "Export deleted (CSV)",
-    "exportDeletedXlsx": "Export deleted (XLSX)"
-  },
-  "pages": {
-    "dashboard": "Overview",
-    "users": "Users",
-    "dictionaries": "Dictionaries",
-    "warehouses": "Warehouses",
-    "cabinets": "Cabinets",
-    "assemblies": "Assemblies",
-    "warehouseItems": "Warehouse Items",
-    "cabinetItems": "Equipment in operation",
-    "movements": "Movements",
-    "ioSignals": "I/O Signals",
-    "help": "Help",
-    "personnel": "Personnel",
-    "auditLogs": "Audit Logs",
-    "sessions": "Sessions",
-    "personnel_details": "Personnel details",
-    "helpTableOfContents": "Table of contents"
-  },
-  "dashboard": {
-    "kpis": {
-      "total_cabinets": "Total cabinets",
-      "total_plc_in_cabinets": "Total PLCs in cabinets",
-      "total_plc_in_warehouses": "Total PLCs in warehouses",
-      "total_channels": "Total channels",
-      "ai": "AI",
-      "di": "DI",
-      "ao": "AO",
-      "do": "DO",
-      "total": "Total",
-      "total_warehouse_value_rub": "Total equipment value"
-    },
-    "titles": {
-      "by_type": "Distribution by type",
-      "by_warehouse_qty": "Stock by warehouse",
-      "accounted_vs_not": "Accounted / Not accounted",
-      "by_warehouse_value": "Value by warehouse",
-      "recent_actions": "Recent actions",
-      "recent_logins": "Recent logins"
-    },
-    "columns": {
-      "action": "Action",
-      "entity": "Entity",
-      "user": "User",
-      "date": "Date",
-      "login": "Login",
-      "logout": "Logout",
-      "reason": "Reason"
-    },
-    "common": {
-      "loading": "Loading",
-      "no_data": "No data",
-      "last_rows": "Showing last {{count}} records"
-    },
-    "errors": {
-      "overview": "Failed to load dashboard overview. Check /api/v1/dashboard/overview.",
-      "actions": "Failed to load actions.",
-      "logins": "Failed to load logins."
-    },
-    "units": "units"
-  },
-  "menu": {
-    "root": "Menu",
-    "overview": "Overview",
-    "equipment": "Equipment",
-    "warehouse_items": "Warehouse Items",
-    "cabinets": "Cabinets",
-    "assemblies": "Assemblies",
-    "movements": "Movements",
-    "cabinets_group": "Cabinets / Assemblies",
-    "cabinet_items": "Equipment in operation",
-    "cabinet_composition": "Cabinet Composition",
-    "engineering": "Engineering",
-    "io_signals": "IO Signals",
-    "dcl": "DCL",
-    "dictionaries": "Dictionaries",
-    "warehouses": "Warehouses",
-    "manufacturers": "Manufacturers",
-    "nomenclature": "Nomenclature",
-    "locations": "Locations",
-    "equipment_categories": "Equipment Categories",
-    "admin": "Admin",
-    "admin_users": "Users",
-    "admin_sessions": "Sessions",
-    "admin_audit": "Audit Logs",
-    "help": "Help",
-    "personnel": "Personnel",
-    "chat": "Chatbot",
-    "measurement_units": "Measurement units",
-    "signal_types": "Signal types",
-    "field_equipments": "Field equipment",
-    "main_equipment": "Main equipment",
-    "data_types": "Data types"
-  },
-  "sidebar": {
-    "pin": "Pin sidebar",
-    "unpin": "Unpin sidebar"
-  },
-  "chat": {
-    "title": "Chatbot",
-    "placeholder": "Enter your message…",
-    "send": "Send"
-  },
-  "help": {
-    "personnel_overview": "Personnel is available in the left sidebar. The list supports search, filters, and sorting; admins can add, edit, delete, and restore records.",
-    "personnel_details": "Opening a row shows the Personnel card with profile fields, photo upload, competencies, training with expiry warnings and reminder offsets, and notes.",
-    "overview": "The overview is a read-only dashboard with KPI cards, charts, and summary tables. It provides a snapshot of the system and does not allow editing records directly.",
-    "equipmentWarehouseItems": "This table lists warehouse stock items. Use search, filters, and sorting to find positions quickly. Add, edit, delete, and restore actions are available.",
-    "equipmentWarehouseItemsSecondary": "Movement actions such as inbound and transfer are initiated from this area.",
-    "equipmentCabinetItems": "Cabinet items show equipment stored in cabinets. Use the same list tools: search, filters, sorting, and actions to add, edit, delete, or restore entries.",
-    "cabinets": "The cabinets list lets you manage cabinet records. Use add/edit/delete/restore actions and open a cabinet to view its composition.",
-    "cabinetComposition": "Cabinet composition is a dedicated view for the cabinet structure and items. It is a focused area for cabinet details and composition-related actions.",
-    "engineering": "Engineering includes IO Signals and DCL. These screens manage signals, connections, and related definitions using add/edit/delete/restore actions.",
-    "engineeringSecondary": "Use filters and sorting to navigate large signal lists.",
-    "main_equipment": "The Main equipment dictionary is a hierarchical tree with unlimited depth. Node level is calculated automatically from the selected parent.",
-    "field_equipments": "The Field equipment dictionary is a hierarchical tree. It supports creating root and child nodes, editing, soft delete, and restore.",
-    "data_types": "The Data types dictionary is a tree. You can create root and child nodes, edit name, parent, and tooltip. Tooltip is shown on hover over the node name and may be empty.",
-    "dictionaries": "Dictionaries include Warehouses, Manufacturers, Nomenclature, Locations, Main equipment, and Equipment Categories. Records can be viewed, added, edited, deleted, and restored. Main equipment is stored as a tree.",
-    "admin": "Admin contains Users, Sessions, and Audit Logs. Access is limited to the admin role."
-  },
-  "common": {
-    "noAccess": "Not enough permissions.",
-    "sort": "Sort",
-    "showDeleted": "Show deleted",
-    "all": "All",
-    "yes": "Yes",
-    "no": "No",
-    "deleted": "Deleted",
-    "deletedSuffix": " (deleted)",
-    "notImplemented": "Not implemented",
-    "loading": "Loading...",
-    "dateFrom": "Date from",
-    "dateTo": "Date to",
-    "createdFrom": "Created from",
-    "createdTo": "Created to",
-    "status": {
-      "label": "Status",
-      "deleted": "Deleted",
-      "active": "Active",
-      "inactive": "Inactive"
-    },
-    "fields": {
-      "name": "Name",
-      "factoryNumber": "Factory number",
-      "nomenclatureNumber": "Inventory number",
-      "files": "Files",
-      "location": "Location",
-      "manufacturer": "Manufacturer",
-      "equipmentCategory": "Equipment category",
-      "nomenclature": "Nomenclature",
-      "channelForming": "Channel forming",
-      "channelCount": "Channel count",
-      "isNetwork": "Network",
-      "portsInterfaces": "Network interfaces",
-      "photo": "Photo",
-      "datasheet": "Datasheet",
-      "portType": "Port type",
-      "portCount": "Count",
-      "priceRub": "Price, RUB",
-      "login": "Login",
-      "password": "Password",
-      "role": "Role",
-      "country": "Country",
-      "parent": "Parent",
-      "cabinet": "Cabinet",
-      "assembly": "Assembly",
-      "cabinetAssembly": "Cabinet/Assembly",
-      "equipment": "Equipment",
-      "quantity": "Quantity",
-      "comment": "Comment",
-      "accounting": "Accounting",
-      "warehouse": "Warehouse",
-      "reference": "Reference",
-      "sortOrder": "Sort order",
-      "tooltip": "Tooltip"
-    },
-    "rowsPerPage": "Rows per page",
-    "rowsDisplayed": "{{from}}-{{to}} of {{countLabel}}",
-    "rowsMore": "more"
-  },
-  "errors": {
-    "load_personnel_failed": "Failed to load personnel.",
-    "create_personnel_failed": "Failed to create personnel.",
-    "update_personnel_failed": "Failed to update personnel.",
-    "delete_personnel_failed": "Failed to delete personnel.",
-    "restore_personnel_failed": "Failed to restore personnel.",
-    "create_competency_failed": "Failed to create competency.",
-    "update_competency_failed": "Failed to update competency.",
-    "create_training_failed": "Failed to create training.",
-    "update_training_failed": "Failed to update training.",
-    "delete_competency_failed": "Failed to delete competency.",
-    "restore_competency_failed": "Failed to restore competency.",
-    "delete_training_failed": "Failed to delete training.",
-    "restore_training_failed": "Failed to restore training.",
-    "no_attachment": "No attachment available.",
-    "attachment_upload_failed": "Failed to upload attachment.",
-    "attachment_download_failed": "Failed to download attachment.",
-    "photo_upload_failed": "Failed to upload photo.",
-    "fileTooLarge": "File is too large.",
-    "invalidFormat": "Invalid file format.",
-    "downloadFailed": "Failed to download.",
-    "saveFailed": "Failed to save."
-  },
-  "roles": {
-    "admin": "Admin",
-    "engineer": "Engineer",
-    "viewer": "Viewer"
-  },
-  "validation": {
-    "requiredFields": "Fill in required fields."
-  },
-  "pagesUi": {
-    "equipmentCategories": {
-      "title": "Equipment categories",
-      "sort": {
-        "byNameAsc": "By name (A-Z)",
-        "byNameDesc": "By name (Z-A)",
-        "byCreatedOldest": "By created date (oldest first)",
-        "byCreatedNewest": "By created date (newest first)"
-      },
-      "dialogs": {
-        "editTitle": "Edit equipment category",
-        "createTitle": "New equipment category"
-      },
-      "errors": {
-        "load": "Failed to load equipment categories",
-        "create": "Failed to create record",
-        "update": "Failed to update record",
-        "delete": "Failed to delete record",
-        "restore": "Failed to restore record"
-      }
-    },
-    "equipmentTypes": {
-      "title": "Nomenclature",
-      "sort": {
-        "byNameAsc": "By name (A-Z)",
-        "byNameDesc": "By name (Z-A)",
-        "byNomenclatureAsc": "By nomenclature (A-Z)",
-        "byNomenclatureDesc": "By nomenclature (Z-A)",
-        "byCreatedOldest": "By created date (oldest)",
-        "byCreatedNewest": "By created date (newest)"
-      },
-      "errors": {
-        "load": "Failed to load nomenclature",
-        "create": "Failed to create equipment type",
-        "update": "Failed to update equipment type",
-        "delete": "Failed to delete equipment type",
-        "restore": "Failed to restore equipment type"
-      },
-      "fields": {
-        "article": "Article",
-        "hasSerialInterfaces": "Serial interfaces",
-        "currentType": "Current type",
-        "supplyVoltage": "Supply voltage",
-        "currentConsumptionA": "Current consumption, A"
-      },
-      "options": {
-        "currentType": {
-          "direct": "Direct current",
-          "alternating": "Alternating current",
-          "na": "N/A"
-        },
-        "supplyVoltage": {
-          "v220": "220V",
-          "v24": "24V",
-          "v220v24": "220V/24V",
-          "v12": "12V",
-          "v9": "9V",
-          "v5": "5V",
-          "v3": "3V",
-          "na": "N/A"
-        }
-      },
-      "columns": {
-        "channels": "Channels",
-        "channelsDetailed": "AI/DI/AO/DO"
-      },
-      "serialPorts": {
-        "title": "Serial interfaces",
-        "add": "Add interface",
-        "portType": "Port type",
-        "count": "Count"
-      },
-      "validation": {
-        "networkPortsDisallowSerial": "RS-485 and RS-232 cannot be added as network ports. Use \"Serial interfaces\".",
-        "currentConsumptionNonNegative": "Current consumption cannot be negative.",
-        "currentConsumptionInvalid": "Enter a valid numeric current consumption value."
-      },
-      "channelsWithCount": "Yes ({{count}})",
-      "dialogs": {
-        "editTitle": "Equipment type",
-        "createTitle": "New equipment type"
-      },
-      "actions": {
-        "uploadPhoto": "Upload photo",
-        "uploadDatasheet": "Upload datasheet"
-      }
-    },
-    "auditLogs": {
-      "sort": {
-        "byTimeNewest": "By time (newest)",
-        "byTimeOldest": "By time (oldest)",
-        "byEntityAsc": "By entity (A-Z)",
-        "byEntityDesc": "By entity (Z-A)"
-      },
-      "fields": {
-        "actorId": "Actor ID",
-        "entity": "Entity",
-        "action": "Action"
-      },
-      "columns": {
-        "id": "ID",
-        "actor": "Actor",
-        "action": "Action",
-        "entity": "Entity",
-        "entityId": "Entity ID",
-        "time": "Time"
-      },
-      "errors": {
-        "load": "Failed to load audit logs"
-      }
-    },
-    "sessions": {
-      "sort": {
-        "byStartNewest": "By start (newest)",
-        "byStartOldest": "By start (oldest)",
-        "byEndNewest": "By end (newest)",
-        "byEndOldest": "By end (oldest)"
-      },
-      "fields": {
-        "userId": "User ID",
-        "endReason": "End reason"
-      },
-      "columns": {
-        "id": "ID",
-        "user": "User",
-        "startedAt": "Started",
-        "endedAt": "Ended",
-        "endReason": "Reason",
-        "ip": "IP"
-      },
-      "errors": {
-        "load": "Failed to load sessions"
-      }
-    },
-    "users": {
-      "sort": {
-        "byUsernameAsc": "By login (A-Z)",
-        "byUsernameDesc": "By login (Z-A)",
-        "byRoleAsc": "By role (A-Z)",
-        "byRoleDesc": "By role (Z-A)",
-        "byCreatedOldest": "By created date (oldest)",
-        "byCreatedNewest": "By created date (newest)"
-      },
-      "errors": {
-        "load": "Failed to load users",
-        "create": "Failed to create user",
-        "update": "Failed to update user",
-        "delete": "Failed to delete user",
-        "restore": "Failed to restore user"
-      }
-    },
-    "cabinets": {
-      "sort": {
-        "byNameAsc": "By name (A-Z)",
-        "byNameDesc": "By name (Z-A)",
-        "byCreatedOldest": "By created date (oldest)",
-        "byCreatedNewest": "By created date (newest)"
-      },
-      "errors": {
-        "load": "Failed to load cabinets",
-        "create": "Failed to create cabinet",
-        "update": "Failed to update cabinet",
-        "delete": "Failed to delete cabinet",
-        "restore": "Failed to restore cabinet",
-        "filesLoad": "Failed to load cabinet files",
-        "fileUpload": "Failed to upload file",
-        "fileDownload": "Failed to download file",
-        "fileDelete": "Failed to delete file"
-      },
-      "hints": {
-        "saveBeforeUpload": "Save the cabinet before uploading files."
-      },
-      "dialogs": {
-        "editTitle": "Edit cabinet",
-        "createTitle": "New cabinet"
-      },
-      "actions": {
-        "openComposition": "Open composition"
-      }
-    },
-    "assemblies": {
-      "sort": {
-        "byNameAsc": "By name (A-Z)",
-        "byNameDesc": "By name (Z-A)",
-        "byCreatedOldest": "By created date (oldest)",
-        "byCreatedNewest": "By created date (newest)"
-      },
-      "errors": {
-        "load": "Failed to load assemblies",
-        "create": "Failed to create assembly",
-        "update": "Failed to update assembly",
-        "delete": "Failed to delete assembly",
-        "restore": "Failed to restore assembly"
-      },
-      "dialogs": {
-        "editTitle": "Edit assembly",
-        "createTitle": "New assembly"
-      }
-    },
-    "warehouses": {
-      "sort": {
-        "byNameAsc": "By name (A-Z)",
-        "byNameDesc": "By name (Z-A)",
-        "byCreatedOldest": "By created date (oldest)",
-        "byCreatedNewest": "By created date (newest)"
-      },
-      "errors": {
-        "load": "Failed to load warehouses",
-        "create": "Failed to create warehouse",
-        "update": "Failed to update warehouse",
-        "delete": "Failed to delete warehouse",
-        "restore": "Failed to restore warehouse"
-      },
-      "dialogs": {
-        "editTitle": "Warehouse",
-        "createTitle": "New warehouse"
-      }
-    },
-    "manufacturers": {
-      "title": "Manufacturers",
-      "sort": {
-        "byNameAsc": "By name (A-Z)",
-        "byNameDesc": "By name (Z-A)",
-        "byCreatedOldest": "By created date (oldest)",
-        "byCreatedNewest": "By created date (newest)"
-      },
-      "actions": {
-        "template": "Download template",
-        "exportCsv": "Export CSV",
-        "exportXlsx": "Export XLSX",
-        "exportActiveCsv": "Export active CSV",
-        "exportActiveXlsx": "Export active XLSX",
-        "exportDeletedCsv": "Export deleted CSV",
-        "exportDeletedXlsx": "Export deleted XLSX",
-        "import": "Import"
-      },
-      "import": {
-        "title": "Import manufacturers",
-        "dryRun": "Dry run (no changes)",
-        "submit": "Start import",
-        "reportTitle": "Import report",
-        "reportSummary": "Rows: {{total}}, created: {{created}}, skipped: {{skipped}}",
-        "errors": "Errors",
-        "warnings": "Warnings",
-        "issue": "Row {{row}}, {{field}}: {{message}}",
-        "dryRunSuccess": "Dry run completed",
-        "success": "Import completed"
-      },
-      "errors": {
-        "load": "Failed to load manufacturers",
-        "create": "Failed to create manufacturer",
-        "update": "Failed to update manufacturer",
-        "delete": "Failed to delete manufacturer",
-        "restore": "Failed to restore manufacturer",
-        "export": "Failed to export manufacturers",
-        "template": "Failed to download template",
-        "import": "Failed to import manufacturers",
-        "importNoFile": "Select a file to import"
-      },
-      "dialogs": {
-        "editTitle": "Manufacturer",
-        "createTitle": "New manufacturer"
-      }
-    },
-    "locations": {
-      "title": "Locations",
-      "dialogs": {
-        "createTitle": "New location",
-        "editTitle": "Edit location"
-      },
-      "actions": {
-        "addChild": "Add child",
-        "addRoot": "Add root"
-      },
-      "errors": {
-        "load": "Failed to load locations",
-        "create": "Failed to create location",
-        "update": "Failed to update location",
-        "delete": "Failed to delete location",
-        "restore": "Failed to restore location"
-      }
-    },
-    "fieldEquipments": {
-      "title": "Field equipment",
-      "dialogs": {
-        "createTitle": "New field equipment node",
-        "editTitle": "Edit field equipment node"
-      },
-      "actions": {
-        "addChild": "Add child",
-        "addRoot": "Add root"
-      },
-      "errors": {
-        "load": "Failed to load field equipment",
-        "create": "Failed to create record",
-        "update": "Failed to update record",
-        "delete": "Failed to delete record",
-        "restore": "Failed to restore record"
-      }
-    },
-    "mainEquipment": {
-      "title": "Main equipment",
-      "dialogs": {
-        "createTitle": "New main equipment",
-        "editTitle": "Edit main equipment"
-      },
-      "actions": {
-        "addChild": "Add child",
-        "addRoot": "Add root"
-      },
-      "labels": {
-        "category": "Category",
-        "equipment": "Equipment",
-        "subtype": "Subtype"
-      },
-      "errors": {
-        "load": "Failed to load main equipment",
-        "create": "Failed to create record",
-        "update": "Failed to update record",
-        "delete": "Failed to delete record",
-        "restore": "Failed to restore record",
-        "maxLevel": "Cannot create a level deeper than 3"
-      }
-    },
-    "cabinetItems": {
-      "sort": {
-        "byDateNewest": "By date (newest)",
-        "byDateOldest": "By date (oldest)",
-        "byQuantityDesc": "By quantity (desc)",
-        "byQuantityAsc": "By quantity (asc)",
-        "byEquipmentAsc": "Equipment (A-Z)",
-        "byEquipmentDesc": "Equipment (Z-A)",
-        "byManufacturerAsc": "Manufacturer (A-Z)",
-        "byManufacturerDesc": "Manufacturer (Z-A)"
-      },
-      "errors": {
-        "load": "Failed to load cabinet items",
-        "delete": "Failed to delete cabinet item",
-        "restore": "Failed to restore cabinet item",
-        "updateQuantity": "Failed to update quantity"
-      },
-      "dialogs": {
-        "addFinishedTitle": "Add finished"
-      },
-      "actions": {
-        "addFinished": "Add finished"
-      },
-      "placeholders": {
-        "quantityLocked": "Quantity is fixed = 1",
-        "details": "Details will be added later."
-      },
-      "sections": {
-        "fields": "Fields",
-        "info": "Information",
-        "properties": "Properties"
-      }
-    },
-    "warehouseItems": {
-      "sort": {
-        "byUpdatedNewest": "By update (newest)",
-        "byUpdatedOldest": "By update (oldest)",
-        "byQuantityDesc": "By quantity (desc)",
-        "byQuantityAsc": "By quantity (asc)",
-        "byEquipmentAsc": "Equipment (A-Z)",
-        "byEquipmentDesc": "Equipment (Z-A)",
-        "byEquipmentCategoryAsc": "Equipment category (A-Z)",
-        "byEquipmentCategoryDesc": "Equipment category (Z-A)",
-        "byManufacturerAsc": "Manufacturer (A-Z)",
-        "byManufacturerDesc": "Manufacturer (Z-A)",
-        "byPriceAsc": "Price (low-high)",
-        "byPriceDesc": "Price (high-low)"
-      },
-      "errors": {
-        "load": "Failed to load warehouse items",
-        "update": "Failed to update warehouse item",
-        "delete": "Failed to delete warehouse item",
-        "restore": "Failed to restore warehouse item",
-        "actionFailed": "Failed to perform action. Please try again."
-      },
-      "fields": {
-        "priceMin": "Price min",
-        "priceMax": "Price max",
-        "fromWarehouse": "From warehouse",
-        "destinationType": "Destination",
-        "toCabinet": "To cabinet/assembly",
-        "toAssembly": "To assembly"
-      },
-      "dialogs": {
-        "toWarehouseTitle": "To warehouse",
-        "toCabinetTitle": "Introduce into operation",
-        "directToCabinetTitle": "Direct to cabinet/assembly",
-        "editTitle": "Edit warehouse item"
-      },
-      "actions": {
-        "toWarehouse": "To warehouse",
-        "toCabinet": "Introduce into operation",
-        "directToCabinet": "Direct to cabinet/assembly"
-      },
-      "columns": {
-        "updated": "Updated"
-      },
-      "accounted": "Accounted",
-      "notAccounted": "Not accounted"
-    },
-    "movements": {
-      "types": {
-        "toWarehouse": "To warehouse",
-        "toCabinet": "From warehouse to cabinet",
-        "directToCabinet": "Direct to cabinet",
-        "toAssembly": "From warehouse to assembly",
-        "directToAssembly": "Direct to assembly"
-      },
-      "sort": {
-        "byDateNewest": "By date (newest)",
-        "byDateOldest": "By date (oldest)"
-      },
-      "errors": {
-        "load": "Failed to load movements",
-        "create": "Failed to create movement"
-      },
-      "columns": {
-        "type": "Type",
-        "from": "From",
-        "to": "To",
-        "performedBy": "Performed by",
-        "createdAt": "Date"
-      },
-      "fields": {
-        "movementType": "Movement type",
-        "fromWarehouse": "From warehouse",
-        "toWarehouse": "To warehouse",
-        "fromCabinet": "From cabinet",
-        "toCabinet": "To cabinet",
-        "toAssembly": "To assembly"
-      },
-      "validation": {
-        "typeRequired": "Select a movement type.",
-        "equipmentAndQuantity": "Provide equipment and quantity.",
-        "toWarehouseRequired": "Select a destination warehouse.",
-        "fromWarehouseAndCabinet": "Select a source warehouse and destination cabinet.",
-        "toCabinetRequired": "Select a destination cabinet.",
-        "fromWarehouseAndAssembly": "Select a source warehouse and destination assembly.",
-        "toAssemblyRequired": "Select a destination assembly."
-      },
-      "actions": {
-        "create": "Create movement"
-      },
-      "newTitle": "New movement",
-      "historyTitle": "Movement history"
-    },
-    "ioSignals": {
-      "errors": {
-        "loadTree": "Failed to load I/O tree",
-        "loadSignals": "Failed to load I/O signals",
-        "update": "Failed to update signal",
-        "rebuild": "Failed to sync signals"
-      },
-      "labels": {
-        "locations": "Locations",
-        "selectEquipment": "Select channel-forming equipment",
-        "cabinetMetaFallback": "No numbers",
-        "channelDeviceMetaFallback": "No metadata",
-        "signalsTotal": "{{count}} signals"
-      },
-      "actions": {
-        "rebuild": "Sync"
-      },
-      "columns": {
-        "channelIndex": "Channel",
-        "tag": "Tag",
-        "signal": "Signal",
-        "signalType": "Signal type",
-        "signalKind": "Signal kind",
-        "measurementType": "Measurement type",
-        "units": "Units"
-      },
-      "fields": {
-        "channelIndex": "Channel",
-        "tag": "Tag",
-        "signal": "Signal",
-        "signalType": "Signal type",
-        "signalKind": "Signal kind",
-        "measurementType": "Measurement type",
-        "units": "Units",
-        "status": "Status"
-      },
-      "dialogs": {
-        "editTitle": "I/O signal"
-      },
-      "empty": {
-        "tree": "No locations yet.",
-        "select": "Select a device in the tree to see signals.",
-        "noSignals": "No signals yet. Click Sync to generate."
-      }
-    },
-    "personnel": {
-      "sort": {
-        "byLastNameAsc": "Last name (A-Z)",
-        "byLastNameDesc": "Last name (Z-A)",
-        "byHireDateOldest": "Hire date (oldest)",
-        "byHireDateNewest": "Hire date (newest)"
-      },
-      "columns": {
-        "fullName": "Full name",
-        "position": "Position",
-        "personnelNumber": "Personnel #",
-        "organisation": "Organisation",
-        "department": "Department"
-      },
-      "fields": {
-        "firstName": "First name",
-        "lastName": "Last name",
-        "middleName": "Middle name",
-        "position": "Position",
-        "personnelNumber": "Personnel #",
-        "department": "Department",
-        "service": "Service"
-      },
-      "dialogs": {
-        "editTitle": "Edit personnel",
-        "createTitle": "Add personnel"
-      }
-    },
-    "personnelDetails": {
-      "errors": {
-        "notFound": "Personnel not found."
-      },
-      "tabs": {
-        "profile": "Profile",
-        "competencies": "Competencies",
-        "training": "Training",
-        "notes": "Notes"
-      },
-      "noPhoto": "No photo",
-      "photoAlt": "Personnel photo",
-      "actions": {
-        "saveProfile": "Save profile",
-        "addCompetency": "Add competency",
-        "addTraining": "Add training",
-        "saveNotes": "Save notes",
-        "uploadAttachment": "Upload attachment",
-        "download": "Download",
-        "uploadPhoto": "Upload photo",
-        "attachment": "Attachment"
-      },
-      "fields": {
-        "birthDate": "Birth date",
-        "hireDate": "Hire date",
-        "tenureYears": "Tenure (years)",
-        "firstName": "First name",
-        "lastName": "Last name",
-        "middleName": "Middle name",
-        "position": "Position",
-        "personnelNumber": "Personnel #",
-        "service": "Service",
-        "shop": "Shop",
-        "department": "Department",
-        "division": "Division",
-        "organisation": "Organisation",
-        "email": "Email",
-        "phone": "Phone",
-        "notes": "Notes",
-        "name": "Name",
-        "city": "City",
-        "completionDate": "Completion date",
-        "nextDueDate": "Next due date",
-        "reminderOffsetDays": "Reminder offset (days)"
-      },
-      "columns": {
-        "name": "Name",
-        "organisation": "Organisation",
-        "city": "City",
-        "completionDate": "Completion date",
-        "nextDueDate": "Next due date",
-        "reminderOffset": "Reminder offset",
-        "age": "Age",
-        "daysUntilDue": "Days until due"
-      },
-      "dialogs": {
-        "addCompetencyTitle": "Add competency",
-        "addTrainingTitle": "Add training",
-        "editCompetencyTitle": "Edit competency",
-        "editTrainingTitle": "Edit training",
-        "competencyAttachmentsTitle": "Competency attachments",
-        "trainingAttachmentsTitle": "Training attachments"
-      }
-    },
-    "measurementUnits": {
-      "title": "Measurement units",
-      "dialogs": {
-        "createTitle": "New measurement unit",
-        "editTitle": "Edit measurement unit"
-      },
-      "actions": {
-        "addChild": "Add unit",
-        "addRoot": "Add root"
-      },
-      "errors": {
-        "load": "Failed to load measurement units",
-        "create": "Failed to create measurement unit",
-        "update": "Failed to update measurement unit",
-        "delete": "Failed to delete measurement unit",
-        "restore": "Failed to restore measurement unit"
-      }
-    },
-    "signalTypes": {
-      "title": "Signal types",
-      "dialogs": {
-        "createTitle": "New signal type",
-        "editTitle": "Edit signal type"
-      },
-      "actions": {
-        "addChild": "Add type",
-        "addRoot": "Add root"
-      },
-      "errors": {
-        "load": "Failed to load signal types",
-        "create": "Failed to create signal type",
-        "update": "Failed to update signal type",
-        "delete": "Failed to delete signal type",
-        "restore": "Failed to restore signal type"
-      }
-    },
-    "dataTypes": {
-      "title": "Data types",
-      "dialogs": {
-        "createTitle": "New data type",
-        "editTitle": "Edit data type"
-      },
-      "actions": {
-        "addChild": "Add child",
-        "addRoot": "Add root"
-      },
-      "errors": {
-        "load": "Failed to load data types",
-        "create": "Failed to create data type",
-        "update": "Failed to update data type",
-        "delete": "Failed to delete data type",
-        "restore": "Failed to restore data type"
-      }
-    }
-  }
+    "app":  {
+                "title":  "EQM",
+                "greeting":  "Hi, {{name}}"
+            },
+    "nav":  {
+                "dashboard":  "Overview",
+                "dictionaries":  "Dictionaries",
+                "warehouses":  "Warehouses",
+                "warehouseItems":  "Warehouse Items",
+                "cabinets":  "Cabinets",
+                "assemblies":  "Assemblies",
+                "cabinetItems":  "Equipment in operation",
+                "movements":  "Movements",
+                "ioSignals":  "I/O Signals"
+            },
+    "admin":  {
+                  "title":  "Admin",
+                  "users":  "Users",
+                  "sessions":  "Sessions",
+                  "audit":  "Audit Logs"
+              },
+    "theme":  {
+                  "light":  "Light",
+                  "dark":  "Dark",
+                  "label":  "Theme"
+              },
+    "language":  {
+                     "label":  "Language",
+                     "ru":  "RU",
+                     "en":  "EN"
+                 },
+    "auth":  {
+                 "loginTitle":  "Sign in to EQM",
+                 "loginHint":  "Use admin/admin12345 for the first login.",
+                 "username":  "Username",
+                 "password":  "Password",
+                 "signIn":  "Sign in",
+                 "invalidCredentials":  "Invalid username or password",
+                 "promoTitle":  "Unified control center for equipment",
+                 "promoSubtitle":  "Monitor assets, track movements, and keep inventory aligned in one workspace.",
+                 "fields":  {
+                                "login":  "Login",
+                                "password":  "Password"
+                            },
+                 "actions":  {
+                                 "submit":  "Sign in"
+                             },
+                 "helper":  {
+                                "accountCreation":  "To create an account, contact the administrator via corporate email or TrueConf"
+                            },
+                 "brandTitle":  "EQM Platform",
+                 "brandSubtitle":  "Manage assets, workflows, and inventory from a single secure workspace."
+             },
+    "actions":  {
+                    "add":  "Add",
+                    "edit":  "Edit",
+                    "delete":  "Delete",
+                    "restore":  "Restore",
+                    "save":  "Save",
+                    "cancel":  "Cancel",
+                    "logout":  "Sign out",
+                    "search":  "Search",
+                    "filters":  "Filters",
+                    "actions":  "Actions",
+                    "notSelected":  "Not selected",
+                    "close":  "Close",
+                    "downloadTemplate":  "Download template",
+                    "upload":  "Upload",
+                    "download":  "Download",
+                    "deleteFile":  "Delete file",
+                    "import":  "Import",
+                    "exportActiveCsv":  "Export active (CSV)",
+                    "exportActiveXlsx":  "Export active (XLSX)",
+                    "exportDeletedCsv":  "Export deleted (CSV)",
+                    "exportDeletedXlsx":  "Export deleted (XLSX)"
+                },
+    "pages":  {
+                  "dashboard":  "Overview",
+                  "users":  "Users",
+                  "dictionaries":  "Dictionaries",
+                  "warehouses":  "Warehouses",
+                  "cabinets":  "Cabinets",
+                  "assemblies":  "Assemblies",
+                  "warehouseItems":  "Warehouse Items",
+                  "cabinetItems":  "Equipment in operation",
+                  "movements":  "Movements",
+                  "ioSignals":  "I/O Signals",
+                  "help":  "Help",
+                  "personnel":  "Personnel",
+                  "auditLogs":  "Audit Logs",
+                  "sessions":  "Sessions",
+                  "personnel_details":  "Personnel details",
+                  "helpTableOfContents":  "Table of contents"
+              },
+    "dashboard":  {
+                      "kpis":  {
+                                   "total_cabinets":  "Total cabinets",
+                                   "total_plc_in_cabinets":  "Total PLCs in cabinets",
+                                   "total_plc_in_warehouses":  "Total PLCs in warehouses",
+                                   "total_channels":  "Total channels",
+                                   "ai":  "AI",
+                                   "di":  "DI",
+                                   "ao":  "AO",
+                                   "do":  "DO",
+                                   "total":  "Total",
+                                   "total_warehouse_value_rub":  "Total equipment value"
+                               },
+                      "titles":  {
+                                     "by_type":  "Distribution by type",
+                                     "by_warehouse_qty":  "Stock by warehouse",
+                                     "accounted_vs_not":  "Accounted / Not accounted",
+                                     "by_warehouse_value":  "Value by warehouse",
+                                     "recent_actions":  "Recent actions",
+                                     "recent_logins":  "Recent logins"
+                                 },
+                      "columns":  {
+                                      "action":  "Action",
+                                      "entity":  "Entity",
+                                      "user":  "User",
+                                      "date":  "Date",
+                                      "login":  "Login",
+                                      "logout":  "Logout",
+                                      "reason":  "Reason"
+                                  },
+                      "common":  {
+                                     "loading":  "Loading",
+                                     "no_data":  "No data",
+                                     "last_rows":  "Showing last {{count}} records"
+                                 },
+                      "errors":  {
+                                     "overview":  "Failed to load dashboard overview. Check /api/v1/dashboard/overview.",
+                                     "actions":  "Failed to load actions.",
+                                     "logins":  "Failed to load logins."
+                                 },
+                      "units":  "units"
+                  },
+    "menu":  {
+                 "root":  "Menu",
+                 "overview":  "Overview",
+                 "equipment":  "Equipment",
+                 "warehouse_items":  "Warehouse Items",
+                 "cabinets":  "Cabinets",
+                 "assemblies":  "Assemblies",
+                 "movements":  "Movements",
+                 "cabinets_group":  "Cabinets / Assemblies",
+                 "cabinet_items":  "Equipment in operation",
+                 "cabinet_composition":  "Cabinet Composition",
+                 "engineering":  "Engineering",
+                 "io_signals":  "IO Signals",
+                 "dcl":  "DCL",
+                 "dictionaries":  "Dictionaries",
+                 "warehouses":  "Warehouses",
+                 "manufacturers":  "Manufacturers",
+                 "nomenclature":  "Nomenclature",
+                 "locations":  "Locations",
+                 "equipment_categories":  "Equipment Categories",
+                 "admin":  "Admin",
+                 "admin_users":  "Users",
+                 "admin_sessions":  "Sessions",
+                 "admin_audit":  "Audit Logs",
+                 "help":  "Help",
+                 "personnel":  "Personnel",
+                 "chat":  "Chatbot",
+                 "measurement_units":  "Measurement units",
+                 "signal_types":  "Signal types",
+                 "field_equipments":  "Field equipment",
+                 "main_equipment":  "Main equipment",
+                 "data_types":  "Data types",
+                 "technological_equipment":  "Technological equipment"
+             },
+    "sidebar":  {
+                    "pin":  "Pin sidebar",
+                    "unpin":  "Unpin sidebar"
+                },
+    "chat":  {
+                 "title":  "Chatbot",
+                 "placeholder":  "Enter your message…",
+                 "send":  "Send"
+             },
+    "help":  {
+                 "personnel_overview":  "Personnel is available in the left sidebar. The list supports search, filters, and sorting; admins can add, edit, delete, and restore records.",
+                 "personnel_details":  "Opening a row shows the Personnel card with profile fields, photo upload, competencies, training with expiry warnings and reminder offsets, and notes.",
+                 "overview":  "The overview is a read-only dashboard with KPI cards, charts, and summary tables. It provides a snapshot of the system and does not allow editing records directly.",
+                 "equipmentWarehouseItems":  "This table lists warehouse stock items. Use search, filters, and sorting to find positions quickly. Add, edit, delete, and restore actions are available.",
+                 "equipmentWarehouseItemsSecondary":  "Movement actions such as inbound and transfer are initiated from this area.",
+                 "equipmentCabinetItems":  "Cabinet items show equipment stored in cabinets. Use the same list tools: search, filters, sorting, and actions to add, edit, delete, or restore entries.",
+                 "cabinets":  "The cabinets list lets you manage cabinet records. Use add/edit/delete/restore actions and open a cabinet to view its composition.",
+                 "cabinetComposition":  "Cabinet composition is a dedicated view for the cabinet structure and items. It is a focused area for cabinet details and composition-related actions.",
+                 "engineering":  "Engineering includes IO Signals and DCL. These screens manage signals, connections, and related definitions using add/edit/delete/restore actions.",
+                 "engineeringSecondary":  "Use filters and sorting to navigate large signal lists.",
+                 "main_equipment":  "The Main equipment dictionary is a hierarchical tree with unlimited depth. Node level is calculated automatically from the selected parent.",
+                 "field_equipments":  "The Field equipment dictionary is a hierarchical tree. It supports creating root and child nodes, editing, soft delete, and restore.",
+                 "data_types":  "The Data types dictionary is a tree. You can create root and child nodes, edit name, parent, and tooltip. Tooltip is shown on hover over the node name and may be empty.",
+                 "dictionaries":  "Dictionaries include Warehouses, Manufacturers, Nomenclature, Locations, Main equipment, and Equipment Categories. Records can be viewed, added, edited, deleted, and restored. Main equipment is stored as a tree.",
+                 "admin":  "Admin contains Users, Sessions, and Audit Logs. Access is limited to the admin role."
+             },
+    "common":  {
+                   "noAccess":  "Not enough permissions.",
+                   "sort":  "Sort",
+                   "showDeleted":  "Show deleted",
+                   "all":  "All",
+                   "yes":  "Yes",
+                   "no":  "No",
+                   "deleted":  "Deleted",
+                   "deletedSuffix":  " (deleted)",
+                   "notImplemented":  "Not implemented",
+                   "loading":  "Loading...",
+                   "dateFrom":  "Date from",
+                   "dateTo":  "Date to",
+                   "createdFrom":  "Created from",
+                   "createdTo":  "Created to",
+                   "status":  {
+                                  "label":  "Status",
+                                  "deleted":  "Deleted",
+                                  "active":  "Active",
+                                  "inactive":  "Inactive"
+                              },
+                   "fields":  {
+                                  "name":  "Name",
+                                  "factoryNumber":  "Factory number",
+                                  "nomenclatureNumber":  "Inventory number",
+                                  "files":  "Files",
+                                  "location":  "Location",
+                                  "manufacturer":  "Manufacturer",
+                                  "equipmentCategory":  "Equipment category",
+                                  "nomenclature":  "Nomenclature",
+                                  "channelForming":  "Channel forming",
+                                  "channelCount":  "Channel count",
+                                  "isNetwork":  "Network",
+                                  "portsInterfaces":  "Network interfaces",
+                                  "photo":  "Photo",
+                                  "datasheet":  "Datasheet",
+                                  "portType":  "Port type",
+                                  "portCount":  "Count",
+                                  "priceRub":  "Price, RUB",
+                                  "login":  "Login",
+                                  "password":  "Password",
+                                  "role":  "Role",
+                                  "country":  "Country",
+                                  "parent":  "Parent",
+                                  "cabinet":  "Cabinet",
+                                  "assembly":  "Assembly",
+                                  "cabinetAssembly":  "Cabinet/Assembly",
+                                  "equipment":  "Equipment",
+                                  "quantity":  "Quantity",
+                                  "comment":  "Comment",
+                                  "accounting":  "Accounting",
+                                  "warehouse":  "Warehouse",
+                                  "reference":  "Reference",
+                                  "sortOrder":  "Sort order",
+                                  "tooltip":  "Tooltip"
+                              },
+                   "rowsPerPage":  "Rows per page",
+                   "rowsDisplayed":  "{{from}}-{{to}} of {{countLabel}}",
+                   "rowsMore":  "more"
+               },
+    "errors":  {
+                   "load_personnel_failed":  "Failed to load personnel.",
+                   "create_personnel_failed":  "Failed to create personnel.",
+                   "update_personnel_failed":  "Failed to update personnel.",
+                   "delete_personnel_failed":  "Failed to delete personnel.",
+                   "restore_personnel_failed":  "Failed to restore personnel.",
+                   "create_competency_failed":  "Failed to create competency.",
+                   "update_competency_failed":  "Failed to update competency.",
+                   "create_training_failed":  "Failed to create training.",
+                   "update_training_failed":  "Failed to update training.",
+                   "delete_competency_failed":  "Failed to delete competency.",
+                   "restore_competency_failed":  "Failed to restore competency.",
+                   "delete_training_failed":  "Failed to delete training.",
+                   "restore_training_failed":  "Failed to restore training.",
+                   "no_attachment":  "No attachment available.",
+                   "attachment_upload_failed":  "Failed to upload attachment.",
+                   "attachment_download_failed":  "Failed to download attachment.",
+                   "photo_upload_failed":  "Failed to upload photo.",
+                   "fileTooLarge":  "File is too large.",
+                   "invalidFormat":  "Invalid file format.",
+                   "downloadFailed":  "Failed to download.",
+                   "saveFailed":  "Failed to save."
+               },
+    "roles":  {
+                  "admin":  "Admin",
+                  "engineer":  "Engineer",
+                  "viewer":  "Viewer"
+              },
+    "validation":  {
+                       "requiredFields":  "Fill in required fields."
+                   },
+    "pagesUi":  {
+                    "equipmentCategories":  {
+                                                "title":  "Equipment categories",
+                                                "sort":  {
+                                                             "byNameAsc":  "By name (A-Z)",
+                                                             "byNameDesc":  "By name (Z-A)",
+                                                             "byCreatedOldest":  "By created date (oldest first)",
+                                                             "byCreatedNewest":  "By created date (newest first)"
+                                                         },
+                                                "dialogs":  {
+                                                                "editTitle":  "Edit equipment category",
+                                                                "createTitle":  "New equipment category"
+                                                            },
+                                                "errors":  {
+                                                               "load":  "Failed to load equipment categories",
+                                                               "create":  "Failed to create record",
+                                                               "update":  "Failed to update record",
+                                                               "delete":  "Failed to delete record",
+                                                               "restore":  "Failed to restore record"
+                                                           }
+                                            },
+                    "equipmentTypes":  {
+                                           "title":  "Nomenclature",
+                                           "sort":  {
+                                                        "byNameAsc":  "By name (A-Z)",
+                                                        "byNameDesc":  "By name (Z-A)",
+                                                        "byNomenclatureAsc":  "By nomenclature (A-Z)",
+                                                        "byNomenclatureDesc":  "By nomenclature (Z-A)",
+                                                        "byCreatedOldest":  "By created date (oldest)",
+                                                        "byCreatedNewest":  "By created date (newest)"
+                                                    },
+                                           "errors":  {
+                                                          "load":  "Failed to load nomenclature",
+                                                          "create":  "Failed to create equipment type",
+                                                          "update":  "Failed to update equipment type",
+                                                          "delete":  "Failed to delete equipment type",
+                                                          "restore":  "Failed to restore equipment type"
+                                                      },
+                                           "fields":  {
+                                                          "article":  "Article",
+                                                          "hasSerialInterfaces":  "Serial interfaces",
+                                                          "currentType":  "Current type",
+                                                          "supplyVoltage":  "Supply voltage",
+                                                          "currentConsumptionA":  "Current consumption, A"
+                                                      },
+                                           "options":  {
+                                                           "currentType":  {
+                                                                               "direct":  "Direct current",
+                                                                               "alternating":  "Alternating current",
+                                                                               "na":  "N/A"
+                                                                           },
+                                                           "supplyVoltage":  {
+                                                                                 "v220":  "220V",
+                                                                                 "v24":  "24V",
+                                                                                 "v220v24":  "220V/24V",
+                                                                                 "v12":  "12V",
+                                                                                 "v9":  "9V",
+                                                                                 "v5":  "5V",
+                                                                                 "v3":  "3V",
+                                                                                 "na":  "N/A"
+                                                                             }
+                                                       },
+                                           "columns":  {
+                                                           "channels":  "Channels",
+                                                           "channelsDetailed":  "AI/DI/AO/DO"
+                                                       },
+                                           "serialPorts":  {
+                                                               "title":  "Serial interfaces",
+                                                               "add":  "Add interface",
+                                                               "portType":  "Port type",
+                                                               "count":  "Count"
+                                                           },
+                                           "validation":  {
+                                                              "networkPortsDisallowSerial":  "RS-485 and RS-232 cannot be added as network ports. Use \"Serial interfaces\".",
+                                                              "currentConsumptionNonNegative":  "Current consumption cannot be negative.",
+                                                              "currentConsumptionInvalid":  "Enter a valid numeric current consumption value."
+                                                          },
+                                           "channelsWithCount":  "Yes ({{count}})",
+                                           "dialogs":  {
+                                                           "editTitle":  "Equipment type",
+                                                           "createTitle":  "New equipment type"
+                                                       },
+                                           "actions":  {
+                                                           "uploadPhoto":  "Upload photo",
+                                                           "uploadDatasheet":  "Upload datasheet"
+                                                       }
+                                       },
+                    "auditLogs":  {
+                                      "sort":  {
+                                                   "byTimeNewest":  "By time (newest)",
+                                                   "byTimeOldest":  "By time (oldest)",
+                                                   "byEntityAsc":  "By entity (A-Z)",
+                                                   "byEntityDesc":  "By entity (Z-A)"
+                                               },
+                                      "fields":  {
+                                                     "actorId":  "Actor ID",
+                                                     "entity":  "Entity",
+                                                     "action":  "Action"
+                                                 },
+                                      "columns":  {
+                                                      "id":  "ID",
+                                                      "actor":  "Actor",
+                                                      "action":  "Action",
+                                                      "entity":  "Entity",
+                                                      "entityId":  "Entity ID",
+                                                      "time":  "Time"
+                                                  },
+                                      "errors":  {
+                                                     "load":  "Failed to load audit logs"
+                                                 }
+                                  },
+                    "sessions":  {
+                                     "sort":  {
+                                                  "byStartNewest":  "By start (newest)",
+                                                  "byStartOldest":  "By start (oldest)",
+                                                  "byEndNewest":  "By end (newest)",
+                                                  "byEndOldest":  "By end (oldest)"
+                                              },
+                                     "fields":  {
+                                                    "userId":  "User ID",
+                                                    "endReason":  "End reason"
+                                                },
+                                     "columns":  {
+                                                     "id":  "ID",
+                                                     "user":  "User",
+                                                     "startedAt":  "Started",
+                                                     "endedAt":  "Ended",
+                                                     "endReason":  "Reason",
+                                                     "ip":  "IP"
+                                                 },
+                                     "errors":  {
+                                                    "load":  "Failed to load sessions"
+                                                }
+                                 },
+                    "users":  {
+                                  "sort":  {
+                                               "byUsernameAsc":  "By login (A-Z)",
+                                               "byUsernameDesc":  "By login (Z-A)",
+                                               "byRoleAsc":  "By role (A-Z)",
+                                               "byRoleDesc":  "By role (Z-A)",
+                                               "byCreatedOldest":  "By created date (oldest)",
+                                               "byCreatedNewest":  "By created date (newest)"
+                                           },
+                                  "errors":  {
+                                                 "load":  "Failed to load users",
+                                                 "create":  "Failed to create user",
+                                                 "update":  "Failed to update user",
+                                                 "delete":  "Failed to delete user",
+                                                 "restore":  "Failed to restore user"
+                                             }
+                              },
+                    "cabinets":  {
+                                     "sort":  {
+                                                  "byNameAsc":  "By name (A-Z)",
+                                                  "byNameDesc":  "By name (Z-A)",
+                                                  "byCreatedOldest":  "By created date (oldest)",
+                                                  "byCreatedNewest":  "By created date (newest)"
+                                              },
+                                     "errors":  {
+                                                    "load":  "Failed to load cabinets",
+                                                    "create":  "Failed to create cabinet",
+                                                    "update":  "Failed to update cabinet",
+                                                    "delete":  "Failed to delete cabinet",
+                                                    "restore":  "Failed to restore cabinet",
+                                                    "filesLoad":  "Failed to load cabinet files",
+                                                    "fileUpload":  "Failed to upload file",
+                                                    "fileDownload":  "Failed to download file",
+                                                    "fileDelete":  "Failed to delete file"
+                                                },
+                                     "hints":  {
+                                                   "saveBeforeUpload":  "Save the cabinet before uploading files."
+                                               },
+                                     "dialogs":  {
+                                                     "editTitle":  "Edit cabinet",
+                                                     "createTitle":  "New cabinet"
+                                                 },
+                                     "actions":  {
+                                                     "openComposition":  "Open composition"
+                                                 }
+                                 },
+                    "assemblies":  {
+                                       "sort":  {
+                                                    "byNameAsc":  "By name (A-Z)",
+                                                    "byNameDesc":  "By name (Z-A)",
+                                                    "byCreatedOldest":  "By created date (oldest)",
+                                                    "byCreatedNewest":  "By created date (newest)"
+                                                },
+                                       "errors":  {
+                                                      "load":  "Failed to load assemblies",
+                                                      "create":  "Failed to create assembly",
+                                                      "update":  "Failed to update assembly",
+                                                      "delete":  "Failed to delete assembly",
+                                                      "restore":  "Failed to restore assembly"
+                                                  },
+                                       "dialogs":  {
+                                                       "editTitle":  "Edit assembly",
+                                                       "createTitle":  "New assembly"
+                                                   }
+                                   },
+                    "warehouses":  {
+                                       "sort":  {
+                                                    "byNameAsc":  "By name (A-Z)",
+                                                    "byNameDesc":  "By name (Z-A)",
+                                                    "byCreatedOldest":  "By created date (oldest)",
+                                                    "byCreatedNewest":  "By created date (newest)"
+                                                },
+                                       "errors":  {
+                                                      "load":  "Failed to load warehouses",
+                                                      "create":  "Failed to create warehouse",
+                                                      "update":  "Failed to update warehouse",
+                                                      "delete":  "Failed to delete warehouse",
+                                                      "restore":  "Failed to restore warehouse"
+                                                  },
+                                       "dialogs":  {
+                                                       "editTitle":  "Warehouse",
+                                                       "createTitle":  "New warehouse"
+                                                   }
+                                   },
+                    "manufacturers":  {
+                                          "title":  "Manufacturers",
+                                          "sort":  {
+                                                       "byNameAsc":  "By name (A-Z)",
+                                                       "byNameDesc":  "By name (Z-A)",
+                                                       "byCreatedOldest":  "By created date (oldest)",
+                                                       "byCreatedNewest":  "By created date (newest)"
+                                                   },
+                                          "actions":  {
+                                                          "template":  "Download template",
+                                                          "exportCsv":  "Export CSV",
+                                                          "exportXlsx":  "Export XLSX",
+                                                          "exportActiveCsv":  "Export active CSV",
+                                                          "exportActiveXlsx":  "Export active XLSX",
+                                                          "exportDeletedCsv":  "Export deleted CSV",
+                                                          "exportDeletedXlsx":  "Export deleted XLSX",
+                                                          "import":  "Import"
+                                                      },
+                                          "import":  {
+                                                         "title":  "Import manufacturers",
+                                                         "dryRun":  "Dry run (no changes)",
+                                                         "submit":  "Start import",
+                                                         "reportTitle":  "Import report",
+                                                         "reportSummary":  "Rows: {{total}}, created: {{created}}, skipped: {{skipped}}",
+                                                         "errors":  "Errors",
+                                                         "warnings":  "Warnings",
+                                                         "issue":  "Row {{row}}, {{field}}: {{message}}",
+                                                         "dryRunSuccess":  "Dry run completed",
+                                                         "success":  "Import completed"
+                                                     },
+                                          "errors":  {
+                                                         "load":  "Failed to load manufacturers",
+                                                         "create":  "Failed to create manufacturer",
+                                                         "update":  "Failed to update manufacturer",
+                                                         "delete":  "Failed to delete manufacturer",
+                                                         "restore":  "Failed to restore manufacturer",
+                                                         "export":  "Failed to export manufacturers",
+                                                         "template":  "Failed to download template",
+                                                         "import":  "Failed to import manufacturers",
+                                                         "importNoFile":  "Select a file to import"
+                                                     },
+                                          "dialogs":  {
+                                                          "editTitle":  "Manufacturer",
+                                                          "createTitle":  "New manufacturer"
+                                                      }
+                                      },
+                    "locations":  {
+                                      "title":  "Locations",
+                                      "dialogs":  {
+                                                      "createTitle":  "New location",
+                                                      "editTitle":  "Edit location"
+                                                  },
+                                      "actions":  {
+                                                      "addChild":  "Add child",
+                                                      "addRoot":  "Add root"
+                                                  },
+                                      "errors":  {
+                                                     "load":  "Failed to load locations",
+                                                     "create":  "Failed to create location",
+                                                     "update":  "Failed to update location",
+                                                     "delete":  "Failed to delete location",
+                                                     "restore":  "Failed to restore location"
+                                                 }
+                                  },
+                    "fieldEquipments":  {
+                                            "title":  "Field equipment",
+                                            "dialogs":  {
+                                                            "createTitle":  "New field equipment node",
+                                                            "editTitle":  "Edit field equipment node"
+                                                        },
+                                            "actions":  {
+                                                            "addChild":  "Add child",
+                                                            "addRoot":  "Add root"
+                                                        },
+                                            "errors":  {
+                                                           "load":  "Failed to load field equipment",
+                                                           "create":  "Failed to create record",
+                                                           "update":  "Failed to update record",
+                                                           "delete":  "Failed to delete record",
+                                                           "restore":  "Failed to restore record"
+                                                       }
+                                        },
+                    "mainEquipment":  {
+                                          "title":  "Main equipment",
+                                          "dialogs":  {
+                                                          "createTitle":  "New main equipment",
+                                                          "editTitle":  "Edit main equipment"
+                                                      },
+                                          "actions":  {
+                                                          "addChild":  "Add child",
+                                                          "addRoot":  "Add root"
+                                                      },
+                                          "labels":  {
+                                                         "category":  "Category",
+                                                         "equipment":  "Equipment",
+                                                         "subtype":  "Subtype"
+                                                     },
+                                          "errors":  {
+                                                         "load":  "Failed to load main equipment",
+                                                         "create":  "Failed to create record",
+                                                         "update":  "Failed to update record",
+                                                         "delete":  "Failed to delete record",
+                                                         "restore":  "Failed to restore record",
+                                                         "maxLevel":  "Cannot create a level deeper than 3"
+                                                     }
+                                      },
+                    "cabinetItems":  {
+                                         "sort":  {
+                                                      "byDateNewest":  "By date (newest)",
+                                                      "byDateOldest":  "By date (oldest)",
+                                                      "byQuantityDesc":  "By quantity (desc)",
+                                                      "byQuantityAsc":  "By quantity (asc)",
+                                                      "byEquipmentAsc":  "Equipment (A-Z)",
+                                                      "byEquipmentDesc":  "Equipment (Z-A)",
+                                                      "byManufacturerAsc":  "Manufacturer (A-Z)",
+                                                      "byManufacturerDesc":  "Manufacturer (Z-A)"
+                                                  },
+                                         "errors":  {
+                                                        "load":  "Failed to load cabinet items",
+                                                        "delete":  "Failed to delete cabinet item",
+                                                        "restore":  "Failed to restore cabinet item",
+                                                        "updateQuantity":  "Failed to update quantity"
+                                                    },
+                                         "dialogs":  {
+                                                         "addFinishedTitle":  "Add finished"
+                                                     },
+                                         "actions":  {
+                                                         "addFinished":  "Add finished"
+                                                     },
+                                         "placeholders":  {
+                                                              "quantityLocked":  "Quantity is fixed = 1",
+                                                              "details":  "Details will be added later."
+                                                          },
+                                         "sections":  {
+                                                          "fields":  "Fields",
+                                                          "info":  "Information",
+                                                          "properties":  "Properties"
+                                                      }
+                                     },
+                    "warehouseItems":  {
+                                           "sort":  {
+                                                        "byUpdatedNewest":  "By update (newest)",
+                                                        "byUpdatedOldest":  "By update (oldest)",
+                                                        "byQuantityDesc":  "By quantity (desc)",
+                                                        "byQuantityAsc":  "By quantity (asc)",
+                                                        "byEquipmentAsc":  "Equipment (A-Z)",
+                                                        "byEquipmentDesc":  "Equipment (Z-A)",
+                                                        "byEquipmentCategoryAsc":  "Equipment category (A-Z)",
+                                                        "byEquipmentCategoryDesc":  "Equipment category (Z-A)",
+                                                        "byManufacturerAsc":  "Manufacturer (A-Z)",
+                                                        "byManufacturerDesc":  "Manufacturer (Z-A)",
+                                                        "byPriceAsc":  "Price (low-high)",
+                                                        "byPriceDesc":  "Price (high-low)"
+                                                    },
+                                           "errors":  {
+                                                          "load":  "Failed to load warehouse items",
+                                                          "update":  "Failed to update warehouse item",
+                                                          "delete":  "Failed to delete warehouse item",
+                                                          "restore":  "Failed to restore warehouse item",
+                                                          "actionFailed":  "Failed to perform action. Please try again."
+                                                      },
+                                           "fields":  {
+                                                          "priceMin":  "Price min",
+                                                          "priceMax":  "Price max",
+                                                          "fromWarehouse":  "From warehouse",
+                                                          "destinationType":  "Destination",
+                                                          "toCabinet":  "To cabinet/assembly",
+                                                          "toAssembly":  "To assembly"
+                                                      },
+                                           "dialogs":  {
+                                                           "toWarehouseTitle":  "To warehouse",
+                                                           "toCabinetTitle":  "Introduce into operation",
+                                                           "directToCabinetTitle":  "Direct to cabinet/assembly",
+                                                           "editTitle":  "Edit warehouse item"
+                                                       },
+                                           "actions":  {
+                                                           "toWarehouse":  "To warehouse",
+                                                           "toCabinet":  "Introduce into operation",
+                                                           "directToCabinet":  "Direct to cabinet/assembly"
+                                                       },
+                                           "columns":  {
+                                                           "updated":  "Updated"
+                                                       },
+                                           "accounted":  "Accounted",
+                                           "notAccounted":  "Not accounted"
+                                       },
+                    "movements":  {
+                                      "types":  {
+                                                    "toWarehouse":  "To warehouse",
+                                                    "toCabinet":  "From warehouse to cabinet",
+                                                    "directToCabinet":  "Direct to cabinet",
+                                                    "toAssembly":  "From warehouse to assembly",
+                                                    "directToAssembly":  "Direct to assembly"
+                                                },
+                                      "sort":  {
+                                                   "byDateNewest":  "By date (newest)",
+                                                   "byDateOldest":  "By date (oldest)"
+                                               },
+                                      "errors":  {
+                                                     "load":  "Failed to load movements",
+                                                     "create":  "Failed to create movement"
+                                                 },
+                                      "columns":  {
+                                                      "type":  "Type",
+                                                      "from":  "From",
+                                                      "to":  "To",
+                                                      "performedBy":  "Performed by",
+                                                      "createdAt":  "Date"
+                                                  },
+                                      "fields":  {
+                                                     "movementType":  "Movement type",
+                                                     "fromWarehouse":  "From warehouse",
+                                                     "toWarehouse":  "To warehouse",
+                                                     "fromCabinet":  "From cabinet",
+                                                     "toCabinet":  "To cabinet",
+                                                     "toAssembly":  "To assembly"
+                                                 },
+                                      "validation":  {
+                                                         "typeRequired":  "Select a movement type.",
+                                                         "equipmentAndQuantity":  "Provide equipment and quantity.",
+                                                         "toWarehouseRequired":  "Select a destination warehouse.",
+                                                         "fromWarehouseAndCabinet":  "Select a source warehouse and destination cabinet.",
+                                                         "toCabinetRequired":  "Select a destination cabinet.",
+                                                         "fromWarehouseAndAssembly":  "Select a source warehouse and destination assembly.",
+                                                         "toAssemblyRequired":  "Select a destination assembly."
+                                                     },
+                                      "actions":  {
+                                                      "create":  "Create movement"
+                                                  },
+                                      "newTitle":  "New movement",
+                                      "historyTitle":  "Movement history"
+                                  },
+                    "ioSignals":  {
+                                      "errors":  {
+                                                     "loadTree":  "Failed to load I/O tree",
+                                                     "loadSignals":  "Failed to load I/O signals",
+                                                     "update":  "Failed to update signal",
+                                                     "rebuild":  "Failed to sync signals"
+                                                 },
+                                      "labels":  {
+                                                     "locations":  "Locations",
+                                                     "selectEquipment":  "Select channel-forming equipment",
+                                                     "cabinetMetaFallback":  "No numbers",
+                                                     "channelDeviceMetaFallback":  "No metadata",
+                                                     "signalsTotal":  "{{count}} signals"
+                                                 },
+                                      "actions":  {
+                                                      "rebuild":  "Sync"
+                                                  },
+                                      "columns":  {
+                                                      "channelIndex":  "Channel",
+                                                      "tag":  "Tag",
+                                                      "signal":  "Signal",
+                                                      "signalType":  "Signal type",
+                                                      "signalKind":  "Signal kind",
+                                                      "measurementType":  "Measurement type",
+                                                      "units":  "Units"
+                                                  },
+                                      "fields":  {
+                                                     "channelIndex":  "Channel",
+                                                     "tag":  "Tag",
+                                                     "signal":  "Signal",
+                                                     "signalType":  "Signal type",
+                                                     "signalKind":  "Signal kind",
+                                                     "measurementType":  "Measurement type",
+                                                     "units":  "Units",
+                                                     "status":  "Status"
+                                                 },
+                                      "dialogs":  {
+                                                      "editTitle":  "I/O signal"
+                                                  },
+                                      "empty":  {
+                                                    "tree":  "No locations yet.",
+                                                    "select":  "Select a device in the tree to see signals.",
+                                                    "noSignals":  "No signals yet. Click Sync to generate."
+                                                }
+                                  },
+                    "personnel":  {
+                                      "sort":  {
+                                                   "byLastNameAsc":  "Last name (A-Z)",
+                                                   "byLastNameDesc":  "Last name (Z-A)",
+                                                   "byHireDateOldest":  "Hire date (oldest)",
+                                                   "byHireDateNewest":  "Hire date (newest)"
+                                               },
+                                      "columns":  {
+                                                      "fullName":  "Full name",
+                                                      "position":  "Position",
+                                                      "personnelNumber":  "Personnel #",
+                                                      "organisation":  "Organisation",
+                                                      "department":  "Department"
+                                                  },
+                                      "fields":  {
+                                                     "firstName":  "First name",
+                                                     "lastName":  "Last name",
+                                                     "middleName":  "Middle name",
+                                                     "position":  "Position",
+                                                     "personnelNumber":  "Personnel #",
+                                                     "department":  "Department",
+                                                     "service":  "Service"
+                                                 },
+                                      "dialogs":  {
+                                                      "editTitle":  "Edit personnel",
+                                                      "createTitle":  "Add personnel"
+                                                  }
+                                  },
+                    "personnelDetails":  {
+                                             "errors":  {
+                                                            "notFound":  "Personnel not found."
+                                                        },
+                                             "tabs":  {
+                                                          "profile":  "Profile",
+                                                          "competencies":  "Competencies",
+                                                          "training":  "Training",
+                                                          "notes":  "Notes"
+                                                      },
+                                             "noPhoto":  "No photo",
+                                             "photoAlt":  "Personnel photo",
+                                             "actions":  {
+                                                             "saveProfile":  "Save profile",
+                                                             "addCompetency":  "Add competency",
+                                                             "addTraining":  "Add training",
+                                                             "saveNotes":  "Save notes",
+                                                             "uploadAttachment":  "Upload attachment",
+                                                             "download":  "Download",
+                                                             "uploadPhoto":  "Upload photo",
+                                                             "attachment":  "Attachment"
+                                                         },
+                                             "fields":  {
+                                                            "birthDate":  "Birth date",
+                                                            "hireDate":  "Hire date",
+                                                            "tenureYears":  "Tenure (years)",
+                                                            "firstName":  "First name",
+                                                            "lastName":  "Last name",
+                                                            "middleName":  "Middle name",
+                                                            "position":  "Position",
+                                                            "personnelNumber":  "Personnel #",
+                                                            "service":  "Service",
+                                                            "shop":  "Shop",
+                                                            "department":  "Department",
+                                                            "division":  "Division",
+                                                            "organisation":  "Organisation",
+                                                            "email":  "Email",
+                                                            "phone":  "Phone",
+                                                            "notes":  "Notes",
+                                                            "name":  "Name",
+                                                            "city":  "City",
+                                                            "completionDate":  "Completion date",
+                                                            "nextDueDate":  "Next due date",
+                                                            "reminderOffsetDays":  "Reminder offset (days)"
+                                                        },
+                                             "columns":  {
+                                                             "name":  "Name",
+                                                             "organisation":  "Organisation",
+                                                             "city":  "City",
+                                                             "completionDate":  "Completion date",
+                                                             "nextDueDate":  "Next due date",
+                                                             "reminderOffset":  "Reminder offset",
+                                                             "age":  "Age",
+                                                             "daysUntilDue":  "Days until due"
+                                                         },
+                                             "dialogs":  {
+                                                             "addCompetencyTitle":  "Add competency",
+                                                             "addTrainingTitle":  "Add training",
+                                                             "editCompetencyTitle":  "Edit competency",
+                                                             "editTrainingTitle":  "Edit training",
+                                                             "competencyAttachmentsTitle":  "Competency attachments",
+                                                             "trainingAttachmentsTitle":  "Training attachments"
+                                                         }
+                                         },
+                    "measurementUnits":  {
+                                             "title":  "Measurement units",
+                                             "dialogs":  {
+                                                             "createTitle":  "New measurement unit",
+                                                             "editTitle":  "Edit measurement unit"
+                                                         },
+                                             "actions":  {
+                                                             "addChild":  "Add unit",
+                                                             "addRoot":  "Add root"
+                                                         },
+                                             "errors":  {
+                                                            "load":  "Failed to load measurement units",
+                                                            "create":  "Failed to create measurement unit",
+                                                            "update":  "Failed to update measurement unit",
+                                                            "delete":  "Failed to delete measurement unit",
+                                                            "restore":  "Failed to restore measurement unit"
+                                                        }
+                                         },
+                    "signalTypes":  {
+                                        "title":  "Signal types",
+                                        "dialogs":  {
+                                                        "createTitle":  "New signal type",
+                                                        "editTitle":  "Edit signal type"
+                                                    },
+                                        "actions":  {
+                                                        "addChild":  "Add type",
+                                                        "addRoot":  "Add root"
+                                                    },
+                                        "errors":  {
+                                                       "load":  "Failed to load signal types",
+                                                       "create":  "Failed to create signal type",
+                                                       "update":  "Failed to update signal type",
+                                                       "delete":  "Failed to delete signal type",
+                                                       "restore":  "Failed to restore signal type"
+                                                   }
+                                    },
+                    "dataTypes":  {
+                                      "title":  "Data types",
+                                      "dialogs":  {
+                                                      "createTitle":  "New data type",
+                                                      "editTitle":  "Edit data type"
+                                                  },
+                                      "actions":  {
+                                                      "addChild":  "Add child",
+                                                      "addRoot":  "Add root"
+                                                  },
+                                      "errors":  {
+                                                     "load":  "Failed to load data types",
+                                                     "create":  "Failed to create data type",
+                                                     "update":  "Failed to update data type",
+                                                     "delete":  "Failed to delete data type",
+                                                     "restore":  "Failed to restore data type"
+                                                 }
+                                  }
+                },
+    "pid":  {
+                "page":  {
+                             "title":  "Technological equipment",
+                             "location":  "Location",
+                             "selectLocation":  "Select location",
+                             "processName":  "Process name",
+                             "createProcess":  "Create process",
+                             "selectProcess":  "Select process"
+                         },
+                "tabs":  {
+                             "diagram":  "P\u0026ID Diagram",
+                             "equipment":  "Equipment list"
+                         },
+                "toolbox":  {
+                                "mode":  "Mode",
+                                "select":  "Select / Drag",
+                                "addEdge":  "Add edge",
+                                "delete":  "Delete",
+                                "edgeType":  "Edge type",
+                                "mainEquipment":  "Equipment",
+                                "instruments":  "ISA Instruments",
+                                "dragHint":  "Drag to canvas or click to select",
+                                "fromFieldEquipment":  "From Field equipment",
+                                "fromOperation":  "From equipment in operation"
+                            },
+                "layout":  {
+                               "floatingPanels":  "Floating panels"
+                           },
+                "properties":  {
+                                   "title":  "Properties",
+                                   "tag":  "Tag",
+                                   "label":  "Name",
+                                   "plc":  "PLC",
+                                   "ranges":  "Ranges",
+                                   "signalType":  "Signal type",
+                                   "params":  "Parameters",
+                                   "edgeLabel":  "Edge label",
+                                   "edgeType":  "Edge type"
+                               },
+                "edges":  {
+                              "process":  "Process",
+                              "signal":  "Signal",
+                              "control":  "Control",
+                              "electric":  "Electric"
+                          },
+                "list":  {
+                             "type":  "Type",
+                             "tag":  "Tag",
+                             "name":  "Name",
+                             "equipment":  "Equipment",
+                             "instrument":  "Instrument"
+                         },
+                "palette":  {
+                                "main":  {
+                                             "bunker":  "Bunker",
+                                             "feeder":  "Feeder",
+                                             "crusher":  "Crusher",
+                                             "conveyor":  "Conveyor",
+                                             "mill":  "Mill",
+                                             "pump":  "Pump",
+                                             "tank":  "Tank",
+                                             "valve":  "Valve",
+                                             "vfd":  "VFD",
+                                             "motor":  "Motor"
+                                         },
+                                "instrument":  {
+                                                   "tt":  "Temperature transmitter",
+                                                   "pt":  "Pressure transmitter",
+                                                   "ft":  "Flow transmitter",
+                                                   "lt":  "Level transmitter",
+                                                   "st":  "Speed transmitter",
+                                                   "vt":  "Vibration transmitter",
+                                                   "wt":  "Weight transmitter",
+                                                   "it":  "Current transmitter",
+                                                   "et":  "Power transmitter",
+                                                   "zt":  "Positioner",
+                                                   "pic":  "Pressure controller",
+                                                   "tic":  "Temperature controller",
+                                                   "fic":  "Flow controller",
+                                                   "lic":  "Level controller"
+                                               }
+                            }
+            }
 }

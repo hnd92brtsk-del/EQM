@@ -1,0 +1,55 @@
+{
+  "processId": 1,
+  "version": 1,
+  "updatedAt": "2026-03-04T20:44:52.659000Z",
+  "viewport": {
+    "x": 0.0,
+    "y": 3988.845994533545,
+    "zoom": 1.1486983549970349
+  },
+  "nodes": [
+    {
+      "id": "node_1772138155823",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "bunker",
+      "label": "Бункер",
+      "tag": "",
+      "position": {
+        "x": 118.0,
+        "y": 223.015625
+      },
+      "sourceRef": null,
+      "properties": {}
+    },
+    {
+      "id": "node_1772138156568",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "bunker",
+      "label": "Бункер",
+      "tag": "",
+      "position": {
+        "x": 118.0,
+        "y": 223.015625
+      },
+      "sourceRef": null,
+      "properties": {}
+    },
+    {
+      "id": "node_1772138168361",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "feeder",
+      "label": "Питатель",
+      "tag": "",
+      "position": {
+        "x": 328.0,
+        "y": 223.015625
+      },
+      "sourceRef": null,
+      "properties": {}
+    }
+  ],
+  "edges": []
+}

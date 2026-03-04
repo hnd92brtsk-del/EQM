@@ -23,6 +23,7 @@ from app.models.movements import EquipmentMovement, MovementType
 from app.models.audit import AuditLog
 from app.models.attachments import Attachment
 from app.models.cabinet_files import CabinetFile
+from app.models.pid import PidProcess
 
 __all__ = [
     "User",
@@ -54,4 +55,5 @@ __all__ = [
     "AuditLog",
     "Attachment",
     "CabinetFile",
+    "PidProcess",
 ]

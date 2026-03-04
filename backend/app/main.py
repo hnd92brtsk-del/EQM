@@ -1,7 +1,8 @@
 ﻿from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
-from app.core.config import get_settings
+from app.core.config import BASE_DIR, get_settings
 from app.routers import (
     auth,
     users,
@@ -30,6 +31,7 @@ from app.routers import (
     personnel,
     chat,
     equipment_in_operation,
+    pid,
 )
 
 settings = get_settings()
@@ -79,6 +81,11 @@ app.include_router(sessions.router, prefix="/api/v1/sessions", tags=["sessions"]
 app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["dashboard"])
 app.include_router(chat.router, prefix="/api/v1", tags=["chat"])
 app.include_router(personnel.router, prefix="/api/v1/personnel", tags=["personnel"])
+app.include_router(pid.router, prefix="/api/v1/pid", tags=["pid"])
+
+pid_images_dir = BASE_DIR / "app" / "pid_storage" / "images"
+pid_images_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/api/v1/pid-storage/images", StaticFiles(directory=str(pid_images_dir)), name="pid-images")
 
 
 @app.get("/")

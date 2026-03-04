@@ -16,6 +16,7 @@ class EquipmentInOperationOut(BaseModel):
     equipment_type_photo_url: str | None = None
     equipment_type_datasheet_url: str | None = None
     equipment_type_datasheet_name: str | None = None
+    equipment_type_meta_data: dict | None = None
     network_ports: list[dict] | None = None
     serial_ports: list[dict] | None = None
     is_channel_forming: bool | None = None
