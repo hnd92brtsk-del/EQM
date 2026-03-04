@@ -29,7 +29,6 @@ type Props = {
   focusNodeId: string | null;
   onDiagramChange: (next: PidDiagram) => void;
   locationPanel: React.ReactNode;
-  fieldEquipmentOptions: { id: number; label: string }[];
   inOperationOptions: { id: number; label: string; shapeKey?: string }[];
 };
 
@@ -104,7 +103,6 @@ export function PidEditor({
   focusNodeId,
   onDiagramChange,
   locationPanel,
-  fieldEquipmentOptions,
   inOperationOptions,
 }: Props) {
   const { t } = useTranslation();
@@ -313,15 +311,26 @@ export function PidEditor({
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: layoutMode === "docked" ? "320px 280px 1fr 320px" : "280px 1fr",
+          gridTemplateColumns:
+            layoutMode === "docked"
+              ? {
+                  xs: "1fr",
+                  md: "minmax(280px, 320px) minmax(240px, 300px)",
+                  lg: "minmax(280px, 320px) minmax(240px, 300px) minmax(0, 1fr)",
+                  xl: "minmax(280px, 320px) minmax(240px, 300px) minmax(0, 1fr) minmax(280px, 340px)",
+                }
+              : { xs: "1fr", md: "minmax(240px, 300px) minmax(0, 1fr)" },
           minHeight: 620,
           position: "relative",
           gap: 1,
+          minWidth: 0,
         }}
       >
-        {layoutMode === "docked" ? <Box sx={{ minHeight: 0, border: "1px solid", borderColor: "divider" }}>{locationPanel}</Box> : null}
+        {layoutMode === "docked" ? (
+          <Box sx={{ minHeight: 0, minWidth: 0, border: "1px solid", borderColor: "divider" }}>{locationPanel}</Box>
+        ) : null}
 
-        <Box sx={{ minHeight: 0, border: "1px solid", borderColor: "divider" }}>
+        <Box sx={{ minHeight: 0, minWidth: 0, border: "1px solid", borderColor: "divider" }}>
           <PidToolbox
             mode={mode}
             onModeChange={setMode}
@@ -331,12 +340,14 @@ export function PidEditor({
               setPendingPreset(preset);
               setMode("add-node");
             }}
-            fieldEquipmentOptions={fieldEquipmentOptions}
             inOperationOptions={inOperationOptions}
           />
         </Box>
 
-        <Box ref={wrapperRef} sx={{ minHeight: 620, position: "relative", border: "1px solid", borderColor: "divider" }}>
+        <Box
+          ref={wrapperRef}
+          sx={{ minHeight: 620, minWidth: 0, position: "relative", border: "1px solid", borderColor: "divider" }}
+        >
           <ReactFlow
             key={`pid-rf-${diagram.processId}`}
             nodes={nodes}
@@ -455,25 +466,27 @@ export function PidEditor({
         </Box>
 
         {layoutMode === "docked" ? (
-          <PidPropertiesPanel
-            selectedNode={selectedNode}
-            selectedEdge={selectedEdge}
-            readOnly={readOnly}
-            onNodeChange={(nextNode) => {
-              const nextDiagramNodes = diagram.nodes.map((item) => (item.id === nextNode.id ? nextNode : item));
-              const nextRfNodes = nodes.map((item) =>
-                item.id === nextNode.id ? { ...item, data: { ...item.data, label: nextNode.label, tag: nextNode.tag } } : item
-              );
-              setNodes(nextRfNodes);
-              onDiagramChange({ ...diagram, nodes: nextDiagramNodes, updatedAt: new Date().toISOString() });
-            }}
-            onEdgeChange={(nextEdge) => {
-              const nextDiagramEdges = diagram.edges.map((item) => (item.id === nextEdge.id ? nextEdge : item));
-              const nextRfEdges = edges.map((item) => (item.id === nextEdge.id ? { ...item, label: nextEdge.label } : item));
-              setEdges(nextRfEdges);
-              onDiagramChange({ ...diagram, edges: nextDiagramEdges, updatedAt: new Date().toISOString() });
-            }}
-          />
+          <Box sx={{ minWidth: 0 }}>
+            <PidPropertiesPanel
+              selectedNode={selectedNode}
+              selectedEdge={selectedEdge}
+              readOnly={readOnly}
+              onNodeChange={(nextNode) => {
+                const nextDiagramNodes = diagram.nodes.map((item) => (item.id === nextNode.id ? nextNode : item));
+                const nextRfNodes = nodes.map((item) =>
+                  item.id === nextNode.id ? { ...item, data: { ...item.data, label: nextNode.label, tag: nextNode.tag } } : item
+                );
+                setNodes(nextRfNodes);
+                onDiagramChange({ ...diagram, nodes: nextDiagramNodes, updatedAt: new Date().toISOString() });
+              }}
+              onEdgeChange={(nextEdge) => {
+                const nextDiagramEdges = diagram.edges.map((item) => (item.id === nextEdge.id ? nextEdge : item));
+                const nextRfEdges = edges.map((item) => (item.id === nextEdge.id ? { ...item, label: nextEdge.label } : item));
+                setEdges(nextRfEdges);
+                onDiagramChange({ ...diagram, edges: nextDiagramEdges, updatedAt: new Date().toISOString() });
+              }}
+            />
+          </Box>
         ) : null}
       </Box>
     </Box>

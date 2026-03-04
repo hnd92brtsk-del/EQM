@@ -12,7 +12,6 @@ import { useTranslation } from "react-i18next";
 
 import { usePidApi } from "../api/pid";
 import { fetchLocationsTree } from "../utils/locations";
-import { fetchFieldEquipmentsTree } from "../utils/fieldEquipments";
 import { listEntity } from "../api/entities";
 import { getToken } from "../api/client";
 import { useAuth } from "../context/AuthContext";
@@ -28,16 +27,6 @@ type EquipmentInOperationRow = {
   location_full_path?: string | null;
   equipment_type_meta_data?: Record<string, unknown> | null;
 };
-
-function flattenTree(tree: TreeNode[], prefix = ""): { id: number; label: string }[] {
-  const out: { id: number; label: string }[] = [];
-  tree.forEach((node) => {
-    const label = prefix ? `${prefix} / ${node.name}` : node.name;
-    out.push({ id: node.id, label });
-    out.push(...flattenTree(node.children || [], label));
-  });
-  return out;
-}
 
 const emptyDiagram = (processId: number): PidDiagram => ({
   processId,
@@ -99,7 +88,6 @@ export default function TechnologicalEquipmentPage() {
     });
 
   const locationsQuery = useQuery({ queryKey: ["pid-locations"], queryFn: () => fetchLocationsTree(false) });
-  const fieldTreeQuery = useQuery({ queryKey: ["pid-field-tree"], queryFn: () => fetchFieldEquipmentsTree(false) });
   const inOperationQuery = useQuery({
     queryKey: ["pid-in-operation", locationId],
     queryFn: () =>
@@ -185,8 +173,6 @@ export default function TechnologicalEquipmentPage() {
     };
   }, [autosaveBlocked, canWrite, diagram, pidApi, selectedProcessId]);
 
-  const locationOptions = useMemo(() => flattenTree((locationsQuery.data || []) as TreeNode[]), [locationsQuery.data]);
-  const fieldOptions = useMemo(() => flattenTree((fieldTreeQuery.data || []) as TreeNode[]), [fieldTreeQuery.data]);
   const operationOptions = useMemo(
     () =>
       (inOperationQuery.data?.items || []).map((item) => ({
@@ -231,7 +217,7 @@ export default function TechnologicalEquipmentPage() {
                     <PidLocationPanel
                       canWrite={canWrite}
                       locationId={locationId}
-                      locationOptions={locationOptions}
+                      locationTree={(locationsQuery.data || []) as TreeNode[]}
                       processName={processName}
                       activeProcesses={activeProcesses}
                       selectedProcessId={selectedProcessId}
@@ -244,7 +230,6 @@ export default function TechnologicalEquipmentPage() {
                       }}
                     />
                   }
-                  fieldEquipmentOptions={fieldOptions}
                   inOperationOptions={operationOptions}
                 />
               ) : (
@@ -257,12 +242,20 @@ export default function TechnologicalEquipmentPage() {
                 />
               )
             ) : (
-              <Box sx={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 1, minHeight: 320 }}>
-                <Box sx={{ border: "1px solid", borderColor: "divider" }}>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", md: "minmax(280px, 320px) minmax(0, 1fr)" },
+                  gap: 1,
+                  minHeight: 320,
+                  minWidth: 0,
+                }}
+              >
+                <Box sx={{ minWidth: 0, border: "1px solid", borderColor: "divider" }}>
                   <PidLocationPanel
                     canWrite={canWrite}
                     locationId={locationId}
-                    locationOptions={locationOptions}
+                    locationTree={(locationsQuery.data || []) as TreeNode[]}
                     processName={processName}
                     activeProcesses={activeProcesses}
                     selectedProcessId={selectedProcessId}
@@ -275,7 +268,7 @@ export default function TechnologicalEquipmentPage() {
                     }}
                   />
                 </Box>
-                <Box sx={{ p: 2, color: "text.secondary" }}>{t("pid.page.selectProcess")}</Box>
+                <Box sx={{ p: 2, minWidth: 0, color: "text.secondary" }}>{t("pid.page.selectProcess")}</Box>
               </Box>
             )}
           </Box>

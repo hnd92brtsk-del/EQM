@@ -950,7 +950,6 @@
                                 "mainEquipment":  "Equipment",
                                 "instruments":  "ISA Instruments",
                                 "dragHint":  "Drag to canvas or click to select",
-                                "fromFieldEquipment":  "From Field equipment",
                                 "fromOperation":  "From equipment in operation"
                             },
                 "layout":  {

@@ -25,7 +25,6 @@ type Props = {
   edgeType: "process" | "signal" | "control" | "electric";
   onEdgeTypeChange: (value: "process" | "signal" | "control" | "electric") => void;
   onPresetPick: (preset: PidNodeInsertPreset) => void;
-  fieldEquipmentOptions: SourceOption[];
   inOperationOptions: SourceOption[];
 };
 
@@ -37,13 +36,12 @@ export function PidToolbox({
   edgeType,
   onEdgeTypeChange,
   onPresetPick,
-  fieldEquipmentOptions,
   inOperationOptions,
 }: Props) {
   const { t } = useTranslation();
 
   return (
-    <Box sx={{ width: "100%", height: "100%", overflowY: "auto", color: "text.primary" }}>
+    <Box sx={{ width: "100%", height: "100%", overflowY: "auto", overflowX: "hidden", color: "text.primary" }}>
       <Box sx={{ p: 1.5, display: "grid", gap: 1 }}>
         <Typography variant="subtitle2" sx={{ color: "text.primary", fontWeight: 700 }}>
           {t("pid.toolbox.mode")}
@@ -137,31 +135,6 @@ export function PidToolbox({
               </ListItemButton>
             );
           })}
-        </List>
-      </Box>
-
-      <Divider />
-      <Box sx={{ p: 1.5 }}>
-        <Typography variant="subtitle2" sx={{ color: "text.primary", fontWeight: 700 }}>
-          {t("pid.toolbox.fromFieldEquipment")}
-        </Typography>
-        <List dense disablePadding>
-          {fieldEquipmentOptions.map((item) => (
-            <ListItemButton
-              key={`field-${item.id}`}
-              onClick={() =>
-                onPresetPick({
-                  symbolKey: "field-db-item",
-                  label: item.label,
-                  category: "external",
-                  type: "external",
-                  sourceRef: { source: "field-equipment", id: item.id },
-                })
-              }
-            >
-              <ListItemText primary={item.label} primaryTypographyProps={{ color: "text.primary" }} />
-            </ListItemButton>
-          ))}
         </List>
       </Box>
 

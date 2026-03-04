@@ -950,7 +950,6 @@
                                 "mainEquipment":  "Оборудование",
                                 "instruments":  "КИПиА (ISA)",
                                 "dragHint":  "Перетащите на холст или нажмите для выбора",
-                                "fromFieldEquipment":  "Из Полевого оборудования",
                                 "fromOperation":  "Из оборудования в эксплуатации"
                             },
                 "layout":  {
