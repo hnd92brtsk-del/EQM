@@ -1,56 +1,12 @@
 {
   "processId": 2,
   "version": 1,
-  "updatedAt": "2026-03-04T21:21:08.544000Z",
+  "updatedAt": "2026-03-04T21:47:55.912000Z",
   "viewport": {
-    "x": 2.842170943040401e-14,
+    "x": 0.0,
     "y": 0.0,
-    "zoom": 1.381912879967776
+    "zoom": 2.0
   },
-  "nodes": [
-    {
-      "id": "node_1772657845351",
-      "type": "instrument",
-      "category": "instrument",
-      "symbolKey": "ET",
-      "label": "Мощность",
-      "tag": "",
-      "position": {
-        "x": 88.90120465827812,
-        "y": 125.86859904548754
-      },
-      "sourceRef": {
-        "source": "palette"
-      },
-      "properties": {}
-    },
-    {
-      "id": "node_1772657864469",
-      "type": "equipment",
-      "category": "main",
-      "symbolKey": "motor",
-      "label": "Двигатель",
-      "tag": "",
-      "position": {
-        "x": 338.68148950311576,
-        "y": 102.39459302291317
-      },
-      "sourceRef": {
-        "source": "palette"
-      },
-      "properties": {}
-    }
-  ],
-  "edges": [
-    {
-      "id": "edge_1772658168007",
-      "source": "node_1772657845351",
-      "target": "node_1772657864469",
-      "edgeType": "process",
-      "label": "",
-      "style": {
-        "stroke": "#1f3b57"
-      }
-    }
-  ]
+  "nodes": [],
+  "edges": []
 }

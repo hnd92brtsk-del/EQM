@@ -5,6 +5,7 @@ export type MainEquipmentTreeNode = {
   name: string;
   level: number;
   code: string;
+  meta_data?: Record<string, unknown> | null;
   children?: MainEquipmentTreeNode[];
 };
 

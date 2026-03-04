@@ -30,6 +30,7 @@ def build_tree(items: list[MainEquipment]) -> list[MainEquipmentTreeNode]:
             name=item.name,
             level=item.level,
             code=item.code,
+            meta_data=item.meta_data,
             children=[],
         )
         for item in items

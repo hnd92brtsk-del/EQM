@@ -46,7 +46,7 @@ export type DialogState = {
   fields: FieldConfig[];
   values: Record<string, any>;
   onSave: (values: Record<string, any>) => Promise<void> | void;
-  renderExtra?: () => ReactNode;
+  renderExtra?: (values: Record<string, any>) => ReactNode;
 };
 
 export function EntityDialog({ state, onClose }: { state: DialogState; onClose: () => void }) {
@@ -238,7 +238,7 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
             />
           );
         })}
-        {state.renderExtra ? <Box sx={{ mt: 2 }}>{state.renderExtra()}</Box> : null}
+        {state.renderExtra ? <Box sx={{ mt: 2 }}>{state.renderExtra(values)}</Box> : null}
       </DialogContent>
       <DialogActions>
         <AppButton onClick={onClose} disabled={saving}>

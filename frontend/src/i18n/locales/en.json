@@ -592,6 +592,9 @@
                                                           "createTitle":  "New main equipment",
                                                           "editTitle":  "Edit main equipment"
                                                       },
+                                          "fields":  {
+                                                         "shapeKey":  "Graphic symbol"
+                                                     },
                                           "actions":  {
                                                           "addChild":  "Add child",
                                                           "addRoot":  "Add root"
@@ -599,7 +602,8 @@
                                           "labels":  {
                                                          "category":  "Category",
                                                          "equipment":  "Equipment",
-                                                         "subtype":  "Subtype"
+                                                         "subtype":  "Subtype",
+                                                         "preview":  "Symbol preview"
                                                      },
                                           "errors":  {
                                                          "load":  "Failed to load main equipment",
@@ -1008,6 +1012,21 @@
                                                    "fic":  "Flow controller",
                                                    "lic":  "Level controller"
                                                }
-                            }
+                            },
+                "shapes":  {
+                               "crusher_jaw":  "Crusher (jaw)",
+                               "crusher_cone":  "Crusher (cone)",
+                               "screen_vibratory":  "Screen (vibratory)",
+                               "conveyor_belt":  "Conveyor (belt)",
+                               "mill_tumbling":  "Mill",
+                               "pump_centrifugal":  "Pump (centrifugal)",
+                               "tank_vertical":  "Tank (vertical)",
+                               "valve_gate":  "Valve (gate)",
+                               "motor":  "Motor",
+                               "feeder":  "Feeder",
+                               "cyclone":  "Cyclone",
+                               "mixer":  "Mixer",
+                               "generic":  "Generic"
+                           }
             }
 }

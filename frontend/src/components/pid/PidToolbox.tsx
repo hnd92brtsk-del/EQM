@@ -1,7 +1,21 @@
-import { Box, Divider, List, ListItemButton, ListItemText, Typography } from "@mui/material";
+import { useMemo, useState } from "react";
+import {
+  Box,
+  Collapse,
+  Divider,
+  IconButton,
+  List,
+  ListItemButton,
+  ListItemText,
+  TextField,
+  Typography,
+} from "@mui/material";
+import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import { useTranslation } from "react-i18next";
 
-import { ISA_INSTRUMENTS, MAIN_EQUIPMENT_SYMBOLS } from "../../constants/pidPalette";
+import { ISA_INSTRUMENTS, inferMainEquipmentShapeKey } from "../../constants/pidPalette";
+import type { MainEquipmentTreeNode } from "../../utils/mainEquipment";
 
 export type PidEditorMode = "select" | "delete" | "add-node" | "add-edge";
 
@@ -13,11 +27,10 @@ export type PidNodeInsertPreset = {
   sourceRef?: {
     source: "main-equipment" | "field-equipment" | "equipment-in-operation" | "palette";
     id?: number;
+    name?: string;
     meta?: { shapeKey?: string };
   };
 };
-
-type SourceOption = { id: number; label: string; shapeKey?: string };
 
 type Props = {
   mode: PidEditorMode;
@@ -25,10 +38,56 @@ type Props = {
   edgeType: "process" | "signal" | "control" | "electric";
   onEdgeTypeChange: (value: "process" | "signal" | "control" | "electric") => void;
   onPresetPick: (preset: PidNodeInsertPreset) => void;
-  inOperationOptions: SourceOption[];
+  mainEquipmentTree: MainEquipmentTreeNode[];
+};
+
+type ToolboxTreeNode = {
+  id: number;
+  name: string;
+  level: number;
+  code: string;
+  meta_data?: Record<string, unknown> | null;
+  children: ToolboxTreeNode[];
 };
 
 const DND_MIME = "application/x-pid-preset";
+
+function hasShapeKey(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+function filterTree(nodes: ToolboxTreeNode[], query: string): ToolboxTreeNode[] {
+  if (!query.trim()) return nodes;
+  const lower = query.toLowerCase();
+  const filtered: ToolboxTreeNode[] = [];
+  nodes.forEach((node) => {
+    const children = filterTree(node.children || [], query);
+    const matched = node.name.toLowerCase().includes(lower) || node.code.toLowerCase().includes(lower);
+    if (matched || children.length > 0) {
+      filtered.push({ ...node, children });
+    }
+  });
+  return filtered;
+}
+
+function collectExpandableIds(nodes: ToolboxTreeNode[]): Set<number> {
+  const result = new Set<number>();
+  const walk = (node: ToolboxTreeNode) => {
+    if (node.children.length > 0) {
+      result.add(node.id);
+      node.children.forEach(walk);
+    }
+  };
+  nodes.forEach(walk);
+  return result;
+}
+
+function asToolboxNode(tree: MainEquipmentTreeNode[]): ToolboxTreeNode[] {
+  return tree.map((node) => ({
+    ...node,
+    children: asToolboxNode(node.children || []),
+  }));
+}
 
 export function PidToolbox({
   mode,
@@ -36,9 +95,83 @@ export function PidToolbox({
   edgeType,
   onEdgeTypeChange,
   onPresetPick,
-  inOperationOptions,
+  mainEquipmentTree,
 }: Props) {
   const { t } = useTranslation();
+  const [search, setSearch] = useState("");
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+
+  const tree = useMemo(() => asToolboxNode(mainEquipmentTree), [mainEquipmentTree]);
+  const filteredTree = useMemo(() => filterTree(tree, search), [tree, search]);
+  const forceExpandedIds = useMemo(() => collectExpandableIds(filteredTree), [filteredTree]);
+  const forceExpand = search.trim().length > 0;
+
+  const toggleExpanded = (id: number) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const renderEquipmentNode = (node: ToolboxTreeNode, depth: number) => {
+    const hasChildren = node.children.length > 0;
+    const isExpanded = forceExpand ? forceExpandedIds.has(node.id) : expandedIds.has(node.id);
+    const shapeFromMeta = node.meta_data && hasShapeKey((node.meta_data as Record<string, unknown>).shapeKey)
+      ? (node.meta_data as Record<string, string>).shapeKey
+      : undefined;
+    const shapeKey = shapeFromMeta || inferMainEquipmentShapeKey(node.name);
+
+    if (hasChildren) {
+      return (
+        <Box key={node.id}>
+          <Box sx={{ display: "flex", alignItems: "center", pl: depth * 1.5 }}>
+            <IconButton size="small" onClick={() => toggleExpanded(node.id)}>
+              {isExpanded ? <ExpandMoreRoundedIcon fontSize="small" /> : <ChevronRightRoundedIcon fontSize="small" />}
+            </IconButton>
+            <Typography variant="body2" sx={{ color: "text.primary", fontWeight: 600, pl: 0.25 }}>
+              {node.name}
+            </Typography>
+          </Box>
+          <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+            <Box sx={{ display: "grid", gap: 0.25 }}>{node.children.map((child) => renderEquipmentNode(child, depth + 1))}</Box>
+          </Collapse>
+        </Box>
+      );
+    }
+
+    const preset: PidNodeInsertPreset = {
+      symbolKey: node.code || `main-equipment-${node.id}`,
+      label: node.name,
+      category: "main",
+      type: "equipment",
+      sourceRef: { source: "main-equipment", id: node.id, name: node.name, meta: { shapeKey } },
+    };
+
+    return (
+      <ListItemButton
+        key={node.id}
+        draggable
+        onDragStart={(event) => {
+          event.dataTransfer.setData(DND_MIME, JSON.stringify(preset));
+          event.dataTransfer.effectAllowed = "copy";
+        }}
+        onClick={() => onPresetPick(preset)}
+        sx={{ pl: depth * 1.5 + 4 }}
+      >
+        <ListItemText
+          primary={node.name}
+          primaryTypographyProps={{ color: "text.primary", sx: { fontWeight: 500 } }}
+          secondary={node.code}
+          secondaryTypographyProps={{ color: "text.secondary", sx: { fontSize: 12 } }}
+        />
+      </ListItemButton>
+    );
+  };
 
   return (
     <Box sx={{ width: "100%", height: "100%", overflowY: "auto", overflowX: "hidden", color: "text.primary" }}>
@@ -71,37 +204,22 @@ export function PidToolbox({
       </Box>
 
       <Divider />
-      <Box sx={{ p: 1.5 }}>
+      <Box sx={{ p: 1.5, display: "grid", gap: 1 }}>
         <Typography variant="subtitle2" sx={{ color: "text.primary", fontWeight: 700 }}>
           {t("pid.toolbox.mainEquipment")}
         </Typography>
         <Typography variant="caption" sx={{ color: "text.secondary" }}>
           {t("pid.toolbox.dragHint")}
         </Typography>
-        <List dense disablePadding>
-          {MAIN_EQUIPMENT_SYMBOLS.map((item) => {
-            const preset: PidNodeInsertPreset = {
-              symbolKey: item.key,
-              label: t(item.labelKey),
-              category: "main",
-              type: "equipment",
-              sourceRef: { source: "palette" },
-            };
-            return (
-              <ListItemButton
-                key={item.key}
-                draggable
-                onDragStart={(event) => {
-                  event.dataTransfer.setData(DND_MIME, JSON.stringify(preset));
-                  event.dataTransfer.effectAllowed = "copy";
-                }}
-                onClick={() => onPresetPick(preset)}
-              >
-                <ListItemText primary={t(item.labelKey)} primaryTypographyProps={{ color: "text.primary" }} />
-              </ListItemButton>
-            );
-          })}
-        </List>
+        <TextField
+          size="small"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder={t("actions.search")}
+        />
+        <Box sx={{ display: "grid", gap: 0.25 }}>
+          {filteredTree.map((node) => renderEquipmentNode(node, 0))}
+        </Box>
       </Box>
 
       <Divider />
@@ -131,35 +249,13 @@ export function PidToolbox({
                 }}
                 onClick={() => onPresetPick(preset)}
               >
-                <ListItemText primary={`${item.code} - ${t(item.labelKey)}`} primaryTypographyProps={{ color: "text.primary" }} />
+                <ListItemText
+                  primary={`${item.code} - ${t(item.labelKey)}`}
+                  primaryTypographyProps={{ color: "text.primary" }}
+                />
               </ListItemButton>
             );
           })}
-        </List>
-      </Box>
-
-      <Divider />
-      <Box sx={{ p: 1.5 }}>
-        <Typography variant="subtitle2" sx={{ color: "text.primary", fontWeight: 700 }}>
-          {t("pid.toolbox.fromOperation")}
-        </Typography>
-        <List dense disablePadding>
-          {inOperationOptions.map((item) => (
-            <ListItemButton
-              key={`op-${item.id}`}
-              onClick={() =>
-                onPresetPick({
-                  symbolKey: "operation-item",
-                  label: item.label,
-                  category: "main",
-                  type: "equipment",
-                  sourceRef: { source: "equipment-in-operation", id: item.id, meta: { shapeKey: item.shapeKey } },
-                })
-              }
-            >
-              <ListItemText primary={item.label} primaryTypographyProps={{ color: "text.primary" }} />
-            </ListItemButton>
-          ))}
         </List>
       </Box>
     </Box>

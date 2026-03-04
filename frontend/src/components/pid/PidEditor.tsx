@@ -16,8 +16,9 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 
-import { EDGE_STYLES, MAIN_EQUIPMENT_SHAPE_BY_KEY } from "../../constants/pidPalette";
+import { EDGE_STYLES } from "../../constants/pidPalette";
 import type { PidDiagram, PidEdge, PidNode, PidSourceRef } from "../../types/pid";
+import type { MainEquipmentTreeNode } from "../../utils/mainEquipment";
 import { PidNodeRenderer } from "./nodes/PidNodeRenderer";
 import { PidPropertiesPanel } from "./PidPropertiesPanel";
 import { DND_MIME, PidToolbox, type PidEditorMode, type PidNodeInsertPreset } from "./PidToolbox";
@@ -29,7 +30,7 @@ type Props = {
   focusNodeId: string | null;
   onDiagramChange: (next: PidDiagram) => void;
   locationPanel: React.ReactNode;
-  inOperationOptions: { id: number; label: string; shapeKey?: string }[];
+  mainEquipmentTree: MainEquipmentTreeNode[];
 };
 
 const nodeTypes = {
@@ -56,8 +57,7 @@ function toRfNode(node: PidNode): Node {
   const shapeKey =
     (node.properties.meta && typeof node.properties.meta.shapeKey === "string" && node.properties.meta.shapeKey) ||
     node.sourceRef?.meta?.shapeKey ||
-    MAIN_EQUIPMENT_SHAPE_BY_KEY[node.symbolKey] ||
-    node.symbolKey;
+    "generic";
   return {
     id: node.id,
     type: node.type,
@@ -103,7 +103,7 @@ export function PidEditor({
   focusNodeId,
   onDiagramChange,
   locationPanel,
-  inOperationOptions,
+  mainEquipmentTree,
 }: Props) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<PidEditorMode>("select");
@@ -205,7 +205,7 @@ export function PidEditor({
   const addNodeAtPosition = (preset: PidNodeInsertPreset, position: { x: number; y: number }) => {
     const clamped = clampPosition(position);
     const id = `node_${Date.now()}`;
-    const shapeKey = preset.sourceRef?.meta?.shapeKey || MAIN_EQUIPMENT_SHAPE_BY_KEY[preset.symbolKey] || preset.symbolKey;
+    const shapeKey = preset.sourceRef?.meta?.shapeKey || "generic";
     const newNode: Node = {
       id,
       type: preset.type,
@@ -340,7 +340,7 @@ export function PidEditor({
               setPendingPreset(preset);
               setMode("add-node");
             }}
-            inOperationOptions={inOperationOptions}
+            mainEquipmentTree={mainEquipmentTree}
           />
         </Box>
 

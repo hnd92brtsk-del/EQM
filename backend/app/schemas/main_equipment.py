@@ -32,6 +32,7 @@ class MainEquipmentTreeNode(BaseModel):
     name: str
     level: int
     code: str
+    meta_data: dict | None = None
     children: List["MainEquipmentTreeNode"] = Field(default_factory=list)
 
 

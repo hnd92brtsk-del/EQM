@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next";
 
 import { usePidApi } from "../api/pid";
 import { fetchLocationsTree } from "../utils/locations";
-import { listEntity } from "../api/entities";
+import { fetchMainEquipmentTree, type MainEquipmentTreeNode } from "../utils/mainEquipment";
 import { getToken } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import type { PidDiagram, PidProcess } from "../types/pid";
@@ -21,12 +21,6 @@ import { PidEquipmentListTab } from "../components/pid/PidEquipmentListTab";
 import { PidLocationPanel } from "../components/pid/PidLocationPanel";
 
 type TreeNode = { id: number; name: string; children?: TreeNode[] };
-type EquipmentInOperationRow = {
-  id: number;
-  equipment_type_name?: string | null;
-  location_full_path?: string | null;
-  equipment_type_meta_data?: Record<string, unknown> | null;
-};
 
 const emptyDiagram = (processId: number): PidDiagram => ({
   processId,
@@ -88,15 +82,9 @@ export default function TechnologicalEquipmentPage() {
     });
 
   const locationsQuery = useQuery({ queryKey: ["pid-locations"], queryFn: () => fetchLocationsTree(false) });
-  const inOperationQuery = useQuery({
-    queryKey: ["pid-in-operation", locationId],
-    queryFn: () =>
-      listEntity<EquipmentInOperationRow>("/equipment-in-operation", {
-        page: 1,
-        page_size: 200,
-        location_id: locationId || undefined,
-      }),
-    enabled: Boolean(locationId),
+  const mainEquipmentQuery = useQuery({
+    queryKey: ["pid-main-equipment-tree"],
+    queryFn: () => fetchMainEquipmentTree(false),
   });
 
   const processesQuery = useQuery({
@@ -173,19 +161,6 @@ export default function TechnologicalEquipmentPage() {
     };
   }, [autosaveBlocked, canWrite, diagram, pidApi, selectedProcessId]);
 
-  const operationOptions = useMemo(
-    () =>
-      (inOperationQuery.data?.items || []).map((item) => ({
-        id: item.id,
-        label: item.equipment_type_name || item.location_full_path || String(item.id),
-        shapeKey:
-          item.equipment_type_meta_data && typeof item.equipment_type_meta_data.shapeKey === "string"
-            ? item.equipment_type_meta_data.shapeKey
-            : undefined,
-      })),
-    [inOperationQuery.data?.items]
-  );
-
   const activeProcesses = useMemo(
     () => (processesQuery.data || []).filter((item: PidProcess) => !item.is_deleted),
     [processesQuery.data]
@@ -230,7 +205,7 @@ export default function TechnologicalEquipmentPage() {
                       }}
                     />
                   }
-                  inOperationOptions={operationOptions}
+                  mainEquipmentTree={(mainEquipmentQuery.data || []) as MainEquipmentTreeNode[]}
                 />
               ) : (
                 <PidEquipmentListTab

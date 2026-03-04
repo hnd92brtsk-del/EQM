@@ -27,6 +27,8 @@ import { apiFetch } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import { buildMainEquipmentLookups } from "../utils/mainEquipment";
+import { MAIN_EQUIPMENT_SHAPE_OPTIONS, inferMainEquipmentShapeKey } from "../constants/pidPalette";
+import { EquipmentGlyph } from "../components/pid/nodes/EquipmentGlyph";
 
 type MainEquipment = {
   id: number;
@@ -34,6 +36,7 @@ type MainEquipment = {
   parent_id?: number | null;
   level: number;
   code: string;
+  meta_data?: Record<string, unknown> | null;
   is_deleted: boolean;
 };
 
@@ -117,6 +120,17 @@ function collectDescendantIds(node: MainEquipmentNode): Set<number> {
   return ids;
 }
 
+function getShapeKeyFromMeta(item: MainEquipment | null | undefined): string | null {
+  if (!item?.meta_data || typeof item.meta_data !== "object") {
+    return null;
+  }
+  const value = (item.meta_data as Record<string, unknown>).shapeKey;
+  if (typeof value !== "string" || !value) {
+    return null;
+  }
+  return value;
+}
+
 export default function MainEquipmentPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -153,13 +167,18 @@ export default function MainEquipmentPage() {
   }, [itemsQuery.data]);
 
   const lookups = useMemo(() => buildMainEquipmentLookups(tree), [tree]);
+  const shapeOptions = useMemo(
+    () => MAIN_EQUIPMENT_SHAPE_OPTIONS.map((item) => ({ value: item.key, label: t(item.labelKey) })),
+    [t]
+  );
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["main-equipment-tree"] });
   };
 
   const createMutation = useMutation({
-    mutationFn: (payload: { name: string; parent_id?: number | null }) => createEntity("/main-equipment", payload),
+    mutationFn: (payload: { name: string; parent_id?: number | null; meta_data?: Record<string, unknown> | null }) =>
+      createEntity("/main-equipment", payload),
     onSuccess: refresh,
     onError: (error) =>
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.mainEquipment.errors.create"))
@@ -216,15 +235,31 @@ export default function MainEquipmentPage() {
           label: t("common.fields.parent"),
           type: "select",
           options: lookups.options
-        }
+        },
+        {
+          name: "shape_key",
+          label: t("pagesUi.mainEquipment.fields.shapeKey"),
+          type: "select",
+          options: shapeOptions,
+        },
       ],
-      values: { name: "", parent_id: parentId ?? "" },
+      values: { name: "", parent_id: parentId ?? "", shape_key: "generic" },
+      renderExtra: (values) =>
+        values.shape_key ? (
+          <Box sx={{ display: "grid", justifyItems: "center", gap: 0.5 }}>
+            <EquipmentGlyph shapeKey={String(values.shape_key)} />
+            <Typography variant="caption" color="text.secondary">
+              {t("pagesUi.mainEquipment.labels.preview")}
+            </Typography>
+          </Box>
+        ) : null,
       onSave: (values) => {
         const parentValue =
           values.parent_id === "" || values.parent_id === undefined ? null : Number(values.parent_id);
         createMutation.mutate({
           name: values.name,
-          parent_id: parentValue
+          parent_id: parentValue,
+          meta_data: { shapeKey: values.shape_key || "generic" },
         });
         setDialog(null);
       }
@@ -234,25 +269,54 @@ export default function MainEquipmentPage() {
   const openEditDialog = (node: MainEquipmentNode) => {
     const disallowedIds = collectDescendantIds(node);
     disallowedIds.add(node.id);
+    const isLeaf = node.children.length === 0;
+    const initialShapeKey = getShapeKeyFromMeta(node) || inferMainEquipmentShapeKey(node.name);
+
+    const fields: DialogState["fields"] = [
+      { name: "name", label: t("common.fields.name"), type: "text" },
+      {
+        name: "parent_id",
+        label: t("common.fields.parent"),
+        type: "select",
+        options: lookups.options.filter((option) => !disallowedIds.has(Number(option.value)))
+      },
+    ];
+    if (isLeaf) {
+      fields.push({
+        name: "shape_key",
+        label: t("pagesUi.mainEquipment.fields.shapeKey"),
+        type: "select",
+        options: shapeOptions,
+      });
+    }
+
     setDialog({
       open: true,
       title: t("pagesUi.mainEquipment.dialogs.editTitle"),
-      fields: [
-        { name: "name", label: t("common.fields.name"), type: "text" },
-        {
-          name: "parent_id",
-          label: t("common.fields.parent"),
-          type: "select",
-          options: lookups.options.filter((option) => !disallowedIds.has(Number(option.value)))
-        }
-      ],
-      values: { name: node.name, parent_id: node.parent_id ?? "" },
+      fields,
+      values: { name: node.name, parent_id: node.parent_id ?? "", shape_key: initialShapeKey },
+      renderExtra: (values) =>
+        isLeaf && values.shape_key ? (
+          <Box sx={{ display: "grid", justifyItems: "center", gap: 0.5 }}>
+            <EquipmentGlyph shapeKey={String(values.shape_key)} />
+            <Typography variant="caption" color="text.secondary">
+              {t("pagesUi.mainEquipment.labels.preview")}
+            </Typography>
+          </Box>
+        ) : null,
       onSave: (values) => {
         const parentValue =
           values.parent_id === "" || values.parent_id === undefined ? null : Number(values.parent_id);
+        const payload: Partial<MainEquipment> = {
+          name: values.name,
+          parent_id: parentValue,
+        };
+        if (isLeaf) {
+          payload.meta_data = { ...(node.meta_data || {}), shapeKey: values.shape_key || "generic" };
+        }
         updateMutation.mutate({
           id: node.id,
-          payload: { name: values.name, parent_id: parentValue }
+          payload
         });
         setDialog(null);
       }
