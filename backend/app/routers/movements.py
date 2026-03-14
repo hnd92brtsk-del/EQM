@@ -13,6 +13,8 @@ from app.models.assemblies import Assembly
 from app.models.security import User
 from app.schemas.common import Pagination
 from app.schemas.movements import MovementOut, MovementCreate
+from app.services.equipment_uniqueness import is_unique_equipment
+from app.services.io_signals import ensure_io_signals_for_equipment_in_operation
 
 router = APIRouter()
 
@@ -75,6 +77,90 @@ def get_or_create_assembly_item(db, assembly_id: int, equipment_type_id: int, fo
         db.add(item)
         db.flush()
     return item
+
+
+def list_unique_cabinet_items_for_update(db, cabinet_id: int, equipment_type_id: int, quantity: int):
+    query = (
+        select(CabinetItem)
+        .where(
+            CabinetItem.cabinet_id == cabinet_id,
+            CabinetItem.equipment_type_id == equipment_type_id,
+            CabinetItem.is_deleted == False,
+        )
+        .order_by(CabinetItem.created_at.asc(), CabinetItem.id.asc())
+        .limit(quantity)
+        .with_for_update()
+    )
+    items = db.scalars(query).all()
+    if len(items) < quantity:
+        raise HTTPException(status_code=409, detail="Insufficient quantity")
+    return items
+
+
+def list_unique_assembly_items_for_update(db, assembly_id: int, equipment_type_id: int, quantity: int):
+    query = (
+        select(AssemblyItem)
+        .where(
+            AssemblyItem.assembly_id == assembly_id,
+            AssemblyItem.equipment_type_id == equipment_type_id,
+            AssemblyItem.is_deleted == False,
+        )
+        .order_by(AssemblyItem.created_at.asc(), AssemblyItem.id.asc())
+        .limit(quantity)
+        .with_for_update()
+    )
+    items = db.scalars(query).all()
+    if len(items) < quantity:
+        raise HTTPException(status_code=409, detail="Insufficient quantity")
+    return items
+
+
+def create_unique_cabinet_items(db, cabinet_id: int, equipment: EquipmentType, quantity: int):
+    items: list[CabinetItem] = []
+    for _ in range(quantity):
+        item = CabinetItem(
+            cabinet_id=cabinet_id,
+            equipment_type_id=equipment.id,
+            quantity=1,
+        )
+        db.add(item)
+        db.flush()
+        if equipment.is_channel_forming:
+            ensure_io_signals_for_equipment_in_operation(db, item.id)
+        items.append(item)
+    return items
+
+
+def create_unique_assembly_items(db, assembly_id: int, equipment: EquipmentType, quantity: int):
+    items: list[AssemblyItem] = []
+    for _ in range(quantity):
+        item = AssemblyItem(
+            assembly_id=assembly_id,
+            equipment_type_id=equipment.id,
+            quantity=1,
+        )
+        db.add(item)
+        db.flush()
+        items.append(item)
+    return items
+
+
+def remove_unique_cabinet_items(
+    db, cabinet_id: int, equipment_type_id: int, quantity: int, deleted_by_id: int | None = None
+):
+    for item in list_unique_cabinet_items_for_update(db, cabinet_id, equipment_type_id, quantity):
+        item.is_deleted = True
+        item.deleted_at = datetime.utcnow()
+        item.deleted_by_id = deleted_by_id
+
+
+def remove_unique_assembly_items(
+    db, assembly_id: int, equipment_type_id: int, quantity: int, deleted_by_id: int | None = None
+):
+    for item in list_unique_assembly_items_for_update(db, assembly_id, equipment_type_id, quantity):
+        item.is_deleted = True
+        item.deleted_at = datetime.utcnow()
+        item.deleted_by_id = deleted_by_id
 
 
 def change_quantity(item, delta: int):
@@ -146,6 +232,7 @@ def create_movement(
     )
     if not equipment_type:
         raise HTTPException(status_code=404, detail="Equipment type not found")
+    equipment_is_unique = is_unique_equipment(equipment_type)
 
     if payload.from_warehouse_id:
         from_wh = db.scalar(
@@ -207,25 +294,46 @@ def create_movement(
         change_quantity(to_item, payload.quantity)
     elif movement.movement_type == MovementType.to_cabinet:
         from_item = get_or_create_warehouse_item(db, payload.from_warehouse_id, payload.equipment_type_id, True)
-        to_item = get_or_create_cabinet_item(db, payload.to_cabinet_id, payload.equipment_type_id, True)
         change_quantity(from_item, -payload.quantity)
-        change_quantity(to_item, payload.quantity)
+        if equipment_is_unique:
+            create_unique_cabinet_items(db, payload.to_cabinet_id, equipment_type, payload.quantity)
+        else:
+            to_item = get_or_create_cabinet_item(db, payload.to_cabinet_id, payload.equipment_type_id, True)
+            change_quantity(to_item, payload.quantity)
     elif movement.movement_type == MovementType.from_cabinet:
-        from_item = get_or_create_cabinet_item(db, payload.from_cabinet_id, payload.equipment_type_id, True)
         to_item = get_or_create_warehouse_item(db, payload.to_warehouse_id, payload.equipment_type_id, True)
-        change_quantity(from_item, -payload.quantity)
+        if equipment_is_unique:
+            remove_unique_cabinet_items(
+                db,
+                payload.from_cabinet_id,
+                payload.equipment_type_id,
+                payload.quantity,
+                current_user.id,
+            )
+        else:
+            from_item = get_or_create_cabinet_item(db, payload.from_cabinet_id, payload.equipment_type_id, True)
+            change_quantity(from_item, -payload.quantity)
         change_quantity(to_item, payload.quantity)
     elif movement.movement_type == MovementType.direct_to_cabinet:
-        to_item = get_or_create_cabinet_item(db, payload.to_cabinet_id, payload.equipment_type_id, True)
-        change_quantity(to_item, payload.quantity)
+        if equipment_is_unique:
+            create_unique_cabinet_items(db, payload.to_cabinet_id, equipment_type, payload.quantity)
+        else:
+            to_item = get_or_create_cabinet_item(db, payload.to_cabinet_id, payload.equipment_type_id, True)
+            change_quantity(to_item, payload.quantity)
     elif movement.movement_type == MovementType.to_assembly:
         from_item = get_or_create_warehouse_item(db, payload.from_warehouse_id, payload.equipment_type_id, True)
-        to_item = get_or_create_assembly_item(db, payload.to_assembly_id, payload.equipment_type_id, True)
         change_quantity(from_item, -payload.quantity)
-        change_quantity(to_item, payload.quantity)
+        if equipment_is_unique:
+            create_unique_assembly_items(db, payload.to_assembly_id, equipment_type, payload.quantity)
+        else:
+            to_item = get_or_create_assembly_item(db, payload.to_assembly_id, payload.equipment_type_id, True)
+            change_quantity(to_item, payload.quantity)
     elif movement.movement_type == MovementType.direct_to_assembly:
-        to_item = get_or_create_assembly_item(db, payload.to_assembly_id, payload.equipment_type_id, True)
-        change_quantity(to_item, payload.quantity)
+        if equipment_is_unique:
+            create_unique_assembly_items(db, payload.to_assembly_id, equipment_type, payload.quantity)
+        else:
+            to_item = get_or_create_assembly_item(db, payload.to_assembly_id, payload.equipment_type_id, True)
+            change_quantity(to_item, payload.quantity)
     elif movement.movement_type == MovementType.writeoff:
         if payload.from_warehouse_id and payload.from_cabinet_id:
             raise HTTPException(status_code=400, detail="Choose warehouse or cabinet for writeoff")
@@ -233,8 +341,17 @@ def create_movement(
             from_item = get_or_create_warehouse_item(db, payload.from_warehouse_id, payload.equipment_type_id, True)
             change_quantity(from_item, -payload.quantity)
         if payload.from_cabinet_id:
-            from_item = get_or_create_cabinet_item(db, payload.from_cabinet_id, payload.equipment_type_id, True)
-            change_quantity(from_item, -payload.quantity)
+            if equipment_is_unique:
+                remove_unique_cabinet_items(
+                    db,
+                    payload.from_cabinet_id,
+                    payload.equipment_type_id,
+                    payload.quantity,
+                    current_user.id,
+                )
+            else:
+                from_item = get_or_create_cabinet_item(db, payload.from_cabinet_id, payload.equipment_type_id, True)
+                change_quantity(from_item, -payload.quantity)
     elif movement.movement_type == MovementType.adjustment:
         ids = [
             payload.from_warehouse_id,
@@ -249,17 +366,32 @@ def create_movement(
             from_item = get_or_create_warehouse_item(db, payload.from_warehouse_id, payload.equipment_type_id, True)
             change_quantity(from_item, -payload.quantity)
         if payload.from_cabinet_id:
-            from_item = get_or_create_cabinet_item(db, payload.from_cabinet_id, payload.equipment_type_id, True)
-            change_quantity(from_item, -payload.quantity)
+            if equipment_is_unique:
+                remove_unique_cabinet_items(
+                    db,
+                    payload.from_cabinet_id,
+                    payload.equipment_type_id,
+                    payload.quantity,
+                    current_user.id,
+                )
+            else:
+                from_item = get_or_create_cabinet_item(db, payload.from_cabinet_id, payload.equipment_type_id, True)
+                change_quantity(from_item, -payload.quantity)
         if payload.to_warehouse_id:
             to_item = get_or_create_warehouse_item(db, payload.to_warehouse_id, payload.equipment_type_id, True)
             change_quantity(to_item, payload.quantity)
         if payload.to_cabinet_id:
-            to_item = get_or_create_cabinet_item(db, payload.to_cabinet_id, payload.equipment_type_id, True)
-            change_quantity(to_item, payload.quantity)
+            if equipment_is_unique:
+                create_unique_cabinet_items(db, payload.to_cabinet_id, equipment_type, payload.quantity)
+            else:
+                to_item = get_or_create_cabinet_item(db, payload.to_cabinet_id, payload.equipment_type_id, True)
+                change_quantity(to_item, payload.quantity)
         if payload.to_assembly_id:
-            to_item = get_or_create_assembly_item(db, payload.to_assembly_id, payload.equipment_type_id, True)
-            change_quantity(to_item, payload.quantity)
+            if equipment_is_unique:
+                create_unique_assembly_items(db, payload.to_assembly_id, equipment_type, payload.quantity)
+            else:
+                to_item = get_or_create_assembly_item(db, payload.to_assembly_id, payload.equipment_type_id, True)
+                change_quantity(to_item, payload.quantity)
 
     db.add(movement)
     db.flush()

@@ -12,14 +12,13 @@ from app.models.core import Cabinet, EquipmentType, Manufacturer, Location
 from app.models.security import User
 from app.schemas.common import Pagination
 from app.schemas.cabinet_items import CabinetItemOut, CabinetItemCreate, CabinetItemUpdate
+from app.services.equipment_uniqueness import (
+    is_unique_equipment,
+    normalize_operation_quantity,
+)
 from app.services.io_signals import ensure_io_signals_for_equipment_in_operation
 
 router = APIRouter()
-
-def should_force_quantity_one(equipment: EquipmentType) -> bool:
-    return bool(
-        equipment.is_network or equipment.is_channel_forming or equipment.has_serial_interfaces
-    )
 
 
 def build_location_full_path(location_id: int | None, locations_map: dict[int, Location]) -> str | None:
@@ -140,8 +139,8 @@ def create_cabinet_item(
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment type not found")
 
-    quantity = 1 if should_force_quantity_one(equipment) else payload.quantity
-    item = db.scalar(
+    quantity = normalize_operation_quantity(equipment, payload.quantity)
+    item = None if is_unique_equipment(equipment) else db.scalar(
         select(CabinetItem).where(
             CabinetItem.cabinet_id == payload.cabinet_id,
             CabinetItem.equipment_type_id == payload.equipment_type_id,
@@ -200,7 +199,7 @@ def update_cabinet_item(
 
     before = model_to_dict(item)
     if payload.quantity is not None:
-        item.quantity = 1 if should_force_quantity_one(equipment) else payload.quantity
+        item.quantity = normalize_operation_quantity(equipment, payload.quantity)
     if equipment.is_channel_forming:
         ensure_io_signals_for_equipment_in_operation(db, item.id)
 

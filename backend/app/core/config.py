@@ -23,8 +23,14 @@ class Settings(BaseSettings):
     lm_studio_base_url: HttpUrl = "http://localhost:1234"
     lm_studio_api_key: str | None = None
     lm_model: str = "phi-3-mini-4k-instruct"
+    seed_admin_username: str = "admin"
+    seed_admin_password: str = "admin12345"
 
-    model_config = SettingsConfigDict(env_file=str(BASE_DIR / ".env"), env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=str(BASE_DIR / ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     @property
     def database_url(self) -> str:

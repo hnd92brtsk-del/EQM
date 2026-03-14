@@ -37,6 +37,12 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
+Если PowerShell блокирует скрипты:
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+Если не хотите менять policy, используйте `npm.cmd` вместо `npm`.
+
 ### 2) Зависимости backend
 ```powershell
 pip install -r backend\requirements.txt
@@ -56,7 +62,7 @@ python backend\scripts\create_database.py
 ### 5) Миграции
 ```powershell
 cd backend
-alembic upgrade head
+..\.venv\Scripts\python.exe -m alembic upgrade head
 cd ..
 ```
 
@@ -68,7 +74,7 @@ python backend\scripts\seed.py
 ### 7) Запуск backend
 ```powershell
 cd backend
-uvicorn app.main:app --reload
+..\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 Backend будет доступен: `http://localhost:8000`
 
@@ -76,10 +82,17 @@ Backend будет доступен: `http://localhost:8000`
 Откройте новое окно PowerShell:
 ```powershell
 cd frontend
-npm install
-npm run dev
+npm.cmd install
+npm.cmd run dev
 ```
 Frontend будет доступен: `http://localhost:5173`
+
+### 9) Запуск из готовых скриптов
+Из корня проекта можно использовать:
+```powershell
+.\start-backend.ps1
+.\start-frontend.ps1
+```
 
 ## Конфигурация
 Файл `backend/.env.example` содержит полный список переменных. Ключевые:
@@ -90,6 +103,22 @@ Frontend будет доступен: `http://localhost:5173`
 Для seed можно переопределить:
 - `SEED_ADMIN_USERNAME`
 - `SEED_ADMIN_PASSWORD`
+
+Переменные `LM_STUDIO_BASE_URL`, `LM_STUDIO_API_KEY` и `LM_MODEL` нужны только для `/api/v1/chat`; основной запуск backend/frontend от LM Studio не зависит.
+
+## Рекомендуемые расширения VS Code
+- `ms-python.python`
+- `ms-python.vscode-pylance`
+- `ms-python.debugpy`
+- `mtxr.sqltools`
+- `mtxr.sqltools-driver-pg`
+- `eamodio.gitlens`
+- `usernamehw.errorlens`
+- `openai.chatgpt`
+
+В репозитории также добавлены:
+- `.vscode/tasks.json` для установки зависимостей, миграций, seed и запуска
+- `.vscode/launch.json` для отладки backend через `uvicorn`
 
 ## API
 - Базовый путь: `/api/v1/...`

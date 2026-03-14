@@ -71,7 +71,13 @@ type WarehouseItem = {
 
 type Warehouse = { id: number; name: string };
 
-type EquipmentType = { id: number; name: string; is_channel_forming: boolean; is_network: boolean };
+type EquipmentType = {
+  id: number;
+  name: string;
+  is_channel_forming: boolean;
+  is_network: boolean;
+  has_serial_interfaces: boolean;
+};
 type EquipmentCategory = { id: number; name: string };
 type Manufacturer = { id: number; name: string };
 type Cabinet = { id: number; name: string };
@@ -269,7 +275,9 @@ export default function WarehouseItemsPage() {
   const isOperationQuantityLocked = (values: Record<string, any>) => {
     const equipmentId = Number(values.equipment_type_id);
     const equipment = equipmentFlagsMap.get(equipmentId);
-    return Boolean(equipment?.is_channel_forming || equipment?.is_network);
+    return Boolean(
+      equipment?.is_channel_forming || equipment?.is_network || equipment?.has_serial_interfaces
+    );
   };
 
   const openToWarehouseDialog = () => {
@@ -346,7 +354,11 @@ export default function WarehouseItemsPage() {
             })) || [],
           onChange: (value) => {
             const equipment = equipmentFlagsMap.get(Number(value));
-            if (equipment?.is_channel_forming || equipment?.is_network) {
+            if (
+              equipment?.is_channel_forming ||
+              equipment?.is_network ||
+              equipment?.has_serial_interfaces
+            ) {
               return { quantity: 1 };
             }
             return {};

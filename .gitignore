@@ -23,6 +23,8 @@ env/
 # --- Env / secrets ---
 .env
 .env.*
+!.env.example
+!backend/.env.example
 *.pem
 *.key
 
@@ -40,6 +42,10 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 .vscode/
+!.vscode/
+!.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/launch.json
 .idea/
 
 # --- Docker (если используешь) ---

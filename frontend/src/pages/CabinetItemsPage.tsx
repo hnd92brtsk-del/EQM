@@ -541,7 +541,10 @@ export default function CabinetItemsPage() {
           equipmentMap.get(item.equipment_type_id) ||
           String(item.equipment_type_id);
         const manufacturerName = item.manufacturer_name || "-";
-        const groupKey = String(item.equipment_type_id || equipmentName);
+        const isUniqueInstance = item.can_edit_quantity === false;
+        const groupKey = isUniqueInstance
+          ? `${item.equipment_type_id}:${item.source}:${item.id}`
+          : String(item.equipment_type_id || equipmentName);
         let equipmentGroup = equipmentGroupsMap.get(groupKey);
 
         if (!equipmentGroup) {
