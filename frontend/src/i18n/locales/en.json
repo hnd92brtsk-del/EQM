@@ -188,7 +188,7 @@
                  "cabinets":  "The cabinets list lets you manage cabinet records. Use add/edit/delete/restore actions and open a cabinet to view its composition.",
                  "cabinetComposition":  "Cabinet composition is a dedicated view for the cabinet structure and items. It is a focused area for cabinet details and composition-related actions.",
                  "engineering":  "Engineering includes IO Signals and DCL. These screens manage signals, connections, and related definitions using add/edit/delete/restore actions.",
-                 "engineeringSecondary":  "Use filters and sorting to navigate large signal lists.",
+                 "engineeringSecondary":  "I/O Signals now includes Data type, Equipment, and Connection point fields. Data types and field equipment are selected from dictionary trees, and Measurement type is no longer used.",
                  "main_equipment":  "The Main equipment dictionary is a hierarchical tree with unlimited depth. Node level is calculated automatically from the selected parent.",
                  "field_equipments":  "The Field equipment dictionary is a hierarchical tree. It supports creating root and child nodes, editing, soft delete, and restore.",
                  "data_types":  "The Data types dictionary is a tree. You can create root and child nodes, edit name, parent, and tooltip. Tooltip is shown on hover over the node name and may be empty.",
@@ -250,6 +250,9 @@
                                   "reference":  "Reference",
                                   "sortOrder":  "Sort order",
                                   "tooltip":  "Tooltip"
+                              },
+                   "treeSelect":  {
+                                      "groupOnly":  "Only leaf items can be selected"
                               },
                    "rowsPerPage":  "Rows per page",
                    "rowsDisplayed":  "{{from}}-{{to}} of {{countLabel}}",
@@ -759,20 +762,24 @@
                                                   },
                                       "columns":  {
                                                       "channelIndex":  "Channel",
+                                                      "dataType":  "Data type",
                                                       "tag":  "Tag",
                                                       "signal":  "Signal",
                                                       "signalType":  "Signal type",
                                                       "signalKind":  "Signal kind",
-                                                      "measurementType":  "Measurement type",
+                                                      "fieldEquipment":  "Equipment",
+                                                      "connectionPoint":  "Connection point",
                                                       "units":  "Units"
                                                   },
                                       "fields":  {
                                                      "channelIndex":  "Channel",
+                                                     "dataType":  "Data type",
                                                      "tag":  "Tag",
                                                      "signal":  "Signal",
                                                      "signalType":  "Signal type",
                                                      "signalKind":  "Signal kind",
-                                                     "measurementType":  "Measurement type",
+                                                     "fieldEquipment":  "Equipment",
+                                                     "connectionPoint":  "Connection point",
                                                      "units":  "Units",
                                                      "status":  "Status"
                                                  },

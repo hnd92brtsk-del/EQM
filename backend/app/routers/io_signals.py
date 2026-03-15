@@ -4,7 +4,7 @@ from sqlalchemy import select, case
 from app.core.dependencies import get_db, require_read_access, require_write_access
 from app.core.audit import add_audit_log, model_to_dict
 from app.models.io import IOSignal, SignalType
-from app.models.core import MeasurementUnit, SignalTypeDictionary
+from app.models.core import DataType, FieldEquipment, MeasurementUnit, SignalTypeDictionary
 from app.models.operations import CabinetItem
 from app.models.security import User
 from app.schemas.io_signals import IOSignalOut, IOSignalUpdate
@@ -29,12 +29,50 @@ def build_measurement_unit_full_path(
     return " / ".join(reversed(parts))
 
 
-def attach_measurement_unit_full_path(items: list[IOSignal], db) -> None:
+def build_data_type_full_path(item_id: int | None, items_map: dict[int, DataType]) -> str | None:
+    if not item_id or item_id not in items_map:
+        return None
+    parts: list[str] = []
+    current_id: int | None = item_id
+    seen: set[int] = set()
+    while current_id and current_id in items_map and current_id not in seen:
+        item = items_map[current_id]
+        parts.append(item.name)
+        seen.add(current_id)
+        current_id = item.parent_id
+    return " / ".join(reversed(parts))
+
+
+def build_field_equipment_full_path(
+    item_id: int | None, items_map: dict[int, FieldEquipment]
+) -> str | None:
+    if not item_id or item_id not in items_map:
+        return None
+    parts: list[str] = []
+    current_id: int | None = item_id
+    seen: set[int] = set()
+    while current_id and current_id in items_map and current_id not in seen:
+        item = items_map[current_id]
+        parts.append(item.name)
+        seen.add(current_id)
+        current_id = item.parent_id
+    return " / ".join(reversed(parts))
+
+
+def attach_lookup_paths(items: list[IOSignal], db) -> None:
     units = db.scalars(select(MeasurementUnit)).all()
     units_map = {unit.id: unit for unit in units}
+    data_types = db.scalars(select(DataType)).all()
+    data_types_map = {item.id: item for item in data_types}
+    field_equipments = db.scalars(select(FieldEquipment)).all()
+    field_equipments_map = {item.id: item for item in field_equipments}
     for item in items:
         item.measurement_unit_full_path = build_measurement_unit_full_path(
             item.measurement_unit_id, units_map
+        )
+        item.data_type_full_path = build_data_type_full_path(item.data_type_id, data_types_map)
+        item.field_equipment_full_path = build_field_equipment_full_path(
+            item.field_equipment_id, field_equipments_map
         )
 
 
@@ -80,7 +118,7 @@ def list_signals(
         query = query.where(IOSignal.is_deleted == False)
     query = query.order_by(ordering, IOSignal.channel_index)
     items = db.scalars(query).all()
-    attach_measurement_unit_full_path(items, db)
+    attach_lookup_paths(items, db)
     return items
 
 
@@ -108,6 +146,24 @@ def update_signal(
         if not unit:
             raise HTTPException(status_code=404, detail="Measurement unit not found")
 
+    if "data_type_id" in data and data["data_type_id"] is not None:
+        data_type = db.scalar(
+            select(DataType).where(
+                DataType.id == data["data_type_id"],
+                DataType.is_deleted == False,
+            )
+        )
+        if not data_type:
+            raise HTTPException(status_code=404, detail="Data type not found")
+        child = db.scalar(
+            select(DataType.id).where(
+                DataType.parent_id == data["data_type_id"],
+                DataType.is_deleted == False,
+            )
+        )
+        if child:
+            raise HTTPException(status_code=400, detail="Data type must be a leaf")
+
     if "signal_kind_id" in data and data["signal_kind_id"] is not None:
         signal_kind = db.scalar(
             select(SignalTypeDictionary).where(
@@ -126,6 +182,24 @@ def update_signal(
         if child:
             raise HTTPException(status_code=400, detail="Signal type must be a leaf")
 
+    if "field_equipment_id" in data and data["field_equipment_id"] is not None:
+        field_equipment = db.scalar(
+            select(FieldEquipment).where(
+                FieldEquipment.id == data["field_equipment_id"],
+                FieldEquipment.is_deleted == False,
+            )
+        )
+        if not field_equipment:
+            raise HTTPException(status_code=404, detail="Field equipment not found")
+        child = db.scalar(
+            select(FieldEquipment.id).where(
+                FieldEquipment.parent_id == data["field_equipment_id"],
+                FieldEquipment.is_deleted == False,
+            )
+        )
+        if child:
+            raise HTTPException(status_code=400, detail="Field equipment must be a leaf")
+
     for field, value in data.items():
         setattr(signal, field, value)
 
@@ -141,7 +215,7 @@ def update_signal(
 
     db.commit()
     db.refresh(signal)
-    attach_measurement_unit_full_path([signal], db)
+    attach_lookup_paths([signal], db)
     return signal
 
 

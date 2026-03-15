@@ -18,7 +18,7 @@ from app.models.core import (
 )
 from app.models.assemblies import Assembly
 from app.models.operations import WarehouseItem, CabinetItem, AssemblyItem
-from app.models.io import IOSignal, SignalType, MeasurementType
+from app.models.io import IOSignal, SignalType
 from app.models.movements import EquipmentMovement, MovementType
 from app.models.audit import AuditLog
 from app.models.attachments import Attachment
@@ -49,7 +49,6 @@ __all__ = [
     "PersonnelTraining",
     "IOSignal",
     "SignalType",
-    "MeasurementType",
     "EquipmentMovement",
     "MovementType",
     "AuditLog",

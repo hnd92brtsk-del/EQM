@@ -12,18 +12,6 @@ class SignalType(enum.Enum):
     DO = "DO"
 
 
-class MeasurementType(enum.Enum):
-    mA_4_20_ai = "4-20mA (AI)"
-    mA_0_20_ai = "0-20mA (AI)"
-    v_0_10_ai = "0-10V (AI)"
-    pt100_rtd_ai = "Pt100 (RTD AI)"
-    pt1000_rtd_ai = "Pt1000 (RTD AI)"
-    m50_rtd_ai = "M50 (RTD AI)"
-    v_24_di = "24V (DI)"
-    v_220_di = "220V (DI)"
-    mA_8_16_di = "8-16mA (DI)"
-
-
 class IOSignal(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     __tablename__ = "io_signals"
 
@@ -43,24 +31,25 @@ class IOSignal(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
 
     tag: Mapped[str | None] = mapped_column(String(200))
     signal: Mapped[str | None] = mapped_column(String(500))
+    data_type_id: Mapped[int | None] = mapped_column(
+        ForeignKey("data_types.id", ondelete="SET NULL"), index=True
+    )
     signal_kind_id: Mapped[int | None] = mapped_column(
         ForeignKey("signal_types.id", ondelete="SET NULL"), index=True
     )
-    measurement_type: Mapped[MeasurementType | None] = mapped_column(
-        Enum(
-            MeasurementType,
-            name="measurement_type",
-            values_callable=lambda enum: [member.value for member in enum],
-        ),
-        nullable=True,
+    field_equipment_id: Mapped[int | None] = mapped_column(
+        ForeignKey("field_equipments.id", ondelete="SET NULL"), index=True
     )
+    connection_point: Mapped[str | None] = mapped_column(String(255))
     measurement_unit_id: Mapped[int | None] = mapped_column(
         ForeignKey("measurement_units.id", ondelete="SET NULL"), index=True
     )
     is_active: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
 
     equipment_in_operation: Mapped["CabinetItem"] = relationship()
+    data_type: Mapped["DataType | None"] = relationship()
     signal_kind: Mapped["SignalTypeDictionary | None"] = relationship()
+    field_equipment: Mapped["FieldEquipment | None"] = relationship()
     measurement_unit: Mapped["MeasurementUnit | None"] = relationship()
 
     __table_args__ = (

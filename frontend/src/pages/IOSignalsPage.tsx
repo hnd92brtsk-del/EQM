@@ -16,7 +16,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
-import { EntityDialog, DialogState } from "../components/EntityDialog";
+import { EntityDialog, DialogState, type TreeFieldOption } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { AppButton } from "../components/ui/AppButton";
 import { useAuth } from "../context/AuthContext";
@@ -31,6 +31,8 @@ import {
   type IOTreeChannelDevice
 } from "../api/ioSignals";
 import { buildMeasurementUnitLookups, fetchMeasurementUnitsTree } from "../utils/measurementUnits";
+import { buildDataTypeLookups, fetchDataTypesTree } from "../utils/dataTypes";
+import { buildFieldEquipmentLookups, fetchFieldEquipmentsTree } from "../utils/fieldEquipments";
 import { buildSignalTypeLookups, fetchSignalTypesTree } from "../utils/signalTypes";
 
 const signalTypeOptions = [
@@ -40,17 +42,19 @@ const signalTypeOptions = [
   { value: "DO", label: "DO" }
 ];
 
-const measurementOptions = [
-  { value: "4-20mA (AI)", label: "4-20mA (AI)" },
-  { value: "0-20mA (AI)", label: "0-20mA (AI)" },
-  { value: "0-10V (AI)", label: "0-10V (AI)" },
-  { value: "Pt100 (RTD AI)", label: "Pt100 (RTD AI)" },
-  { value: "Pt1000 (RTD AI)", label: "Pt1000 (RTD AI)" },
-  { value: "M50 (RTD AI)", label: "M50 (RTD AI)" },
-  { value: "24V (DI)", label: "24V (DI)" },
-  { value: "220V (DI)", label: "220V (DI)" },
-  { value: "8-16mA (DI)", label: "8-16mA (DI)" }
-];
+type TreeSelectNode = {
+  id: number;
+  name: string;
+  children?: TreeSelectNode[];
+};
+
+function buildTreeSelectOptions(nodes: TreeSelectNode[]): TreeFieldOption[] {
+  return nodes.map((node) => ({
+    value: node.id,
+    label: node.name,
+    children: buildTreeSelectOptions(node.children || [])
+  }));
+}
 
 export default function IOSignalsPage() {
   const { t } = useTranslation();
@@ -82,6 +86,16 @@ export default function IOSignalsPage() {
   const signalTypesTreeQuery = useQuery({
     queryKey: ["signal-types-tree-options", false],
     queryFn: () => fetchSignalTypesTree(false)
+  });
+
+  const dataTypesTreeQuery = useQuery({
+    queryKey: ["data-types-tree-options", false],
+    queryFn: () => fetchDataTypesTree(false)
+  });
+
+  const fieldEquipmentsTreeQuery = useQuery({
+    queryKey: ["field-equipments-tree-options", false],
+    queryFn: () => fetchFieldEquipmentsTree(false)
   });
 
   const formatErrorMessage = (error: unknown, fallbackKey: string) => {
@@ -133,6 +147,26 @@ export default function IOSignalsPage() {
           label: signalKindBreadcrumbs.get(option.value) || option.label
         })),
     [signalKindOptions, signalKindBreadcrumbs, signalKindLeafIds]
+  );
+
+  const { breadcrumbMap: dataTypeBreadcrumbs } = useMemo(
+    () => buildDataTypeLookups(dataTypesTreeQuery.data || []),
+    [dataTypesTreeQuery.data]
+  );
+
+  const { breadcrumbMap: fieldEquipmentBreadcrumbs } = useMemo(
+    () => buildFieldEquipmentLookups(fieldEquipmentsTreeQuery.data || []),
+    [fieldEquipmentsTreeQuery.data]
+  );
+
+  const dataTypeTreeOptions = useMemo(
+    () => buildTreeSelectOptions((dataTypesTreeQuery.data || []) as TreeSelectNode[]),
+    [dataTypesTreeQuery.data]
+  );
+
+  const fieldEquipmentTreeOptions = useMemo(
+    () => buildTreeSelectOptions((fieldEquipmentsTreeQuery.data || []) as TreeSelectNode[]),
+    [fieldEquipmentsTreeQuery.data]
   );
 
   const refreshSignals = () => {
@@ -269,6 +303,14 @@ export default function IOSignalsPage() {
         header: t("pagesUi.ioSignals.columns.channelIndex"),
         cell: ({ row }) => `${row.original.signal_type}-${row.original.channel_index}`
       },
+      {
+        header: t("pagesUi.ioSignals.columns.dataType"),
+        cell: ({ row }) =>
+          row.original.data_type_full_path ||
+          (row.original.data_type_id
+            ? dataTypeBreadcrumbs.get(row.original.data_type_id) || row.original.data_type_id
+            : "-")
+      },
       { header: t("pagesUi.ioSignals.columns.tag"), accessorKey: "tag" },
       { header: t("pagesUi.ioSignals.columns.signal"), accessorKey: "signal" },
       { header: t("pagesUi.ioSignals.columns.signalType"), accessorKey: "signal_type" },
@@ -279,7 +321,19 @@ export default function IOSignalsPage() {
             ? signalKindBreadcrumbs.get(row.original.signal_kind_id) || row.original.signal_kind_id
             : "-"
       },
-      { header: t("pagesUi.ioSignals.columns.measurementType"), accessorKey: "measurement_type" },
+      {
+        header: t("pagesUi.ioSignals.columns.fieldEquipment"),
+        cell: ({ row }) =>
+          row.original.field_equipment_full_path ||
+          (row.original.field_equipment_id
+            ? fieldEquipmentBreadcrumbs.get(row.original.field_equipment_id) ||
+              row.original.field_equipment_id
+            : "-")
+      },
+      {
+        header: t("pagesUi.ioSignals.columns.connectionPoint"),
+        cell: ({ row }) => row.original.connection_point || "-"
+      },
       {
         header: t("pagesUi.ioSignals.columns.units"),
         cell: ({ row }) =>
@@ -327,16 +381,29 @@ export default function IOSignalsPage() {
                   { name: "tag", label: t("pagesUi.ioSignals.fields.tag"), type: "text" },
                   { name: "signal", label: t("pagesUi.ioSignals.fields.signal"), type: "text" },
                   {
+                    name: "data_type_id",
+                    label: t("pagesUi.ioSignals.fields.dataType"),
+                    type: "treeSelect",
+                    treeOptions: dataTypeTreeOptions,
+                    leafOnly: true
+                  },
+                  {
                     name: "signal_kind_id",
                     label: t("pagesUi.ioSignals.fields.signalKind"),
                     type: "select",
                     options: signalKindLeafOptions
                   },
                   {
-                    name: "measurement_type",
-                    label: t("pagesUi.ioSignals.fields.measurementType"),
-                    type: "select",
-                    options: measurementOptions
+                    name: "field_equipment_id",
+                    label: t("pagesUi.ioSignals.fields.fieldEquipment"),
+                    type: "treeSelect",
+                    treeOptions: fieldEquipmentTreeOptions,
+                    leafOnly: true
+                  },
+                  {
+                    name: "connection_point",
+                    label: t("pagesUi.ioSignals.fields.connectionPoint"),
+                    type: "text"
                   },
                   {
                     name: "measurement_unit_id",
@@ -349,26 +416,41 @@ export default function IOSignalsPage() {
                 values: {
                   ...row.original,
                   measurement_unit_id: row.original.measurement_unit_id ?? "",
+                  data_type_id: row.original.data_type_id ?? "",
                   signal_kind_id: row.original.signal_kind_id ?? "",
-                  measurement_type: row.original.measurement_type ?? ""
+                  field_equipment_id: row.original.field_equipment_id ?? "",
+                  connection_point: row.original.connection_point ?? ""
                 },
                 onSave: (values) => {
                   const measurementUnitId =
                     values.measurement_unit_id === "" || values.measurement_unit_id === undefined
                       ? null
                       : Number(values.measurement_unit_id);
+                  const dataTypeId =
+                    values.data_type_id === "" || values.data_type_id === undefined
+                      ? null
+                      : Number(values.data_type_id);
                   const signalKindId =
                     values.signal_kind_id === "" || values.signal_kind_id === undefined
                       ? null
                       : Number(values.signal_kind_id);
-                  const measurementType = values.measurement_type === "" ? null : values.measurement_type;
+                  const fieldEquipmentId =
+                    values.field_equipment_id === "" || values.field_equipment_id === undefined
+                      ? null
+                      : Number(values.field_equipment_id);
+                  const connectionPoint =
+                    values.connection_point === "" || values.connection_point === undefined
+                      ? null
+                      : String(values.connection_point);
                   updateMutation.mutate({
                     id: row.original.id,
                     payload: {
                       tag: values.tag,
                       signal: values.signal,
+                      data_type_id: dataTypeId,
                       signal_kind_id: signalKindId,
-                      measurement_type: measurementType,
+                      field_equipment_id: fieldEquipmentId,
+                      connection_point: connectionPoint,
                       measurement_unit_id: measurementUnitId,
                       is_active: values.is_active
                     }
@@ -387,6 +469,10 @@ export default function IOSignalsPage() {
     return base;
   }, [
     canWrite,
+    dataTypeBreadcrumbs,
+    dataTypeTreeOptions,
+    fieldEquipmentBreadcrumbs,
+    fieldEquipmentTreeOptions,
     measurementUnitBreadcrumbs,
     measurementUnitLeafOptions,
     signalKindBreadcrumbs,

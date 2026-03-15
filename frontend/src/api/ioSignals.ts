@@ -39,8 +39,12 @@ export type IOSignal = {
   channel_index: number;
   tag?: string | null;
   signal?: string | null;
+  data_type_id?: number | null;
+  data_type_full_path?: string | null;
   signal_kind_id?: number | null;
-  measurement_type?: string | null;
+  field_equipment_id?: number | null;
+  field_equipment_full_path?: string | null;
+  connection_point?: string | null;
   measurement_unit_id?: number | null;
   measurement_unit_full_path?: string | null;
   is_active: boolean;
@@ -48,7 +52,17 @@ export type IOSignal = {
 };
 
 export type IOSignalUpdate = Partial<
-  Pick<IOSignal, "tag" | "signal" | "signal_kind_id" | "measurement_type" | "measurement_unit_id" | "is_active">
+  Pick<
+    IOSignal,
+    | "tag"
+    | "signal"
+    | "data_type_id"
+    | "signal_kind_id"
+    | "field_equipment_id"
+    | "connection_point"
+    | "measurement_unit_id"
+    | "is_active"
+  >
 >;
 
 function logRequest(label: string, path: string) {

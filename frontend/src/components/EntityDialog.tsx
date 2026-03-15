@@ -1,34 +1,50 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  List,
+  ListItemButton,
+  ListItemText,
   Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Box,
+  IconButton,
   FormControl,
   FormControlLabel,
   InputLabel,
   MenuItem,
+  Popover,
   Select,
-  TextField
+  TextField,
+  Typography
 } from "@mui/material";
+import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import { AppButton } from "./ui/AppButton";
 import { ErrorSnackbar } from "./ErrorSnackbar";
 
 export type FieldOption = { label: string; value: number | string; disabled?: boolean };
+export type TreeFieldOption = {
+  label: string;
+  value: number | string;
+  disabled?: boolean;
+  children?: TreeFieldOption[];
+};
 
 export type FieldConfig = {
   name: string;
   label: string;
-  type: "text" | "number" | "select" | "checkbox" | "ports";
+  type: "text" | "number" | "select" | "checkbox" | "ports" | "treeSelect";
   multiline?: boolean;
   rows?: number;
   min?: number;
   step?: number | "any";
   placeholder?: string;
   options?: FieldOption[];
+  treeOptions?: TreeFieldOption[];
+  leafOnly?: boolean;
   portsLabels?: {
     title?: string;
     add?: string;
@@ -53,11 +69,20 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
   const [values, setValues] = useState(state.values);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [treeSelectAnchor, setTreeSelectAnchor] = useState<HTMLElement | null>(null);
+  const [activeTreeField, setActiveTreeField] = useState<FieldConfig | null>(null);
+  const [expandedTreeNodes, setExpandedTreeNodes] = useState<Record<string, boolean>>({});
   const { t } = useTranslation();
 
   useEffect(() => {
     setValues(state.values);
   }, [state.values]);
+
+  useEffect(() => {
+    setTreeSelectAnchor(null);
+    setActiveTreeField(null);
+    setExpandedTreeNodes({});
+  }, [state]);
 
   const applyFieldChange = (field: FieldConfig, value: any) => {
     setValues((prev) => {
@@ -66,6 +91,72 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
       return extra ? { ...next, ...extra } : next;
     });
   };
+
+  const toggleTreeNode = (fieldName: string, nodeValue: number | string) => {
+    const key = `${fieldName}:${String(nodeValue)}`;
+    setExpandedTreeNodes((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const buildTreeLabelMap = (options: TreeFieldOption[] | undefined, path: string[] = []) => {
+    const map = new Map<number | string, string>();
+    (options || []).forEach((option) => {
+      const nextPath = [...path, option.label];
+      map.set(option.value, nextPath.join(" / "));
+      const nestedMap = buildTreeLabelMap(option.children, nextPath);
+      nestedMap.forEach((value, key) => map.set(key, value));
+    });
+    return map;
+  };
+
+  const renderTreeOptions = (
+    options: TreeFieldOption[],
+    field: FieldConfig,
+    depth = 0
+  ): ReactNode =>
+    options.map((option) => {
+      const hasChildren = Boolean(option.children?.length);
+      const isLeaf = !hasChildren;
+      const disabled = Boolean(option.disabled) || Boolean(field.leafOnly && !isLeaf);
+      const expandKey = `${field.name}:${String(option.value)}`;
+      const expanded = expandedTreeNodes[expandKey] ?? false;
+      return (
+        <Box key={expandKey}>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box sx={{ width: depth * 16 }} />
+            {hasChildren ? (
+              <IconButton
+                size="small"
+                onClick={() => toggleTreeNode(field.name, option.value)}
+                sx={{ mr: 0.5 }}
+              >
+                {expanded ? <ExpandMoreRoundedIcon fontSize="small" /> : <ChevronRightRoundedIcon fontSize="small" />}
+              </IconButton>
+            ) : (
+              <Box sx={{ width: 32 }} />
+            )}
+            <ListItemButton
+              dense
+              disabled={saving || field.disabledWhen?.(values) || disabled}
+              onClick={() => {
+                if (disabled) {
+                  return;
+                }
+                applyFieldChange(field, option.value);
+                setTreeSelectAnchor(null);
+                setActiveTreeField(null);
+              }}
+              sx={{ borderRadius: 1, py: 0.5, px: 1 }}
+            >
+              <ListItemText
+                primary={option.label}
+                secondary={hasChildren && field.leafOnly ? t("common.treeSelect.groupOnly") : undefined}
+              />
+            </ListItemButton>
+          </Box>
+          {hasChildren && expanded ? renderTreeOptions(option.children || [], field, depth + 1) : null}
+        </Box>
+      );
+    });
 
   return (
     <Dialog open={state.open} onClose={onClose} fullWidth maxWidth="sm">
@@ -95,6 +186,68 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
                     </MenuItem>
                   ))}
                 </Select>
+              </FormControl>
+            );
+          }
+
+          if (field.type === "treeSelect") {
+            const treeLabelMap = buildTreeLabelMap(field.treeOptions);
+            const displayValue = values[field.name] === "" || values[field.name] == null
+              ? ""
+              : treeLabelMap.get(values[field.name]) || String(values[field.name]);
+            return (
+              <FormControl key={field.name} fullWidth>
+                <TextField
+                  label={field.label}
+                  value={displayValue}
+                  placeholder={field.placeholder || t("actions.notSelected")}
+                  onClick={(event) => {
+                    if (saving || field.disabledWhen?.(values)) {
+                      return;
+                    }
+                    setTreeSelectAnchor(event.currentTarget);
+                    setActiveTreeField(field);
+                  }}
+                  inputProps={{ readOnly: true }}
+                  disabled={saving || field.disabledWhen?.(values)}
+                  fullWidth
+                />
+                <Popover
+                  open={activeTreeField?.name === field.name && Boolean(treeSelectAnchor)}
+                  anchorEl={treeSelectAnchor}
+                  onClose={() => {
+                    setTreeSelectAnchor(null);
+                    setActiveTreeField(null);
+                  }}
+                  anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+                  transformOrigin={{ vertical: "top", horizontal: "left" }}
+                  PaperProps={{ sx: { width: 420, maxWidth: "calc(100vw - 48px)", maxHeight: 360, p: 1 } }}
+                >
+                  <Box sx={{ display: "grid", gap: 1 }}>
+                    <Typography variant="subtitle2">{field.label}</Typography>
+                    <List dense sx={{ p: 0 }}>
+                      <ListItemButton
+                        dense
+                        onClick={() => {
+                          applyFieldChange(field, "");
+                          setTreeSelectAnchor(null);
+                          setActiveTreeField(null);
+                        }}
+                        disabled={saving || field.disabledWhen?.(values)}
+                        sx={{ borderRadius: 1 }}
+                      >
+                        <ListItemText primary={t("actions.notSelected")} />
+                      </ListItemButton>
+                      {field.treeOptions?.length ? (
+                        renderTreeOptions(field.treeOptions, field)
+                      ) : (
+                        <Typography variant="body2" color="text.secondary" sx={{ px: 1, py: 0.5 }}>
+                          {t("common.loading")}
+                        </Typography>
+                      )}
+                    </List>
+                  </Box>
+                </Popover>
               </FormControl>
             );
           }
