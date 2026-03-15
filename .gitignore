@@ -50,3 +50,14 @@ Thumbs.db
 
 # --- Docker (если используешь) ---
 *.log
+
+# --- Local PostgreSQL cluster ---
+.postgres/**
+!.postgres/
+!.postgres/README.md
+
+# --- Database dumps you may commit ---
+backup/
+!backup/
+!backup/*.sql
+!backup/*.dump
