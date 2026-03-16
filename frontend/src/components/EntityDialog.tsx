@@ -149,6 +149,7 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
             >
               <ListItemText
                 primary={option.label}
+                primaryTypographyProps={{ sx: { whiteSpace: "normal", wordBreak: "break-word" } }}
                 secondary={hasChildren && field.leafOnly ? t("common.treeSelect.groupOnly") : undefined}
               />
             </ListItemButton>
@@ -221,7 +222,7 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
                   }}
                   anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
                   transformOrigin={{ vertical: "top", horizontal: "left" }}
-                  PaperProps={{ sx: { width: 420, maxWidth: "calc(100vw - 48px)", maxHeight: 360, p: 1 } }}
+                  PaperProps={{ sx: { width: 560, maxWidth: "calc(100vw - 48px)", maxHeight: 420, p: 1 } }}
                 >
                   <Box sx={{ display: "grid", gap: 1 }}>
                     <Typography variant="subtitle2">{field.label}</Typography>

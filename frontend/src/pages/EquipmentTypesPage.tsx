@@ -27,7 +27,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
-import { EntityDialog, DialogState } from "../components/EntityDialog";
+import { EntityDialog, DialogState, type TreeFieldOption } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { uploadEquipmentTypeDatasheet, uploadEquipmentTypePhoto } from "../api/equipmentTypeMedia";
@@ -65,8 +65,18 @@ type EquipmentType = {
   created_at?: string;
 };
 
-type Manufacturer = { id: number; name: string };
-type EquipmentCategory = { id: number; name: string };
+type Manufacturer = {
+  id: number;
+  name: string;
+  parent_id?: number | null;
+  full_path?: string | null;
+};
+type EquipmentCategory = {
+  id: number;
+  name: string;
+  parent_id?: number | null;
+  full_path?: string | null;
+};
 type NetworkPort = { type: string; count: number };
 type SerialPort = { type: string; count: number };
 type ElectricalFields = {
@@ -74,6 +84,61 @@ type ElectricalFields = {
   supply_voltage?: string | null;
   current_consumption_a?: number | null;
 };
+
+async function fetchAllDictionaryOptions<T>(path: string): Promise<T[]> {
+  const pageSize = 200;
+  let page = 1;
+  let items: T[] = [];
+  while (true) {
+    const data = await listEntity<T>(path, {
+      page,
+      page_size: pageSize,
+      is_deleted: false
+    });
+    items = items.concat(data.items);
+    if (items.length >= data.total) {
+      break;
+    }
+    page += 1;
+  }
+  return items;
+}
+
+function buildTreeOptions(
+  items: Array<{ id: number; name: string; parent_id?: number | null }>
+): TreeFieldOption[] {
+  const nodeMap = new Map<number, TreeFieldOption>();
+  const parentIds = new Set<number>();
+
+  items.forEach((item) => {
+    nodeMap.set(item.id, { label: item.name, value: item.id, children: [] });
+    if (item.parent_id) {
+      parentIds.add(item.parent_id);
+    }
+  });
+
+  const roots: TreeFieldOption[] = [];
+  items.forEach((item) => {
+    const node = nodeMap.get(item.id)!;
+    if (item.parent_id && nodeMap.has(item.parent_id)) {
+      const parent = nodeMap.get(item.parent_id)!;
+      parent.children = [...(parent.children || []), node];
+    } else {
+      roots.push(node);
+    }
+  });
+
+  const sortNodes = (nodes: TreeFieldOption[]): TreeFieldOption[] =>
+    nodes
+      .map((node) => ({
+        ...node,
+        children: node.children?.length ? sortNodes(node.children) : undefined,
+        disabled: parentIds.has(Number(node.value))
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+  return sortNodes(roots);
+}
 
 const pageSizeOptions = [10, 20, 50, 100];
 const equipmentElectricalFieldsStorageKey = "equipment-types-electrical-fields";
@@ -303,22 +368,12 @@ export default function EquipmentTypesPage() {
 
   const manufacturersQuery = useQuery({
     queryKey: ["manufacturers-options"],
-    queryFn: () =>
-      listEntity<Manufacturer>("/manufacturers", {
-        page: 1,
-        page_size: 200,
-        is_deleted: false
-      })
+    queryFn: () => fetchAllDictionaryOptions<Manufacturer>("/manufacturers")
   });
 
   const equipmentCategoriesQuery = useQuery({
     queryKey: ["equipment-categories-options"],
-    queryFn: () =>
-      listEntity<EquipmentCategory>("/equipment-categories", {
-        page: 1,
-        page_size: 200,
-        is_deleted: false
-      })
+    queryFn: () => fetchAllDictionaryOptions<EquipmentCategory>("/equipment-categories")
   });
 
   useEffect(() => {
@@ -333,15 +388,65 @@ export default function EquipmentTypesPage() {
 
   const manufacturerMap = useMemo(() => {
     const map = new Map<number, string>();
-    manufacturersQuery.data?.items.forEach((item) => map.set(item.id, item.name));
+    manufacturersQuery.data?.forEach((item) => map.set(item.id, item.full_path || item.name));
     return map;
-  }, [manufacturersQuery.data?.items]);
+  }, [manufacturersQuery.data]);
 
   const equipmentCategoryMap = useMemo(() => {
     const map = new Map<number, string>();
-    equipmentCategoriesQuery.data?.items.forEach((item) => map.set(item.id, item.name));
+    equipmentCategoriesQuery.data?.forEach((item) => map.set(item.id, item.full_path || item.name));
     return map;
-  }, [equipmentCategoriesQuery.data?.items]);
+  }, [equipmentCategoriesQuery.data]);
+
+  const manufacturerOptions = useMemo(
+    () =>
+      (manufacturersQuery.data || [])
+        .filter((item) => item.parent_id !== null && item.parent_id !== undefined)
+        .map((item) => ({
+          id: item.id,
+          name: item.name,
+          full_path: item.full_path || item.name
+        })),
+    [manufacturersQuery.data]
+  );
+
+  const equipmentCategoryOptions = useMemo(
+    () => {
+      const items = equipmentCategoriesQuery.data || [];
+      return items
+        .filter((item) => !items.some((candidate) => candidate.parent_id === item.id))
+        .map((item) => ({
+          id: item.id,
+          name: item.name,
+          full_path: item.full_path || item.name
+        }));
+    },
+    [equipmentCategoriesQuery.data]
+  );
+
+  const manufacturerTreeOptions = useMemo(
+    () =>
+      buildTreeOptions(
+        (manufacturersQuery.data || []).map((item) => ({
+          id: item.id,
+          name: item.name,
+          parent_id: item.parent_id
+        }))
+      ),
+    [manufacturersQuery.data]
+  );
+
+  const equipmentCategoryTreeOptions = useMemo(
+    () =>
+      buildTreeOptions(
+        (equipmentCategoriesQuery.data || []).map((item) => ({
+          id: item.id,
+          name: item.name,
+          parent_id: item.parent_id
+        }))
+      ),
+    [equipmentCategoriesQuery.data]
+  );
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["equipment-types"] });
@@ -530,7 +635,7 @@ export default function EquipmentTypesPage() {
           if (!canWrite) {
             return currentId ? equipmentCategoryMap.get(currentId) || currentId : "-";
           }
-          const options = equipmentCategoriesQuery.data?.items || [];
+          const options = equipmentCategoryOptions || [];
           const currentOption =
             options.find((option) => option.id === currentId) || null;
           return (
@@ -543,7 +648,7 @@ export default function EquipmentTypesPage() {
                   payload: { equipment_category_id: option ? option.id : null }
                 })
               }
-              getOptionLabel={(option) => option.name}
+              getOptionLabel={(option) => option.full_path || option.name}
               isOptionEqualToValue={(option, value) => option.id === value.id}
               renderInput={(params) => (
                 <TextField {...params} variant="standard" placeholder={t("actions.notSelected")} />
@@ -633,22 +738,16 @@ export default function EquipmentTypesPage() {
                     {
                       name: "manufacturer_id",
                       label: t("common.fields.manufacturer"),
-                      type: "select",
-                      options:
-                        manufacturersQuery.data?.items.map((m) => ({
-                          label: m.name,
-                          value: m.id
-                        })) || []
+                      type: "treeSelect",
+                      treeOptions: manufacturerTreeOptions,
+                      leafOnly: true
                     },
                     {
                       name: "equipment_category_id",
                       label: t("common.fields.equipmentCategory"),
-                      type: "select",
-                      options:
-                        equipmentCategoriesQuery.data?.items.map((category) => ({
-                          label: category.name,
-                          value: category.id
-                        })) || []
+                      type: "treeSelect",
+                      treeOptions: equipmentCategoryTreeOptions,
+                      leafOnly: true
                     },
                     {
                       name: "is_channel_forming",
@@ -713,6 +812,14 @@ export default function EquipmentTypesPage() {
                   ],
                   values: {
                     ...row.original,
+                    manufacturer_id: manufacturerOptions.some((item) => item.id === row.original.manufacturer_id)
+                      ? row.original.manufacturer_id
+                      : "",
+                    equipment_category_id: equipmentCategoryOptions.some(
+                      (item) => item.id === row.original.equipment_category_id
+                    )
+                      ? row.original.equipment_category_id
+                      : "",
                     ...getEquipmentElectricalFields(row.original)
                   },
                   renderExtra: renderMediaInputs,
@@ -823,9 +930,11 @@ export default function EquipmentTypesPage() {
     canWrite,
     deleteMutation,
     equipmentCategoryMap,
-    equipmentCategoriesQuery.data?.items,
+    equipmentCategoryOptions,
+    equipmentCategoryTreeOptions,
     manufacturerMap,
-    manufacturersQuery.data?.items,
+    manufacturerOptions,
+    manufacturerTreeOptions,
     restoreMutation,
     renderMediaInputs,
     resetMediaFiles,
@@ -882,9 +991,9 @@ export default function EquipmentTypesPage() {
                 }}
               >
                 <MenuItem value="">{t("common.all")}</MenuItem>
-                {manufacturersQuery.data?.items.map((item) => (
+                {manufacturerOptions.map((item) => (
                   <MenuItem key={item.id} value={item.id}>
-                    {item.name}
+                    {item.full_path || item.name}
                   </MenuItem>
                 ))}
               </Select>
@@ -956,28 +1065,22 @@ export default function EquipmentTypesPage() {
                       {
                         name: "manufacturer_id",
                         label: t("common.fields.manufacturer"),
-                        type: "select",
-                        options:
-                          manufacturersQuery.data?.items.map((m) => ({
-                            label: m.name,
-                            value: m.id
-                          })) || []
+                        type: "treeSelect",
+                        treeOptions: manufacturerTreeOptions,
+                        leafOnly: true
                       },
-                    {
-                      name: "equipment_category_id",
-                      label: t("common.fields.equipmentCategory"),
-                      type: "select",
-                      options:
-                        equipmentCategoriesQuery.data?.items.map((category) => ({
-                          label: category.name,
-                          value: category.id
-                        })) || []
-                    },
-                    {
-                      name: "is_channel_forming",
-                      label: t("common.fields.channelForming"),
-                      type: "checkbox"
-                    },
+                      {
+                        name: "equipment_category_id",
+                        label: t("common.fields.equipmentCategory"),
+                        type: "treeSelect",
+                        treeOptions: equipmentCategoryTreeOptions,
+                        leafOnly: true
+                      },
+                      {
+                        name: "is_channel_forming",
+                        label: t("common.fields.channelForming"),
+                        type: "checkbox"
+                      },
                       {
                         name: "ai_count",
                         label: "AI",

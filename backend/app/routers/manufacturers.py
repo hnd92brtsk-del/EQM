@@ -1,32 +1,163 @@
-﻿import csv
+from __future__ import annotations
+
+import csv
 from datetime import datetime
 from io import BytesIO, StringIO, TextIOWrapper
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook, load_workbook
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
+from app.core.audit import add_audit_log, model_to_dict
 from app.core.dependencies import get_db, require_read_access, require_write_access
 from app.core.pagination import paginate
-from app.core.query import apply_search, apply_sort, apply_date_filters
-from app.core.audit import add_audit_log, model_to_dict
+from app.core.query import apply_date_filters, apply_search, apply_sort
 from app.models.core import Manufacturer
 from app.models.security import User
 from app.schemas.common import Pagination
 from app.schemas.manufacturers import (
     ImportIssue,
     ImportReport,
-    ManufacturerOut,
     ManufacturerCreate,
+    ManufacturerOut,
+    ManufacturerTreeNode,
     ManufacturerUpdate,
 )
 
 router = APIRouter()
+MAX_DEPTH = 2
 
 
 def _normalize_name(value: str) -> str:
     return " ".join(value.split()).strip().casefold()
+
+
+def build_tree(items: list[Manufacturer]) -> list[ManufacturerTreeNode]:
+    nodes = {
+        item.id: ManufacturerTreeNode(
+            id=item.id,
+            name=item.name,
+            country=item.country,
+            parent_id=item.parent_id,
+            full_path=item.full_path,
+            flag=item.flag,
+            founded_year=item.founded_year,
+            segment=item.segment,
+            specialization=item.specialization,
+            website=item.website,
+            is_deleted=item.is_deleted,
+            children=[],
+        )
+        for item in items
+    }
+    roots: list[ManufacturerTreeNode] = []
+    for item in items:
+        if item.parent_id and item.parent_id in nodes:
+            nodes[item.parent_id].children.append(nodes[item.id])
+        else:
+            roots.append(nodes[item.id])
+    return roots
+
+
+def ensure_unique_name(db, name: str, parent_id: int | None, exclude_id: int | None = None) -> None:
+    query = select(Manufacturer).where(
+        Manufacturer.name == name,
+        Manufacturer.parent_id == parent_id,
+        Manufacturer.is_deleted == False,
+    )
+    if exclude_id is not None:
+        query = query.where(Manufacturer.id != exclude_id)
+    if db.scalar(query):
+        raise HTTPException(status_code=400, detail="Manufacturer already exists")
+
+
+def compute_depth(parent: Manufacturer | None) -> int:
+    depth = 1
+    current = parent
+    seen: set[int] = set()
+    while current is not None:
+        if current.id in seen:
+            raise HTTPException(status_code=400, detail="Parent cycle detected")
+        seen.add(current.id)
+        current = current.parent
+        depth += 1
+    return depth
+
+
+def resolve_parent(db, parent_id: int | None, node_id: int | None = None) -> Manufacturer | None:
+    if parent_id is None:
+        return None
+    parent = db.scalar(
+        select(Manufacturer)
+        .options(selectinload(Manufacturer.parent))
+        .where(Manufacturer.id == parent_id, Manufacturer.is_deleted == False)
+    )
+    if not parent:
+        raise HTTPException(status_code=404, detail="Parent manufacturer not found")
+    if node_id is not None and parent.id == node_id:
+        raise HTTPException(status_code=400, detail="Node cannot be its own parent")
+    if parent.parent_id is not None:
+        raise HTTPException(status_code=400, detail="Manufacturers support only country -> brand hierarchy")
+
+    current = parent
+    seen: set[int] = set()
+    while current is not None:
+        if current.id in seen or (node_id is not None and current.id == node_id):
+            raise HTTPException(status_code=400, detail="Parent cycle detected")
+        seen.add(current.id)
+        current = current.parent
+
+    if compute_depth(parent) > MAX_DEPTH:
+        raise HTTPException(status_code=400, detail="Manufacturer depth exceeds limit")
+    return parent
+
+
+def get_or_create_country_root(db, country_name: str) -> Manufacturer:
+    active = db.scalar(
+        select(Manufacturer).where(
+            Manufacturer.parent_id == None,
+            Manufacturer.name == country_name,
+            Manufacturer.is_deleted == False,
+        )
+    )
+    if active:
+        return active
+
+    deleted = db.scalar(
+        select(Manufacturer).where(
+            Manufacturer.parent_id == None,
+            Manufacturer.name == country_name,
+            Manufacturer.is_deleted == True,
+        )
+    )
+    if deleted:
+        deleted.is_deleted = False
+        deleted.deleted_at = None
+        deleted.deleted_by_id = None
+        deleted.country = country_name
+        return deleted
+
+    root = Manufacturer(name=country_name, country=country_name)
+    db.add(root)
+    db.flush()
+    return root
+
+
+def collect_subtree_ids(db, root_id: int) -> list[int]:
+    items = db.scalars(select(Manufacturer)).all()
+    children_map: dict[int | None, list[int]] = {}
+    for item in items:
+        children_map.setdefault(item.parent_id, []).append(item.id)
+
+    result: list[int] = []
+    stack = [root_id]
+    while stack:
+        current = stack.pop()
+        result.append(current)
+        stack.extend(children_map.get(current, []))
+    return result
 
 
 def _build_template_xlsx() -> BytesIO:
@@ -35,9 +166,7 @@ def _build_template_xlsx() -> BytesIO:
     readme = workbook.active
     readme.append(["Manufacturers import template"])
     readme.append(["Columns: name (required), country (required)"])
-    readme.append(["Duplicates are skipped by normalized name."])
-    readme.append(["Normalization: trim + collapse spaces + casefold"])
-    readme.append(["Import is create-only."])
+    readme.append(["Brands are imported under a country root node."])
 
     data = workbook.create_sheet("DATA")
     data.append(["name", "country"])
@@ -52,9 +181,20 @@ def _build_export_xlsx(items: list[Manufacturer]) -> BytesIO:
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "DATA"
-    sheet.append(["name", "country"])
+    sheet.append(["name", "country", "parent_id", "flag", "founded_year", "segment", "specialization", "website"])
     for item in items:
-        sheet.append([item.name, item.country])
+        sheet.append(
+            [
+                item.name,
+                item.country,
+                item.parent_id,
+                item.flag,
+                item.founded_year,
+                item.segment,
+                item.specialization,
+                item.website,
+            ]
+        )
 
     buffer = BytesIO()
     workbook.save(buffer)
@@ -65,9 +205,20 @@ def _build_export_xlsx(items: list[Manufacturer]) -> BytesIO:
 def _build_export_csv(items: list[Manufacturer]) -> StringIO:
     buffer = StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["name", "country"])
+    writer.writerow(["name", "country", "parent_id", "flag", "founded_year", "segment", "specialization", "website"])
     for item in items:
-        writer.writerow([item.name, item.country])
+        writer.writerow(
+            [
+                item.name,
+                item.country,
+                item.parent_id,
+                item.flag,
+                item.founded_year,
+                item.segment,
+                item.specialization,
+                item.website,
+            ]
+        )
     buffer.seek(0)
     return buffer
 
@@ -104,6 +255,19 @@ def _detect_format(file: UploadFile) -> str:
     raise HTTPException(status_code=400, detail="Unsupported file format")
 
 
+@router.get("/tree", response_model=list[ManufacturerTreeNode])
+def get_manufacturers_tree(
+    include_deleted: bool = False,
+    db=Depends(get_db),
+    user: User = Depends(require_read_access()),
+):
+    query = select(Manufacturer).options(selectinload(Manufacturer.parent))
+    if not include_deleted:
+        query = query.where(Manufacturer.is_deleted == False)
+    items = db.scalars(query.order_by(Manufacturer.parent_id, Manufacturer.country, Manufacturer.name, Manufacturer.id)).all()
+    return build_tree(items)
+
+
 @router.get("/", response_model=Pagination[ManufacturerOut])
 def list_manufacturers(
     page: int = 1,
@@ -112,6 +276,7 @@ def list_manufacturers(
     sort: str | None = None,
     is_deleted: bool | None = None,
     include_deleted: bool = False,
+    parent_id: int | None = None,
     created_at_from: datetime | None = None,
     created_at_to: datetime | None = None,
     updated_at_from: datetime | None = None,
@@ -119,14 +284,20 @@ def list_manufacturers(
     db=Depends(get_db),
     user: User = Depends(require_read_access()),
 ):
-    query = select(Manufacturer)
+    query = select(Manufacturer).options(selectinload(Manufacturer.parent))
     if is_deleted is None:
         if not include_deleted:
             query = query.where(Manufacturer.is_deleted == False)
     else:
         query = query.where(Manufacturer.is_deleted == is_deleted)
+    if parent_id is not None:
+        query = query.where(Manufacturer.parent_id == parent_id)
 
-    query = apply_search(query, q, [Manufacturer.name, Manufacturer.country])
+    query = apply_search(
+        query,
+        q,
+        [Manufacturer.name, Manufacturer.country, Manufacturer.segment, Manufacturer.specialization, Manufacturer.website],
+    )
     query = apply_date_filters(query, Manufacturer, created_at_from, created_at_to, updated_at_from, updated_at_to)
     query = apply_sort(query, Manufacturer, sort)
 
@@ -148,7 +319,7 @@ def export_manufacturers(
             query = query.where(Manufacturer.is_deleted == False)
     else:
         query = query.where(Manufacturer.is_deleted == is_deleted)
-    items = db.scalars(query).all()
+    items = db.scalars(query.order_by(Manufacturer.parent_id, Manufacturer.country, Manufacturer.name)).all()
 
     if format == "csv":
         buffer = _build_export_csv(items)
@@ -207,11 +378,6 @@ def import_manufacturers(
     if "country" not in header_map:
         raise HTTPException(status_code=400, detail="Missing 'country' column")
 
-    existing_names = db.scalars(
-        select(Manufacturer.name).where(Manufacturer.is_deleted == False)
-    ).all()
-    seen = {_normalize_name(name) for name in existing_names}
-
     report = ImportReport(
         total_rows=0,
         created=0,
@@ -220,7 +386,8 @@ def import_manufacturers(
         warnings=[],
     )
 
-    to_create: list[Manufacturer] = []
+    to_create: list[tuple[str, str]] = []
+    seen_pairs: set[tuple[str, str]] = set()
     for index, row in enumerate(data_rows, start=2):
         if row is None:
             continue
@@ -230,40 +397,37 @@ def import_manufacturers(
         report.total_rows += 1
 
         raw_name = row_values[header_map["name"]] if header_map["name"] < len(row_values) else None
-        raw_country = (
-            row_values[header_map["country"]] if header_map["country"] < len(row_values) else None
-        )
+        raw_country = row_values[header_map["country"]] if header_map["country"] < len(row_values) else None
         name = str(raw_name).strip() if raw_name is not None else ""
         country = str(raw_country).strip() if raw_country is not None else ""
 
         if not name:
-            report.errors.append(
-                ImportIssue(row=index, field="name", message="Name is required")
-            )
+            report.errors.append(ImportIssue(row=index, field="name", message="Name is required"))
             continue
         if not country:
-            report.errors.append(
-                ImportIssue(row=index, field="country", message="Country is required")
-            )
+            report.errors.append(ImportIssue(row=index, field="country", message="Country is required"))
             continue
 
-        normalized = _normalize_name(name)
-        if normalized in seen:
+        key = (_normalize_name(name), _normalize_name(country))
+        if key in seen_pairs:
             report.skipped_duplicates += 1
-            report.warnings.append(
-                ImportIssue(row=index, field="name", message="Duplicate name skipped")
-            )
+            report.warnings.append(ImportIssue(row=index, field="name", message="Duplicate name skipped"))
             continue
-
-        seen.add(normalized)
-        manufacturer = Manufacturer(name=name, country=country)
-        to_create.append(manufacturer)
+        seen_pairs.add(key)
+        to_create.append((name, country))
 
     report.created = len(to_create)
-    if not dry_run and to_create:
-        db.add_all(to_create)
-        db.flush()
-        for manufacturer in to_create:
+    if not dry_run:
+        for name, country in to_create:
+            root = get_or_create_country_root(db, country)
+            ensure_unique_name(db, name, root.id)
+            manufacturer = Manufacturer(
+                name=name,
+                country=root.name,
+                parent_id=root.id,
+            )
+            db.add(manufacturer)
+            db.flush()
             add_audit_log(
                 db,
                 actor_id=current_user.id,
@@ -285,7 +449,11 @@ def get_manufacturer(
     db=Depends(get_db),
     user: User = Depends(require_read_access()),
 ):
-    query = select(Manufacturer).where(Manufacturer.id == manufacturer_id)
+    query = (
+        select(Manufacturer)
+        .options(selectinload(Manufacturer.parent))
+        .where(Manufacturer.id == manufacturer_id)
+    )
     if not include_deleted:
         query = query.where(Manufacturer.is_deleted == False)
     manufacturer = db.scalar(query)
@@ -300,15 +468,40 @@ def create_manufacturer(
     db=Depends(get_db),
     current_user: User = Depends(require_write_access()),
 ):
-    existing = db.scalar(
-        select(Manufacturer).where(
-            Manufacturer.name == payload.name, Manufacturer.is_deleted == False
+    parent = None
+    country_name = payload.country.strip() if payload.country else ""
+    if payload.parent_id is not None:
+        parent = resolve_parent(db, payload.parent_id)
+        country_name = parent.name
+        ensure_unique_name(db, payload.name, parent.id)
+        manufacturer = Manufacturer(
+            name=payload.name,
+            country=country_name,
+            parent_id=parent.id,
+            flag=payload.flag,
+            founded_year=payload.founded_year,
+            segment=payload.segment,
+            specialization=payload.specialization,
+            website=payload.website,
         )
-    )
-    if existing:
-        raise HTTPException(status_code=400, detail="Manufacturer already exists")
+    elif country_name and _normalize_name(country_name) != _normalize_name(payload.name):
+        parent = get_or_create_country_root(db, country_name)
+        ensure_unique_name(db, payload.name, parent.id)
+        manufacturer = Manufacturer(
+            name=payload.name,
+            country=parent.name,
+            parent_id=parent.id,
+            flag=payload.flag,
+            founded_year=payload.founded_year,
+            segment=payload.segment,
+            specialization=payload.specialization,
+            website=payload.website,
+        )
+    else:
+        country_root = country_name or payload.name
+        ensure_unique_name(db, payload.name, None)
+        manufacturer = Manufacturer(name=payload.name, country=country_root)
 
-    manufacturer = Manufacturer(name=payload.name, country=payload.country)
     db.add(manufacturer)
     db.flush()
 
@@ -334,16 +527,55 @@ def update_manufacturer(
     db=Depends(get_db),
     current_user: User = Depends(require_write_access()),
 ):
-    manufacturer = db.scalar(select(Manufacturer).where(Manufacturer.id == manufacturer_id))
+    manufacturer = db.scalar(
+        select(Manufacturer).options(selectinload(Manufacturer.parent)).where(Manufacturer.id == manufacturer_id)
+    )
     if not manufacturer:
         raise HTTPException(status_code=404, detail="Manufacturer not found")
 
     before = model_to_dict(manufacturer)
+    data = payload.model_dump(exclude_unset=True)
+    target_parent = manufacturer.parent
+    if "parent_id" in data:
+        target_parent = resolve_parent(db, data["parent_id"], node_id=manufacturer_id)
 
-    if payload.name is not None:
-        manufacturer.name = payload.name
-    if payload.country is not None:
-        manufacturer.country = payload.country
+    if target_parent is not None and db.scalar(select(Manufacturer).where(Manufacturer.parent_id == manufacturer_id)):
+        raise HTTPException(status_code=400, detail="Country node with children cannot become a brand")
+
+    target_name = payload.name if payload.name is not None else manufacturer.name
+    target_parent_id = target_parent.id if target_parent is not None else None
+    ensure_unique_name(db, target_name, target_parent_id, exclude_id=manufacturer_id)
+
+    old_is_root = manufacturer.parent_id is None
+    old_name = manufacturer.name
+
+    manufacturer.name = target_name
+    manufacturer.parent_id = target_parent_id
+    if target_parent is None:
+        manufacturer.country = payload.country or target_name
+        if "parent_id" in data and data["parent_id"] is None:
+            manufacturer.flag = None
+            manufacturer.founded_year = None
+            manufacturer.segment = None
+            manufacturer.specialization = None
+            manufacturer.website = None
+    else:
+        manufacturer.country = target_parent.name
+        if "flag" in data:
+            manufacturer.flag = data["flag"]
+        if "founded_year" in data:
+            manufacturer.founded_year = data["founded_year"]
+        if "segment" in data:
+            manufacturer.segment = data["segment"]
+        if "specialization" in data:
+            manufacturer.specialization = data["specialization"]
+        if "website" in data:
+            manufacturer.website = data["website"]
+
+    if manufacturer.parent_id is None and (old_name != manufacturer.name or not old_is_root):
+        children = db.scalars(select(Manufacturer).where(Manufacturer.parent_id == manufacturer.id)).all()
+        for child in children:
+            child.country = manufacturer.name
 
     add_audit_log(
         db,
@@ -380,10 +612,13 @@ def delete_manufacturer(
     if not manufacturer:
         raise HTTPException(status_code=404, detail="Manufacturer not found")
 
+    subtree_ids = collect_subtree_ids(db, manufacturer_id)
+    items = db.scalars(select(Manufacturer).where(Manufacturer.id.in_(subtree_ids))).all()
     before = model_to_dict(manufacturer)
-    manufacturer.is_deleted = True
-    manufacturer.deleted_at = datetime.utcnow()
-    manufacturer.deleted_by_id = current_user.id
+    for item in items:
+        item.is_deleted = True
+        item.deleted_at = datetime.utcnow()
+        item.deleted_by_id = current_user.id
 
     add_audit_log(
         db,
@@ -405,14 +640,30 @@ def restore_manufacturer(
     db=Depends(get_db),
     current_user: User = Depends(require_write_access()),
 ):
-    manufacturer = db.scalar(select(Manufacturer).where(Manufacturer.id == manufacturer_id))
+    manufacturer = db.scalar(
+        select(Manufacturer).options(selectinload(Manufacturer.parent)).where(Manufacturer.id == manufacturer_id)
+    )
     if not manufacturer:
         raise HTTPException(status_code=404, detail="Manufacturer not found")
 
     before = model_to_dict(manufacturer)
-    manufacturer.is_deleted = False
-    manufacturer.deleted_at = None
-    manufacturer.deleted_by_id = None
+    ancestors: list[Manufacturer] = []
+    current = manufacturer.parent
+    while current is not None:
+        ancestors.append(current)
+        current = current.parent
+
+    for item in reversed(ancestors):
+        item.is_deleted = False
+        item.deleted_at = None
+        item.deleted_by_id = None
+
+    subtree_ids = collect_subtree_ids(db, manufacturer_id)
+    items = db.scalars(select(Manufacturer).where(Manufacturer.id.in_(subtree_ids))).all()
+    for item in items:
+        item.is_deleted = False
+        item.deleted_at = None
+        item.deleted_by_id = None
 
     add_audit_log(
         db,

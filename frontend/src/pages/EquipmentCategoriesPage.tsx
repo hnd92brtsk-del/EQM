@@ -1,42 +1,109 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Box,Card,
+  Box,
+  Card,
   CardContent,
-  FormControl,
+  Collapse,
   FormControlLabel,
-  InputLabel,
-  MenuItem,
-  Select,
+  IconButton,
   Switch,
-  TablePagination,
   TextField,
   Typography
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
-import EditRoundedIcon from "@mui/icons-material/EditRounded";
-import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
+import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
-import { ColumnDef } from "@tanstack/react-table";
+import EditRoundedIcon from "@mui/icons-material/EditRounded";
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
+import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { DataTable } from "../components/DataTable";
+import { apiFetch } from "../api/client";
+import { createEntity, deleteEntity, Pagination, restoreEntity, updateEntity } from "../api/entities";
 import { DictionariesTabs } from "../components/DictionariesTabs";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
-import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
-import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
-import { getTablePaginationProps } from "../components/tablePaginationI18n";
+import { useAuth } from "../context/AuthContext";
 
 type EquipmentCategory = {
   id: number;
   name: string;
+  parent_id?: number | null;
+  full_path?: string | null;
   is_deleted: boolean;
-  created_at?: string;
 };
 
-const pageSizeOptions = [10, 20, 50, 100];
+type EquipmentCategoryNode = EquipmentCategory & { children: EquipmentCategoryNode[] };
+
+type TreeOption = {
+  label: string;
+  value: number;
+  children?: TreeOption[];
+};
+
+async function fetchAllCategories(includeDeleted: boolean) {
+  const pageSize = 200;
+  let page = 1;
+  let items: EquipmentCategory[] = [];
+  while (true) {
+    const data = await apiFetch<Pagination<EquipmentCategory>>(
+      `/equipment-categories?page=${page}&page_size=${pageSize}&include_deleted=${includeDeleted}`
+    );
+    items = items.concat(data.items);
+    if (items.length >= data.total) {
+      break;
+    }
+    page += 1;
+  }
+  return items;
+}
+
+function buildTree(items: EquipmentCategory[]): EquipmentCategoryNode[] {
+  const nodeMap = new Map<number, EquipmentCategoryNode>();
+  items.forEach((item) => nodeMap.set(item.id, { ...item, children: [] }));
+  const roots: EquipmentCategoryNode[] = [];
+  nodeMap.forEach((node) => {
+    if (node.parent_id && nodeMap.has(node.parent_id)) {
+      nodeMap.get(node.parent_id)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+  return roots;
+}
+
+function sortTree(nodes: EquipmentCategoryNode[]): EquipmentCategoryNode[] {
+  return nodes
+    .map((node) => ({ ...node, children: sortTree(node.children) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function filterTree(nodes: EquipmentCategoryNode[], query: string): EquipmentCategoryNode[] {
+  if (!query.trim()) {
+    return nodes;
+  }
+  const lower = query.toLowerCase();
+  const filtered: EquipmentCategoryNode[] = [];
+  nodes.forEach((node) => {
+    const childMatches = filterTree(node.children, query);
+    const ownPath = node.full_path || node.name;
+    const matches = ownPath.toLowerCase().includes(lower);
+    if (matches || childMatches.length > 0) {
+      filtered.push({ ...node, children: childMatches });
+    }
+  });
+  return filtered;
+}
+
+function buildTreeOptions(nodes: EquipmentCategoryNode[]): TreeOption[] {
+  return nodes.map((node) => ({
+    label: node.name,
+    value: node.id,
+    children: buildTreeOptions(node.children)
+  }));
+}
 
 export default function EquipmentCategoriesPage() {
   const { t } = useTranslation();
@@ -44,52 +111,39 @@ export default function EquipmentCategoriesPage() {
   const canWrite = user?.role === "admin" || user?.role === "engineer";
   const queryClient = useQueryClient();
 
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
   const [q, setQ] = useState("");
-  const [sort, setSort] = useState("-created_at");
   const [showDeleted, setShowDeleted] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
-  const sortOptions = useMemo(
-    () => [
-      { value: "name", label: t("pagesUi.equipmentCategories.sort.byNameAsc") },
-      { value: "-name", label: t("pagesUi.equipmentCategories.sort.byNameDesc") },
-      { value: "created_at", label: t("pagesUi.equipmentCategories.sort.byCreatedOldest") },
-      { value: "-created_at", label: t("pagesUi.equipmentCategories.sort.byCreatedNewest") }
-    ],
-    [t]
-  );
-
-  const categoriesQuery = useQuery({
-    queryKey: ["equipment-categories", page, pageSize, q, sort, showDeleted],
-    queryFn: () =>
-      listEntity<EquipmentCategory>("/equipment-categories", {
-        page,
-        page_size: pageSize,
-        q: q || undefined,
-        sort: sort || undefined,
-        is_deleted: showDeleted ? true : false
-      })
+  const itemsQuery = useQuery({
+    queryKey: ["equipment-categories-tree", showDeleted],
+    queryFn: () => fetchAllCategories(showDeleted)
   });
 
   useEffect(() => {
-    if (categoriesQuery.error) {
+    if (itemsQuery.error) {
       setErrorMessage(
-        categoriesQuery.error instanceof Error
-          ? categoriesQuery.error.message
+        itemsQuery.error instanceof Error
+          ? itemsQuery.error.message
           : t("pagesUi.equipmentCategories.errors.load")
       );
     }
-  }, [categoriesQuery.error, t]);
+  }, [itemsQuery.error, t]);
+
+  const tree = useMemo(() => sortTree(buildTree(itemsQuery.data || [])), [itemsQuery.data]);
+  const filteredTree = useMemo(() => filterTree(tree, q), [tree, q]);
+  const treeOptions = useMemo(() => buildTreeOptions(tree), [tree]);
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["equipment-categories"] });
+    queryClient.invalidateQueries({ queryKey: ["equipment-categories-tree"] });
+    queryClient.invalidateQueries({ queryKey: ["equipment-categories-options"] });
   };
 
   const createMutation = useMutation({
-    mutationFn: (payload: { name: string }) => createEntity("/equipment-categories", payload),
+    mutationFn: (payload: { name: string; parent_id?: number | null }) =>
+      createEntity("/equipment-categories", payload),
     onSuccess: refresh,
     onError: (error) =>
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.equipmentCategories.errors.create"))
@@ -117,66 +171,125 @@ export default function EquipmentCategoriesPage() {
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.equipmentCategories.errors.restore"))
   });
 
-  const columns = useMemo<ColumnDef<EquipmentCategory>[]>(() => {
-    const base: ColumnDef<EquipmentCategory>[] = [
-      { header: t("common.fields.name"), accessorKey: "name" },
-      {
-        header: t("common.status.label"),
-        cell: ({ row }) => (
-          <span className="status-pill">
-            {row.original.is_deleted ? t("common.status.deleted") : t("common.status.active")}
-          </span>
-        )
+  const toggleExpanded = (id: number) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
       }
-    ];
+      return next;
+    });
+  };
 
-    if (canWrite) {
-      base.push({
-        header: t("actions.actions"),
-        cell: ({ row }) => (
-          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <AppButton
-              size="small"
-              startIcon={<EditRoundedIcon />}
-              onClick={() =>
-                setDialog({
-                  open: true,
-                  title: t("pagesUi.equipmentCategories.dialogs.editTitle"),
-                  fields: [{ name: "name", label: t("common.fields.name"), type: "text" }],
-                  values: row.original,
-                  onSave: (values) => {
-                    updateMutation.mutate({
-                      id: row.original.id,
-                      payload: { name: values.name }
-                    });
-                    setDialog(null);
-                  }
-                })
-              }
-            >
-              {t("actions.edit")}
-            </AppButton>
-            <AppButton
-              size="small"
-              color={row.original.is_deleted ? "success" : "error"}
-              startIcon={
-                row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />
-              }
-              onClick={() =>
-                row.original.is_deleted
-                  ? restoreMutation.mutate(row.original.id)
-                  : deleteMutation.mutate(row.original.id)
-              }
-            >
-              {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
-            </AppButton>
+  const openCreateDialog = (parentId?: number | null) => {
+    setDialog({
+      open: true,
+      title: t("pagesUi.equipmentCategories.dialogs.createTitle"),
+      fields: [
+        { name: "name", label: t("common.fields.name"), type: "text" },
+        {
+          name: "parent_id",
+          label: t("common.fields.parent"),
+          type: "treeSelect",
+          treeOptions
+        }
+      ],
+      values: { name: "", parent_id: parentId ?? "" },
+      onSave: (values) => {
+        const parentValue =
+          values.parent_id === "" || values.parent_id === undefined ? null : Number(values.parent_id);
+        createMutation.mutate({ name: values.name, parent_id: parentValue });
+        setDialog(null);
+      }
+    });
+  };
+
+  const openEditDialog = (node: EquipmentCategoryNode) => {
+    setDialog({
+      open: true,
+      title: t("pagesUi.equipmentCategories.dialogs.editTitle"),
+      fields: [
+        { name: "name", label: t("common.fields.name"), type: "text" },
+        {
+          name: "parent_id",
+          label: t("common.fields.parent"),
+          type: "treeSelect",
+          treeOptions: treeOptions.filter((option) => option.value !== node.id)
+        }
+      ],
+      values: { name: node.name, parent_id: node.parent_id ?? "" },
+      onSave: (values) => {
+        const parentValue =
+          values.parent_id === "" || values.parent_id === undefined ? null : Number(values.parent_id);
+        updateMutation.mutate({
+          id: node.id,
+          payload: { name: values.name, parent_id: parentValue }
+        });
+        setDialog(null);
+      }
+    });
+  };
+
+  const renderNode = (node: EquipmentCategoryNode, level: number) => {
+    const hasChildren = node.children.length > 0;
+    const expanded = expandedIds.has(node.id);
+    const forceExpand = q.trim().length > 0;
+
+    return (
+      <Box key={node.id} sx={{ display: "grid", gap: 0.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", pl: level * 2, gap: 1 }}>
+          {hasChildren ? (
+            <IconButton size="small" onClick={() => toggleExpanded(node.id)}>
+              {expanded || forceExpand ? <ExpandMoreRoundedIcon /> : <ChevronRightRoundedIcon />}
+            </IconButton>
+          ) : (
+            <Box sx={{ width: 32 }} />
+          )}
+          <Box sx={{ display: "grid" }}>
+            <Typography sx={{ fontWeight: 500 }}>
+              {node.name}
+              {node.is_deleted ? t("common.deletedSuffix") : ""}
+            </Typography>
+            {node.full_path ? (
+              <Typography variant="body2" color="text.secondary">
+                {node.full_path}
+              </Typography>
+            ) : null}
           </Box>
-        )
-      });
-    }
-
-    return base;
-  }, [canWrite, deleteMutation, restoreMutation, updateMutation, t]);
+          <Box sx={{ flexGrow: 1 }} />
+          {canWrite && (
+            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+              <AppButton size="small" onClick={() => openCreateDialog(node.id)}>
+                {t("pagesUi.equipmentCategories.actions.addChild")}
+              </AppButton>
+              <AppButton size="small" startIcon={<EditRoundedIcon />} onClick={() => openEditDialog(node)}>
+                {t("actions.edit")}
+              </AppButton>
+              <AppButton
+                size="small"
+                color={node.is_deleted ? "success" : "error"}
+                startIcon={node.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />}
+                onClick={() =>
+                  node.is_deleted ? restoreMutation.mutate(node.id) : deleteMutation.mutate(node.id)
+                }
+              >
+                {node.is_deleted ? t("actions.restore") : t("actions.delete")}
+              </AppButton>
+            </Box>
+          )}
+        </Box>
+        {hasChildren && (
+          <Collapse in={expanded || forceExpand} timeout="auto" unmountOnExit>
+            <Box sx={{ display: "grid", gap: 0.5 }}>
+              {node.children.map((child) => renderNode(child, level + 1))}
+            </Box>
+          </Collapse>
+        )}
+      </Box>
+    );
+  };
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
@@ -185,38 +298,12 @@ export default function EquipmentCategoriesPage() {
 
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
-          <Box
-            sx={{
-              display: "grid",
-              gap: 2,
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))"
-            }}
-          >
-            <TextField
-              label={t("actions.search")}
-              value={q}
-              onChange={(event) => {
-                setQ(event.target.value);
-                setPage(1);
-              }}
-              fullWidth
-            />
-
-            <FormControl fullWidth>
-              <InputLabel>{t("common.sort")}</InputLabel>
-              <Select
-                label={t("common.sort")}
-                value={sort}
-                onChange={(event) => setSort(event.target.value)}
-              >
-                {sortOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
+          <TextField
+            label={t("actions.search")}
+            value={q}
+            onChange={(event) => setQ(event.target.value)}
+            fullWidth
+          />
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <FormControlLabel
@@ -225,7 +312,7 @@ export default function EquipmentCategoriesPage() {
                   checked={showDeleted}
                   onChange={(event) => {
                     setShowDeleted(event.target.checked);
-                    setPage(1);
+                    setExpandedIds(new Set());
                   }}
                 />
               }
@@ -233,41 +320,13 @@ export default function EquipmentCategoriesPage() {
             />
             <Box sx={{ flexGrow: 1 }} />
             {canWrite && (
-              <AppButton
-                variant="contained"
-                startIcon={<AddRoundedIcon />}
-                onClick={() =>
-                  setDialog({
-                    open: true,
-                    title: t("pagesUi.equipmentCategories.dialogs.createTitle"),
-                    fields: [{ name: "name", label: t("common.fields.name"), type: "text" }],
-                    values: { name: "" },
-                    onSave: (values) => {
-                      createMutation.mutate({ name: values.name });
-                      setDialog(null);
-                    }
-                  })
-                }
-              >
-                {t("actions.add")}
+              <AppButton variant="contained" startIcon={<AddRoundedIcon />} onClick={() => openCreateDialog(null)}>
+                {t("pagesUi.equipmentCategories.actions.addRoot")}
               </AppButton>
             )}
           </Box>
 
-          <DataTable data={categoriesQuery.data?.items || []} columns={columns} />
-          <TablePagination
-            component="div"
-            {...getTablePaginationProps(t)}
-            count={categoriesQuery.data?.total || 0}
-            page={page - 1}
-            onPageChange={(_, value) => setPage(value + 1)}
-            rowsPerPage={pageSize}
-            onRowsPerPageChange={(event) => {
-              setPageSize(Number(event.target.value));
-              setPage(1);
-            }}
-            rowsPerPageOptions={pageSizeOptions}
-          />
+          <Box sx={{ display: "grid", gap: 1 }}>{filteredTree.map((node) => renderNode(node, 0))}</Box>
         </CardContent>
       </Card>
 
@@ -276,6 +335,3 @@ export default function EquipmentCategoriesPage() {
     </Box>
   );
 }
-
-
-

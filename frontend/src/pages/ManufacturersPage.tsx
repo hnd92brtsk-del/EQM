@@ -1,60 +1,116 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   Box,
   Card,
   CardContent,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  FormControl,
+  Collapse,
   FormControlLabel,
   IconButton,
-  InputLabel,
-  MenuItem,
-  Select,
-  Snackbar,
-  Stack,
   Switch,
-  TablePagination,
   TextField,
-  Tooltip,
   Typography
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
-import EditRoundedIcon from "@mui/icons-material/EditRounded";
-import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
+import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
-import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
-import FileUploadOutlinedIcon from "@mui/icons-material/FileUploadOutlined";
-import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import { ColumnDef } from "@tanstack/react-table";
+import EditRoundedIcon from "@mui/icons-material/EditRounded";
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
+import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { DataTable } from "../components/DataTable";
+import { apiFetch } from "../api/client";
+import { createEntity, deleteEntity, Pagination, restoreEntity, updateEntity } from "../api/entities";
 import { DictionariesTabs } from "../components/DictionariesTabs";
-import { EntityDialog, DialogState } from "../components/EntityDialog";
+import { EntityDialog, DialogState, TreeFieldOption } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
-import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
-import { downloadFile, importFile, type ImportReport } from "../api/importExport";
-import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
-import { getTablePaginationProps } from "../components/tablePaginationI18n";
+import { useAuth } from "../context/AuthContext";
 
 type Manufacturer = {
   id: number;
   name: string;
   country: string;
+  parent_id?: number | null;
+  full_path?: string | null;
+  flag?: string | null;
+  founded_year?: number | null;
+  segment?: string | null;
+  specialization?: string | null;
+  website?: string | null;
   is_deleted: boolean;
-  created_at?: string;
 };
 
-const pageSizeOptions = [10, 20, 50, 100];
+type ManufacturerNode = Manufacturer & { children: ManufacturerNode[] };
+
+async function fetchAllManufacturers(includeDeleted: boolean) {
+  const pageSize = 200;
+  let page = 1;
+  let items: Manufacturer[] = [];
+  while (true) {
+    const data = await apiFetch<Pagination<Manufacturer>>(
+      `/manufacturers?page=${page}&page_size=${pageSize}&include_deleted=${includeDeleted}`
+    );
+    items = items.concat(data.items);
+    if (items.length >= data.total) {
+      break;
+    }
+    page += 1;
+  }
+  return items;
+}
+
+function buildTree(items: Manufacturer[]): ManufacturerNode[] {
+  const nodeMap = new Map<number, ManufacturerNode>();
+  items.forEach((item) => nodeMap.set(item.id, { ...item, children: [] }));
+  const roots: ManufacturerNode[] = [];
+  nodeMap.forEach((node) => {
+    if (node.parent_id && nodeMap.has(node.parent_id)) {
+      nodeMap.get(node.parent_id)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+  return roots;
+}
+
+function sortTree(nodes: ManufacturerNode[]): ManufacturerNode[] {
+  return nodes
+    .map((node) => ({ ...node, children: sortTree(node.children) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function filterTree(nodes: ManufacturerNode[], query: string): ManufacturerNode[] {
+  if (!query.trim()) {
+    return nodes;
+  }
+  const lower = query.toLowerCase();
+  const filtered: ManufacturerNode[] = [];
+  nodes.forEach((node) => {
+    const childMatches = filterTree(node.children, query);
+    const haystack = [
+      node.full_path,
+      node.country,
+      node.segment,
+      node.specialization,
+      node.website
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    if (haystack.includes(lower) || childMatches.length > 0) {
+      filtered.push({ ...node, children: childMatches });
+    }
+  });
+  return filtered;
+}
+
+function buildCountryOptions(nodes: ManufacturerNode[]): TreeFieldOption[] {
+  return nodes.map((node) => ({
+    label: node.name,
+    value: node.id
+  }));
+}
 
 export default function ManufacturersPage() {
   const { t } = useTranslation();
@@ -62,72 +118,43 @@ export default function ManufacturersPage() {
   const canWrite = user?.role === "admin" || user?.role === "engineer";
   const queryClient = useQueryClient();
 
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
   const [q, setQ] = useState("");
-  const [sort, setSort] = useState("-created_at");
   const [showDeleted, setShowDeleted] = useState(false);
-  const [createdFrom, setCreatedFrom] = useState("");
-  const [createdTo, setCreatedTo] = useState("");
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [importFileValue, setImportFileValue] = useState<File | null>(null);
-  const [dryRun, setDryRun] = useState(true);
-  const [report, setReport] = useState<ImportReport | null>(null);
-  const [reportOpen, setReportOpen] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
-  const sortOptions = useMemo(
-    () => [
-      { value: "name", label: t("pagesUi.manufacturers.sort.byNameAsc") },
-      { value: "-name", label: t("pagesUi.manufacturers.sort.byNameDesc") },
-      { value: "created_at", label: t("pagesUi.manufacturers.sort.byCreatedOldest") },
-      { value: "-created_at", label: t("pagesUi.manufacturers.sort.byCreatedNewest") }
-    ],
-    [t]
-  );
-
-  const manufacturersQuery = useQuery({
-    queryKey: ["manufacturers", page, pageSize, q, sort, showDeleted, createdFrom, createdTo],
-    queryFn: () =>
-      listEntity<Manufacturer>("/manufacturers", {
-        page,
-        page_size: pageSize,
-        q: q || undefined,
-        sort: sort || undefined,
-        is_deleted: showDeleted ? true : false,
-        filters: {
-          created_at_from: createdFrom || undefined,
-          created_at_to: createdTo || undefined
-        }
-      })
+  const itemsQuery = useQuery({
+    queryKey: ["manufacturers-tree", showDeleted],
+    queryFn: () => fetchAllManufacturers(showDeleted)
   });
 
   useEffect(() => {
-    if (manufacturersQuery.error) {
+    if (itemsQuery.error) {
       setErrorMessage(
-        manufacturersQuery.error instanceof Error
-          ? manufacturersQuery.error.message
-          : t("pagesUi.manufacturers.errors.load")
+        itemsQuery.error instanceof Error ? itemsQuery.error.message : t("pagesUi.manufacturers.errors.load")
       );
     }
-  }, [manufacturersQuery.error, t]);
+  }, [itemsQuery.error, t]);
+
+  const tree = useMemo(() => sortTree(buildTree(itemsQuery.data || [])), [itemsQuery.data]);
+  const filteredTree = useMemo(() => filterTree(tree, q), [tree, q]);
+  const countryOptions = useMemo(() => buildCountryOptions(tree), [tree]);
 
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["manufacturers"] });
+    queryClient.invalidateQueries({ queryKey: ["manufacturers-tree"] });
+    queryClient.invalidateQueries({ queryKey: ["manufacturers-options"] });
   };
 
   const createMutation = useMutation({
-    mutationFn: (payload: { name: string; country: string }) => createEntity("/manufacturers", payload),
+    mutationFn: (payload: Record<string, unknown>) => createEntity("/manufacturers", payload),
     onSuccess: refresh,
     onError: (error) =>
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.manufacturers.errors.create"))
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: Partial<Manufacturer> }) =>
+    mutationFn: ({ id, payload }: { id: number; payload: Record<string, unknown> }) =>
       updateEntity("/manufacturers", id, payload),
     onSuccess: refresh,
     onError: (error) =>
@@ -148,118 +175,198 @@ export default function ManufacturersPage() {
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.manufacturers.errors.restore"))
   });
 
-  const columns = useMemo<ColumnDef<Manufacturer>[]>(() => {
-    const base: ColumnDef<Manufacturer>[] = [
-      { header: t("common.fields.name"), accessorKey: "name" },
-      { header: t("common.fields.country"), accessorKey: "country" },
-      {
-        header: t("common.status.label"),
-        cell: ({ row }) => (
-          <span className="status-pill">
-            {row.original.is_deleted ? t("common.status.deleted") : t("common.status.active")}
-          </span>
-        )
+  const toggleExpanded = (id: number) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
       }
-    ];
+      return next;
+    });
+  };
 
-    if (canWrite) {
-      base.push({
-        header: t("actions.actions"),
-        cell: ({ row }) => (
-          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <AppButton
-              size="small"
-              startIcon={<EditRoundedIcon />}
-              onClick={() =>
-                setDialog({
-                  open: true,
-                  title: t("pagesUi.manufacturers.dialogs.editTitle"),
-                  fields: [
-                    { name: "name", label: t("common.fields.name"), type: "text" },
-                    { name: "country", label: t("common.fields.country"), type: "text" }
-                  ],
-                  values: row.original,
-                  onSave: (values) => {
-                    updateMutation.mutate({
-                      id: row.original.id,
-                      payload: { name: values.name, country: values.country }
-                    });
-                    setDialog(null);
-                  }
-                })
+  const openCreateCountryDialog = () => {
+    setDialog({
+      open: true,
+      title: t("pagesUi.manufacturers.dialogs.createCountryTitle"),
+      fields: [{ name: "name", label: t("common.fields.country"), type: "text" }],
+      values: { name: "" },
+      onSave: (values) => {
+        createMutation.mutate({ name: values.name, country: values.name });
+        setDialog(null);
+      }
+    });
+  };
+
+  const openCreateBrandDialog = (countryNode: ManufacturerNode) => {
+    setDialog({
+      open: true,
+      title: t("pagesUi.manufacturers.dialogs.createTitle"),
+      fields: [
+        { name: "name", label: t("common.fields.brand"), type: "text" },
+        { name: "parent_id", label: t("common.fields.country"), type: "treeSelect", treeOptions: countryOptions, leafOnly: false },
+        { name: "flag", label: t("common.fields.flag"), type: "text" },
+        { name: "founded_year", label: t("common.fields.foundedYear"), type: "number" },
+        { name: "segment", label: t("common.fields.segment"), type: "text" },
+        { name: "specialization", label: t("common.fields.specialization"), type: "text", multiline: true, rows: 3 },
+        { name: "website", label: t("common.fields.website"), type: "text" }
+      ],
+      values: {
+        name: "",
+        parent_id: countryNode.id,
+        flag: "",
+        founded_year: "",
+        segment: "",
+        specialization: "",
+        website: ""
+      },
+      onSave: (values) => {
+        createMutation.mutate({
+          name: values.name,
+          parent_id: Number(values.parent_id),
+          flag: values.flag || null,
+          founded_year: values.founded_year === "" ? null : Number(values.founded_year),
+          segment: values.segment || null,
+          specialization: values.specialization || null,
+          website: values.website || null
+        });
+        setDialog(null);
+      }
+    });
+  };
+
+  const openEditDialog = (node: ManufacturerNode) => {
+    const isBrand = Boolean(node.parent_id);
+    setDialog({
+      open: true,
+      title: t("pagesUi.manufacturers.dialogs.editTitle"),
+      fields: isBrand
+        ? [
+            { name: "name", label: t("common.fields.brand"), type: "text" },
+            { name: "parent_id", label: t("common.fields.country"), type: "treeSelect", treeOptions: countryOptions.filter((option) => option.value !== node.id) },
+            { name: "flag", label: t("common.fields.flag"), type: "text" },
+            { name: "founded_year", label: t("common.fields.foundedYear"), type: "number" },
+            { name: "segment", label: t("common.fields.segment"), type: "text" },
+            { name: "specialization", label: t("common.fields.specialization"), type: "text", multiline: true, rows: 3 },
+            { name: "website", label: t("common.fields.website"), type: "text" }
+          ]
+        : [{ name: "name", label: t("common.fields.country"), type: "text" }],
+      values: {
+        name: node.name,
+        parent_id: node.parent_id ?? "",
+        flag: node.flag ?? "",
+        founded_year: node.founded_year ?? "",
+        segment: node.segment ?? "",
+        specialization: node.specialization ?? "",
+        website: node.website ?? ""
+      },
+      onSave: (values) => {
+        updateMutation.mutate({
+          id: node.id,
+          payload: isBrand
+            ? {
+                name: values.name,
+                parent_id: values.parent_id === "" ? null : Number(values.parent_id),
+                flag: values.flag || null,
+                founded_year: values.founded_year === "" ? null : Number(values.founded_year),
+                segment: values.segment || null,
+                specialization: values.specialization || null,
+                website: values.website || null
               }
-            >
-              {t("actions.edit")}
-            </AppButton>
-            <AppButton
-              size="small"
-              color={row.original.is_deleted ? "success" : "error"}
-              startIcon={
-                row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />
-              }
-              onClick={() =>
-                row.original.is_deleted
-                  ? restoreMutation.mutate(row.original.id)
-                  : deleteMutation.mutate(row.original.id)
-              }
-            >
-              {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
-            </AppButton>
+            : { name: values.name, country: values.name }
+        });
+        setDialog(null);
+      }
+    });
+  };
+
+  const renderMetadata = (node: ManufacturerNode) => {
+    if (!node.parent_id) {
+      return null;
+    }
+    const details = [
+      node.flag ? `${t("common.fields.flag")}: ${node.flag}` : null,
+      node.founded_year ? `${t("common.fields.foundedYear")}: ${node.founded_year}` : null,
+      node.segment ? `${t("common.fields.segment")}: ${node.segment}` : null,
+      node.specialization ? `${t("common.fields.specialization")}: ${node.specialization}` : null,
+      node.website ? `${t("common.fields.website")}: ${node.website}` : null
+    ].filter(Boolean);
+    if (details.length === 0) {
+      return null;
+    }
+    return (
+      <Box sx={{ display: "grid", gap: 0.25 }}>
+        {details.map((line) => (
+          <Typography key={line} variant="body2" color="text.secondary">
+            {line}
+          </Typography>
+        ))}
+      </Box>
+    );
+  };
+
+  const renderNode = (node: ManufacturerNode, level: number) => {
+    const hasChildren = node.children.length > 0;
+    const expanded = expandedIds.has(node.id);
+    const forceExpand = q.trim().length > 0;
+
+    return (
+      <Box key={node.id} sx={{ display: "grid", gap: 0.5 }}>
+        <Box sx={{ display: "flex", alignItems: "flex-start", pl: level * 2, gap: 1 }}>
+          {hasChildren ? (
+            <IconButton size="small" onClick={() => toggleExpanded(node.id)} sx={{ mt: 0.25 }}>
+              {expanded || forceExpand ? <ExpandMoreRoundedIcon /> : <ChevronRightRoundedIcon />}
+            </IconButton>
+          ) : (
+            <Box sx={{ width: 32 }} />
+          )}
+          <Box sx={{ display: "grid", gap: 0.25 }}>
+            <Typography sx={{ fontWeight: 500 }}>
+              {node.name}
+              {node.is_deleted ? t("common.deletedSuffix") : ""}
+            </Typography>
+            {node.parent_id ? (
+              <Typography variant="body2" color="text.secondary">
+                {node.country}
+              </Typography>
+            ) : null}
+            {renderMetadata(node)}
           </Box>
-        )
-      });
-    }
-
-    return base;
-  }, [canWrite, deleteMutation, restoreMutation, t, updateMutation]);
-
-  const handleExport = async (format: "csv" | "xlsx", isDeleted: boolean) => {
-    try {
-      await downloadFile(
-        "/manufacturers/export",
-        { format, is_deleted: isDeleted },
-        `manufacturers-${isDeleted ? "deleted" : "active"}.${format}`
-      );
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.manufacturers.errors.export"));
-    }
-  };
-
-  const handleTemplate = async () => {
-    try {
-      await downloadFile(
-        "/manufacturers/template",
-        { format: "xlsx" },
-        "manufacturers-template.xlsx"
-      );
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.manufacturers.errors.template"));
-    }
-  };
-
-  const handleImport = async () => {
-    if (!importFileValue) {
-      setErrorMessage(t("pagesUi.manufacturers.errors.importNoFile"));
-      return;
-    }
-
-    try {
-      const result = await importFile("/manufacturers/import", importFileValue, {
-        dry_run: dryRun
-      });
-      setReport(result);
-      setReportOpen(true);
-      setSuccessMessage(
-        dryRun
-          ? t("pagesUi.manufacturers.import.dryRunSuccess")
-          : t("pagesUi.manufacturers.import.success")
-      );
-      if (!dryRun) {
-        refresh();
-      }
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.manufacturers.errors.import"));
-    }
+          <Box sx={{ flexGrow: 1 }} />
+          {canWrite && (
+            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+              {!node.parent_id ? (
+                <AppButton size="small" onClick={() => openCreateBrandDialog(node)}>
+                  {t("pagesUi.manufacturers.actions.addChild")}
+                </AppButton>
+              ) : null}
+              <AppButton size="small" startIcon={<EditRoundedIcon />} onClick={() => openEditDialog(node)}>
+                {t("actions.edit")}
+              </AppButton>
+              <AppButton
+                size="small"
+                color={node.is_deleted ? "success" : "error"}
+                startIcon={node.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />}
+                onClick={() =>
+                  node.is_deleted ? restoreMutation.mutate(node.id) : deleteMutation.mutate(node.id)
+                }
+              >
+                {node.is_deleted ? t("actions.restore") : t("actions.delete")}
+              </AppButton>
+            </Box>
+          )}
+        </Box>
+        {hasChildren && (
+          <Collapse in={expanded || forceExpand} timeout="auto" unmountOnExit>
+            <Box sx={{ display: "grid", gap: 0.5 }}>
+              {node.children.map((child) => renderNode(child, level + 1))}
+            </Box>
+          </Collapse>
+        )}
+      </Box>
+    );
   };
 
   return (
@@ -269,58 +376,12 @@ export default function ManufacturersPage() {
 
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
-          <Box
-            sx={{
-              display: "grid",
-              gap: 2,
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))"
-            }}
-          >
-            <TextField
-              label={t("actions.search")}
-              value={q}
-              onChange={(event) => {
-                setQ(event.target.value);
-                setPage(1);
-              }}
-              fullWidth
-            />
-
-            <FormControl fullWidth>
-              <InputLabel>{t("common.sort")}</InputLabel>
-              <Select label={t("common.sort")} value={sort} onChange={(event) => setSort(event.target.value)}>
-                {sortOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <TextField
-              label={t("common.createdFrom")}
-              type="date"
-              value={createdFrom}
-              onChange={(event) => {
-                setCreatedFrom(event.target.value);
-                setPage(1);
-              }}
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-            />
-
-            <TextField
-              label={t("common.createdTo")}
-              type="date"
-              value={createdTo}
-              onChange={(event) => {
-                setCreatedTo(event.target.value);
-                setPage(1);
-              }}
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-            />
-          </Box>
+          <TextField
+            label={t("actions.search")}
+            value={q}
+            onChange={(event) => setQ(event.target.value)}
+            fullWidth
+          />
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <FormControlLabel
@@ -329,241 +390,26 @@ export default function ManufacturersPage() {
                   checked={showDeleted}
                   onChange={(event) => {
                     setShowDeleted(event.target.checked);
-                    setPage(1);
+                    setExpandedIds(new Set());
                   }}
                 />
               }
               label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
-            <Stack
-              direction="row"
-              spacing={1}
-              divider={<Divider orientation="vertical" flexItem />}
-              sx={{ alignItems: "center", flexWrap: "wrap" }}
-            >
-              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                <Tooltip title={t("actions.downloadTemplate")}>
-                  <IconButton
-                    aria-label={t("actions.downloadTemplate")}
-                    onClick={handleTemplate}
-                    size="small"
-                  >
-                    <DescriptionOutlinedIcon />
-                  </IconButton>
-                </Tooltip>
-                {canWrite && (
-                  <Tooltip title={t("actions.import")}>
-                    <IconButton
-                      aria-label={t("actions.import")}
-                      onClick={() => setImportDialogOpen(true)}
-                      size="small"
-                    >
-                      <FileUploadOutlinedIcon />
-                    </IconButton>
-                  </Tooltip>
-                )}
-              </Stack>
-              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                <Tooltip title={t("actions.exportActiveCsv")}>
-                  <IconButton
-                    aria-label={t("actions.exportActiveCsv")}
-                    onClick={() => handleExport("csv", false)}
-                    size="small"
-                    color="success"
-                  >
-                    <DownloadOutlinedIcon />
-                  </IconButton>
-                </Tooltip>
-                <Chip size="small" label="CSV" />
-                <Tooltip title={t("actions.exportActiveXlsx")}>
-                  <IconButton
-                    aria-label={t("actions.exportActiveXlsx")}
-                    onClick={() => handleExport("xlsx", false)}
-                    size="small"
-                    color="success"
-                  >
-                    <DownloadOutlinedIcon />
-                  </IconButton>
-                </Tooltip>
-                <Chip size="small" label="XLSX" />
-              </Stack>
-              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                <Tooltip title={t("actions.exportDeletedCsv")}>
-                  <IconButton
-                    aria-label={t("actions.exportDeletedCsv")}
-                    onClick={() => handleExport("csv", true)}
-                    size="small"
-                    color="error"
-                  >
-                    <DeleteOutlineIcon fontSize="small" />
-                    <DownloadOutlinedIcon />
-                  </IconButton>
-                </Tooltip>
-                <Chip size="small" label="CSV" color="error" variant="outlined" />
-                <Tooltip title={t("actions.exportDeletedXlsx")}>
-                  <IconButton
-                    aria-label={t("actions.exportDeletedXlsx")}
-                    onClick={() => handleExport("xlsx", true)}
-                    size="small"
-                    color="error"
-                  >
-                    <DeleteOutlineIcon fontSize="small" />
-                    <DownloadOutlinedIcon />
-                  </IconButton>
-                </Tooltip>
-                <Chip size="small" label="XLSX" color="error" variant="outlined" />
-              </Stack>
-            </Stack>
             {canWrite && (
-              <AppButton
-                variant="contained"
-                startIcon={<AddRoundedIcon />}
-                onClick={() =>
-                  setDialog({
-                    open: true,
-                    title: t("pagesUi.manufacturers.dialogs.createTitle"),
-                    fields: [
-                      { name: "name", label: t("common.fields.name"), type: "text" },
-                      { name: "country", label: t("common.fields.country"), type: "text" }
-                    ],
-                    values: { name: "", country: "" },
-                    onSave: (values) => {
-                      createMutation.mutate({ name: values.name, country: values.country });
-                      setDialog(null);
-                    }
-                  })
-                }
-              >
-                {t("actions.add")}
+              <AppButton variant="contained" startIcon={<AddRoundedIcon />} onClick={openCreateCountryDialog}>
+                {t("pagesUi.manufacturers.actions.addRoot")}
               </AppButton>
             )}
           </Box>
 
-          <DataTable data={manufacturersQuery.data?.items || []} columns={columns} />
-          <TablePagination
-            component="div"
-            {...getTablePaginationProps(t)}
-            count={manufacturersQuery.data?.total || 0}
-            page={page - 1}
-            onPageChange={(_, value) => setPage(value + 1)}
-            rowsPerPage={pageSize}
-            onRowsPerPageChange={(event) => {
-              setPageSize(Number(event.target.value));
-              setPage(1);
-            }}
-            rowsPerPageOptions={pageSizeOptions}
-          />
+          <Box sx={{ display: "grid", gap: 1 }}>{filteredTree.map((node) => renderNode(node, 0))}</Box>
         </CardContent>
       </Card>
 
       {dialog && <EntityDialog state={dialog} onClose={() => setDialog(null)} />}
       <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage(null)} />
-      <Snackbar
-        open={Boolean(successMessage)}
-        autoHideDuration={4000}
-        onClose={() => setSuccessMessage(null)}
-      >
-        <Alert onClose={() => setSuccessMessage(null)} severity="success" sx={{ width: "100%" }}>
-          {successMessage}
-        </Alert>
-      </Snackbar>
-
-      <Dialog open={importDialogOpen} onClose={() => setImportDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{t("pagesUi.manufacturers.import.title")}</DialogTitle>
-        <DialogContent sx={{ display: "grid", gap: 2, pt: 2 }}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,.xlsx"
-            onChange={(event) => {
-              const file = event.target.files?.[0] || null;
-              setImportFileValue(file);
-            }}
-          />
-          <FormControlLabel
-            control={
-              <Switch
-                checked={dryRun}
-                onChange={(event) => setDryRun(event.target.checked)}
-              />
-            }
-            label={t("pagesUi.manufacturers.import.dryRun")}
-          />
-        </DialogContent>
-        <DialogActions>
-          <AppButton variant="text" onClick={() => setImportDialogOpen(false)}>
-            {t("actions.cancel")}
-          </AppButton>
-          <AppButton
-            variant="contained"
-            onClick={() => {
-              handleImport();
-              setImportDialogOpen(false);
-            }}
-            disabled={!importFileValue}
-          >
-            {t("pagesUi.manufacturers.import.submit")}
-          </AppButton>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={reportOpen} onClose={() => setReportOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{t("pagesUi.manufacturers.import.reportTitle")}</DialogTitle>
-        <DialogContent sx={{ display: "grid", gap: 1.5 }}>
-          {report && (
-            <>
-              <Typography>
-                {t("pagesUi.manufacturers.import.reportSummary", {
-                  total: report.total_rows,
-                  created: report.created,
-                  skipped: report.skipped_duplicates
-                })}
-              </Typography>
-              {report.errors.length > 0 && (
-                <Box>
-                  <Typography variant="subtitle2">{t("pagesUi.manufacturers.import.errors")}</Typography>
-                  <Box component="ul" sx={{ pl: 2 }}>
-                    {report.errors.map((item, index) => (
-                      <li key={`error-${index}`}>
-                        {t("pagesUi.manufacturers.import.issue", {
-                          row: item.row ?? "-",
-                          field: item.field ?? "-",
-                          message: item.message
-                        })}
-                      </li>
-                    ))}
-                  </Box>
-                </Box>
-              )}
-              {report.warnings.length > 0 && (
-                <Box>
-                  <Typography variant="subtitle2">{t("pagesUi.manufacturers.import.warnings")}</Typography>
-                  <Box component="ul" sx={{ pl: 2 }}>
-                    {report.warnings.map((item, index) => (
-                      <li key={`warning-${index}`}>
-                        {t("pagesUi.manufacturers.import.issue", {
-                          row: item.row ?? "-",
-                          field: item.field ?? "-",
-                          message: item.message
-                        })}
-                      </li>
-                    ))}
-                  </Box>
-                </Box>
-              )}
-            </>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <AppButton variant="contained" onClick={() => setReportOpen(false)}>
-            {t("actions.close")}
-          </AppButton>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }
-
-
-

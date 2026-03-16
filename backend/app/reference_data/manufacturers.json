@@ -1,0 +1,587 @@
+[
+  {
+    "brand_name": "Siemens",
+    "flag": "🇩🇪",
+    "country": "Германия",
+    "founded_year": 1847,
+    "segment": "ПЛК, SCADA, приводы, HMI",
+    "specialization": "Полный цикл автоматизации: от датчиков до MES/ERP",
+    "website": "https://siemens.com"
+  },
+  {
+    "brand_name": "Rockwell Automation",
+    "flag": "🇺🇸",
+    "country": "США",
+    "founded_year": 1903,
+    "segment": "ПЛК, приводы, MES",
+    "specialization": "Платформа Allen-Bradley + FactoryTalk для дискретного производства",
+    "website": "https://rockwellautomation.com"
+  },
+  {
+    "brand_name": "ABB",
+    "flag": "🇨🇭",
+    "country": "Швейцария",
+    "founded_year": 1988,
+    "segment": "Роботы, приводы, ПЛК, DCS",
+    "specialization": "Роботизация, силовая электроника, энергетические системы",
+    "website": "https://abb.com"
+  },
+  {
+    "brand_name": "Schneider Electric",
+    "flag": "🇫🇷",
+    "country": "Франция",
+    "founded_year": 1836,
+    "segment": "ПЛК, HMI, SCADA, НВО",
+    "specialization": "EcoStruxure — IoT-платформа для зданий и промышленности",
+    "website": "https://se.com"
+  },
+  {
+    "brand_name": "Honeywell",
+    "flag": "🇺🇸",
+    "country": "США",
+    "founded_year": 1906,
+    "segment": "DCS, SCADA, датчики",
+    "specialization": "Experion PKS — DCS для нефтегаза и химии",
+    "website": "https://honeywell.com"
+  },
+  {
+    "brand_name": "Emerson Electric",
+    "flag": "🇺🇸",
+    "country": "США",
+    "founded_year": 1890,
+    "segment": "DCS, клапаны, КИПиА",
+    "specialization": "DeltaV DCS, Fisher — клапаны, Rosemount — датчики",
+    "website": "https://emerson.com"
+  },
+  {
+    "brand_name": "Mitsubishi Electric",
+    "flag": "🇯🇵",
+    "country": "Япония",
+    "founded_year": 1921,
+    "segment": "ПЛК, сервоприводы, роботы",
+    "specialization": "MELSEC ПЛК, MELSERVO, MELFA роботы",
+    "website": "https://mitsubishielectric.com"
+  },
+  {
+    "brand_name": "Fanuc",
+    "flag": "🇯🇵",
+    "country": "Япония",
+    "founded_year": 1956,
+    "segment": "ЧПУ, роботы, сервосистемы",
+    "specialization": "Лидер в ЧПУ и промышленных роботах (серия R-2000)",
+    "website": "https://fanuc.com"
+  },
+  {
+    "brand_name": "Yokogawa",
+    "flag": "🇯🇵",
+    "country": "Япония",
+    "founded_year": 1915,
+    "segment": "DCS, анализаторы, КИПиА",
+    "specialization": "CENTUM VP DCS, полевые приборы для нефтехимии",
+    "website": "https://yokogawa.com"
+  },
+  {
+    "brand_name": "Omron",
+    "flag": "🇯🇵",
+    "country": "Япония",
+    "founded_year": 1933,
+    "segment": "ПЛК, сенсоры, роботы, зрение",
+    "specialization": "Sysmac ПЛК, коботы TM, датчики для электроники",
+    "website": "https://omron.com"
+  },
+  {
+    "brand_name": "Keyence",
+    "flag": "🇯🇵",
+    "country": "Япония",
+    "founded_year": 1974,
+    "segment": "Датчики, машинное зрение",
+    "specialization": "Лидер в прецизионных датчиках и системах технического зрения",
+    "website": "https://keyence.com"
+  },
+  {
+    "brand_name": "Beckhoff",
+    "flag": "🇩🇪",
+    "country": "Германия",
+    "founded_year": 1980,
+    "segment": "PC-based автоматизация, EtherCAT",
+    "specialization": "TwinCAT — программная ПЛК-среда, EtherCAT — открытый стандарт",
+    "website": "https://beckhoff.com"
+  },
+  {
+    "brand_name": "B&R Automation",
+    "flag": "🇦🇹",
+    "country": "Австрия",
+    "founded_year": 1979,
+    "segment": "ПЛК, Motion Control, SCADA",
+    "specialization": "Automation Studio, интегрированная платформа движения",
+    "website": "https://br-automation.com"
+  },
+  {
+    "brand_name": "Bosch Rexroth",
+    "flag": "🇩🇪",
+    "country": "Германия",
+    "founded_year": 1795,
+    "segment": "Гидравлика, пневматика, ЧПУ",
+    "specialization": "ctrlX AUTOMATION — открытая платформа для движения",
+    "website": "https://boschrexroth.com"
+  },
+  {
+    "brand_name": "Parker Hannifin",
+    "flag": "🇺🇸",
+    "country": "США",
+    "founded_year": 1917,
+    "segment": "Гидравлика, пневматика, Motion",
+    "specialization": "Технологии управления движением и жидкостями",
+    "website": "https://parker.com"
+  },
+  {
+    "brand_name": "Eaton",
+    "flag": "🇮🇪",
+    "country": "Ирландия",
+    "founded_year": 1911,
+    "segment": "НВО, ПЛК, приводы, ИБП",
+    "specialization": "Электрораспределение, ИБП, управление энергопотреблением",
+    "website": "https://eaton.com"
+  },
+  {
+    "brand_name": "Phoenix Contact",
+    "flag": "🇩🇪",
+    "country": "Германия",
+    "founded_year": 1923,
+    "segment": "Клеммники, промышленные ПК, IoT",
+    "specialization": "Интерфейсная электроника, PLCnext — открытый ПЛК",
+    "website": "https://phoenixcontact.com"
+  },
+  {
+    "brand_name": "Wago",
+    "flag": "🇩🇪",
+    "country": "Германия",
+    "founded_year": 1951,
+    "segment": "ПЛК, клеммники, полевые шины",
+    "specialization": "Пружинные клеммы CAGE CLAMP, ПЛК серии 750",
+    "website": "https://wago.com"
+  },
+  {
+    "brand_name": "Pilz",
+    "flag": "🇩🇪",
+    "country": "Германия",
+    "founded_year": 1948,
+    "segment": "Системы безопасности",
+    "specialization": "Реле безопасности, контроллеры PSS, Safety-as-a-Service",
+    "website": "https://pilz.com"
+  },
+  {
+    "brand_name": "SICK",
+    "flag": "🇩🇪",
+    "country": "Германия",
+    "founded_year": 1946,
+    "segment": "Датчики, зрение, безопасность",
+    "specialization": "Лазерные сканеры, фотодатчики, системы защиты периметра",
+    "website": "https://sick.com"
+  },
+  {
+    "brand_name": "Pepperl+Fuchs",
+    "flag": "🇩🇪",
+    "country": "Германия",
+    "founded_year": 1945,
+    "segment": "Датчики, Ex-оборудование",
+    "specialization": "Взрывозащищённые интерфейсы, индуктивные датчики",
+    "website": "https://pepperl-fuchs.com"
+  },
+  {
+    "brand_name": "Turck",
+    "flag": "🇩🇪",
+    "country": "Германия",
+    "founded_year": 1965,
+    "segment": "Датчики, полевые шины, I/O",
+    "specialization": "Промышленные сенсоры, децентрализованная периферия",
+    "website": "https://turck.com"
+  },
+  {
+    "brand_name": "IFM Electronic",
+    "flag": "🇩🇪",
+    "country": "Германия",
+    "founded_year": 1969,
+    "segment": "Датчики, диагностика",
+    "specialization": "IO-Link датчики, вибродиагностика, видение",
+    "website": "https://ifm.com"
+  },
+  {
+    "brand_name": "Festo",
+    "flag": "🇩🇪",
+    "country": "Германия",
+    "founded_year": 1925,
+    "segment": "Пневматика, электроприводы",
+    "specialization": "Пневмо- и электроавтоматика, обучающие системы",
+    "website": "https://festo.com"
+  },
+  {
+    "brand_name": "SMC Corporation",
+    "flag": "🇯🇵",
+    "country": "Япония",
+    "founded_year": 1959,
+    "segment": "Пневматика, клапаны",
+    "specialization": "Крупнейший производитель пневмоавтоматики в мире",
+    "website": "https://smcworld.com"
+  },
+  {
+    "brand_name": "Panasonic Industry",
+    "flag": "🇯🇵",
+    "country": "Япония",
+    "founded_year": 1918,
+    "segment": "ПЛК, сервоприводы, сварка",
+    "specialization": "FP ПЛК, MINAS сервосистемы, роботизированная сварка",
+    "website": "https://industry.panasonic.eu"
+  },
+  {
+    "brand_name": "Yaskawa",
+    "flag": "🇯🇵",
+    "country": "Япония",
+    "founded_year": 1915,
+    "segment": "Роботы, сервоприводы, приводы",
+    "specialization": "Роботы MOTOMAN, SIGMA сервоприводы, Varispeed ЧРП",
+    "website": "https://yaskawa.com"
+  },
+  {
+    "brand_name": "Nidec",
+    "flag": "🇯🇵",
+    "country": "Япония",
+    "founded_year": 1973,
+    "segment": "Электродвигатели, приводы",
+    "specialization": "Электродвигатели для автоматизации и e-mobility",
+    "website": "https://nidec.com"
+  },
+  {
+    "brand_name": "Danfoss",
+    "flag": "🇩🇰",
+    "country": "Дания",
+    "founded_year": 1933,
+    "segment": "Частотные приводы, клапаны",
+    "specialization": "VLT/VACON приводы, холодильная автоматика",
+    "website": "https://danfoss.com"
+  },
+  {
+    "brand_name": "Lenze",
+    "flag": "🇩🇪",
+    "country": "Германия",
+    "founded_year": 1947,
+    "segment": "Приводы, Motion Control",
+    "specialization": "i700 сервоприводы, FAST технология для упаковки",
+    "website": "https://lenze.com"
+  },
+  {
+    "brand_name": "KUKA",
+    "flag": "🇩🇪",
+    "country": "Германия",
+    "founded_year": 1898,
+    "segment": "Промышленные роботы",
+    "specialization": "Роботы KR AGILUS, QUANTEC; ячейки для автопрома",
+    "website": "https://kuka.com"
+  },
+  {
+    "brand_name": "Universal Robots",
+    "flag": "🇩🇰",
+    "country": "Дания",
+    "founded_year": 2005,
+    "segment": "Коллаборативные роботы",
+    "specialization": "Коботы UR3/UR5/UR10/UR20 — для МСП и сборки",
+    "website": "https://universal-robots.com"
+  },
+  {
+    "brand_name": "Stäubli",
+    "flag": "🇨🇭",
+    "country": "Швейцария",
+    "founded_year": 1892,
+    "segment": "Роботы, быстроразъёмы",
+    "specialization": "Прецизионные роботы TX/RX, быстроразъёмные муфты",
+    "website": "https://staubli.com"
+  },
+  {
+    "brand_name": "Kawasaki Robotics",
+    "flag": "🇯🇵",
+    "country": "Япония",
+    "founded_year": 1969,
+    "segment": "Промышленные роботы",
+    "specialization": "Роботы для точечной и дуговой сварки, покраски",
+    "website": "https://kawasakirobotics.com"
+  },
+  {
+    "brand_name": "Cognex",
+    "flag": "🇺🇸",
+    "country": "США",
+    "founded_year": 1981,
+    "segment": "Машинное зрение, штрихкоды",
+    "specialization": "Системы технического зрения In-Sight, DataMan ридеры",
+    "website": "https://cognex.com"
+  },
+  {
+    "brand_name": "Basler",
+    "flag": "🇩🇪",
+    "country": "Германия",
+    "founded_year": 1988,
+    "segment": "Промышленные камеры",
+    "specialization": "Камеры ace/dart для машинного зрения и медицины",
+    "website": "https://baslerweb.com"
+  },
+  {
+    "brand_name": "Endress+Hauser",
+    "flag": "🇨🇭",
+    "country": "Швейцария",
+    "founded_year": 1953,
+    "segment": "КИПиА, расходомеры",
+    "specialization": "Уровень, расход, давление, pH — для процессной отрасли",
+    "website": "https://endress.com"
+  },
+  {
+    "brand_name": "Vega",
+    "flag": "🇩🇪",
+    "country": "Германия",
+    "founded_year": 1959,
+    "segment": "Датчики уровня и давления",
+    "specialization": "Радарные и вибрационные датчики уровня",
+    "website": "https://vega.com"
+  },
+  {
+    "brand_name": "Krohne",
+    "flag": "🇩🇪",
+    "country": "Германия",
+    "founded_year": 1921,
+    "segment": "Расходомеры, КИПиА",
+    "specialization": "Электромагнитные, ультразвуковые, вихревые расходомеры",
+    "website": "https://krohne.com"
+  },
+  {
+    "brand_name": "Moxa",
+    "flag": "🇹🇼",
+    "country": "Тайвань",
+    "founded_year": 1987,
+    "segment": "Промышленные сети, IoT",
+    "specialization": "Конверторы, коммутаторы, маршрутизаторы для IIoT",
+    "website": "https://moxa.com"
+  },
+  {
+    "brand_name": "Delta Electronics",
+    "flag": "🇹🇼",
+    "country": "Тайвань",
+    "founded_year": 1971,
+    "segment": "ПЛК, приводы, HMI",
+    "specialization": "DVP/AS ПЛК, VFD приводы, DIAView SCADA",
+    "website": "https://deltaww.com"
+  },
+  {
+    "brand_name": "Advantech",
+    "flag": "🇹🇼",
+    "country": "Тайвань",
+    "founded_year": 1983,
+    "segment": "Промышленные ПК, IIoT",
+    "specialization": "Встраиваемые ПК, WISE IoT, промышленные планшеты",
+    "website": "https://advantech.com"
+  },
+  {
+    "brand_name": "HIWIN",
+    "flag": "🇹🇼",
+    "country": "Тайвань",
+    "founded_year": 1989,
+    "segment": "Линейные направляющие",
+    "specialization": "Шариковые и роликовые направляющие, ШВП, линейные двигатели",
+    "website": "https://hiwin.com"
+  },
+  {
+    "brand_name": "Inovance",
+    "flag": "🇨🇳",
+    "country": "Китай",
+    "founded_year": 2003,
+    "segment": "ПЛК, приводы, сервосистемы",
+    "specialization": "MD серия ЧРП, IS620 сервосистемы, H5U ПЛК",
+    "website": "https://inovance.eu"
+  },
+  {
+    "brand_name": "INVT",
+    "flag": "🇨🇳",
+    "country": "Китай",
+    "founded_year": 2002,
+    "segment": "Частотные преобразователи",
+    "specialization": "GD серия ЧРП, сервоприводы, ИБП",
+    "website": "https://invt.com"
+  },
+  {
+    "brand_name": "Shihlin Electric",
+    "flag": "🇹🇼",
+    "country": "Тайвань",
+    "founded_year": 1936,
+    "segment": "ПЛК, приводы, автоматы",
+    "specialization": "SLP ПЛК, SS2 ЧРП, автоматические выключатели",
+    "website": "https://shihlin.com"
+  },
+  {
+    "brand_name": "Lincoln Electric",
+    "flag": "🇺🇸",
+    "country": "США",
+    "founded_year": 1895,
+    "segment": "Сварочная автоматизация",
+    "specialization": "Роботизированная сварка, сварочные источники, расходники",
+    "website": "https://lincolnelectric.com"
+  },
+  {
+    "brand_name": "Fronius",
+    "flag": "🇦🇹",
+    "country": "Австрия",
+    "founded_year": 1945,
+    "segment": "Сварочное оборудование",
+    "specialization": "MIG/MAG, TIG, плазменные системы, сварочные роботы",
+    "website": "https://fronius.com"
+  },
+  {
+    "brand_name": "ОВЕН",
+    "flag": "🇷🇺",
+    "country": "Россия",
+    "founded_year": 1994,
+    "segment": "ПЛК, контроллеры, HMI",
+    "specialization": "ПЛК110/210, панели оператора СП, терморегуляторы",
+    "website": "https://owen.ru"
+  },
+  {
+    "brand_name": "Текон",
+    "flag": "🇷🇺",
+    "country": "Россия",
+    "founded_year": 1991,
+    "segment": "DCS, ПЛК, SCADA",
+    "specialization": "ТЭКОН-20 DCS, применение в ЖКХ и энергетике",
+    "website": "https://tecon.ru"
+  },
+  {
+    "brand_name": "КРУГ",
+    "flag": "🇷🇺",
+    "country": "Россия",
+    "founded_year": 1991,
+    "segment": "SCADA, DCS, АСУ ТП",
+    "specialization": "КРУГ-2000 — SCADA/HMI для нефтегаза и энергетики",
+    "website": "https://krug.ru"
+  },
+  {
+    "brand_name": "Прософт-Системы",
+    "flag": "🇷🇺",
+    "country": "Россия",
+    "founded_year": 1992,
+    "segment": "SCADA, шлюзы, IIoT",
+    "specialization": "Genesis64 SCADA, Модули серии MDS, промышленный IoT",
+    "website": "https://prosoftsystems.ru"
+  },
+  {
+    "brand_name": "ЭлеСи",
+    "flag": "🇷🇺",
+    "country": "Россия",
+    "founded_year": 1991,
+    "segment": "DCS, ПЛК, АСУ ТП",
+    "specialization": "ТОРНАДО DCS — для нефтегаза, ядерной и тепловой энергетики",
+    "website": "https://elesy.ru"
+  },
+  {
+    "brand_name": "ИнСАТ",
+    "flag": "🇷🇺",
+    "country": "Россия",
+    "founded_year": 1992,
+    "segment": "SCADA, OPC-серверы",
+    "specialization": "MasterSCADA 4D — современная платформа с IEC 61131-3",
+    "website": "https://insat.ru"
+  },
+  {
+    "brand_name": "Fastwel",
+    "flag": "🇷🇺",
+    "country": "Россия",
+    "founded_year": 1990,
+    "segment": "Промышленные ПК, модули В/В",
+    "specialization": "VME/cPCI/COM Express модули, решения для ВПК и ж/д",
+    "website": "https://fastwel.ru"
+  },
+  {
+    "brand_name": "НПФ Вектор",
+    "flag": "🇷🇺",
+    "country": "Россия",
+    "founded_year": 1992,
+    "segment": "Частотные преобразователи",
+    "specialization": "ЧРП серии Vector, мягкие пускатели для насосов и вентиляторов",
+    "website": "https://vector-drive.ru"
+  },
+  {
+    "brand_name": "ВЕСПЕР",
+    "flag": "🇷🇺",
+    "country": "Россия",
+    "founded_year": 1998,
+    "segment": "Частотные преобразователи",
+    "specialization": "E2-MINI / E4-P серии ЧРП, электроприводы до 630 кВт",
+    "website": "https://vesper.ru"
+  },
+  {
+    "brand_name": "ЭЛЕКТРОТЕКС",
+    "flag": "🇷🇺",
+    "country": "Россия",
+    "founded_year": 1991,
+    "segment": "Силовые полупроводники",
+    "specialization": "Тиристоры, диоды, IGBT-модули, тиристорные преобразователи",
+    "website": "https://elektrotex.ru"
+  },
+  {
+    "brand_name": "НПО Андроидная техника",
+    "flag": "🇷🇺",
+    "country": "Россия",
+    "founded_year": 2009,
+    "segment": "Промышленные роботы",
+    "specialization": "Роботы AR-24, FEDOR — антропоморфные и манипуляционные",
+    "website": "https://npo-at.ru"
+  },
+  {
+    "brand_name": "СТАН",
+    "flag": "🇷🇺",
+    "country": "Россия",
+    "founded_year": 2014,
+    "segment": "Станки с ЧПУ",
+    "specialization": "Токарные и фрезерные обрабатывающие центры для ОПК",
+    "website": "https://stan.group"
+  },
+  {
+    "brand_name": "Метран",
+    "flag": "🇷🇺",
+    "country": "Россия",
+    "founded_year": 1990,
+    "segment": "Датчики давления, расходомеры",
+    "specialization": "Датчики серии Метран-150/75, вихревые расходомеры",
+    "website": "https://metran.ru"
+  },
+  {
+    "brand_name": "ЭМИКОН",
+    "flag": "🇷🇺",
+    "country": "Россия",
+    "founded_year": 1991,
+    "segment": "АСУ ТП для нефтегаза",
+    "specialization": "Системы телемеханики, СИКН, КИПиА для трубопроводов",
+    "website": "https://emicon.ru"
+  },
+  {
+    "brand_name": "РТСофт",
+    "flag": "🇷🇺",
+    "country": "Россия",
+    "founded_year": 1994,
+    "segment": "Промышленные ПК, энергетика",
+    "specialization": "Защищённые ПК, SCADA для энергосистем, РЗА",
+    "website": "https://rtsoft.ru"
+  },
+  {
+    "brand_name": "Adastra",
+    "flag": "🇷🇺",
+    "country": "Россия",
+    "founded_year": 2001,
+    "segment": "SCADA, MES, IIoT",
+    "specialization": "TRACE MODE 6 SCADA, GENESIS32, промышленная аналитика",
+    "website": "https://adastra.ru"
+  },
+  {
+    "brand_name": "Корунд",
+    "flag": "🇷🇺",
+    "country": "Россия",
+    "founded_year": 1991,
+    "segment": "Взрывозащищённые датчики",
+    "specialization": "Датчики давления и температуры во взрывоопасных зонах",
+    "website": "https://korund.ru"
+  }
+]

@@ -238,6 +238,12 @@
                                   "password":  "Password",
                                   "role":  "Role",
                                   "country":  "Country",
+                                  "brand":  "Brand",
+                                  "flag":  "Flag",
+                                  "foundedYear":  "Founded year",
+                                  "segment":  "Segment",
+                                  "specialization":  "Specialization",
+                                  "website":  "Website",
                                   "parent":  "Parent",
                                   "cabinet":  "Cabinet",
                                   "assembly":  "Assembly",
@@ -301,6 +307,10 @@
                                                 "dialogs":  {
                                                                 "editTitle":  "Edit equipment category",
                                                                 "createTitle":  "New equipment category"
+                                                            },
+                                                "actions":  {
+                                                                "addChild":  "Add child",
+                                                                "addRoot":  "Add root"
                                                             },
                                                 "errors":  {
                                                                "load":  "Failed to load equipment categories",
@@ -550,7 +560,20 @@
                                                      },
                                           "dialogs":  {
                                                           "editTitle":  "Manufacturer",
-                                                          "createTitle":  "New manufacturer"
+                                                          "createTitle":  "New brand",
+                                                          "createCountryTitle":  "New country"
+                                                      },
+                                          "actions":  {
+                                                          "addChild":  "Add brand",
+                                                          "addRoot":  "Add country",
+                                                          "template":  "Download template",
+                                                          "exportCsv":  "Export CSV",
+                                                          "exportXlsx":  "Export XLSX",
+                                                          "exportActiveCsv":  "Export active CSV",
+                                                          "exportActiveXlsx":  "Export active XLSX",
+                                                          "exportDeletedCsv":  "Export deleted CSV",
+                                                          "exportDeletedXlsx":  "Export deleted XLSX",
+                                                          "import":  "Import"
                                                       }
                                       },
                     "locations":  {

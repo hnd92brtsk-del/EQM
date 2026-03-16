@@ -241,6 +241,12 @@
                                   "password":  "Пароль",
                                   "role":  "Роль",
                                   "country":  "Страна",
+                                  "brand":  "Бренд",
+                                  "flag":  "Флаг",
+                                  "foundedYear":  "Год основания",
+                                  "segment":  "Сегмент",
+                                  "specialization":  "Специализация",
+                                  "website":  "Сайт",
                                   "parent":  "Родитель",
                                   "cabinet":  "Шкаф",
                                   "assembly":  "Сборка",
@@ -301,6 +307,10 @@
                                                 "dialogs":  {
                                                                 "editTitle":  "Редактировать категорию оборудования",
                                                                 "createTitle":  "Новая категория оборудования"
+                                                            },
+                                                "actions":  {
+                                                                "addChild":  "Добавить дочерний",
+                                                                "addRoot":  "Добавить корневой"
                                                             },
                                                 "errors":  {
                                                                "load":  "Не удалось загрузить категории оборудования",
@@ -528,9 +538,12 @@
                                                      },
                                           "dialogs":  {
                                                           "editTitle":  "Производитель",
-                                                          "createTitle":  "Новый производитель"
+                                                          "createTitle":  "Новый бренд",
+                                                          "createCountryTitle":  "Новая страна"
                                                       },
                                           "actions":  {
+                                                          "addChild":  "Добавить бренд",
+                                                          "addRoot":  "Добавить страну",
                                                           "template":  "Скачать шаблон",
                                                           "exportCsv":  "Экспорт CSV",
                                                           "exportXlsx":  "Экспорт XLSX",

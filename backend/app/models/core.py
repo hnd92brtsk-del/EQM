@@ -13,10 +13,33 @@ class Manufacturer(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     country: Mapped[str] = mapped_column(String(100), nullable=False)
+    parent_id: Mapped[int | None] = mapped_column(
+        ForeignKey("manufacturers.id", ondelete="SET NULL"), index=True
+    )
+    flag: Mapped[str | None] = mapped_column(String(16))
+    founded_year: Mapped[int | None] = mapped_column(Integer)
+    segment: Mapped[str | None] = mapped_column(String(255))
+    specialization: Mapped[str | None] = mapped_column(Text)
+    website: Mapped[str | None] = mapped_column(String(255))
+    parent: Mapped["Manufacturer | None"] = relationship(
+        remote_side="Manufacturer.id", backref="children"
+    )
+
+    @property
+    def full_path(self) -> str:
+        parts: list[str] = []
+        current: Manufacturer | None = self
+        seen: set[int] = set()
+        while current and current.id not in seen:
+            parts.append(current.name)
+            seen.add(current.id)
+            current = current.parent
+        return " / ".join(reversed(parts))
 
 
 Index(
-    "ix_manufacturers_name_active_unique",
+    "ix_manufacturers_parent_name_active_unique",
+    Manufacturer.parent_id,
     Manufacturer.name,
     unique=True,
     postgresql_where=(Manufacturer.is_deleted == False),
@@ -28,14 +51,32 @@ class EquipmentCategory(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
+    parent_id: Mapped[int | None] = mapped_column(
+        ForeignKey("equipment_categories.id", ondelete="SET NULL"), index=True
+    )
+    parent: Mapped["EquipmentCategory | None"] = relationship(
+        remote_side="EquipmentCategory.id", backref="children"
+    )
 
     nomenclatures: Mapped[list["EquipmentType"]] = relationship(
         back_populates="equipment_category"
     )
 
+    @property
+    def full_path(self) -> str:
+        parts: list[str] = []
+        current: EquipmentCategory | None = self
+        seen: set[int] = set()
+        while current and current.id not in seen:
+            parts.append(current.name)
+            seen.add(current.id)
+            current = current.parent
+        return " / ".join(reversed(parts))
+
 
 Index(
-    "ix_equipment_categories_name_active_unique",
+    "ix_equipment_categories_parent_name_active_unique",
+    EquipmentCategory.parent_id,
     EquipmentCategory.name,
     unique=True,
     postgresql_where=(EquipmentCategory.is_deleted == False),
