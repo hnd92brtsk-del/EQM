@@ -3,9 +3,10 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
-from app.core.dependencies import get_db, require_admin, require_read_access
+from app.core.dependencies import get_current_user, get_db, require_admin
 from app.models.security import User, UserRole
 from app.models.core import Personnel, PersonnelCompetency, PersonnelTraining
 from app.routers import personnel as personnel_router
@@ -13,7 +14,11 @@ from app.routers import personnel as personnel_router
 
 @pytest.fixture()
 def db_session():
-    engine = create_engine("sqlite+pysqlite:///:memory:", connect_args={"check_same_thread": False})
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
     Base.metadata.create_all(
@@ -64,7 +69,7 @@ def make_app(db_session, user):
             pass
 
     app.dependency_overrides[get_db] = _get_db
-    app.dependency_overrides[require_read_access] = lambda: user
+    app.dependency_overrides[get_current_user] = lambda: user
 
     def _require_admin():
         if user.role != UserRole.admin:

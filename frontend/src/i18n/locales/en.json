@@ -167,7 +167,8 @@
                  "field_equipments":  "Field equipment",
                  "main_equipment":  "Main equipment",
                  "data_types":  "Data types",
-                 "technological_equipment":  "Technological equipment"
+                 "technological_equipment":  "Technological equipment",
+                 "ipam":  "IPAM / Network"
              },
     "sidebar":  {
                     "pin":  "Pin sidebar",
@@ -665,14 +666,103 @@
                                                      },
                                          "placeholders":  {
                                                               "quantityLocked":  "Quantity is fixed = 1",
-                                                              "details":  "Details will be added later."
+                                                              "details":  "Details will be added later.",
+                                                              "noPhoto":  "No photo"
                                                           },
-                                         "sections":  {
-                                                          "fields":  "Fields",
-                                                          "info":  "Information",
-                                                          "properties":  "Properties"
-                                                      }
-                                     },
+                                           "sections":  {
+                                                            "fields":  "Fields",
+                                                            "info":  "Information",
+                                                            "properties":  "Properties"
+                                                        },
+                                           "ipam":  {
+                                                        "title":  "IPAM",
+                                                        "eligible":  "Eligible for IPAM",
+                                                        "notEligible":  "Not eligible",
+                                                        "interfaces":  "Network interfaces: {{count}}",
+                                                        "ipCount":  "Linked IPs: {{count}}",
+                                                        "open":  "Open in IPAM"
+                                                    }
+                                       },
+                     "ipam":  {
+                                  "title":  "IPAM / Network Digital Twin",
+                                  "actions":  {
+                                                  "addVlan":  "Add VLAN",
+                                                  "addSubnet":  "Add subnet",
+                                                  "assign":  "Assign",
+                                                  "reserve":  "Reserve",
+                                                  "release":  "Release",
+                                                  "exportCsv":  "Export CSV"
+                                              },
+                                  "filters":  {
+                                                  "searchSubnets":  "Search subnets, IP or hostname",
+                                                  "status":  "Status",
+                                                  "mode":  "Mode"
+                                              },
+                                  "modes":  {
+                                                "grid":  "Grid",
+                                                "list":  "List",
+                                                "heatmap":  "Heatmap"
+                                            },
+                                  "labels":  {
+                                                 "gateway":  "Gateway",
+                                                 "noVlan":  "No VLAN",
+                                                 "records":  "records",
+                                                 "interfacesCount":  "Interfaces: {{count}}"
+                                             },
+                                  "fields":  {
+                                                 "vlanNumber":  "VLAN number",
+                                                 "purpose":  "Purpose",
+                                                 "hostname":  "Hostname",
+                                                 "dnsName":  "DNS name",
+                                                 "macAddress":  "MAC address",
+                                                 "searchEquipment":  "Search eligible equipment",
+                                                 "equipment":  "Equipment",
+                                                 "interface":  "Network interface",
+                                                 "isPrimary":  "Primary IPv4"
+                                             },
+                                  "panels":  {
+                                                 "address":  "IP actions"
+                                             },
+                                  "dialogs":  {
+                                                 "createVlan":  "Create VLAN",
+                                                 "editVlan":  "Edit VLAN",
+                                                 "createSubnet":  "Create subnet",
+                                                 "editSubnet":  "Edit subnet"
+                                             },
+                                  "sections":  {
+                                                  "vlans":  "VLAN directory",
+                                                  "addressList":  "Address list",
+                                                  "heatmap":  "Heatmap by /24"
+                                              },
+                                  "sidebar":  {
+                                                "subnets":  "Subnets",
+                                                "flat":  "All"
+                                            },
+                                  "empty":  {
+                                                "title":  "No subnets yet",
+                                                "description":  "Create a subnet first with the “Add subnet” button, then select it in the left panel.",
+                                                "heatmapHint":  "Heatmap is available only for /16 subnets."
+                                            },
+                                  "status":  {
+                                                 "free":  "Free",
+                                                 "used":  "Used",
+                                                 "reserved":  "Reserved",
+                                                 "gateway":  "Gateway",
+                                                 "broadcast":  "Broadcast",
+                                                 "network":  "Network"
+                                             },
+                                  "placeholders":  {
+                                                       "selectAddress":  "Select an address to review and change.",
+                                                       "noDescription":  "Subnet description is not set.",
+                                                       "noInterface":  "No interface selected",
+                                                       "serviceLocked":  "Service addresses can only be changed in a dedicated flow.",
+                                                       "cidrLocked":  "CIDR cannot be changed after subnet creation."
+                                                   },
+                                  "prompts":  {
+                                                 "deleteVlan":  "Delete VLAN?",
+                                                 "deleteSubnet":  "Delete subnet?"
+                                             }
+                              },
                     "warehouseItems":  {
                                            "sort":  {
                                                         "byUpdatedNewest":  "By update (newest)",

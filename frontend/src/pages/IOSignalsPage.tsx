@@ -5,7 +5,9 @@ import {
   CardContent,
   Collapse,
   IconButton,
-  Typography
+  Typography,
+  type SxProps,
+  type Theme
 } from "@mui/material";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
@@ -48,6 +50,11 @@ type TreeSelectNode = {
   children?: TreeSelectNode[];
 };
 
+type ColumnMeta = {
+  headerSx?: SxProps<Theme>;
+  cellSx?: SxProps<Theme>;
+};
+
 function buildTreeSelectOptions(nodes: TreeSelectNode[]): TreeFieldOption[] {
   return nodes.map((node) => ({
     value: node.id,
@@ -55,6 +62,53 @@ function buildTreeSelectOptions(nodes: TreeSelectNode[]): TreeFieldOption[] {
     children: buildTreeSelectOptions(node.children || [])
   }));
 }
+
+const ioColumnMeta: Record<string, ColumnMeta> = {
+  channelIndex: {
+    headerSx: { width: 96 },
+    cellSx: { width: 96, whiteSpace: "nowrap" }
+  },
+  dataType: {
+    headerSx: { width: 146 },
+    cellSx: { width: 146 }
+  },
+  tag: {
+    headerSx: { width: 84 },
+    cellSx: { width: 84, whiteSpace: "nowrap" }
+  },
+  signal: {
+    headerSx: { width: 108 },
+    cellSx: { width: 108 }
+  },
+  signalType: {
+    headerSx: { width: 84 },
+    cellSx: { width: 84, whiteSpace: "nowrap" }
+  },
+  signalKind: {
+    headerSx: { width: 88 },
+    cellSx: { width: 88 }
+  },
+  fieldEquipment: {
+    headerSx: { width: 248 },
+    cellSx: { width: 248 }
+  },
+  connectionPoint: {
+    headerSx: { width: 128 },
+    cellSx: { width: 128, whiteSpace: "nowrap" }
+  },
+  units: {
+    headerSx: { width: 156 },
+    cellSx: { width: 156 }
+  },
+  status: {
+    headerSx: { width: 104 },
+    cellSx: { width: 104, whiteSpace: "nowrap" }
+  },
+  actions: {
+    headerSx: { width: 120 },
+    cellSx: { width: 120, whiteSpace: "nowrap" }
+  }
+};
 
 export default function IOSignalsPage() {
   const { t } = useTranslation();
@@ -300,29 +354,52 @@ export default function IOSignalsPage() {
   const columns = useMemo<ColumnDef<IOSignal>[]>(() => {
     const base: ColumnDef<IOSignal>[] = [
       {
+        id: "channelIndex",
         header: t("pagesUi.ioSignals.columns.channelIndex"),
+        meta: ioColumnMeta.channelIndex,
         cell: ({ row }) => `${row.original.signal_type}-${row.original.channel_index}`
       },
       {
+        id: "dataType",
         header: t("pagesUi.ioSignals.columns.dataType"),
+        meta: ioColumnMeta.dataType,
         cell: ({ row }) =>
           row.original.data_type_full_path ||
           (row.original.data_type_id
             ? dataTypeBreadcrumbs.get(row.original.data_type_id) || row.original.data_type_id
             : "-")
       },
-      { header: t("pagesUi.ioSignals.columns.tag"), accessorKey: "tag" },
-      { header: t("pagesUi.ioSignals.columns.signal"), accessorKey: "signal" },
-      { header: t("pagesUi.ioSignals.columns.signalType"), accessorKey: "signal_type" },
       {
+        id: "tag",
+        header: t("pagesUi.ioSignals.columns.tag"),
+        accessorKey: "tag",
+        meta: ioColumnMeta.tag
+      },
+      {
+        id: "signal",
+        header: t("pagesUi.ioSignals.columns.signal"),
+        accessorKey: "signal",
+        meta: ioColumnMeta.signal
+      },
+      {
+        id: "signalType",
+        header: t("pagesUi.ioSignals.columns.signalType"),
+        accessorKey: "signal_type",
+        meta: ioColumnMeta.signalType
+      },
+      {
+        id: "signalKind",
         header: t("pagesUi.ioSignals.columns.signalKind"),
+        meta: ioColumnMeta.signalKind,
         cell: ({ row }) =>
           row.original.signal_kind_id
             ? signalKindBreadcrumbs.get(row.original.signal_kind_id) || row.original.signal_kind_id
             : "-"
       },
       {
+        id: "fieldEquipment",
         header: t("pagesUi.ioSignals.columns.fieldEquipment"),
+        meta: ioColumnMeta.fieldEquipment,
         cell: ({ row }) =>
           row.original.field_equipment_full_path ||
           (row.original.field_equipment_id
@@ -331,11 +408,15 @@ export default function IOSignalsPage() {
             : "-")
       },
       {
+        id: "connectionPoint",
         header: t("pagesUi.ioSignals.columns.connectionPoint"),
+        meta: ioColumnMeta.connectionPoint,
         cell: ({ row }) => row.original.connection_point || "-"
       },
       {
+        id: "units",
         header: t("pagesUi.ioSignals.columns.units"),
+        meta: ioColumnMeta.units,
         cell: ({ row }) =>
           row.original.measurement_unit_full_path ||
           (row.original.measurement_unit_id
@@ -344,7 +425,9 @@ export default function IOSignalsPage() {
             : "-")
       },
       {
+        id: "status",
         header: t("common.status.label"),
+        meta: ioColumnMeta.status,
         cell: ({ row }) => (
           <span className="status-pill">
             {row.original.is_active ? t("common.status.active") : t("common.status.inactive")}
@@ -355,7 +438,9 @@ export default function IOSignalsPage() {
 
     if (canWrite) {
       base.push({
+        id: "actions",
         header: t("actions.actions"),
+        meta: ioColumnMeta.actions,
         cell: ({ row }) => (
           <AppButton
             size="small"
@@ -552,7 +637,11 @@ export default function IOSignalsPage() {
                 {t("pagesUi.ioSignals.empty.noSignals")}
               </Typography>
             ) : (
-              <DataTable data={signalsQuery.data || []} columns={columns} />
+              <DataTable
+                data={signalsQuery.data || []}
+                columns={columns}
+                tableSx={{ tableLayout: "fixed", minWidth: 1280 }}
+              />
             )}
           </CardContent>
         </Card>

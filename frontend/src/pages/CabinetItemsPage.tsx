@@ -6,6 +6,7 @@ import {
   Box,
   Card,
   CardContent,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -30,6 +31,7 @@ import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
 import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 
 import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
@@ -40,6 +42,7 @@ import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
 import { ProtectedImage } from "../components/ProtectedImage";
 import { ProtectedDownloadLink } from "../components/ProtectedDownloadLink";
+import { getCabinetItemIPAMSummary } from "../features/ipam/api/ipam";
 
 const pageSizeOptions = [10, 20, 50, 100];
 
@@ -142,6 +145,13 @@ type EquipmentType = {
   do_count?: number | null;
 };
 type Manufacturer = { id: number; name: string };
+type CabinetItemIPAMSummary = {
+  eligible_for_ipam: boolean;
+  network_interfaces_count: number;
+  linked_ip_addresses: string[];
+  linked_subnets: string[];
+  current_ip_links_count: number;
+};
 
 type EquipmentGroup = {
   key: string;
@@ -180,9 +190,81 @@ type ContainerGroup = {
   manufacturer_name_sort: string;
 };
 
+function IPAMSummaryBlock({
+  itemId,
+  visible,
+  onOpenIPAM
+}: {
+  itemId: number;
+  visible: boolean;
+  onOpenIPAM: () => void;
+}) {
+  const { t } = useTranslation();
+  const summaryQuery = useQuery({
+    queryKey: ["cabinet-item-ipam-summary", itemId],
+    enabled: visible,
+    queryFn: () => getCabinetItemIPAMSummary(itemId)
+  });
+
+  if (!visible || summaryQuery.isLoading || !summaryQuery.data) {
+    return null;
+  }
+
+  const summary = summaryQuery.data as CabinetItemIPAMSummary;
+  if (!summary.eligible_for_ipam && summary.current_ip_links_count === 0) {
+    return null;
+  }
+
+  return (
+    <Box
+      sx={{
+        mt: 2,
+        p: 1.5,
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: 2,
+        display: "grid",
+        gap: 1
+      }}
+    >
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, alignItems: "center" }}>
+        <Typography variant="subtitle2">{t("pagesUi.cabinetItems.ipam.title")}</Typography>
+        <Chip
+          size="small"
+          color={summary.eligible_for_ipam ? "success" : "default"}
+          label={
+            summary.eligible_for_ipam
+              ? t("pagesUi.cabinetItems.ipam.eligible")
+              : t("pagesUi.cabinetItems.ipam.notEligible")
+          }
+        />
+      </Box>
+      <Typography variant="body2" color="text.secondary">
+        {t("pagesUi.cabinetItems.ipam.interfaces", {
+          count: summary.network_interfaces_count
+        })}
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        {t("pagesUi.cabinetItems.ipam.ipCount", {
+          count: summary.current_ip_links_count
+        })}
+      </Typography>
+      {summary.linked_ip_addresses.length ? (
+        <Typography variant="body2">{summary.linked_ip_addresses.join(", ")}</Typography>
+      ) : null}
+      <Box>
+        <AppButton variant="outlined" size="small" onClick={onOpenIPAM}>
+          {t("pagesUi.cabinetItems.ipam.open")}
+        </AppButton>
+      </Box>
+    </Box>
+  );
+}
+
 export default function CabinetItemsPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const canWrite = user?.role === "admin" || user?.role === "engineer";
   const queryClient = useQueryClient();
 
@@ -1021,6 +1103,15 @@ export default function CabinetItemsPage() {
                                     value={channelValue}
                                   />
                                 ) : null}
+                                {singleItem?.source === "cabinet" ? (
+                                  <IPAMSummaryBlock
+                                    itemId={singleItem.id}
+                                    visible={true}
+                                    onOpenIPAM={() =>
+                                      navigate(`/ipam?equipment_instance_id=${singleItem.id}`)
+                                    }
+                                  />
+                                ) : null}
                               </Box>
                               <Box
                                 sx={{
@@ -1045,7 +1136,7 @@ export default function CabinetItemsPage() {
                                   previewMaxHeight={700}
                                   fallback={
                                     <Typography variant="body2" color="text.secondary">
-                                      {t("pagesUi.personnelDetails.noPhoto")}
+                                      {t("pagesUi.cabinetItems.placeholders.noPhoto")}
                                     </Typography>
                                   }
                                 />

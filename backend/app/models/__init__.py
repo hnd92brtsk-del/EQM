@@ -24,6 +24,7 @@ from app.models.audit import AuditLog
 from app.models.attachments import Attachment
 from app.models.cabinet_files import CabinetFile
 from app.models.pid import PidProcess
+from app.models.ipam import Vlan, Subnet, EquipmentNetworkInterface, IPAddress, IPAddressAuditLog
 
 __all__ = [
     "User",
@@ -55,4 +56,9 @@ __all__ = [
     "Attachment",
     "CabinetFile",
     "PidProcess",
+    "Vlan",
+    "Subnet",
+    "EquipmentNetworkInterface",
+    "IPAddress",
+    "IPAddressAuditLog",
 ]

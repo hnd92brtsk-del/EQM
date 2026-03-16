@@ -167,7 +167,8 @@
                  "field_equipments":  "Полевое оборудование",
                  "main_equipment":  "Основное оборудование",
                  "data_types":  "Типы данных",
-                 "technological_equipment":  "Технологическое оборудование"
+                 "technological_equipment":  "Технологическое оборудование",
+                 "ipam":  "IPAM / Сеть"
              },
     "sidebar":  {
                     "pin":  "Закрепить меню",
@@ -655,14 +656,103 @@
                                                      },
                                          "placeholders":  {
                                                               "quantityLocked":  "Количество фиксировано = 1",
-                                                              "details":  "Детализация будет добавлена позже."
+                                                              "details":  "Детализация будет добавлена позже.",
+                                                              "noPhoto":  "Нет фото"
                                                           },
-                                         "sections":  {
-                                                          "fields":  "Поля",
-                                                          "info":  "Информация",
-                                                          "properties":  "Свойства"
-                                                      }
-                                     },
+                                           "sections":  {
+                                                            "fields":  "Поля",
+                                                            "info":  "Информация",
+                                                            "properties":  "Свойства"
+                                                        },
+                                           "ipam":  {
+                                                        "title":  "IPAM",
+                                                        "eligible":  "Доступно для IPAM",
+                                                        "notEligible":  "Недоступно",
+                                                        "interfaces":  "Сетевые интерфейсы: {{count}}",
+                                                        "ipCount":  "Связанных IP: {{count}}",
+                                                        "open":  "Открыть в IPAM"
+                                                    }
+                                       },
+                     "ipam":  {
+                                  "title":  "IPAM / Digital Twin сети",
+                                  "actions":  {
+                                                  "addVlan":  "Добавить VLAN",
+                                                  "addSubnet":  "Добавить подсеть",
+                                                  "assign":  "Назначить",
+                                                  "reserve":  "Резерв",
+                                                  "release":  "Освободить",
+                                                  "exportCsv":  "Экспорт CSV"
+                                              },
+                                  "filters":  {
+                                                  "searchSubnets":  "Поиск по подсетям, IP или hostname",
+                                                  "status":  "Статус",
+                                                  "mode":  "Режим"
+                                              },
+                                  "modes":  {
+                                                "grid":  "Сетка",
+                                                "list":  "Список",
+                                                "heatmap":  "Тепловая карта"
+                                            },
+                                  "labels":  {
+                                                 "gateway":  "Шлюз",
+                                                 "noVlan":  "Без VLAN",
+                                                 "records":  "записей",
+                                                 "interfacesCount":  "Интерфейсов: {{count}}"
+                                             },
+                                  "fields":  {
+                                                 "vlanNumber":  "Номер VLAN",
+                                                 "purpose":  "Назначение",
+                                                 "hostname":  "Hostname",
+                                                 "dnsName":  "DNS name",
+                                                 "macAddress":  "MAC-адрес",
+                                                 "searchEquipment":  "Поиск eligible equipment",
+                                                 "equipment":  "Оборудование",
+                                                 "interface":  "Сетевой интерфейс",
+                                                 "isPrimary":  "Основной IPv4"
+                                             },
+                                  "panels":  {
+                                                 "address":  "Действия по IP"
+                                             },
+                                  "dialogs":  {
+                                                 "createVlan":  "Создать VLAN",
+                                                 "editVlan":  "Редактировать VLAN",
+                                                 "createSubnet":  "Создать подсеть",
+                                                 "editSubnet":  "Редактировать подсеть"
+                                             },
+                                  "sections":  {
+                                                  "vlans":  "Справочник VLAN",
+                                                  "addressList":  "Список адресов",
+                                                  "heatmap":  "Тепловая карта /24"
+                                              },
+                                  "sidebar":  {
+                                                "subnets":  "Подсети",
+                                                "flat":  "Все"
+                                            },
+                                  "empty":  {
+                                                "title":  "Подсети пока не созданы",
+                                                "description":  "Сначала создайте подсеть через кнопку «Добавить подсеть», затем выберите её в левой панели.",
+                                                "heatmapHint":  "Тепловая карта доступна только для подсетей /16."
+                                            },
+                                  "status":  {
+                                                 "free":  "Свободен",
+                                                 "used":  "Занят",
+                                                 "reserved":  "Резерв",
+                                                 "gateway":  "Шлюз",
+                                                 "broadcast":  "Broadcast",
+                                                 "network":  "Network"
+                                             },
+                                  "placeholders":  {
+                                                       "selectAddress":  "Выберите адрес для просмотра и действий.",
+                                                       "noDescription":  "Описание подсети не задано.",
+                                                       "noInterface":  "Интерфейс не выбран",
+                                                       "serviceLocked":  "Служебные адреса редактируются только через специальный сценарий.",
+                                                       "cidrLocked":  "CIDR нельзя менять после создания подсети."
+                                                   },
+                                  "prompts":  {
+                                                 "deleteVlan":  "Удалить VLAN?",
+                                                 "deleteSubnet":  "Удалить подсеть?"
+                                             }
+                              },
                     "warehouseItems":  {
                                            "sort":  {
                                                         "byUpdatedNewest":  "По обновлению (сначала новые)",

@@ -26,6 +26,7 @@ from app.routers import dashboard
 from app.routers import personnel
 from app.routers import chat
 from app.routers import pid
+from app.routers import ipam
 
 __all__ = [
     "auth",
@@ -55,4 +56,5 @@ __all__ = [
     "dashboard",
     "chat",
     "pid",
+    "ipam",
 ]

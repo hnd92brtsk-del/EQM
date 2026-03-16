@@ -120,6 +120,13 @@ export const navTree: NavItem[] = [
         roles: ["viewer", "engineer", "admin"]
       },
       {
+        id: "ipam",
+        labelKey: "menu.ipam",
+        path: "/ipam",
+        icon: NumbersSignalIcon,
+        roles: ["viewer", "engineer", "admin"]
+      },
+      {
         id: "dcl",
         labelKey: "menu.dcl",
         path: "/engineering/dcl",

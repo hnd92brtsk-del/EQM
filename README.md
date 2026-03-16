@@ -76,23 +76,54 @@ python backend\scripts\seed.py
 cd backend
 ..\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
-Backend будет доступен: `http://localhost:8000`
+Backend будет доступен: `http://127.0.0.1:8000`
 
 ### 8) Запуск frontend
 Откройте новое окно PowerShell:
 ```powershell
 cd frontend
 npm.cmd install
-npm.cmd run dev
+npm.cmd run dev -- --host 127.0.0.1 --port 5173
 ```
-Frontend будет доступен: `http://localhost:5173`
+Frontend будет доступен: `http://127.0.0.1:5173`
 
-### 9) Запуск из готовых скриптов
+### 9) One-click локальный запуск
+Основной способ локального запуска EQM:
+```powershell
+.\start-local.ps1
+```
+
+Остановка локального окружения:
+```powershell
+.\stop-local.ps1
+```
+
+Этот сценарий:
+- использует только `127.0.0.1` / `localhost`
+- поднимает локальный PostgreSQL cluster из `.postgres\data`
+- запускает backend на `127.0.0.1:8000`
+- запускает frontend на `127.0.0.1:5173`
+- убирает конфликтующие dev-процессы EQM на портах `8000` и `5173`
+
+Если нужно добавить `.venv\Scripts` в пользовательский PATH Windows:
+```powershell
+.\setup-local-path.ps1
+```
+После этого откройте новый PowerShell.
+
+### 10) Низкоуровневые скрипты
 Из корня проекта можно использовать:
 ```powershell
 .\start-backend.ps1
 .\start-frontend.ps1
 ```
+Эти скрипты тоже работают только на `127.0.0.1`.
+
+## Локальная БД
+- Канонический локальный PostgreSQL cluster лежит в `.postgres\data`
+- Скрипты запуска не создают новый cluster автоматически; они используют существующий
+- Для автозапуска Postgres бинарники (`pg_ctl`, `postgres`, `psql`) должны быть доступны через `PATH`
+- Если `pg_ctl` не найден, скрипт завершится с понятной ошибкой и просьбой добавить PostgreSQL tools в `PATH`
 
 ## Конфигурация
 Файл `backend/.env.example` содержит полный список переменных. Ключевые:
@@ -122,7 +153,7 @@ Frontend будет доступен: `http://localhost:5173`
 
 ## API
 - Базовый путь: `/api/v1/...`
-- Swagger/OpenAPI: `http://localhost:8000/docs`
+- Swagger/OpenAPI: `http://127.0.0.1:8000/docs`
 - Корень API: `GET /` -> `{ "status": "ok" }`
 
 ## Данные для входа (seed)

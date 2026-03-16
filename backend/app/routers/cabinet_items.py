@@ -17,6 +17,8 @@ from app.services.equipment_uniqueness import (
     normalize_operation_quantity,
 )
 from app.services.io_signals import ensure_io_signals_for_equipment_in_operation
+from app.services.ipam import build_cabinet_item_ipam_summary
+from app.schemas.ipam import CabinetItemIPAMSummaryOut
 
 router = APIRouter()
 
@@ -122,6 +124,17 @@ def get_cabinet_item(
         raise HTTPException(status_code=404, detail="Cabinet item not found")
     attach_location_full_path([item], db)
     return item
+
+
+@router.get("/{item_id}/ipam-summary", response_model=CabinetItemIPAMSummaryOut)
+def get_cabinet_item_ipam_summary(
+    item_id: int,
+    db=Depends(get_db),
+    user: User = Depends(require_read_access()),
+):
+    summary = build_cabinet_item_ipam_summary(db, item_id)
+    db.commit()
+    return summary
 
 
 @router.post("/", response_model=CabinetItemOut)

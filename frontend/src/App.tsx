@@ -30,6 +30,7 @@ import HelpPage from "./pages/HelpPage";
 import PersonnelPage from "./pages/PersonnelPage";
 import PersonnelDetailsPage from "./pages/PersonnelDetailsPage";
 import TechnologicalEquipmentPage from "./pages/TechnologicalEquipmentPage";
+import IPAMPage from "./features/ipam/pages/IPAMPage";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
@@ -80,6 +81,7 @@ export default function App() {
                 <Route path="/cabinets/:id/composition" element={<CabinetCompositionPage />} />
                 <Route path="/movements" element={<MovementsPage />} />
                 <Route path="/io-signals" element={<IOSignalsPage />} />
+                <Route path="/ipam" element={<IPAMPage />} />
                 <Route path="/engineering/dcl" element={<DclPage />} />
                 <Route path="/help" element={<HelpPage />} />
                 <Route path="/personnel" element={<PersonnelPage />} />

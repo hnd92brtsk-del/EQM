@@ -1,9 +1,12 @@
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
+. (Join-Path $PSScriptRoot "local-runtime-common.ps1")
 
-if (-not (Test-Path ".\.venv\Scripts\python.exe")) {
-    Write-Error "Virtual environment not found. Create it first with: python -m venv .venv"
-}
+Ensure-LocalPostgresStarted
+Stop-EqmBackendProcesses
+Start-Sleep -Milliseconds 400
+Assert-PortFree -Port 8000 -ServiceName "EQM backend"
 
+$python = Get-EqmVenvPython
 Set-Location ".\backend"
-& "..\.venv\Scripts\python.exe" -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+& $python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
