@@ -263,7 +263,11 @@
                               },
                    "treeSelect":  {
                                       "groupOnly":  "Можно выбрать только конечный элемент"
-                              }
+                                  },
+                   "liveFilter":  {
+                                      "searchPlaceholder":  "Поиск по наименованию",
+                                      "noOptions":  "Нет доступных значений"
+                                  }
                },
     "errors":  {
                    "load_personnel_failed":  "Не удалось загрузить персонал.",

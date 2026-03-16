@@ -26,6 +26,7 @@ import { EntityDialog, DialogState, TreeFieldOption } from "../components/Entity
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { AppButton } from "../components/ui/AppButton";
 import { useAuth } from "../context/AuthContext";
+import { LIVE_FILTER_DIM_OPACITY, annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
 
 type Manufacturer = {
   id: number;
@@ -80,31 +81,6 @@ function sortTree(nodes: ManufacturerNode[]): ManufacturerNode[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function filterTree(nodes: ManufacturerNode[], query: string): ManufacturerNode[] {
-  if (!query.trim()) {
-    return nodes;
-  }
-  const lower = query.toLowerCase();
-  const filtered: ManufacturerNode[] = [];
-  nodes.forEach((node) => {
-    const childMatches = filterTree(node.children, query);
-    const haystack = [
-      node.full_path,
-      node.country,
-      node.segment,
-      node.specialization,
-      node.website
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-    if (haystack.includes(lower) || childMatches.length > 0) {
-      filtered.push({ ...node, children: childMatches });
-    }
-  });
-  return filtered;
-}
-
 function buildCountryOptions(nodes: ManufacturerNode[]): TreeFieldOption[] {
   return nodes.map((node) => ({
     label: node.name,
@@ -138,7 +114,18 @@ export default function ManufacturersPage() {
   }, [itemsQuery.error, t]);
 
   const tree = useMemo(() => sortTree(buildTree(itemsQuery.data || [])), [itemsQuery.data]);
-  const filteredTree = useMemo(() => filterTree(tree, q), [tree, q]);
+  const treeAnnotations = useMemo(
+    () =>
+      annotateLiveTree(
+        tree,
+        {
+          getLabel: (node) => node.name,
+          getChildren: (node) => node.children
+        },
+        q
+      ),
+    [tree, q]
+  );
   const countryOptions = useMemo(() => buildCountryOptions(tree), [tree]);
 
   const refresh = () => {
@@ -307,10 +294,11 @@ export default function ManufacturersPage() {
     );
   };
 
-  const renderNode = (node: ManufacturerNode, level: number) => {
-    const hasChildren = node.children.length > 0;
+  const renderNode = (entry: LiveTreeAnnotation<ManufacturerNode>, level: number) => {
+    const node = entry.item;
+    const hasChildren = entry.children.length > 0;
     const expanded = expandedIds.has(node.id);
-    const forceExpand = q.trim().length > 0;
+    const forceExpand = entry.shouldForceExpand;
 
     return (
       <Box key={node.id} sx={{ display: "grid", gap: 0.5 }}>
@@ -322,7 +310,7 @@ export default function ManufacturersPage() {
           ) : (
             <Box sx={{ width: 32 }} />
           )}
-          <Box sx={{ display: "grid", gap: 0.25 }}>
+          <Box sx={{ display: "grid", gap: 0.25, opacity: entry.isDimmed ? LIVE_FILTER_DIM_OPACITY : 1 }}>
             <Typography sx={{ fontWeight: 500 }}>
               {node.name}
               {node.is_deleted ? t("common.deletedSuffix") : ""}
@@ -361,7 +349,7 @@ export default function ManufacturersPage() {
         {hasChildren && (
           <Collapse in={expanded || forceExpand} timeout="auto" unmountOnExit>
             <Box sx={{ display: "grid", gap: 0.5 }}>
-              {node.children.map((child) => renderNode(child, level + 1))}
+              {entry.children.map((child) => renderNode(child, level + 1))}
             </Box>
           </Collapse>
         )}
@@ -404,7 +392,7 @@ export default function ManufacturersPage() {
             )}
           </Box>
 
-          <Box sx={{ display: "grid", gap: 1 }}>{filteredTree.map((node) => renderNode(node, 0))}</Box>
+          <Box sx={{ display: "grid", gap: 1 }}>{treeAnnotations.map((node) => renderNode(node, 0))}</Box>
         </CardContent>
       </Card>
 

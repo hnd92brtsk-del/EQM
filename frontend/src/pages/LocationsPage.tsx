@@ -26,6 +26,7 @@ import { apiFetch } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import { buildLocationLookups } from "../utils/locations";
+import { LIVE_FILTER_DIM_OPACITY, annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
 
 type Location = {
   id: number;
@@ -74,22 +75,6 @@ function sortTree(nodes: LocationNode[]): LocationNode[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function filterTree(nodes: LocationNode[], query: string): LocationNode[] {
-  if (!query.trim()) {
-    return nodes;
-  }
-  const lower = query.toLowerCase();
-  const filtered: LocationNode[] = [];
-  nodes.forEach((node) => {
-    const childMatches = filterTree(node.children, query);
-    const matches = node.name.toLowerCase().includes(lower);
-    if (matches || childMatches.length > 0) {
-      filtered.push({ ...node, children: childMatches });
-    }
-  });
-  return filtered;
-}
-
 export default function LocationsPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -118,7 +103,18 @@ export default function LocationsPage() {
   }, [locationsQuery.error, t]);
 
   const tree = useMemo(() => sortTree(buildTree(locationsQuery.data || [])), [locationsQuery.data]);
-  const filteredTree = useMemo(() => filterTree(tree, q), [tree, q]);
+  const treeAnnotations = useMemo(
+    () =>
+      annotateLiveTree(
+        tree,
+        {
+          getLabel: (node) => node.name,
+          getChildren: (node) => node.children
+        },
+        q
+      ),
+    [tree, q]
+  );
   const locationMap = useMemo(() => {
     const map = new Map<number, Location>();
     (locationsQuery.data || []).forEach((loc) => map.set(loc.id, loc));
@@ -238,10 +234,11 @@ export default function LocationsPage() {
     return parts.join(" / ");
   };
 
-  const renderNode = (node: LocationNode, level: number) => {
-    const hasChildren = node.children.length > 0;
+  const renderNode = (entry: LiveTreeAnnotation<LocationNode>, level: number) => {
+    const node = entry.item;
+    const hasChildren = entry.children.length > 0;
     const expanded = expandedIds.has(node.id);
-    const forceExpand = q.trim().length > 0;
+    const forceExpand = entry.shouldForceExpand;
     const breadcrumb = buildBreadcrumb(node.id);
 
     return (
@@ -254,7 +251,7 @@ export default function LocationsPage() {
           ) : (
             <Box sx={{ width: 32 }} />
           )}
-          <Box sx={{ display: "grid" }}>
+          <Box sx={{ display: "grid", opacity: entry.isDimmed ? LIVE_FILTER_DIM_OPACITY : 1 }}>
             <Typography sx={{ fontWeight: 500 }}>
               {node.name}
               {node.is_deleted ? t("common.deletedSuffix") : ""}
@@ -290,7 +287,7 @@ export default function LocationsPage() {
         {hasChildren && (
           <Collapse in={expanded || forceExpand} timeout="auto" unmountOnExit>
             <Box sx={{ display: "grid", gap: 0.5 }}>
-              {node.children.map((child) => renderNode(child, level + 1))}
+              {entry.children.map((child) => renderNode(child, level + 1))}
             </Box>
           </Collapse>
         )}
@@ -343,7 +340,7 @@ export default function LocationsPage() {
             )}
           </Box>
 
-          <Box sx={{ display: "grid", gap: 1 }}>{filteredTree.map((node) => renderNode(node, 0))}</Box>
+          <Box sx={{ display: "grid", gap: 1 }}>{treeAnnotations.map((node) => renderNode(node, 0))}</Box>
         </CardContent>
       </Card>
 

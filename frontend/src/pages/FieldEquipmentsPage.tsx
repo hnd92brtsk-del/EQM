@@ -27,6 +27,7 @@ import { apiFetch } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import { buildFieldEquipmentLookups } from "../utils/fieldEquipments";
+import { LIVE_FILTER_DIM_OPACITY, annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
 
 type FieldEquipment = {
   id: number;
@@ -75,22 +76,6 @@ function sortTree(nodes: FieldEquipmentNode[]): FieldEquipmentNode[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function filterTree(nodes: FieldEquipmentNode[], query: string): FieldEquipmentNode[] {
-  if (!query.trim()) {
-    return nodes;
-  }
-  const lower = query.toLowerCase();
-  const filtered: FieldEquipmentNode[] = [];
-  nodes.forEach((node) => {
-    const childMatches = filterTree(node.children, query);
-    const matches = node.name.toLowerCase().includes(lower);
-    if (matches || childMatches.length > 0) {
-      filtered.push({ ...node, children: childMatches });
-    }
-  });
-  return filtered;
-}
-
 export default function FieldEquipmentsPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -119,7 +104,18 @@ export default function FieldEquipmentsPage() {
   }, [itemsQuery.error, t]);
 
   const tree = useMemo(() => sortTree(buildTree(itemsQuery.data || [])), [itemsQuery.data]);
-  const filteredTree = useMemo(() => filterTree(tree, q), [tree, q]);
+  const treeAnnotations = useMemo(
+    () =>
+      annotateLiveTree(
+        tree,
+        {
+          getLabel: (node) => node.name,
+          getChildren: (node) => node.children
+        },
+        q
+      ),
+    [tree, q]
+  );
   const itemMap = useMemo(() => {
     const map = new Map<number, FieldEquipment>();
     (itemsQuery.data || []).forEach((item) => map.set(item.id, item));
@@ -240,10 +236,11 @@ export default function FieldEquipmentsPage() {
     return parts.join(" / ");
   };
 
-  const renderNode = (node: FieldEquipmentNode, level: number) => {
-    const hasChildren = node.children.length > 0;
+  const renderNode = (entry: LiveTreeAnnotation<FieldEquipmentNode>, level: number) => {
+    const node = entry.item;
+    const hasChildren = entry.children.length > 0;
     const expanded = expandedIds.has(node.id);
-    const forceExpand = q.trim().length > 0;
+    const forceExpand = entry.shouldForceExpand;
     const breadcrumb = buildBreadcrumb(node.id);
 
     return (
@@ -256,7 +253,7 @@ export default function FieldEquipmentsPage() {
           ) : (
             <Box sx={{ width: 32 }} />
           )}
-          <Box sx={{ display: "grid" }}>
+          <Box sx={{ display: "grid", opacity: entry.isDimmed ? LIVE_FILTER_DIM_OPACITY : 1 }}>
             <Typography sx={{ fontWeight: 500 }}>
               {node.name}
               {node.is_deleted ? t("common.deletedSuffix") : ""}
@@ -292,7 +289,7 @@ export default function FieldEquipmentsPage() {
         {hasChildren && (
           <Collapse in={expanded || forceExpand} timeout="auto" unmountOnExit>
             <Box sx={{ display: "grid", gap: 0.5 }}>
-              {node.children.map((child) => renderNode(child, level + 1))}
+              {entry.children.map((child) => renderNode(child, level + 1))}
             </Box>
           </Collapse>
         )}
@@ -345,7 +342,7 @@ export default function FieldEquipmentsPage() {
             )}
           </Box>
 
-          <Box sx={{ display: "grid", gap: 1 }}>{filteredTree.map((node) => renderNode(node, 0))}</Box>
+          <Box sx={{ display: "grid", gap: 1 }}>{treeAnnotations.map((node) => renderNode(node, 0))}</Box>
         </CardContent>
       </Card>
 

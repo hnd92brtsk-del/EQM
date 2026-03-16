@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 
 import { AppButton } from "../ui/AppButton";
 import type { PidProcess } from "../../types/pid";
+import { LIVE_FILTER_DIM_OPACITY, annotateLiveTree, type LiveTreeAnnotation } from "../../utils/liveFilter";
 
 type TreeNode = { id: number; name: string; children?: TreeNode[] };
 
@@ -45,6 +46,7 @@ export function PidLocationPanel({
   const { t } = useTranslation();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [query, setQuery] = useState("");
 
   const treeIndex = useMemo(() => {
     const parentById = new Map<number, number | null>();
@@ -63,6 +65,18 @@ export function PidLocationPanel({
 
   const selectedLocationLabel = locationId ? treeIndex.pathById.get(locationId) || String(locationId) : "";
   const dropdownOpen = Boolean(anchorEl);
+  const treeAnnotations = useMemo(
+    () =>
+      annotateLiveTree(
+        locationTree,
+        {
+          getLabel: (node) => node.name,
+          getChildren: (node) => node.children
+        },
+        query
+      ),
+    [locationTree, query]
+  );
 
   useEffect(() => {
     if (!dropdownOpen || !locationId) return;
@@ -89,9 +103,10 @@ export function PidLocationPanel({
     });
   };
 
-  const renderNode = (node: TreeNode, depth: number) => {
-    const hasChildren = (node.children || []).length > 0;
-    const expanded = expandedIds.has(node.id);
+  const renderNode = (entry: LiveTreeAnnotation<TreeNode>, depth: number) => {
+    const node = entry.item;
+    const hasChildren = entry.children.length > 0;
+    const expanded = query.trim() ? entry.shouldForceExpand : expandedIds.has(node.id);
     const selected = locationId === node.id;
 
     return (
@@ -110,12 +125,14 @@ export function PidLocationPanel({
             onClick={() => {
               onLocationChange(node.id);
               setAnchorEl(null);
+              setQuery("");
             }}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
                 onLocationChange(node.id);
                 setAnchorEl(null);
+                setQuery("");
               }
             }}
             sx={{
@@ -127,6 +144,7 @@ export function PidLocationPanel({
               backgroundColor: selected ? "action.selected" : "transparent",
               "&:hover": { backgroundColor: "action.hover" },
               color: "text.primary",
+              opacity: selected ? 1 : entry.isDimmed ? LIVE_FILTER_DIM_OPACITY : 1,
               fontSize: 14,
               lineHeight: 1.35,
               whiteSpace: "normal",
@@ -138,7 +156,7 @@ export function PidLocationPanel({
         </Box>
         {hasChildren ? (
           <Collapse in={expanded} timeout="auto" unmountOnExit>
-            <Box sx={{ display: "grid", gap: 0.25 }}>{(node.children || []).map((child) => renderNode(child, depth + 1))}</Box>
+            <Box sx={{ display: "grid", gap: 0.25 }}>{entry.children.map((child) => renderNode(child, depth + 1))}</Box>
           </Collapse>
         ) : null}
       </Box>
@@ -161,7 +179,10 @@ export function PidLocationPanel({
       <Popover
         open={dropdownOpen}
         anchorEl={anchorEl}
-        onClose={() => setAnchorEl(null)}
+        onClose={() => {
+          setAnchorEl(null);
+          setQuery("");
+        }}
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
         transformOrigin={{ vertical: "top", horizontal: "left" }}
         PaperProps={{
@@ -175,12 +196,22 @@ export function PidLocationPanel({
           },
         }}
       >
+        <Box sx={{ px: 0.5, pt: 0.5, pb: 0.25 }}>
+          <TextField
+            size="small"
+            fullWidth
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t("common.liveFilter.searchPlaceholder")}
+          />
+        </Box>
         <Box
           role="button"
           tabIndex={0}
           onClick={() => {
             onLocationChange("");
             setAnchorEl(null);
+            setQuery("");
           }}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
@@ -199,7 +230,7 @@ export function PidLocationPanel({
         >
           {t("pid.page.selectLocation")}
         </Box>
-        <Box sx={{ display: "grid", gap: 0.25, pb: 0.5 }}>{locationTree.map((node) => renderNode(node, 0))}</Box>
+        <Box sx={{ display: "grid", gap: 0.25, pb: 0.5 }}>{treeAnnotations.map((node) => renderNode(node, 0))}</Box>
       </Popover>
 
       {canWrite ? (

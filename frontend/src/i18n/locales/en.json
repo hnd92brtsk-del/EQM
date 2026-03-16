@@ -260,7 +260,11 @@
                               },
                    "treeSelect":  {
                                       "groupOnly":  "Only leaf items can be selected"
-                              },
+                                  },
+                   "liveFilter":  {
+                                      "searchPlaceholder":  "Search by name",
+                                      "noOptions":  "No available options"
+                                  },
                    "rowsPerPage":  "Rows per page",
                    "rowsDisplayed":  "{{from}}-{{to}} of {{countLabel}}",
                    "rowsMore":  "more"

@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 
 import { ISA_INSTRUMENTS, inferMainEquipmentShapeKey } from "../../constants/pidPalette";
 import type { MainEquipmentTreeNode } from "../../utils/mainEquipment";
+import { LIVE_FILTER_DIM_OPACITY, annotateLiveTree, type LiveTreeAnnotation } from "../../utils/liveFilter";
 
 export type PidEditorMode = "select" | "delete" | "add-node" | "add-edge";
 
@@ -56,32 +57,6 @@ function hasShapeKey(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
 }
 
-function filterTree(nodes: ToolboxTreeNode[], query: string): ToolboxTreeNode[] {
-  if (!query.trim()) return nodes;
-  const lower = query.toLowerCase();
-  const filtered: ToolboxTreeNode[] = [];
-  nodes.forEach((node) => {
-    const children = filterTree(node.children || [], query);
-    const matched = node.name.toLowerCase().includes(lower) || node.code.toLowerCase().includes(lower);
-    if (matched || children.length > 0) {
-      filtered.push({ ...node, children });
-    }
-  });
-  return filtered;
-}
-
-function collectExpandableIds(nodes: ToolboxTreeNode[]): Set<number> {
-  const result = new Set<number>();
-  const walk = (node: ToolboxTreeNode) => {
-    if (node.children.length > 0) {
-      result.add(node.id);
-      node.children.forEach(walk);
-    }
-  };
-  nodes.forEach(walk);
-  return result;
-}
-
 function asToolboxNode(tree: MainEquipmentTreeNode[]): ToolboxTreeNode[] {
   return tree.map((node) => ({
     ...node,
@@ -102,8 +77,18 @@ export function PidToolbox({
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
   const tree = useMemo(() => asToolboxNode(mainEquipmentTree), [mainEquipmentTree]);
-  const filteredTree = useMemo(() => filterTree(tree, search), [tree, search]);
-  const forceExpandedIds = useMemo(() => collectExpandableIds(filteredTree), [filteredTree]);
+  const treeAnnotations = useMemo(
+    () =>
+      annotateLiveTree(
+        tree,
+        {
+          getLabel: (node) => node.name,
+          getChildren: (node) => node.children
+        },
+        search
+      ),
+    [tree, search]
+  );
   const forceExpand = search.trim().length > 0;
 
   const toggleExpanded = (id: number) => {
@@ -118,9 +103,10 @@ export function PidToolbox({
     });
   };
 
-  const renderEquipmentNode = (node: ToolboxTreeNode, depth: number) => {
-    const hasChildren = node.children.length > 0;
-    const isExpanded = forceExpand ? forceExpandedIds.has(node.id) : expandedIds.has(node.id);
+  const renderEquipmentNode = (entry: LiveTreeAnnotation<ToolboxTreeNode>, depth: number) => {
+    const node = entry.item;
+    const hasChildren = entry.children.length > 0;
+    const isExpanded = forceExpand ? entry.shouldForceExpand : expandedIds.has(node.id);
     const shapeFromMeta = node.meta_data && hasShapeKey((node.meta_data as Record<string, unknown>).shapeKey)
       ? (node.meta_data as Record<string, string>).shapeKey
       : undefined;
@@ -133,12 +119,20 @@ export function PidToolbox({
             <IconButton size="small" onClick={() => toggleExpanded(node.id)}>
               {isExpanded ? <ExpandMoreRoundedIcon fontSize="small" /> : <ChevronRightRoundedIcon fontSize="small" />}
             </IconButton>
-            <Typography variant="body2" sx={{ color: "text.primary", fontWeight: 600, pl: 0.25 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.primary",
+                fontWeight: 600,
+                pl: 0.25,
+                opacity: entry.isDimmed ? LIVE_FILTER_DIM_OPACITY : 1
+              }}
+            >
               {node.name}
             </Typography>
           </Box>
           <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-            <Box sx={{ display: "grid", gap: 0.25 }}>{node.children.map((child) => renderEquipmentNode(child, depth + 1))}</Box>
+            <Box sx={{ display: "grid", gap: 0.25 }}>{entry.children.map((child) => renderEquipmentNode(child, depth + 1))}</Box>
           </Collapse>
         </Box>
       );
@@ -161,7 +155,12 @@ export function PidToolbox({
           event.dataTransfer.effectAllowed = "copy";
         }}
         onClick={() => onPresetPick(preset)}
-        sx={{ pl: depth * 1.5 + 4 }}
+        sx={{
+          pl: depth * 1.5 + 4,
+          opacity: entry.isDimmed ? LIVE_FILTER_DIM_OPACITY : 1,
+          "&:hover": { opacity: 1 },
+          "&.Mui-focusVisible": { opacity: 1 }
+        }}
       >
         <ListItemText
           primary={node.name}
@@ -215,10 +214,10 @@ export function PidToolbox({
           size="small"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder={t("actions.search")}
+          placeholder={t("common.liveFilter.searchPlaceholder")}
         />
         <Box sx={{ display: "grid", gap: 0.25 }}>
-          {filteredTree.map((node) => renderEquipmentNode(node, 0))}
+          {treeAnnotations.map((node) => renderEquipmentNode(node, 0))}
         </Box>
       </Box>
 

@@ -29,6 +29,7 @@ import { AppButton } from "../components/ui/AppButton";
 import { buildMainEquipmentLookups } from "../utils/mainEquipment";
 import { MAIN_EQUIPMENT_SHAPE_OPTIONS, inferMainEquipmentShapeKey } from "../constants/pidPalette";
 import { EquipmentGlyph } from "../components/pid/nodes/EquipmentGlyph";
+import { LIVE_FILTER_DIM_OPACITY, annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
 
 type MainEquipment = {
   id: number;
@@ -93,22 +94,6 @@ function sortTree(nodes: MainEquipmentNode[]): MainEquipmentNode[] {
     .sort((a, b) => compareCodes(a.code, b.code));
 }
 
-function filterTree(nodes: MainEquipmentNode[], query: string): MainEquipmentNode[] {
-  if (!query.trim()) {
-    return nodes;
-  }
-  const lower = query.toLowerCase();
-  const filtered: MainEquipmentNode[] = [];
-  nodes.forEach((node) => {
-    const childMatches = filterTree(node.children, query);
-    const matches = node.name.toLowerCase().includes(lower) || node.code.toLowerCase().includes(lower);
-    if (matches || childMatches.length > 0) {
-      filtered.push({ ...node, children: childMatches });
-    }
-  });
-  return filtered;
-}
-
 function collectDescendantIds(node: MainEquipmentNode): Set<number> {
   const ids = new Set<number>();
   const stack = [...node.children];
@@ -159,7 +144,18 @@ export default function MainEquipmentPage() {
   }, [itemsQuery.error, t]);
 
   const tree = useMemo(() => sortTree(buildTree(itemsQuery.data || [])), [itemsQuery.data]);
-  const filteredTree = useMemo(() => filterTree(tree, q), [tree, q]);
+  const treeAnnotations = useMemo(
+    () =>
+      annotateLiveTree(
+        tree,
+        {
+          getLabel: (node) => node.name,
+          getChildren: (node) => node.children
+        },
+        q
+      ),
+    [tree, q]
+  );
   const itemMap = useMemo(() => {
     const map = new Map<number, MainEquipment>();
     (itemsQuery.data || []).forEach((item) => map.set(item.id, item));
@@ -337,10 +333,11 @@ export default function MainEquipmentPage() {
     return parts.join(" / ");
   };
 
-  const renderNode = (node: MainEquipmentNode, depth: number) => {
-    const hasChildren = node.children.length > 0;
+  const renderNode = (entry: LiveTreeAnnotation<MainEquipmentNode>, depth: number) => {
+    const node = entry.item;
+    const hasChildren = entry.children.length > 0;
     const expanded = expandedIds.has(node.id);
-    const forceExpand = q.trim().length > 0;
+    const forceExpand = entry.shouldForceExpand;
     const breadcrumb = buildBreadcrumb(node.id);
 
     return (
@@ -353,7 +350,7 @@ export default function MainEquipmentPage() {
           ) : (
             <Box sx={{ width: 32 }} />
           )}
-          <Box sx={{ display: "grid" }}>
+          <Box sx={{ display: "grid", opacity: entry.isDimmed ? LIVE_FILTER_DIM_OPACITY : 1 }}>
             <Typography sx={{ fontWeight: 500 }}>
               {node.name}
               {node.is_deleted ? t("common.deletedSuffix") : ""}
@@ -392,7 +389,7 @@ export default function MainEquipmentPage() {
         {hasChildren && (
           <Collapse in={expanded || forceExpand} timeout="auto" unmountOnExit>
             <Box sx={{ display: "grid", gap: 0.5 }}>
-              {node.children.map((child) => renderNode(child, depth + 1))}
+              {entry.children.map((child) => renderNode(child, depth + 1))}
             </Box>
           </Collapse>
         )}
@@ -445,7 +442,7 @@ export default function MainEquipmentPage() {
             )}
           </Box>
 
-          <Box sx={{ display: "grid", gap: 1 }}>{filteredTree.map((node) => renderNode(node, 0))}</Box>
+          <Box sx={{ display: "grid", gap: 1 }}>{treeAnnotations.map((node) => renderNode(node, 0))}</Box>
         </CardContent>
       </Card>
 

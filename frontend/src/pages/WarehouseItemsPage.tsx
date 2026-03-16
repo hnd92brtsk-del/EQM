@@ -33,6 +33,7 @@ import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
 import { ProtectedImage } from "../components/ProtectedImage";
 import { ProtectedDownloadLink } from "../components/ProtectedDownloadLink";
+import { SearchableSelectField } from "../components/SearchableSelectField";
 
 const pageSizeOptions = [10, 20, 50, 100];
 
@@ -650,25 +651,17 @@ export default function WarehouseItemsPage() {
               </Select>
             </FormControl>
 
-            <FormControl fullWidth>
-              <InputLabel>{t("common.fields.location")}</InputLabel>
-              <Select
-                label={t("common.fields.location")}
-                value={locationFilter}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setLocationFilter(value === "" ? "" : Number(value));
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                {locationOptions.map((item) => (
-                  <MenuItem key={item.value} value={item.value}>
-                    {item.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <SearchableSelectField
+              label={t("common.fields.location")}
+              value={locationFilter}
+              options={locationOptions}
+              onChange={(nextValue) => {
+                setLocationFilter(nextValue === "" ? "" : Number(nextValue));
+                setPage(1);
+              }}
+              emptyOptionLabel={t("common.all")}
+              fullWidth
+            />
 
             <FormControl fullWidth>
               <InputLabel>{t("common.fields.equipment")}</InputLabel>
@@ -690,45 +683,39 @@ export default function WarehouseItemsPage() {
               </Select>
             </FormControl>
 
-            <FormControl fullWidth>
-              <InputLabel>{t("common.fields.manufacturer")}</InputLabel>
-              <Select
-                label={t("common.fields.manufacturer")}
-                value={manufacturerFilter}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setManufacturerFilter(value === "" ? "" : Number(value));
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                {manufacturersQuery.data?.items.map((item) => (
-                  <MenuItem key={item.id} value={item.id}>
-                    {item.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <SearchableSelectField
+              label={t("common.fields.manufacturer")}
+              value={manufacturerFilter}
+              options={
+                manufacturersQuery.data?.items.map((item) => ({
+                  value: item.id,
+                  label: item.name
+                })) || []
+              }
+              onChange={(nextValue) => {
+                setManufacturerFilter(nextValue === "" ? "" : Number(nextValue));
+                setPage(1);
+              }}
+              emptyOptionLabel={t("common.all")}
+              fullWidth
+            />
 
-            <FormControl fullWidth>
-              <InputLabel>{t("common.fields.equipmentCategory")}</InputLabel>
-              <Select
-                label={t("common.fields.equipmentCategory")}
-                value={equipmentCategoryFilter}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setEquipmentCategoryFilter(value === "" ? "" : Number(value));
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                {equipmentCategoriesQuery.data?.items.map((item) => (
-                  <MenuItem key={item.id} value={item.id}>
-                    {item.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <SearchableSelectField
+              label={t("common.fields.equipmentCategory")}
+              value={equipmentCategoryFilter}
+              options={
+                equipmentCategoriesQuery.data?.items.map((item) => ({
+                  value: item.id,
+                  label: item.name
+                })) || []
+              }
+              onChange={(nextValue) => {
+                setEquipmentCategoryFilter(nextValue === "" ? "" : Number(nextValue));
+                setPage(1);
+              }}
+              emptyOptionLabel={t("common.all")}
+              fullWidth
+            />
 
             <TextField
               label={t("pagesUi.warehouseItems.fields.priceMin")}

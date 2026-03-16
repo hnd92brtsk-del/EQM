@@ -35,6 +35,7 @@ import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { ProtectedImage } from "../components/ProtectedImage";
 import { ProtectedDownloadLink } from "../components/ProtectedDownloadLink";
+import { SearchableSelectField } from "../components/SearchableSelectField";
 
 type EquipmentType = {
   id: number;
@@ -955,25 +956,20 @@ export default function EquipmentTypesPage() {
               </Select>
             </FormControl>
 
-            <FormControl fullWidth>
-              <InputLabel>{t("common.fields.manufacturer")}</InputLabel>
-              <Select
-                label={t("common.fields.manufacturer")}
-                value={manufacturerFilter}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setManufacturerFilter(value === "" ? "" : Number(value));
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                {manufacturerOptions.map((item) => (
-                  <MenuItem key={item.id} value={item.id}>
-                    {item.full_path || item.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <SearchableSelectField
+              label={t("common.fields.manufacturer")}
+              value={manufacturerFilter}
+              options={manufacturerOptions.map((item) => ({
+                value: item.id,
+                label: item.full_path || item.name
+              }))}
+              onChange={(nextValue) => {
+                setManufacturerFilter(nextValue === "" ? "" : Number(nextValue));
+                setPage(1);
+              }}
+              emptyOptionLabel={t("common.all")}
+              fullWidth
+            />
 
             <FormControl fullWidth>
               <InputLabel>{t("common.fields.channelForming")}</InputLabel>

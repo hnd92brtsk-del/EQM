@@ -37,6 +37,7 @@ import { useTranslation } from "react-i18next";
 
 import { ErrorSnackbar } from "../../../components/ErrorSnackbar";
 import { AppButton } from "../../../components/ui/AppButton";
+import { SearchableSelectField } from "../../../components/SearchableSelectField";
 import { useAuth } from "../../../context/AuthContext";
 import { buildLocationLookups, fetchLocationsTree } from "../../../utils/locations";
 import {
@@ -670,7 +671,7 @@ export default function IPAMPage() {
           <TextField label={t("common.fields.name")} value={vlanForm.name} onChange={(e) => setVlanForm((p) => ({ ...p, name: e.target.value }))} fullWidth />
           <TextField label={t("pagesUi.ipam.fields.purpose")} value={vlanForm.purpose} onChange={(e) => setVlanForm((p) => ({ ...p, purpose: e.target.value }))} fullWidth />
           <TextField label={t("common.fields.comment")} value={vlanForm.description} onChange={(e) => setVlanForm((p) => ({ ...p, description: e.target.value }))} multiline minRows={3} fullWidth />
-          <FormControl fullWidth><InputLabel>{t("common.fields.location")}</InputLabel><Select label={t("common.fields.location")} value={vlanForm.location_id} onChange={(e) => setVlanForm((p) => ({ ...p, location_id: String(e.target.value) }))}><MenuItem value="">{t("actions.notSelected")}</MenuItem>{locationOptions.map((item) => <MenuItem key={item.value} value={String(item.value)}>{item.label}</MenuItem>)}</Select></FormControl>
+          <SearchableSelectField label={t("common.fields.location")} value={vlanForm.location_id} options={locationOptions.map((item) => ({ value: String(item.value), label: item.label }))} onChange={(nextValue) => setVlanForm((p) => ({ ...p, location_id: String(nextValue) }))} emptyOptionLabel={t("actions.notSelected")} fullWidth />
           <FormControlLabel control={<Switch checked={vlanForm.is_active} onChange={(e) => setVlanForm((p) => ({ ...p, is_active: e.target.checked }))} />} label={t("common.status.active")} />
         </DialogContent>
         <DialogActions>
@@ -690,7 +691,7 @@ export default function IPAMPage() {
           <TextField label={t("common.fields.name")} value={subnetForm.name} onChange={(e) => setSubnetForm((p) => ({ ...p, name: e.target.value }))} fullWidth />
           <TextField label={t("common.fields.comment")} value={subnetForm.description} onChange={(e) => setSubnetForm((p) => ({ ...p, description: e.target.value }))} multiline minRows={3} fullWidth />
           <TextField label="VRF" value={subnetForm.vrf} onChange={(e) => setSubnetForm((p) => ({ ...p, vrf: e.target.value }))} fullWidth />
-          <FormControl fullWidth><InputLabel>{t("common.fields.location")}</InputLabel><Select label={t("common.fields.location")} value={subnetForm.location_id} onChange={(e) => setSubnetForm((p) => ({ ...p, location_id: String(e.target.value) }))}><MenuItem value="">{t("actions.notSelected")}</MenuItem>{locationOptions.map((item) => <MenuItem key={item.value} value={String(item.value)}>{item.label}</MenuItem>)}</Select></FormControl>
+          <SearchableSelectField label={t("common.fields.location")} value={subnetForm.location_id} options={locationOptions.map((item) => ({ value: String(item.value), label: item.label }))} onChange={(nextValue) => setSubnetForm((p) => ({ ...p, location_id: String(nextValue) }))} emptyOptionLabel={t("actions.notSelected")} fullWidth />
           <FormControlLabel control={<Switch checked={subnetForm.is_active} onChange={(e) => setSubnetForm((p) => ({ ...p, is_active: e.target.checked }))} />} label={t("common.status.active")} />
         </DialogContent>
         <DialogActions>

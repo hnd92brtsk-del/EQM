@@ -26,6 +26,7 @@ import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { AppButton } from "../components/ui/AppButton";
 import { useAuth } from "../context/AuthContext";
+import { LIVE_FILTER_DIM_OPACITY, annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
 
 type EquipmentCategory = {
   id: number;
@@ -80,23 +81,6 @@ function sortTree(nodes: EquipmentCategoryNode[]): EquipmentCategoryNode[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function filterTree(nodes: EquipmentCategoryNode[], query: string): EquipmentCategoryNode[] {
-  if (!query.trim()) {
-    return nodes;
-  }
-  const lower = query.toLowerCase();
-  const filtered: EquipmentCategoryNode[] = [];
-  nodes.forEach((node) => {
-    const childMatches = filterTree(node.children, query);
-    const ownPath = node.full_path || node.name;
-    const matches = ownPath.toLowerCase().includes(lower);
-    if (matches || childMatches.length > 0) {
-      filtered.push({ ...node, children: childMatches });
-    }
-  });
-  return filtered;
-}
-
 function buildTreeOptions(nodes: EquipmentCategoryNode[]): TreeOption[] {
   return nodes.map((node) => ({
     label: node.name,
@@ -133,7 +117,18 @@ export default function EquipmentCategoriesPage() {
   }, [itemsQuery.error, t]);
 
   const tree = useMemo(() => sortTree(buildTree(itemsQuery.data || [])), [itemsQuery.data]);
-  const filteredTree = useMemo(() => filterTree(tree, q), [tree, q]);
+  const treeAnnotations = useMemo(
+    () =>
+      annotateLiveTree(
+        tree,
+        {
+          getLabel: (node) => node.name,
+          getChildren: (node) => node.children
+        },
+        q
+      ),
+    [tree, q]
+  );
   const treeOptions = useMemo(() => buildTreeOptions(tree), [tree]);
 
   const refresh = () => {
@@ -232,10 +227,12 @@ export default function EquipmentCategoriesPage() {
     });
   };
 
-  const renderNode = (node: EquipmentCategoryNode, level: number) => {
-    const hasChildren = node.children.length > 0;
+  const renderNode = (entry: LiveTreeAnnotation<EquipmentCategoryNode>, level: number) => {
+    const node = entry.item;
+    const hasChildren = entry.children.length > 0;
     const expanded = expandedIds.has(node.id);
-    const forceExpand = q.trim().length > 0;
+    const forceExpand = entry.shouldForceExpand;
+    const fullPath = node.full_path?.trim() || "";
 
     return (
       <Box key={node.id} sx={{ display: "grid", gap: 0.5 }}>
@@ -247,14 +244,14 @@ export default function EquipmentCategoriesPage() {
           ) : (
             <Box sx={{ width: 32 }} />
           )}
-          <Box sx={{ display: "grid" }}>
+          <Box sx={{ display: "grid", opacity: entry.isDimmed ? LIVE_FILTER_DIM_OPACITY : 1 }}>
             <Typography sx={{ fontWeight: 500 }}>
               {node.name}
               {node.is_deleted ? t("common.deletedSuffix") : ""}
             </Typography>
-            {node.full_path ? (
+            {fullPath ? (
               <Typography variant="body2" color="text.secondary">
-                {node.full_path}
+                {fullPath}
               </Typography>
             ) : null}
           </Box>
@@ -283,7 +280,7 @@ export default function EquipmentCategoriesPage() {
         {hasChildren && (
           <Collapse in={expanded || forceExpand} timeout="auto" unmountOnExit>
             <Box sx={{ display: "grid", gap: 0.5 }}>
-              {node.children.map((child) => renderNode(child, level + 1))}
+              {entry.children.map((child) => renderNode(child, level + 1))}
             </Box>
           </Collapse>
         )}
@@ -326,7 +323,7 @@ export default function EquipmentCategoriesPage() {
             )}
           </Box>
 
-          <Box sx={{ display: "grid", gap: 1 }}>{filteredTree.map((node) => renderNode(node, 0))}</Box>
+          <Box sx={{ display: "grid", gap: 1 }}>{treeAnnotations.map((node) => renderNode(node, 0))}</Box>
         </CardContent>
       </Card>
 

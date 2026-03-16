@@ -44,6 +44,7 @@ import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
+import { SearchableSelectField } from "../components/SearchableSelectField";
 
 type Cabinet = {
   id: number;
@@ -482,25 +483,17 @@ export default function CabinetsPage() {
               </Select>
             </FormControl>
 
-            <FormControl fullWidth>
-              <InputLabel>{t("common.fields.location")}</InputLabel>
-              <Select
-                label={t("common.fields.location")}
-                value={locationFilter}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setLocationFilter(value === "" ? "" : Number(value));
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                {locationOptions.map((loc) => (
-                  <MenuItem key={loc.value} value={loc.value}>
-                    {loc.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <SearchableSelectField
+              label={t("common.fields.location")}
+              value={locationFilter}
+              options={locationOptions}
+              onChange={(nextValue) => {
+                setLocationFilter(nextValue === "" ? "" : Number(nextValue));
+                setPage(1);
+              }}
+              emptyOptionLabel={t("common.all")}
+              fullWidth
+            />
           </Box>
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
