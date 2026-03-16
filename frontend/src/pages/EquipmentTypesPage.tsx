@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
-  Autocomplete,
   Box,Card,
   CardContent,
   Button,
@@ -632,30 +631,7 @@ export default function EquipmentTypesPage() {
         header: t("common.fields.equipmentCategory"),
         cell: ({ row }) => {
           const currentId = row.original.equipment_category_id;
-          if (!canWrite) {
-            return currentId ? equipmentCategoryMap.get(currentId) || currentId : "-";
-          }
-          const options = equipmentCategoryOptions || [];
-          const currentOption =
-            options.find((option) => option.id === currentId) || null;
-          return (
-            <Autocomplete
-              options={options}
-              value={currentOption}
-              onChange={(_, option) =>
-                updateMutation.mutate({
-                  id: row.original.id,
-                  payload: { equipment_category_id: option ? option.id : null }
-                })
-              }
-              getOptionLabel={(option) => option.full_path || option.name}
-              isOptionEqualToValue={(option, value) => option.id === value.id}
-              renderInput={(params) => (
-                <TextField {...params} variant="standard" placeholder={t("actions.notSelected")} />
-              )}
-              size="small"
-            />
-          );
+          return currentId ? equipmentCategoryMap.get(currentId) || currentId : "-";
         }
       },
       {
