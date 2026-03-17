@@ -134,6 +134,7 @@ export default function EquipmentCategoriesPage() {
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["equipment-categories-tree"] });
     queryClient.invalidateQueries({ queryKey: ["equipment-categories-options"] });
+    queryClient.invalidateQueries({ queryKey: ["equipment-categories-flat-options"] });
   };
 
   const createMutation = useMutation({

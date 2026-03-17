@@ -367,12 +367,12 @@ export default function EquipmentTypesPage() {
   });
 
   const manufacturersQuery = useQuery({
-    queryKey: ["manufacturers-options"],
+    queryKey: ["manufacturers-flat-options"],
     queryFn: () => fetchAllDictionaryOptions<Manufacturer>("/manufacturers")
   });
 
   const equipmentCategoriesQuery = useQuery({
-    queryKey: ["equipment-categories-options"],
+    queryKey: ["equipment-categories-flat-options"],
     queryFn: () => fetchAllDictionaryOptions<EquipmentCategory>("/equipment-categories")
   });
 

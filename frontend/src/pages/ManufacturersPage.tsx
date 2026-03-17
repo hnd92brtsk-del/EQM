@@ -131,6 +131,7 @@ export default function ManufacturersPage() {
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["manufacturers-tree"] });
     queryClient.invalidateQueries({ queryKey: ["manufacturers-options"] });
+    queryClient.invalidateQueries({ queryKey: ["manufacturers-flat-options"] });
   };
 
   const createMutation = useMutation({
