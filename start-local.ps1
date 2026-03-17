@@ -7,13 +7,13 @@ Ensure-LocalPostgresStarted
 $backend = Start-EqmBackendProcess
 $frontend = Start-EqmFrontendProcess
 
-Wait-HttpOk -Url "http://127.0.0.1:8000/docs"
-Wait-PortOpen -TargetHost "127.0.0.1" -Port 5173
+Wait-HttpOk -Url "http://localhost:8000/docs"
+Wait-PortOpen -TargetHost "localhost" -Port 5173
 
 Write-Host ""
 Write-Host "EQM local runtime is ready." -ForegroundColor Green
-Write-Host "Backend : http://127.0.0.1:8000/docs"
-Write-Host "Frontend: http://127.0.0.1:5173"
+Write-Host "Backend : http://localhost:8000/docs"
+Write-Host "Frontend: http://localhost:5173"
 Write-Host "Backend PID : $($backend.Id)"
 Write-Host "Frontend PID: $($frontend.Id)"
 Write-Host "Logs:"

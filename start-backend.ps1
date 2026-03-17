@@ -9,4 +9,4 @@ Assert-PortFree -Port 8000 -ServiceName "EQM backend"
 
 $python = Get-EqmVenvPython
 Set-Location ".\backend"
-& $python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+& $python -m uvicorn app.main:app --reload --host localhost --port 8000

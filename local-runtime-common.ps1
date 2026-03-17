@@ -81,15 +81,22 @@ function Stop-ProcessesByPatterns([string[]]$Patterns) {
 }
 
 function Assert-PortFree([int]$Port, [string]$ServiceName) {
-    $connection = Get-ListeningConnection -Port $Port
-    if (-not $connection) {
-        return
-    }
+    for ($i = 0; $i -lt 6; $i++) {
+        $connection = Get-ListeningConnection -Port $Port
+        if (-not $connection) {
+            return
+        }
 
-    $process = Get-ProcessByIdSafe -ProcessId $connection.OwningProcess
-    $path = if ($process) { $process.ExecutablePath } else { "unknown" }
-    $commandLine = if ($process) { $process.CommandLine } else { "unknown" }
-    throw "$ServiceName could not start because port $Port is already in use by PID $($connection.OwningProcess): $path :: $commandLine"
+        $process = Get-ProcessByIdSafe -ProcessId $connection.OwningProcess
+        if ($process) {
+            $path = $process.ExecutablePath
+            $commandLine = $process.CommandLine
+            throw "$ServiceName could not start because port $Port is already in use by PID $($connection.OwningProcess): $path :: $commandLine"
+        }
+
+        # Windows can briefly report a listening socket whose owning process is already gone.
+        Start-Sleep -Milliseconds 500
+    }
 }
 
 function Wait-PortFree([int]$Port, [int]$Attempts = 20) {
@@ -119,6 +126,13 @@ function Stop-ListeningProcessIfMatches([int]$Port, [string[]]$Patterns) {
             return
         }
     }
+
+    # Uvicorn with --reload can leave the listening child process on the port while
+    # the parent/reloader command line differs from the original pattern.
+    if ($Port -eq 8000) {
+        Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
+        Wait-PortFree -Port $Port
+    }
 }
 
 function Ensure-LocalPostgresStarted {
@@ -143,7 +157,7 @@ function Ensure-LocalPostgresStarted {
     }
 
     for ($i = 0; $i -lt 20; $i++) {
-        if (Test-PortOpen -TargetHost "127.0.0.1" -Port 5432) {
+        if (Test-PortOpen -TargetHost "localhost" -Port 5432) {
             return
         }
         Start-Sleep -Milliseconds 500
@@ -170,11 +184,11 @@ function Start-EqmBackendProcess {
     Stop-ProcessesByPatterns -Patterns @("*uvicorn app.main:app*--port 8000*")
     Stop-ListeningProcessIfMatches -Port 8000 -Patterns @("*uvicorn app.main:app*", "*python.exe*uvicorn app.main:app*")
     Start-Sleep -Milliseconds 400
-    if ((Get-ListeningConnection -Port 8000) -and (Test-HttpOk -Url "http://127.0.0.1:8000/docs")) {
+    if ((Get-ListeningConnection -Port 8000) -and (Test-HttpOk -Url "http://localhost:8000/docs")) {
         return [pscustomobject]@{
             Id = "existing"
             Status = "existing"
-            Url = "http://127.0.0.1:8000/docs"
+            Url = "http://localhost:8000/docs"
         }
     }
     Assert-PortFree -Port 8000 -ServiceName "EQM backend"
@@ -185,7 +199,7 @@ function Start-EqmBackendProcess {
     $stderr = Join-Path (Get-EqmRoot) "backend.err.log"
 
     return Start-Process -FilePath $python `
-        -ArgumentList "-m", "uvicorn", "app.main:app", "--reload", "--host", "127.0.0.1", "--port", "8000" `
+        -ArgumentList "-m", "uvicorn", "app.main:app", "--reload", "--host", "localhost", "--port", "8000" `
         -WorkingDirectory $backendDir `
         -RedirectStandardOutput $stdout `
         -RedirectStandardError $stderr `
@@ -193,14 +207,14 @@ function Start-EqmBackendProcess {
 }
 
 function Start-EqmFrontendProcess {
-    Stop-ProcessesByPatterns -Patterns @("*npm*run dev*--port 5173*", "*vite*--host 127.0.0.1 --port 5173*")
+    Stop-ProcessesByPatterns -Patterns @("*npm*run dev*--port 5173*", "*vite*--host localhost --port 5173*")
     Stop-ListeningProcessIfMatches -Port 5173 -Patterns @("*npm*run dev*", "*vite*", "*node.exe*vite*")
     Start-Sleep -Milliseconds 400
-    if ((Get-ListeningConnection -Port 5173) -and (Test-HttpOk -Url "http://127.0.0.1:5173")) {
+    if ((Get-ListeningConnection -Port 5173) -and (Test-HttpOk -Url "http://localhost:5173")) {
         return [pscustomobject]@{
             Id = "existing"
             Status = "existing"
-            Url = "http://127.0.0.1:5173"
+            Url = "http://localhost:5173"
         }
     }
     Assert-PortFree -Port 5173 -ServiceName "EQM frontend"
@@ -210,7 +224,7 @@ function Start-EqmFrontendProcess {
     $stderr = Join-Path (Get-EqmRoot) "frontend.err.log"
 
     return Start-Process -FilePath "npm.cmd" `
-        -ArgumentList "run", "dev", "--", "--host", "127.0.0.1", "--port", "5173" `
+        -ArgumentList "run", "dev", "--", "--host", "localhost", "--port", "5173" `
         -WorkingDirectory $frontendDir `
         -RedirectStandardOutput $stdout `
         -RedirectStandardError $stderr `
@@ -251,11 +265,32 @@ function Wait-PortOpen([string]$TargetHost, [int]$Port, [int]$Attempts = 30) {
 }
 
 function Stop-EqmBackendProcesses {
-    Stop-ProcessesByPatterns -Patterns @("*uvicorn app.main:app*--port 8000*")
-    Stop-ListeningProcessIfMatches -Port 8000 -Patterns @("*uvicorn app.main:app*", "*python.exe*uvicorn app.main:app*")
+    Stop-ProcessesByPatterns -Patterns @(
+        "*uvicorn app.main:app*--port 8000*",
+        "*-m uvicorn app.main:app*--port 8000*",
+        "*multiprocessing-fork*parent_pid=*"
+    )
+    Stop-ListeningProcessIfMatches -Port 8000 -Patterns @(
+        "*uvicorn app.main:app*",
+        "*-m uvicorn app.main:app*",
+        "*python.exe*uvicorn app.main:app*",
+        "*multiprocessing-fork*"
+    )
+
+    if (Get-ListeningConnection -Port 8000) {
+        $forkChildren = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -eq "python.exe" -and $_.CommandLine -like "*multiprocessing-fork*" }
+        foreach ($process in $forkChildren) {
+            if ($process.ProcessId -ne $PID) {
+                Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
+    Wait-PortFree -Port 8000
 }
 
 function Stop-EqmFrontendProcesses {
-    Stop-ProcessesByPatterns -Patterns @("*npm*run dev*--port 5173*", "*vite*--host 127.0.0.1 --port 5173*")
+    Stop-ProcessesByPatterns -Patterns @("*npm*run dev*--port 5173*", "*vite*--host localhost --port 5173*")
     Stop-ListeningProcessIfMatches -Port 5173 -Patterns @("*npm*run dev*", "*vite*", "*node.exe*vite*")
 }
