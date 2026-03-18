@@ -9,7 +9,6 @@ import {
   Select,
   Switch,
   TablePagination,
-  TextField,
   Typography
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
@@ -20,7 +19,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { DataTable } from "../components/DataTable";
+import { type ColumnMeta, DataTable, type DataTableFiltersState } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
@@ -28,7 +27,6 @@ import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
-import { SearchableSelectField } from "../components/SearchableSelectField";
 
 type Assembly = {
   id: number;
@@ -51,9 +49,8 @@ export default function AssembliesPage() {
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [q, setQ] = useState("");
   const [sort, setSort] = useState("-created_at");
-  const [locationFilter, setLocationFilter] = useState<number | "">("");
+  const [columnFilters, setColumnFilters] = useState<DataTableFiltersState>({});
   const [showDeleted, setShowDeleted] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -69,16 +66,22 @@ export default function AssembliesPage() {
   );
 
   const assembliesQuery = useQuery({
-    queryKey: ["assemblies", page, pageSize, q, sort, locationFilter, showDeleted],
+    queryKey: ["assemblies", page, pageSize, sort, columnFilters, showDeleted],
     queryFn: () =>
       listEntity<Assembly>("/assemblies", {
         page,
         page_size: pageSize,
-        q: q || undefined,
         sort: sort || undefined,
         is_deleted: showDeleted ? true : false,
         filters: {
-          location_id: locationFilter || undefined
+          name: columnFilters.name || undefined,
+          name_alphabet: columnFilters.name_alphabet || undefined,
+          factory_number: columnFilters.factory_number || undefined,
+          nomenclature_number: columnFilters.nomenclature_number || undefined,
+          location_id:
+            columnFilters.location_id && !Number.isNaN(Number(columnFilters.location_id))
+              ? Number(columnFilters.location_id)
+              : undefined
         }
       })
   });
@@ -143,17 +146,45 @@ export default function AssembliesPage() {
 
   const columns = useMemo<ColumnDef<Assembly>[]>(() => {
     const base: ColumnDef<Assembly>[] = [
-      { header: t("common.fields.name"), accessorKey: "name" },
+      {
+        header: t("common.fields.name"),
+        accessorKey: "name",
+        meta: {
+          filterType: "text",
+          filterKey: "name",
+          alphabetFilterKey: "name_alphabet",
+          filterPlaceholder: t("actions.search")
+        } as ColumnMeta<Assembly>
+      },
       {
         header: t("common.fields.factoryNumber"),
+        meta: {
+          filterType: "text",
+          filterKey: "factory_number",
+          filterPlaceholder: t("common.fields.factoryNumber")
+        } as ColumnMeta<Assembly>,
         cell: ({ row }) => row.original.factory_number || "-"
       },
       {
         header: t("common.fields.nomenclatureNumber"),
+        meta: {
+          filterType: "text",
+          filterKey: "nomenclature_number",
+          filterPlaceholder: t("common.fields.nomenclatureNumber")
+        } as ColumnMeta<Assembly>,
         cell: ({ row }) => row.original.nomenclature_number || "-"
       },
       {
         header: t("common.fields.location"),
+        meta: {
+          filterType: "select",
+          filterKey: "location_id",
+          filterPlaceholder: t("common.all"),
+          filterOptions: locationOptions.map((option) => ({
+            label: option.label,
+            value: option.value
+          }))
+        } as ColumnMeta<Assembly>,
         cell: ({ row }) => {
           const fullPath = row.original.location_full_path;
           if (fullPath) {
@@ -265,16 +296,6 @@ export default function AssembliesPage() {
               gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))"
             }}
           >
-            <TextField
-              label={t("actions.search")}
-              value={q}
-              onChange={(event) => {
-                setQ(event.target.value);
-                setPage(1);
-              }}
-              fullWidth
-            />
-
             <FormControl fullWidth>
               <InputLabel>{t("common.sort")}</InputLabel>
               <Select label={t("common.sort")} value={sort} onChange={(event) => setSort(event.target.value)}>
@@ -285,18 +306,6 @@ export default function AssembliesPage() {
                 ))}
               </Select>
             </FormControl>
-
-            <SearchableSelectField
-              label={t("common.fields.location")}
-              value={locationFilter}
-              options={locationOptions}
-              onChange={(nextValue) => {
-                setLocationFilter(nextValue === "" ? "" : Number(nextValue));
-                setPage(1);
-              }}
-              emptyOptionLabel={t("common.all")}
-              fullWidth
-            />
           </Box>
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -364,7 +373,16 @@ export default function AssembliesPage() {
             )}
           </Box>
 
-          <DataTable data={assembliesQuery.data?.items || []} columns={columns} />
+          <DataTable
+            data={assembliesQuery.data?.items || []}
+            columns={columns}
+            showColumnFilters
+            columnFilters={columnFilters}
+            onColumnFiltersChange={(nextFilters) => {
+              setColumnFilters(nextFilters);
+              setPage(1);
+            }}
+          />
           <TablePagination
             component="div"
             {...getTablePaginationProps(t)}

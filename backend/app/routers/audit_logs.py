@@ -4,7 +4,7 @@ from sqlalchemy import select
 
 from app.core.dependencies import get_db, require_roles
 from app.core.pagination import paginate
-from app.core.query import apply_sort
+from app.core.query import apply_sort, apply_text_filter
 from app.models.audit import AuditLog
 from app.models.security import UserRole
 from app.schemas.audit_logs import AuditLogOut
@@ -22,6 +22,7 @@ def list_audit_logs(
     actor_id: int | None = None,
     entity: str | None = None,
     action: str | None = None,
+    entity_id: int | None = None,
     created_at_from: datetime | None = None,
     created_at_to: datetime | None = None,
     db=Depends(get_db),
@@ -30,10 +31,10 @@ def list_audit_logs(
     query = select(AuditLog)
     if actor_id:
         query = query.where(AuditLog.actor_id == actor_id)
-    if entity:
-        query = query.where(AuditLog.entity == entity)
-    if action:
-        query = query.where(AuditLog.action == action)
+    if entity_id is not None:
+        query = query.where(AuditLog.entity_id == entity_id)
+    query = apply_text_filter(query, AuditLog.entity, entity)
+    query = apply_text_filter(query, AuditLog.action, action)
     if created_at_from:
         query = query.where(AuditLog.created_at >= created_at_from)
     if created_at_to:

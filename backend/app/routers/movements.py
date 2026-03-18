@@ -4,7 +4,7 @@ from sqlalchemy import select
 
 from app.core.dependencies import get_db, require_read_access, require_write_access
 from app.core.pagination import paginate
-from app.core.query import apply_sort
+from app.core.query import apply_sort, apply_text_filter
 from app.core.audit import add_audit_log, model_to_dict
 from app.models.movements import EquipmentMovement, MovementType
 from app.models.operations import WarehouseItem, CabinetItem, AssemblyItem
@@ -180,8 +180,12 @@ def list_movements(
     sort: str | None = None,
     movement_type: MovementType | None = None,
     equipment_type_id: int | None = None,
-    warehouse_id: int | None = None,
-    cabinet_id: int | None = None,
+    from_warehouse_id: int | None = None,
+    to_warehouse_id: int | None = None,
+    from_cabinet_id: int | None = None,
+    to_cabinet_id: int | None = None,
+    reference: str | None = None,
+    comment: str | None = None,
     performed_by_id: int | None = None,
     created_at_from: datetime | None = None,
     created_at_to: datetime | None = None,
@@ -193,18 +197,18 @@ def list_movements(
         query = query.where(EquipmentMovement.movement_type == movement_type)
     if equipment_type_id:
         query = query.where(EquipmentMovement.equipment_type_id == equipment_type_id)
-    if warehouse_id:
-        query = query.where(
-            (EquipmentMovement.from_warehouse_id == warehouse_id)
-            | (EquipmentMovement.to_warehouse_id == warehouse_id)
-        )
-    if cabinet_id:
-        query = query.where(
-            (EquipmentMovement.from_cabinet_id == cabinet_id)
-            | (EquipmentMovement.to_cabinet_id == cabinet_id)
-        )
+    if from_warehouse_id:
+        query = query.where(EquipmentMovement.from_warehouse_id == from_warehouse_id)
+    if to_warehouse_id:
+        query = query.where(EquipmentMovement.to_warehouse_id == to_warehouse_id)
+    if from_cabinet_id:
+        query = query.where(EquipmentMovement.from_cabinet_id == from_cabinet_id)
+    if to_cabinet_id:
+        query = query.where(EquipmentMovement.to_cabinet_id == to_cabinet_id)
     if performed_by_id:
         query = query.where(EquipmentMovement.performed_by_id == performed_by_id)
+    query = apply_text_filter(query, EquipmentMovement.reference, reference)
+    query = apply_text_filter(query, EquipmentMovement.comment, comment)
     if created_at_from:
         query = query.where(EquipmentMovement.created_at >= created_at_from)
     if created_at_to:

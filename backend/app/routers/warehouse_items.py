@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import get_db, require_read_access, require_write_access
 from app.core.pagination import paginate
-from app.core.query import apply_sort, apply_date_filters, apply_search
+from app.core.query import apply_alphabet_filter, apply_date_filters, apply_search, apply_sort, apply_text_filter
 from app.core.audit import add_audit_log, model_to_dict
 from app.models.operations import WarehouseItem
 from app.models.core import Warehouse, EquipmentType, Manufacturer, EquipmentCategory
@@ -29,6 +29,8 @@ def list_warehouse_items(
     equipment_type_id: int | None = None,
     manufacturer_id: int | None = None,
     equipment_category_id: int | None = None,
+    equipment_type_name: str | None = None,
+    equipment_type_name_alphabet: str | None = None,
     unit_price_rub_min: float | None = None,
     unit_price_rub_max: float | None = None,
     created_at_from: datetime | None = None,
@@ -64,6 +66,8 @@ def list_warehouse_items(
         query = query.where(EquipmentType.manufacturer_id == manufacturer_id)
     if equipment_category_id:
         query = query.where(EquipmentType.equipment_category_id == equipment_category_id)
+    query = apply_text_filter(query, EquipmentType.name, equipment_type_name)
+    query = apply_alphabet_filter(query, EquipmentType.name, equipment_type_name_alphabet)
 
     unit_price_expr = cast(EquipmentType.meta_data["unit_price_rub"].astext, Numeric)
     if unit_price_rub_min is not None:

@@ -8,14 +8,13 @@ import {
   MenuItem,
   Select,
   TablePagination,
-  TextField,
   Typography
 } from "@mui/material";
 import { ColumnDef } from "@tanstack/react-table";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { DataTable } from "../components/DataTable";
+import { type ColumnMeta, DataTable, type DataTableFiltersState } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { listEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
@@ -39,11 +38,8 @@ export default function AuditLogsPage() {
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [q, setQ] = useState("");
   const [sort, setSort] = useState("-created_at");
-  const [actorIdFilter, setActorIdFilter] = useState("");
-  const [entityFilter, setEntityFilter] = useState("");
-  const [actionFilter, setActionFilter] = useState("");
+  const [columnFilters, setColumnFilters] = useState<DataTableFiltersState>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const sortOptions = useMemo(
@@ -57,18 +53,23 @@ export default function AuditLogsPage() {
   );
 
   const auditQuery = useQuery({
-    queryKey: ["audit-logs", page, pageSize, q, sort, actorIdFilter, entityFilter, actionFilter],
+    queryKey: ["audit-logs", page, pageSize, sort, columnFilters],
     queryFn: () =>
       listEntity<AuditLog>("/audit-logs", {
         page,
         page_size: pageSize,
-        q: q || undefined,
         sort: sort || undefined,
         filters: {
           actor_id:
-            actorIdFilter && !Number.isNaN(Number(actorIdFilter)) ? Number(actorIdFilter) : undefined,
-          entity: entityFilter || undefined,
-          action: actionFilter || undefined
+            columnFilters.actor_id && !Number.isNaN(Number(columnFilters.actor_id))
+              ? Number(columnFilters.actor_id)
+              : undefined,
+          entity: columnFilters.entity || undefined,
+          action: columnFilters.action || undefined,
+          entity_id:
+            columnFilters.entity_id && !Number.isNaN(Number(columnFilters.entity_id))
+              ? Number(columnFilters.entity_id)
+              : undefined
         }
       }),
     enabled: canView
@@ -87,10 +88,42 @@ export default function AuditLogsPage() {
   const columns = useMemo<ColumnDef<AuditLog>[]>(
     () => [
       { header: t("pagesUi.auditLogs.columns.id"), accessorKey: "id" },
-      { header: t("pagesUi.auditLogs.columns.actor"), accessorKey: "actor_id" },
-      { header: t("pagesUi.auditLogs.columns.action"), accessorKey: "action" },
-      { header: t("pagesUi.auditLogs.columns.entity"), accessorKey: "entity" },
-      { header: t("pagesUi.auditLogs.columns.entityId"), accessorKey: "entity_id" },
+      {
+        header: t("pagesUi.auditLogs.columns.actor"),
+        accessorKey: "actor_id",
+        meta: {
+          filterType: "number",
+          filterKey: "actor_id",
+          filterPlaceholder: t("pagesUi.auditLogs.fields.actorId")
+        } as ColumnMeta<AuditLog>
+      },
+      {
+        header: t("pagesUi.auditLogs.columns.action"),
+        accessorKey: "action",
+        meta: {
+          filterType: "text",
+          filterKey: "action",
+          filterPlaceholder: t("pagesUi.auditLogs.fields.action")
+        } as ColumnMeta<AuditLog>
+      },
+      {
+        header: t("pagesUi.auditLogs.columns.entity"),
+        accessorKey: "entity",
+        meta: {
+          filterType: "text",
+          filterKey: "entity",
+          filterPlaceholder: t("pagesUi.auditLogs.fields.entity")
+        } as ColumnMeta<AuditLog>
+      },
+      {
+        header: t("pagesUi.auditLogs.columns.entityId"),
+        accessorKey: "entity_id",
+        meta: {
+          filterType: "number",
+          filterKey: "entity_id",
+          filterPlaceholder: t("pagesUi.auditLogs.columns.entityId")
+        } as ColumnMeta<AuditLog>
+      },
       { header: t("pagesUi.auditLogs.columns.time"), accessorKey: "created_at" }
     ],
     [t]
@@ -112,16 +145,6 @@ export default function AuditLogsPage() {
               gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))"
             }}
           >
-            <TextField
-              label={t("actions.search")}
-              value={q}
-              onChange={(event) => {
-                setQ(event.target.value);
-                setPage(1);
-              }}
-              fullWidth
-            />
-
             <FormControl fullWidth>
               <InputLabel>{t("common.sort")}</InputLabel>
               <Select label={t("common.sort")} value={sort} onChange={(event) => setSort(event.target.value)}>
@@ -132,39 +155,18 @@ export default function AuditLogsPage() {
                 ))}
               </Select>
             </FormControl>
-
-            <TextField
-              label={t("pagesUi.auditLogs.fields.actorId")}
-              value={actorIdFilter}
-              onChange={(event) => {
-                setActorIdFilter(event.target.value);
-                setPage(1);
-              }}
-              fullWidth
-            />
-
-            <TextField
-              label={t("pagesUi.auditLogs.fields.entity")}
-              value={entityFilter}
-              onChange={(event) => {
-                setEntityFilter(event.target.value);
-                setPage(1);
-              }}
-              fullWidth
-            />
-
-            <TextField
-              label={t("pagesUi.auditLogs.fields.action")}
-              value={actionFilter}
-              onChange={(event) => {
-                setActionFilter(event.target.value);
-                setPage(1);
-              }}
-              fullWidth
-            />
           </Box>
 
-          <DataTable data={auditQuery.data?.items || []} columns={columns} />
+          <DataTable
+            data={auditQuery.data?.items || []}
+            columns={columns}
+            showColumnFilters
+            columnFilters={columnFilters}
+            onColumnFiltersChange={(nextFilters) => {
+              setColumnFilters(nextFilters);
+              setPage(1);
+            }}
+          />
           <TablePagination
             component="div"
             {...getTablePaginationProps(t)}

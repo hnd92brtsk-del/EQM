@@ -2,6 +2,9 @@ from datetime import datetime
 from fastapi import HTTPException
 from sqlalchemy import or_
 
+RU_ALPHABET = list("АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюя")
+EN_ALPHABET = list("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+
 
 def apply_search(query, q: str | None, columns):
     if not q:
@@ -32,3 +35,26 @@ def apply_date_filters(query, model, created_from: datetime | None, created_to: 
     if updated_to is not None and hasattr(model, "updated_at"):
         query = query.where(model.updated_at <= updated_to)
     return query
+
+
+def apply_text_filter(query, column, value: str | None):
+    if not value:
+        return query
+    return query.where(column.ilike(f"%{value}%"))
+
+
+def apply_exact_filter(query, column, value):
+    if value is None or value == "":
+        return query
+    return query.where(column == value)
+
+
+def apply_alphabet_filter(query, column, alphabet: str | None):
+    if not alphabet:
+        return query
+
+    letters = RU_ALPHABET if alphabet == "ru" else EN_ALPHABET if alphabet == "en" else None
+    if not letters:
+        return query
+
+    return query.where(or_(*[column.like(f"{letter}%") for letter in letters]))

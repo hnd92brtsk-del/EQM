@@ -4,7 +4,7 @@ from sqlalchemy import select
 
 from app.core.dependencies import get_db, require_admin
 from app.core.pagination import paginate
-from app.core.query import apply_sort
+from app.core.query import apply_sort, apply_text_filter
 from app.models.sessions import UserSession
 from app.models.security import User
 from app.schemas.sessions import SessionOut
@@ -20,6 +20,8 @@ def list_sessions(
     q: str | None = None,
     sort: str | None = None,
     user_id: int | None = None,
+    end_reason: str | None = None,
+    ip_address: str | None = None,
     from_dt: datetime | None = None,
     to_dt: datetime | None = None,
     db=Depends(get_db),
@@ -28,6 +30,8 @@ def list_sessions(
     query = select(UserSession)
     if user_id:
         query = query.where(UserSession.user_id == user_id)
+    query = apply_text_filter(query, UserSession.end_reason, end_reason)
+    query = apply_text_filter(query, UserSession.ip_address, ip_address)
     if from_dt:
         query = query.where(UserSession.started_at >= from_dt)
     if to_dt:

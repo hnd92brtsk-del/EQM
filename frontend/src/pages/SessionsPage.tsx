@@ -8,14 +8,13 @@ import {
   MenuItem,
   Select,
   TablePagination,
-  TextField,
   Typography
 } from "@mui/material";
 import { ColumnDef } from "@tanstack/react-table";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { DataTable } from "../components/DataTable";
+import { type ColumnMeta, DataTable, type DataTableFiltersState } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { listEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
@@ -40,10 +39,8 @@ export default function SessionsPage() {
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [q, setQ] = useState("");
   const [sort, setSort] = useState("-started_at");
-  const [userIdFilter, setUserIdFilter] = useState("");
-  const [endReasonFilter, setEndReasonFilter] = useState("");
+  const [columnFilters, setColumnFilters] = useState<DataTableFiltersState>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const sortOptions = useMemo(
@@ -57,17 +54,19 @@ export default function SessionsPage() {
   );
 
   const sessionsQuery = useQuery({
-    queryKey: ["sessions", page, pageSize, q, sort, userIdFilter, endReasonFilter],
+    queryKey: ["sessions", page, pageSize, sort, columnFilters],
     queryFn: () =>
       listEntity<Session>("/sessions", {
         page,
         page_size: pageSize,
-        q: q || undefined,
         sort: sort || undefined,
         filters: {
           user_id:
-            userIdFilter && !Number.isNaN(Number(userIdFilter)) ? Number(userIdFilter) : undefined,
-          end_reason: endReasonFilter || undefined
+            columnFilters.user_id && !Number.isNaN(Number(columnFilters.user_id))
+              ? Number(columnFilters.user_id)
+              : undefined,
+          end_reason: columnFilters.end_reason || undefined,
+          ip_address: columnFilters.ip_address || undefined
         }
       }),
     enabled: canView
@@ -86,11 +85,35 @@ export default function SessionsPage() {
   const columns = useMemo<ColumnDef<Session>[]>(
     () => [
       { header: t("pagesUi.sessions.columns.id"), accessorKey: "id" },
-      { header: t("pagesUi.sessions.columns.user"), accessorKey: "user_id" },
+      {
+        header: t("pagesUi.sessions.columns.user"),
+        accessorKey: "user_id",
+        meta: {
+          filterType: "number",
+          filterKey: "user_id",
+          filterPlaceholder: t("pagesUi.sessions.fields.userId")
+        } as ColumnMeta<Session>
+      },
       { header: t("pagesUi.sessions.columns.startedAt"), accessorKey: "started_at" },
       { header: t("pagesUi.sessions.columns.endedAt"), accessorKey: "ended_at" },
-      { header: t("pagesUi.sessions.columns.endReason"), accessorKey: "end_reason" },
-      { header: t("pagesUi.sessions.columns.ip"), accessorKey: "ip_address" }
+      {
+        header: t("pagesUi.sessions.columns.endReason"),
+        accessorKey: "end_reason",
+        meta: {
+          filterType: "text",
+          filterKey: "end_reason",
+          filterPlaceholder: t("pagesUi.sessions.fields.endReason")
+        } as ColumnMeta<Session>
+      },
+      {
+        header: t("pagesUi.sessions.columns.ip"),
+        accessorKey: "ip_address",
+        meta: {
+          filterType: "text",
+          filterKey: "ip_address",
+          filterPlaceholder: t("pagesUi.sessions.columns.ip")
+        } as ColumnMeta<Session>
+      }
     ],
     [t]
   );
@@ -111,16 +134,6 @@ export default function SessionsPage() {
               gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))"
             }}
           >
-            <TextField
-              label={t("actions.search")}
-              value={q}
-              onChange={(event) => {
-                setQ(event.target.value);
-                setPage(1);
-              }}
-              fullWidth
-            />
-
             <FormControl fullWidth>
               <InputLabel>{t("common.sort")}</InputLabel>
               <Select label={t("common.sort")} value={sort} onChange={(event) => setSort(event.target.value)}>
@@ -131,29 +144,18 @@ export default function SessionsPage() {
                 ))}
               </Select>
             </FormControl>
-
-            <TextField
-              label={t("pagesUi.sessions.fields.userId")}
-              value={userIdFilter}
-              onChange={(event) => {
-                setUserIdFilter(event.target.value);
-                setPage(1);
-              }}
-              fullWidth
-            />
-
-            <TextField
-              label={t("pagesUi.sessions.fields.endReason")}
-              value={endReasonFilter}
-              onChange={(event) => {
-                setEndReasonFilter(event.target.value);
-                setPage(1);
-              }}
-              fullWidth
-            />
           </Box>
 
-          <DataTable data={sessionsQuery.data?.items || []} columns={columns} />
+          <DataTable
+            data={sessionsQuery.data?.items || []}
+            columns={columns}
+            showColumnFilters
+            columnFilters={columnFilters}
+            onColumnFiltersChange={(nextFilters) => {
+              setColumnFilters(nextFilters);
+              setPage(1);
+            }}
+          />
           <TablePagination
             component="div"
             {...getTablePaginationProps(t)}

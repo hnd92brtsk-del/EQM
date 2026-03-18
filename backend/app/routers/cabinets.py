@@ -4,7 +4,7 @@ from sqlalchemy import select
 
 from app.core.dependencies import get_db, require_read_access, require_write_access
 from app.core.pagination import paginate
-from app.core.query import apply_search, apply_sort, apply_date_filters
+from app.core.query import apply_alphabet_filter, apply_date_filters, apply_search, apply_sort, apply_text_filter
 from app.core.audit import add_audit_log, model_to_dict
 from app.models.core import Cabinet, Location
 from app.models.security import User
@@ -43,6 +43,10 @@ def list_cabinets(
     is_deleted: bool | None = None,
     include_deleted: bool = False,
     location_id: int | None = None,
+    name: str | None = None,
+    name_alphabet: str | None = None,
+    factory_number: str | None = None,
+    nomenclature_number: str | None = None,
     created_at_from: datetime | None = None,
     created_at_to: datetime | None = None,
     updated_at_from: datetime | None = None,
@@ -58,6 +62,10 @@ def list_cabinets(
         query = query.where(Cabinet.is_deleted == is_deleted)
     if location_id is not None:
         query = query.where(Cabinet.location_id == location_id)
+    query = apply_text_filter(query, Cabinet.name, name)
+    query = apply_alphabet_filter(query, Cabinet.name, name_alphabet)
+    query = apply_text_filter(query, Cabinet.factory_number, factory_number)
+    query = apply_text_filter(query, Cabinet.nomenclature_number, nomenclature_number)
 
     query = apply_search(query, q, [Cabinet.name])
     query = apply_date_filters(query, Cabinet, created_at_from, created_at_to, updated_at_from, updated_at_to)

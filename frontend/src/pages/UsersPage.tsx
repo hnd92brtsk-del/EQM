@@ -24,7 +24,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { DataTable } from "../components/DataTable";
+import { type ColumnMeta, DataTable, type DataTableFiltersState } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { AppButton } from "../components/ui/AppButton";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
@@ -52,9 +52,8 @@ export default function UsersPage() {
   const [role, setRole] = useState<User["role"]>("engineer");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [q, setQ] = useState("");
   const [sort, setSort] = useState("-created_at");
-  const [roleFilter, setRoleFilter] = useState<User["role"] | "">("");
+  const [columnFilters, setColumnFilters] = useState<DataTableFiltersState>({});
   const [showDeleted, setShowDeleted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -71,16 +70,17 @@ export default function UsersPage() {
   );
 
   const usersQuery = useQuery({
-    queryKey: ["users", page, pageSize, q, sort, roleFilter, showDeleted],
+    queryKey: ["users", page, pageSize, sort, columnFilters, showDeleted],
     queryFn: () =>
       listEntity<User>("/users", {
         page,
         page_size: pageSize,
-        q: q || undefined,
         sort: sort || undefined,
         is_deleted: showDeleted ? true : false,
         filters: {
-          role: roleFilter || undefined
+          username: columnFilters.username || undefined,
+          username_alphabet: columnFilters.username_alphabet || undefined,
+          role: columnFilters.role || undefined
         }
       })
   });
@@ -131,10 +131,29 @@ export default function UsersPage() {
 
   const columns = useMemo<ColumnDef<User>[]>(() => {
     const base: ColumnDef<User>[] = [
-      { header: t("common.fields.login"), accessorKey: "username" },
+      {
+        header: t("common.fields.login"),
+        accessorKey: "username",
+        meta: {
+          filterType: "text",
+          filterKey: "username",
+          alphabetFilterKey: "username_alphabet",
+          filterPlaceholder: t("actions.search")
+        } as ColumnMeta<User>
+      },
       {
         header: t("common.fields.role"),
         accessorKey: "role",
+        meta: {
+          filterType: "select",
+          filterKey: "role",
+          filterPlaceholder: t("common.all"),
+          filterOptions: [
+            { label: t("roles.admin"), value: "admin" },
+            { label: t("roles.engineer"), value: "engineer" },
+            { label: t("roles.viewer"), value: "viewer" }
+          ]
+        } as ColumnMeta<User>,
         cell: ({ row }) => t(`roles.${row.original.role}`)
       },
       {
@@ -197,16 +216,6 @@ export default function UsersPage() {
               gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))"
             }}
           >
-            <TextField
-              label={t("actions.search")}
-              value={q}
-              onChange={(event) => {
-                setQ(event.target.value);
-                setPage(1);
-              }}
-              fullWidth
-            />
-
             <FormControl fullWidth>
               <InputLabel>{t("common.sort")}</InputLabel>
               <Select label={t("common.sort")} value={sort} onChange={(event) => setSort(event.target.value)}>
@@ -215,23 +224,6 @@ export default function UsersPage() {
                     {option.label}
                   </MenuItem>
                 ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel>{t("common.fields.role")}</InputLabel>
-              <Select
-                label={t("common.fields.role")}
-                value={roleFilter}
-                onChange={(event) => {
-                  setRoleFilter(event.target.value as User["role"] | "");
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                <MenuItem value="admin">{t("roles.admin")}</MenuItem>
-                <MenuItem value="engineer">{t("roles.engineer")}</MenuItem>
-                <MenuItem value="viewer">{t("roles.viewer")}</MenuItem>
               </Select>
             </FormControl>
           </Box>
@@ -265,7 +257,16 @@ export default function UsersPage() {
             )}
           </Box>
 
-          <DataTable data={usersQuery.data?.items || []} columns={columns} />
+          <DataTable
+            data={usersQuery.data?.items || []}
+            columns={columns}
+            showColumnFilters
+            columnFilters={columnFilters}
+            onColumnFiltersChange={(nextFilters) => {
+              setColumnFilters(nextFilters);
+              setPage(1);
+            }}
+          />
           <TablePagination
             component="div"
             {...getTablePaginationProps(t)}

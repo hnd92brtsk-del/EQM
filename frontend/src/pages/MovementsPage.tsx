@@ -15,7 +15,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { DataTable } from "../components/DataTable";
+import { type ColumnMeta, DataTable, type DataTableFiltersState } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, listEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
@@ -66,16 +66,8 @@ export default function MovementsPage() {
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [q, setQ] = useState("");
   const [sort, setSort] = useState("-created_at");
-  const [filterType, setFilterType] = useState("");
-  const [filterEquipment, setFilterEquipment] = useState<number | "">("");
-  const [filterFromWarehouse, setFilterFromWarehouse] = useState<number | "">("");
-  const [filterToWarehouse, setFilterToWarehouse] = useState<number | "">("");
-  const [filterFromCabinet, setFilterFromCabinet] = useState<number | "">("");
-  const [filterToCabinet, setFilterToCabinet] = useState<number | "">("");
-  const [createdFrom, setCreatedFrom] = useState("");
-  const [createdTo, setCreatedTo] = useState("");
+  const [columnFilters, setColumnFilters] = useState<DataTableFiltersState>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const movementOptions = useMemo(
@@ -110,32 +102,42 @@ export default function MovementsPage() {
       "movements",
       page,
       pageSize,
-      q,
       sort,
-      filterType,
-      filterEquipment,
-      filterFromWarehouse,
-      filterToWarehouse,
-      filterFromCabinet,
-      filterToCabinet,
-      createdFrom,
-      createdTo
+      columnFilters
     ],
     queryFn: () =>
       listEntity<Movement>("/movements", {
         page,
         page_size: pageSize,
-        q: q || undefined,
         sort: sort || undefined,
         filters: {
-          movement_type: filterType || undefined,
-          equipment_type_id: filterEquipment || undefined,
-          from_warehouse_id: filterFromWarehouse || undefined,
-          to_warehouse_id: filterToWarehouse || undefined,
-          from_cabinet_id: filterFromCabinet || undefined,
-          to_cabinet_id: filterToCabinet || undefined,
-          created_at_from: createdFrom || undefined,
-          created_at_to: createdTo || undefined
+          movement_type: columnFilters.movement_type || undefined,
+          equipment_type_id:
+            columnFilters.equipment_type_id && !Number.isNaN(Number(columnFilters.equipment_type_id))
+              ? Number(columnFilters.equipment_type_id)
+              : undefined,
+          from_warehouse_id:
+            columnFilters.from_warehouse_id && !Number.isNaN(Number(columnFilters.from_warehouse_id))
+              ? Number(columnFilters.from_warehouse_id)
+              : undefined,
+          to_warehouse_id:
+            columnFilters.to_warehouse_id && !Number.isNaN(Number(columnFilters.to_warehouse_id))
+              ? Number(columnFilters.to_warehouse_id)
+              : undefined,
+          from_cabinet_id:
+            columnFilters.from_cabinet_id && !Number.isNaN(Number(columnFilters.from_cabinet_id))
+              ? Number(columnFilters.from_cabinet_id)
+              : undefined,
+          to_cabinet_id:
+            columnFilters.to_cabinet_id && !Number.isNaN(Number(columnFilters.to_cabinet_id))
+              ? Number(columnFilters.to_cabinet_id)
+              : undefined,
+          performed_by_id:
+            columnFilters.performed_by_id && !Number.isNaN(Number(columnFilters.performed_by_id))
+              ? Number(columnFilters.performed_by_id)
+              : undefined,
+          created_at_from: columnFilters.created_at_from || undefined,
+          created_at_to: columnFilters.created_at_to || undefined
         }
       })
   });
@@ -220,16 +222,45 @@ export default function MovementsPage() {
       {
         header: t("pagesUi.movements.columns.type"),
         accessorKey: "movement_type",
+        meta: {
+          filterType: "select",
+          filterKey: "movement_type",
+          filterPlaceholder: t("common.all"),
+          filterOptions: movementOptions.map((option) => ({
+            label: option.label,
+            value: option.value
+          }))
+        } as ColumnMeta<Movement>,
         cell: ({ row }) => movementLabelMap.get(row.original.movement_type) || row.original.movement_type
       },
       {
         header: t("common.fields.nomenclature"),
+        meta: {
+          filterType: "select",
+          filterKey: "equipment_type_id",
+          filterPlaceholder: t("common.all"),
+          filterOptions:
+            equipmentTypesQuery.data?.items.map((item) => ({
+              label: item.name,
+              value: item.id
+            })) || []
+        } as ColumnMeta<Movement>,
         cell: ({ row }) =>
           equipmentMap.get(row.original.equipment_type_id) || row.original.equipment_type_id
       },
       { header: t("common.fields.quantity"), accessorKey: "quantity" },
       {
         header: t("pagesUi.movements.columns.from"),
+        meta: {
+          filterType: "select",
+          filterKey: "from_warehouse_id",
+          filterPlaceholder: t("common.all"),
+          filterOptions:
+            warehousesQuery.data?.items.map((item) => ({
+              label: item.name,
+              value: item.id
+            })) || []
+        } as ColumnMeta<Movement>,
         cell: ({ row }) => {
           if (row.original.from_warehouse_id) {
             return warehouseMap.get(row.original.from_warehouse_id) || row.original.from_warehouse_id;
@@ -242,6 +273,16 @@ export default function MovementsPage() {
       },
       {
         header: t("pagesUi.movements.columns.to"),
+        meta: {
+          filterType: "select",
+          filterKey: "to_warehouse_id",
+          filterPlaceholder: t("common.all"),
+          filterOptions:
+            warehousesQuery.data?.items.map((item) => ({
+              label: item.name,
+              value: item.id
+            })) || []
+        } as ColumnMeta<Movement>,
         cell: ({ row }) => {
           if (row.original.to_warehouse_id) {
             return warehouseMap.get(row.original.to_warehouse_id) || row.original.to_warehouse_id;
@@ -255,10 +296,25 @@ export default function MovementsPage() {
           return "-";
         }
       },
-      { header: t("pagesUi.movements.columns.performedBy"), accessorKey: "performed_by_id" },
-      { header: t("pagesUi.movements.columns.createdAt"), accessorKey: "created_at" }
+      {
+        header: t("pagesUi.movements.columns.performedBy"),
+        accessorKey: "performed_by_id",
+        meta: {
+          filterType: "number",
+          filterKey: "performed_by_id",
+          filterPlaceholder: t("pagesUi.movements.columns.performedBy")
+        } as ColumnMeta<Movement>
+      },
+      {
+        header: t("pagesUi.movements.columns.createdAt"),
+        accessorKey: "created_at",
+        meta: {
+          filterType: "date",
+          filterKey: "created_at_from"
+        } as ColumnMeta<Movement>
+      }
     ],
-    [assemblyMap, cabinetMap, equipmentMap, movementLabelMap, t, warehouseMap]
+    [assemblyMap, cabinetMap, equipmentMap, equipmentTypesQuery.data?.items, movementLabelMap, movementOptions, t, warehouseMap, warehousesQuery.data?.items]
   );
 
   const handleSubmit = () => {
@@ -541,16 +597,6 @@ export default function MovementsPage() {
               gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))"
             }}
           >
-            <TextField
-              label={t("actions.search")}
-              value={q}
-              onChange={(event) => {
-                setQ(event.target.value);
-                setPage(1);
-              }}
-              fullWidth
-            />
-
             <FormControl fullWidth>
               <InputLabel>{t("common.sort")}</InputLabel>
               <Select label={t("common.sort")} value={sort} onChange={(event) => setSort(event.target.value)}>
@@ -561,147 +607,18 @@ export default function MovementsPage() {
                 ))}
               </Select>
             </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel>{t("pagesUi.movements.fields.movementType")}</InputLabel>
-              <Select
-                label={t("pagesUi.movements.fields.movementType")}
-                value={filterType}
-                onChange={(event) => {
-                  setFilterType(event.target.value);
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                {movementOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel>{t("common.fields.nomenclature")}</InputLabel>
-              <Select
-                label={t("common.fields.nomenclature")}
-                value={filterEquipment}
-                onChange={(event) => {
-                  setFilterEquipment(parseSelectValue(event.target.value));
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                {equipmentTypesQuery.data?.items.map((item) => (
-                  <MenuItem key={item.id} value={item.id}>
-                    {item.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel>{t("pagesUi.movements.fields.fromWarehouse")}</InputLabel>
-              <Select
-                label={t("pagesUi.movements.fields.fromWarehouse")}
-                value={filterFromWarehouse}
-                onChange={(event) => {
-                  setFilterFromWarehouse(parseSelectValue(event.target.value));
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                {warehousesQuery.data?.items.map((warehouse) => (
-                  <MenuItem key={warehouse.id} value={warehouse.id}>
-                    {warehouse.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel>{t("pagesUi.movements.fields.toWarehouse")}</InputLabel>
-              <Select
-                label={t("pagesUi.movements.fields.toWarehouse")}
-                value={filterToWarehouse}
-                onChange={(event) => {
-                  setFilterToWarehouse(parseSelectValue(event.target.value));
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                {warehousesQuery.data?.items.map((warehouse) => (
-                  <MenuItem key={warehouse.id} value={warehouse.id}>
-                    {warehouse.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel>{t("pagesUi.movements.fields.fromCabinet")}</InputLabel>
-              <Select
-                label={t("pagesUi.movements.fields.fromCabinet")}
-                value={filterFromCabinet}
-                onChange={(event) => {
-                  setFilterFromCabinet(parseSelectValue(event.target.value));
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                {cabinetsQuery.data?.items.map((cabinet) => (
-                  <MenuItem key={cabinet.id} value={cabinet.id}>
-                    {cabinet.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel>{t("pagesUi.movements.fields.toCabinet")}</InputLabel>
-              <Select
-                label={t("pagesUi.movements.fields.toCabinet")}
-                value={filterToCabinet}
-                onChange={(event) => {
-                  setFilterToCabinet(parseSelectValue(event.target.value));
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                {cabinetsQuery.data?.items.map((cabinet) => (
-                  <MenuItem key={cabinet.id} value={cabinet.id}>
-                    {cabinet.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <TextField
-              label={t("common.dateFrom")}
-              type="date"
-              value={createdFrom}
-              onChange={(event) => {
-                setCreatedFrom(event.target.value);
-                setPage(1);
-              }}
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-            />
-
-            <TextField
-              label={t("common.dateTo")}
-              type="date"
-              value={createdTo}
-              onChange={(event) => {
-                setCreatedTo(event.target.value);
-                setPage(1);
-              }}
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-            />
           </Box>
 
-          <DataTable data={movementsQuery.data?.items || []} columns={columns} />
+          <DataTable
+            data={movementsQuery.data?.items || []}
+            columns={columns}
+            showColumnFilters
+            columnFilters={columnFilters}
+            onColumnFiltersChange={(nextFilters) => {
+              setColumnFilters(nextFilters);
+              setPage(1);
+            }}
+          />
           <TablePagination
             component="div"
             {...getTablePaginationProps(t)}
