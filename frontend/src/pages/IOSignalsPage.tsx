@@ -5,6 +5,7 @@ import {
   CardContent,
   Collapse,
   IconButton,
+  TextField,
   Typography,
   type SxProps,
   type Theme
@@ -36,6 +37,7 @@ import { buildMeasurementUnitLookups, fetchMeasurementUnitsTree } from "../utils
 import { buildDataTypeLookups, fetchDataTypesTree } from "../utils/dataTypes";
 import { buildFieldEquipmentLookups, fetchFieldEquipmentsTree } from "../utils/fieldEquipments";
 import { buildSignalTypeLookups, fetchSignalTypesTree } from "../utils/signalTypes";
+import { LIVE_FILTER_DIM_OPACITY, annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
 
 const signalTypeOptions = [
   { value: "AI", label: "AI" },
@@ -50,6 +52,29 @@ type TreeSelectNode = {
   children?: TreeSelectNode[];
 };
 
+type IOTreeEntry =
+  | {
+      kind: "location";
+      id: string;
+      searchLabel: string;
+      location: IOTreeLocation;
+      children: IOTreeEntry[];
+    }
+  | {
+      kind: "cabinet";
+      id: string;
+      searchLabel: string;
+      cabinet: IOTreeCabinet;
+      children: IOTreeEntry[];
+    }
+  | {
+      kind: "device";
+      id: string;
+      searchLabel: string;
+      device: IOTreeChannelDevice;
+      children: IOTreeEntry[];
+    };
+
 type ColumnMeta = {
   headerSx?: SxProps<Theme>;
   cellSx?: SxProps<Theme>;
@@ -61,6 +86,38 @@ function buildTreeSelectOptions(nodes: TreeSelectNode[]): TreeFieldOption[] {
     label: node.name,
     children: buildTreeSelectOptions(node.children || [])
   }));
+}
+
+function buildDeviceEntry(device: IOTreeChannelDevice): IOTreeEntry {
+  return {
+    kind: "device",
+    id: `device-${device.equipment_in_operation_id}`,
+    searchLabel: [device.equipment_name, device.manufacturer_name, device.article, device.nomenclature_number]
+      .filter(Boolean)
+      .join(" "),
+    device,
+    children: []
+  };
+}
+
+function buildCabinetEntry(cabinet: IOTreeCabinet): IOTreeEntry {
+  return {
+    kind: "cabinet",
+    id: `cabinet-${cabinet.id}`,
+    searchLabel: [cabinet.name, cabinet.factory_number, cabinet.inventory_number].filter(Boolean).join(" "),
+    cabinet,
+    children: (cabinet.channel_devices || []).map(buildDeviceEntry)
+  };
+}
+
+function buildLocationEntry(location: IOTreeLocation): IOTreeEntry {
+  return {
+    kind: "location",
+    id: `location-${location.id}`,
+    searchLabel: location.name,
+    location,
+    children: [...(location.children || []).map(buildLocationEntry), ...(location.cabinets || []).map(buildCabinetEntry)]
+  };
 }
 
 const ioColumnMeta: Record<string, ColumnMeta> = {
@@ -117,6 +174,7 @@ export default function IOSignalsPage() {
   const queryClient = useQueryClient();
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [treeQuery, setTreeQuery] = useState("");
   const [selectedDevice, setSelectedDevice] = useState<IOTreeChannelDevice | null>(null);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -254,7 +312,31 @@ export default function IOSignalsPage() {
     });
   };
 
-  const renderDevice = (device: IOTreeChannelDevice, level: number) => {
+  const locations = ioTreeQuery.data?.locations || [];
+
+  const treeEntries = useMemo<IOTreeEntry[]>(
+    () => locations.map(buildLocationEntry),
+    [locations]
+  );
+
+  const treeAnnotations = useMemo(
+    () =>
+      annotateLiveTree(
+        treeEntries,
+        {
+          getLabel: (entry) => entry.searchLabel,
+          getChildren: (entry) => entry.children
+        },
+        treeQuery
+      ),
+    [treeEntries, treeQuery]
+  );
+
+  const renderDevice = (entry: LiveTreeAnnotation<IOTreeEntry>, level: number) => {
+    if (entry.item.kind !== "device") {
+      return null;
+    }
+    const device = entry.item.device;
     const isSelected = selectedDevice?.equipment_in_operation_id === device.equipment_in_operation_id;
     const labelParts = [
       device.manufacturer_name,
@@ -270,7 +352,8 @@ export default function IOSignalsPage() {
           borderRadius: 1,
           cursor: "pointer",
           backgroundColor: isSelected ? "action.selected" : "transparent",
-          "&:hover": { backgroundColor: "action.hover" }
+          opacity: isSelected ? 1 : entry.isDimmed ? LIVE_FILTER_DIM_OPACITY : 1,
+          "&:hover": { backgroundColor: "action.hover", opacity: 1 }
         }}
         onClick={() => setSelectedDevice(device)}
       >
@@ -286,14 +369,25 @@ export default function IOSignalsPage() {
     );
   };
 
-  const renderCabinet = (cabinet: IOTreeCabinet, level: number) => {
-    const id = `cabinet-${cabinet.id}`;
-    const expanded = expandedIds.has(id);
-    const hasChildren = (cabinet.channel_devices || []).length > 0;
+  const renderCabinet = (entry: LiveTreeAnnotation<IOTreeEntry>, level: number) => {
+    if (entry.item.kind !== "cabinet") {
+      return null;
+    }
+    const { cabinet, id } = entry.item;
+    const expanded = treeQuery.trim() ? entry.shouldForceExpand : expandedIds.has(id);
+    const hasChildren = entry.children.length > 0;
     const metaParts = [cabinet.factory_number, cabinet.inventory_number].filter(Boolean);
     return (
       <Box key={id}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, pl: `${level * 16}px` }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            pl: `${level * 16}px`,
+            opacity: entry.isDimmed ? LIVE_FILTER_DIM_OPACITY : 1
+          }}
+        >
           {hasChildren ? (
             <IconButton size="small" onClick={() => toggleExpanded(id)}>
               {expanded ? <ExpandMoreRoundedIcon /> : <ChevronRightRoundedIcon />}
@@ -313,7 +407,7 @@ export default function IOSignalsPage() {
         {hasChildren && (
           <Collapse in={expanded} timeout="auto" unmountOnExit>
             <Box sx={{ display: "grid", gap: 0.5 }}>
-              {cabinet.channel_devices.map((device) => renderDevice(device, level + 1))}
+              {entry.children.map((child) => renderTreeEntry(child, level + 1))}
             </Box>
           </Collapse>
         )}
@@ -321,15 +415,24 @@ export default function IOSignalsPage() {
     );
   };
 
-  const renderLocation = (location: IOTreeLocation, level: number) => {
-    const id = `location-${location.id}`;
-    const expanded = expandedIds.has(id);
-    const children = location.children || [];
-    const cabinets = location.cabinets || [];
-    const hasChildren = children.length > 0 || cabinets.length > 0;
+  const renderLocation = (entry: LiveTreeAnnotation<IOTreeEntry>, level: number) => {
+    if (entry.item.kind !== "location") {
+      return null;
+    }
+    const { location, id } = entry.item;
+    const expanded = treeQuery.trim() ? entry.shouldForceExpand : expandedIds.has(id);
+    const hasChildren = entry.children.length > 0;
     return (
       <Box key={id}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, pl: `${level * 16}px` }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            pl: `${level * 16}px`,
+            opacity: entry.isDimmed ? LIVE_FILTER_DIM_OPACITY : 1
+          }}
+        >
           {hasChildren ? (
             <IconButton size="small" onClick={() => toggleExpanded(id)}>
               {expanded ? <ExpandMoreRoundedIcon /> : <ChevronRightRoundedIcon />}
@@ -342,13 +445,25 @@ export default function IOSignalsPage() {
         {hasChildren && (
           <Collapse in={expanded} timeout="auto" unmountOnExit>
             <Box sx={{ display: "grid", gap: 0.5 }}>
-              {children.map((child) => renderLocation(child, level + 1))}
-              {cabinets.map((cabinet) => renderCabinet(cabinet, level + 1))}
+              {entry.children.map((child) => renderTreeEntry(child, level + 1))}
             </Box>
           </Collapse>
         )}
       </Box>
     );
+  };
+
+  const renderTreeEntry = (entry: LiveTreeAnnotation<IOTreeEntry>, level: number) => {
+    switch (entry.item.kind) {
+      case "location":
+        return renderLocation(entry, level);
+      case "cabinet":
+        return renderCabinet(entry, level);
+      case "device":
+        return renderDevice(entry, level);
+      default:
+        return null;
+    }
   };
 
   const columns = useMemo<ColumnDef<IOSignal>[]>(() => {
@@ -565,9 +680,6 @@ export default function IOSignalsPage() {
     t,
     updateMutation
   ]);
-
-  const locations = ioTreeQuery.data?.locations || [];
-
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
       <Typography variant="h4">{t("pages.ioSignals")}</Typography>
@@ -583,13 +695,19 @@ export default function IOSignalsPage() {
         <Card>
           <CardContent sx={{ display: "grid", gap: 1 }}>
             <Typography variant="h6">{t("pagesUi.ioSignals.labels.locations")}</Typography>
+            <TextField
+              size="small"
+              value={treeQuery}
+              onChange={(event) => setTreeQuery(event.target.value)}
+              placeholder={t("common.liveFilter.searchPlaceholder")}
+            />
             {locations.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
                 {t("pagesUi.ioSignals.empty.tree")}
               </Typography>
             ) : (
               <Box sx={{ display: "grid", gap: 0.5 }}>
-                {locations.map((location) => renderLocation(location, 0))}
+                {treeAnnotations.map((entry) => renderTreeEntry(entry, 0))}
               </Box>
             )}
           </CardContent>
