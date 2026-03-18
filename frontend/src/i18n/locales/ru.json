@@ -658,6 +658,20 @@
                                          "actions":  {
                                                          "addFinished":  "Ввести готовое"
                                                      },
+                                         "inline":  {
+                                                        "add":  "Добавить",
+                                                        "remove":  "Удалить",
+                                                        "addTooltip":  "Добавить оборудование",
+                                                        "removeTooltip":  "Удалить оборудование",
+                                                        "addDialogTitle":  "Добавить оборудование в шкаф {{name}}",
+                                                        "removeDialogTitle":  "Удалить оборудование из шкафа {{name}}",
+                                                        "availableToRemove":  "Доступно к удалению: {{count}}",
+                                                        "removeUnavailable":  "Невозможно удалить выбранное количество из шкафа.",
+                                                        "nothingToRemove":  "В этом шкафу пока нет оборудования для удаления."
+                                                    },
+                                         "empty":  {
+                                                       "container":  "Оборудование отсутствует."
+                                                   },
                                          "placeholders":  {
                                                               "quantityLocked":  "Количество фиксировано = 1",
                                                               "details":  "Детализация будет добавлена позже.",

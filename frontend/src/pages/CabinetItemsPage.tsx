@@ -13,14 +13,18 @@ import {
   DialogTitle,
   FormControl,
   FormControlLabel,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
   Switch,
   TablePagination,
   TextField,
+  Tooltip,
   Typography
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
@@ -33,7 +37,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
-import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
@@ -48,8 +51,7 @@ import { SearchableSelectField } from "../components/SearchableSelectField";
 const pageSizeOptions = [10, 20, 50, 100];
 
 const InfoRow = ({ label, value }: { label: string; value?: ReactNode }) => {
-  const displayValue =
-    value === null || value === undefined || value === "" ? "-" : value;
+  const displayValue = value === null || value === undefined || value === "" ? "-" : value;
   return (
     <Box sx={{ display: "grid" }}>
       <Typography variant="caption" color="text.secondary">
@@ -60,9 +62,7 @@ const InfoRow = ({ label, value }: { label: string; value?: ReactNode }) => {
   );
 };
 
-const formatNetworkPorts = (
-  ports: { type: string; count: number }[] | null | undefined
-): string => {
+const formatNetworkPorts = (ports: { type: string; count: number }[] | null | undefined): string => {
   if (!Array.isArray(ports) || ports.length === 0) {
     return "-";
   }
@@ -73,9 +73,7 @@ const formatNetworkPorts = (
   return formatted.length ? formatted.join(", ") : "-";
 };
 
-const formatSerialPorts = (
-  ports: { type: string; count: number }[] | null | undefined
-): string => {
+const formatSerialPorts = (ports: { type: string; count: number }[] | null | undefined): string => {
   if (!Array.isArray(ports) || ports.length === 0) {
     return "-";
   }
@@ -130,6 +128,20 @@ type EquipmentInOperationItem = {
   created_at?: string;
 };
 
+type EquipmentInOperationContainer = {
+  source: "cabinet" | "assembly";
+  container_id: number;
+  container_name: string;
+  container_factory_number?: string | null;
+  container_inventory_number?: string | null;
+  location_full_path?: string | null;
+  is_empty: boolean;
+  quantity_sum: number;
+  equipment_type_name_sort?: string | null;
+  manufacturer_name_sort?: string | null;
+  created_at?: string | null;
+};
+
 type Cabinet = { id: number; name: string };
 type Assembly = { id: number; name: string };
 
@@ -145,7 +157,9 @@ type EquipmentType = {
   ao_count?: number | null;
   do_count?: number | null;
 };
+
 type Manufacturer = { id: number; name: string };
+
 type CabinetItemIPAMSummary = {
   eligible_for_ipam: boolean;
   network_interfaces_count: number;
@@ -173,23 +187,105 @@ type EquipmentGroup = {
   items: EquipmentInOperationItem[];
 };
 
-type ContainerGroup = {
-  key: string;
-  container_id: number;
-  container_name: string;
-  container_type: EquipmentInOperationItem["source"];
-  container_type_label: string;
-  factory_number: string;
-  inventory_number: string;
-  location_full_path: string;
-  items: EquipmentInOperationItem[];
-  equipmentGroups: EquipmentGroup[];
-  created_at_min: number;
-  created_at_max: number;
-  quantity_sum: number;
-  equipment_name_sort: string;
-  manufacturer_name_sort: string;
+type DetailFilters = {
+  q: string;
+  showDeleted: boolean;
+  equipmentFilter: number | "";
+  manufacturerFilter: number | "";
+  locationFilter: number | "";
 };
+
+function buildEquipmentGroups(
+  items: EquipmentInOperationItem[],
+  equipmentMap: Map<number, string>,
+  language: string
+): EquipmentGroup[] {
+  const equipmentGroupsMap = new Map<string, EquipmentGroup>();
+
+  items.forEach((item) => {
+    const equipmentName =
+      item.equipment_type_name || equipmentMap.get(item.equipment_type_id) || String(item.equipment_type_id);
+    const manufacturerName = item.manufacturer_name || "-";
+    const isUniqueInstance = item.can_edit_quantity === false;
+    const groupKey = isUniqueInstance
+      ? `${item.equipment_type_id}:${item.source}:${item.id}`
+      : String(item.equipment_type_id || equipmentName);
+    let equipmentGroup = equipmentGroupsMap.get(groupKey);
+
+    if (!equipmentGroup) {
+      equipmentGroup = {
+        key: groupKey,
+        equipment_type_id: item.equipment_type_id,
+        equipment_type_name: equipmentName,
+        manufacturer_name: manufacturerName,
+        article: item.equipment_type_article || "-",
+        inventory_number: item.equipment_type_inventory_number || "-",
+        photo_url: item.equipment_type_photo_url || null,
+        datasheet_url: item.equipment_type_datasheet_url || null,
+        datasheet_name: item.equipment_type_datasheet_name || null,
+        network_ports: item.network_ports,
+        serial_ports: item.serial_ports,
+        is_channel_forming: item.is_channel_forming,
+        channel_count: item.channel_count ?? null,
+        can_edit_quantity: item.can_edit_quantity ?? true,
+        quantity_sum: 0,
+        items: []
+      };
+      equipmentGroupsMap.set(groupKey, equipmentGroup);
+    }
+
+    equipmentGroup.can_edit_quantity = equipmentGroup.can_edit_quantity && (item.can_edit_quantity ?? true);
+    if (item.is_channel_forming) {
+      equipmentGroup.is_channel_forming = true;
+    }
+    if (item.channel_count !== undefined && item.channel_count !== null) {
+      equipmentGroup.channel_count = item.channel_count;
+    }
+    equipmentGroup.quantity_sum += item.quantity || 0;
+    equipmentGroup.items.push(item);
+  });
+
+  return Array.from(equipmentGroupsMap.values()).sort((a, b) =>
+    a.equipment_type_name.localeCompare(b.equipment_type_name, language)
+  );
+}
+
+async function fetchAllEquipmentInOperationItems(params: {
+  q?: string;
+  is_deleted: boolean;
+  cabinet_id?: number;
+  assembly_id?: number;
+  equipment_type_id?: number;
+  manufacturer_id?: number;
+  location_id?: number;
+}): Promise<EquipmentInOperationItem[]> {
+  const pageSize = 200;
+  let page = 1;
+  let items: EquipmentInOperationItem[] = [];
+
+  while (true) {
+    const response = await listEntity<EquipmentInOperationItem>("/equipment-in-operation", {
+      page,
+      page_size: pageSize,
+      q: params.q,
+      is_deleted: params.is_deleted,
+      filters: {
+        cabinet_id: params.cabinet_id,
+        assembly_id: params.assembly_id,
+        equipment_type_id: params.equipment_type_id,
+        manufacturer_id: params.manufacturer_id,
+        location_id: params.location_id
+      }
+    });
+    items = items.concat(response.items);
+    if (items.length >= response.total) {
+      break;
+    }
+    page += 1;
+  }
+
+  return items;
+}
 
 function IPAMSummaryBlock({
   itemId,
@@ -241,14 +337,10 @@ function IPAMSummaryBlock({
         />
       </Box>
       <Typography variant="body2" color="text.secondary">
-        {t("pagesUi.cabinetItems.ipam.interfaces", {
-          count: summary.network_interfaces_count
-        })}
+        {t("pagesUi.cabinetItems.ipam.interfaces", { count: summary.network_interfaces_count })}
       </Typography>
       <Typography variant="body2" color="text.secondary">
-        {t("pagesUi.cabinetItems.ipam.ipCount", {
-          count: summary.current_ip_links_count
-        })}
+        {t("pagesUi.cabinetItems.ipam.ipCount", { count: summary.current_ip_links_count })}
       </Typography>
       {summary.linked_ip_addresses.length ? (
         <Typography variant="body2">{summary.linked_ip_addresses.join(", ")}</Typography>
@@ -262,10 +354,481 @@ function IPAMSummaryBlock({
   );
 }
 
+function ContainerAccordion({
+  container,
+  canWrite,
+  detailFilters,
+  equipmentMap,
+  equipmentFlagsMap,
+  onEditItem,
+  onDeleteItem,
+  onRestoreItem,
+  onAddToCabinet,
+  equipmentOptions,
+  onErrorMessage
+}: {
+  container: EquipmentInOperationContainer;
+  canWrite: boolean;
+  detailFilters: DetailFilters;
+  equipmentMap: Map<number, string>;
+  equipmentFlagsMap: Map<number, EquipmentType>;
+  onEditItem: (item: EquipmentInOperationItem) => void;
+  onDeleteItem: (item: EquipmentInOperationItem) => void;
+  onRestoreItem: (item: EquipmentInOperationItem) => void;
+  onAddToCabinet: (payload: { cabinetId: number; equipmentTypeId: number; quantity: number }) => void;
+  equipmentOptions: { value: number; label: string }[];
+  onErrorMessage: (message: string) => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const theme = useTheme();
+  const [expanded, setExpanded] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [selectedEquipmentId, setSelectedEquipmentId] = useState<number | "">("");
+  const [inlineQuantity, setInlineQuantity] = useState(1);
+
+  const detailQuery = useQuery({
+    queryKey: [
+      "equipment-in-operation-container-items",
+      container.source,
+      container.container_id,
+      detailFilters.showDeleted,
+      detailFilters.q,
+      detailFilters.equipmentFilter,
+      detailFilters.manufacturerFilter,
+      detailFilters.locationFilter
+    ],
+    enabled: expanded,
+    queryFn: () =>
+      fetchAllEquipmentInOperationItems({
+        q: detailFilters.q || undefined,
+        is_deleted: detailFilters.showDeleted ? true : false,
+        cabinet_id: container.source === "cabinet" ? container.container_id : undefined,
+        assembly_id: container.source === "assembly" ? container.container_id : undefined,
+        equipment_type_id: detailFilters.equipmentFilter || undefined,
+        manufacturer_id: detailFilters.manufacturerFilter || undefined,
+        location_id: detailFilters.locationFilter || undefined
+      })
+  });
+
+  useEffect(() => {
+    if (detailQuery.error) {
+      onErrorMessage(
+        detailQuery.error instanceof Error ? detailQuery.error.message : t("pagesUi.cabinetItems.errors.load")
+      );
+    }
+  }, [detailQuery.error, onErrorMessage, t]);
+
+  const equipmentGroups = useMemo(
+    () => buildEquipmentGroups(detailQuery.data || [], equipmentMap, i18n.language),
+    [detailQuery.data, equipmentMap, i18n.language]
+  );
+  const selectedEquipment = selectedEquipmentId === "" ? undefined : equipmentFlagsMap.get(Number(selectedEquipmentId));
+  const forceQtyOne = Boolean(
+    selectedEquipment?.is_channel_forming || selectedEquipment?.is_network || selectedEquipment?.has_serial_interfaces
+  );
+  const effectiveQuantity = forceQtyOne ? 1 : inlineQuantity;
+  const canAdd = container.source === "cabinet" && selectedEquipmentId !== "" && Number.isFinite(effectiveQuantity) && effectiveQuantity >= 1;
+
+  const handleAddDialogOpen = () => {
+    setAddDialogOpen(true);
+    setSelectedEquipmentId("");
+    setInlineQuantity(1);
+  };
+
+  const handleAddDialogClose = () => {
+    setAddDialogOpen(false);
+    setSelectedEquipmentId("");
+    setInlineQuantity(1);
+  };
+
+  const handleAdd = () => {
+    if (!canAdd) {
+      onErrorMessage(t("validation.requiredFields"));
+      return;
+    }
+    onAddToCabinet({
+      cabinetId: container.container_id,
+      equipmentTypeId: Number(selectedEquipmentId),
+      quantity: effectiveQuantity
+    });
+    handleAddDialogClose();
+  };
+
+  return (
+    <Accordion
+      key={`${container.source}:${container.container_id}`}
+      disableGutters
+      expanded={expanded}
+      onChange={(_, isExpanded) => setExpanded(isExpanded)}
+    >
+      <AccordionSummary
+        expandIcon={<ExpandMoreRoundedIcon />}
+        sx={{
+          "& .MuiAccordionSummary-expandIconWrapper": {
+            width: 36,
+            justifyContent: "center"
+          },
+          "& .MuiAccordionSummary-content": {
+            minWidth: 0
+          }
+        }}
+      >
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "minmax(220px, 1.2fr) minmax(140px, 0.7fr) minmax(160px, 0.8fr) minmax(220px, 1fr)"
+            },
+            gap: 1.5,
+            alignItems: "center",
+            width: "100%"
+          }}
+        >
+          <Box sx={{ display: "grid", minWidth: 0 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              {container.container_name}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {container.source === "assembly" ? t("common.fields.assembly") : t("common.fields.cabinet")}
+            </Typography>
+          </Box>
+          <Box sx={{ display: "grid" }}>
+            <Typography variant="caption" color="text.secondary">
+              {t("common.fields.factoryNumber")}
+            </Typography>
+            <Typography variant="body2">{container.container_factory_number || "-"}</Typography>
+          </Box>
+          <Box sx={{ display: "grid" }}>
+            <Typography variant="caption" color="text.secondary">
+              {t("common.fields.nomenclatureNumber")}
+            </Typography>
+            <Typography variant="body2">{container.container_inventory_number || "-"}</Typography>
+          </Box>
+          <Box sx={{ display: "grid" }}>
+            <Typography variant="caption" color="text.secondary">
+              {t("common.fields.location")}
+            </Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+            >
+              {container.location_full_path || "-"}
+            </Typography>
+          </Box>
+        </Box>
+      </AccordionSummary>
+      <AccordionDetails>
+        {detailQuery.isLoading ? (
+          <Typography variant="body2" color="text.secondary">
+            {t("common.loading")}
+          </Typography>
+        ) : null}
+
+        {!detailQuery.isLoading && container.source === "cabinet" && canWrite ? (
+          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mb: 1.5 }}>
+            <Tooltip title={t("pagesUi.cabinetItems.inline.addTooltip")}>
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={handleAddDialogOpen}
+                  sx={{
+                    color: theme.palette.mode === "light" ? "common.black" : "common.white",
+                    border: "1px solid",
+                    borderColor: "divider"
+                  }}
+                >
+                  <AddRoundedIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+          </Box>
+        ) : null}
+
+        {!detailQuery.isLoading && equipmentGroups.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            {t("pagesUi.cabinetItems.empty.container")}
+          </Typography>
+        ) : null}
+
+        {!detailQuery.isLoading && equipmentGroups.length > 0 ? (
+          <Box sx={{ display: "grid", gap: 1 }}>
+            {equipmentGroups.map((group) => {
+              const singleItem = group.items.length === 1 ? group.items[0] : null;
+              const equipmentDetails = equipmentFlagsMap.get(group.equipment_type_id);
+              const channelCount = group.channel_count ?? equipmentDetails?.channel_count ?? null;
+              const aiCount = equipmentDetails?.ai_count ?? 0;
+              const diCount = equipmentDetails?.di_count ?? 0;
+              const aoCount = equipmentDetails?.ao_count ?? 0;
+              const doCount = equipmentDetails?.do_count ?? 0;
+              const channelParts: string[] = [];
+              if (channelCount) {
+                channelParts.push(`${t("common.fields.channelCount")}: ${channelCount}`);
+              }
+              if (aiCount || diCount || aoCount || doCount) {
+                channelParts.push(`AI ${aiCount} / DI ${diCount} / AO ${aoCount} / DO ${doCount}`);
+              }
+              const channelValue = channelParts.length
+                ? `${t("common.yes")}, ${channelParts.join(", ")}`
+                : t("common.yes");
+
+              return (
+                <Accordion
+                  key={`${container.source}:${container.container_id}:${group.key}`}
+                  disableGutters
+                  elevation={0}
+                  sx={{ border: "1px solid", borderColor: "divider" }}
+                >
+                  <AccordionSummary expandIcon={<ExpandMoreRoundedIcon />}>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: {
+                          xs: "1fr",
+                          sm: "minmax(240px, 2fr) minmax(80px, 0.5fr) auto"
+                        },
+                        gap: 1.5,
+                        alignItems: "center",
+                        width: "100%"
+                      }}
+                    >
+                      <Typography>{group.equipment_type_name}</Typography>
+                      <Typography sx={{ fontWeight: 600 }}>{group.quantity_sum}</Typography>
+                      <Box />
+                    </Box>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Box sx={{ display: "grid", gap: 1.25, mb: 2 }}>
+                      {group.items.map((item) => (
+                        <Box
+                          key={item.id}
+                          sx={{
+                            display: "grid",
+                            gridTemplateColumns: { xs: "1fr", sm: "minmax(160px, 1fr) auto" },
+                            gap: 1.5,
+                            alignItems: "center",
+                            p: 1.25,
+                            border: "1px solid",
+                            borderColor: "divider",
+                            borderRadius: 2,
+                            backgroundColor: "background.paper"
+                          }}
+                        >
+                          <Box sx={{ display: "grid", gap: 0.25 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {`ID ${item.id}`}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {t("common.fields.quantity")}:{" "}
+                              {item.can_edit_quantity === false
+                                ? `${item.quantity} (${t("pagesUi.cabinetItems.placeholders.quantityLocked")})`
+                                : item.quantity}
+                            </Typography>
+                            {item.created_at ? (
+                              <Typography variant="caption" color="text.secondary">
+                                {new Date(item.created_at).toLocaleString(i18n.language)}
+                              </Typography>
+                            ) : null}
+                          </Box>
+                          {canWrite ? (
+                            <Box
+                              sx={{ display: "flex", justifyContent: { xs: "flex-start", sm: "flex-end" }, gap: 0.5 }}
+                            >
+                              {item.is_deleted ? (
+                                <Tooltip title={t("actions.restore")}>
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      color="success"
+                                      onClick={() => onRestoreItem(item)}
+                                    >
+                                      <RestoreRoundedIcon fontSize="small" />
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
+                              ) : (
+                                <>
+                                  <Tooltip title={t("actions.edit")}>
+                                    <span>
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => onEditItem(item)}
+                                        disabled={item.can_edit_quantity === false}
+                                      >
+                                        <EditRoundedIcon fontSize="small" />
+                                      </IconButton>
+                                    </span>
+                                  </Tooltip>
+                                  <Tooltip title={t("actions.delete")}>
+                                    <span>
+                                      <IconButton
+                                        size="small"
+                                        color="error"
+                                        onClick={() => onDeleteItem(item)}
+                                      >
+                                        <DeleteOutlineRoundedIcon fontSize="small" />
+                                      </IconButton>
+                                    </span>
+                                  </Tooltip>
+                                </>
+                              )}
+                            </Box>
+                          ) : null}
+                        </Box>
+                      ))}
+                    </Box>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 260px" },
+                        gap: 3,
+                        alignItems: "start"
+                      }}
+                    >
+                      <Box sx={{ display: "grid", gap: 1 }}>
+                        <Typography variant="subtitle2">{t("pagesUi.cabinetItems.sections.info")}</Typography>
+                        <InfoRow label={t("common.fields.manufacturer")} value={group.manufacturer_name || "-"} />
+                        <InfoRow label={t("pagesUi.equipmentTypes.fields.article")} value={group.article || "-"} />
+                        <InfoRow label={t("common.fields.nomenclature")} value={group.inventory_number || "-"} />
+                        <InfoRow
+                          label={t("common.fields.quantity")}
+                          value={
+                            group.can_edit_quantity
+                              ? group.quantity_sum
+                              : `${group.quantity_sum} (${t("pagesUi.cabinetItems.placeholders.quantityLocked")})`
+                          }
+                        />
+                      </Box>
+                      <Box sx={{ display: "grid", gap: 1 }}>
+                        <Typography variant="subtitle2">{t("pagesUi.cabinetItems.sections.properties")}</Typography>
+                        <InfoRow
+                          label={t("common.fields.portsInterfaces")}
+                          value={formatNetworkPorts(group.network_ports)}
+                        />
+                        <InfoRow
+                          label={t("pagesUi.equipmentTypes.fields.hasSerialInterfaces")}
+                          value={formatSerialPorts(group.serial_ports)}
+                        />
+                        <InfoRow
+                          label={t("common.fields.datasheet")}
+                          value={
+                            <ProtectedDownloadLink
+                              url={group.datasheet_url || null}
+                              filename={group.datasheet_name}
+                              icon={getFileIcon(group.datasheet_name)}
+                              size="small"
+                            />
+                          }
+                        />
+                        {group.is_channel_forming ? (
+                          <InfoRow label={t("common.fields.channelForming")} value={channelValue} />
+                        ) : null}
+                        {singleItem?.source === "cabinet" ? (
+                          <IPAMSummaryBlock
+                            itemId={singleItem.id}
+                            visible={true}
+                            onOpenIPAM={() => navigate(`/ipam?equipment_instance_id=${singleItem.id}`)}
+                          />
+                        ) : null}
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gap: 1,
+                          justifyItems: { xs: "start", md: "end" },
+                          textAlign: { xs: "left", md: "right" },
+                          "& .MuiAvatar-root": { borderRadius: "8px" },
+                          "& .MuiAvatar-img": { objectFit: "contain" }
+                        }}
+                      >
+                        <Typography variant="subtitle2">{t("common.fields.photo")}</Typography>
+                        <ProtectedImage
+                          url={group.photo_url || null}
+                          alt={group.equipment_type_name}
+                          width={240}
+                          height={180}
+                          previewOnHover={true}
+                          previewMaxWidth={700}
+                          previewMaxHeight={700}
+                          fallback={
+                            <Typography variant="body2" color="text.secondary">
+                              {t("pagesUi.cabinetItems.placeholders.noPhoto")}
+                            </Typography>
+                          }
+                        />
+                      </Box>
+                    </Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 2 }}>
+                      {t("pagesUi.cabinetItems.placeholders.details")}
+                    </Typography>
+                  </AccordionDetails>
+                </Accordion>
+              );
+            })}
+          </Box>
+        ) : null}
+
+        {container.source === "cabinet" && canWrite ? (
+          <Dialog open={addDialogOpen} onClose={handleAddDialogClose} fullWidth maxWidth="sm">
+            <DialogTitle>
+              {t("pagesUi.cabinetItems.inline.addDialogTitle", { name: container.container_name })}
+            </DialogTitle>
+            <DialogContent sx={{ display: "grid", gap: 2, pt: 2 }}>
+              <SearchableSelectField
+                label={t("common.fields.equipment")}
+                value={selectedEquipmentId}
+                options={equipmentOptions}
+                onChange={(nextValue) => {
+                  const nextEquipmentId = nextValue === "" ? "" : Number(nextValue);
+                  setSelectedEquipmentId(nextEquipmentId);
+                  const nextEquipment = nextEquipmentId === "" ? undefined : equipmentFlagsMap.get(Number(nextEquipmentId));
+                  if (
+                    nextEquipment?.is_channel_forming ||
+                    nextEquipment?.is_network ||
+                    nextEquipment?.has_serial_interfaces
+                  ) {
+                    setInlineQuantity(1);
+                  }
+                }}
+                emptyOptionLabel={t("common.notSelected")}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label={t("common.fields.quantity")}
+                type="number"
+                size="small"
+                value={forceQtyOne ? 1 : inlineQuantity}
+                onChange={(event) => setInlineQuantity(Number(event.target.value))}
+                inputProps={{ min: 1 }}
+                disabled={forceQtyOne}
+                helperText={
+                  forceQtyOne
+                    ? t("pagesUi.cabinetItems.placeholders.quantityLocked")
+                    : " "
+                }
+              />
+            </DialogContent>
+            <DialogActions>
+              <AppButton variant="outlined" onClick={handleAddDialogClose}>
+                {t("actions.cancel")}
+              </AppButton>
+              <AppButton onClick={handleAdd} disabled={!canAdd}>
+                {t("pagesUi.cabinetItems.inline.add")}
+              </AppButton>
+            </DialogActions>
+          </Dialog>
+        ) : null}
+      </AccordionDetails>
+    </Accordion>
+  );
+}
+
 export default function CabinetItemsPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const navigate = useNavigate();
   const canWrite = user?.role === "admin" || user?.role === "engineer";
   const queryClient = useQueryClient();
 
@@ -279,7 +842,6 @@ export default function CabinetItemsPage() {
   const [locationFilter, setLocationFilter] = useState<number | "">("");
   const [showDeleted, setShowDeleted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [dialog, setDialog] = useState<DialogState | null>(null);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editItem, setEditItem] = useState<EquipmentInOperationItem | null>(null);
@@ -307,9 +869,20 @@ export default function CabinetItemsPage() {
     return [type, Number(idValue)] as const;
   }, [containerFilter]);
 
-  const itemsQuery = useQuery({
+  const detailFilters = useMemo(
+    () => ({
+      q,
+      showDeleted,
+      equipmentFilter,
+      manufacturerFilter,
+      locationFilter
+    }),
+    [equipmentFilter, locationFilter, manufacturerFilter, q, showDeleted]
+  );
+
+  const containersQuery = useQuery({
     queryKey: [
-      "equipment-in-operation",
+      "equipment-in-operation-containers",
       page,
       pageSize,
       q,
@@ -321,7 +894,7 @@ export default function CabinetItemsPage() {
       showDeleted
     ],
     queryFn: () =>
-      listEntity<EquipmentInOperationItem>("/equipment-in-operation", {
+      listEntity<EquipmentInOperationContainer>("/equipment-in-operation/containers", {
         page,
         page_size: pageSize,
         q: q || undefined,
@@ -368,34 +941,33 @@ export default function CabinetItemsPage() {
   );
 
   useEffect(() => {
-    if (itemsQuery.error) {
+    if (containersQuery.error) {
       setErrorMessage(
-        itemsQuery.error instanceof Error
-          ? itemsQuery.error.message
-          : t("pagesUi.cabinetItems.errors.load")
+        containersQuery.error instanceof Error ? containersQuery.error.message : t("pagesUi.cabinetItems.errors.load")
       );
     }
-  }, [itemsQuery.error, t]);
+  }, [containersQuery.error, t]);
 
-
-  const refresh = () => {
+  const invalidateEquipmentQueries = () => {
     queryClient.invalidateQueries({ queryKey: ["equipment-in-operation"] });
+    queryClient.invalidateQueries({ queryKey: ["equipment-in-operation-containers"] });
+    queryClient.invalidateQueries({ queryKey: ["equipment-in-operation-container-items"] });
   };
-
-  const deleteMutation = useMutation({
-    mutationFn: ({ id, source }: { id: number; source: EquipmentInOperationItem["source"] }) =>
-      deleteEntity(source === "cabinet" ? "/cabinet-items" : "/assembly-items", id),
-    onSuccess: refresh,
-    onError: (error) =>
-      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.cabinetItems.errors.delete"))
-  });
 
   const restoreMutation = useMutation({
     mutationFn: ({ id, source }: { id: number; source: EquipmentInOperationItem["source"] }) =>
       restoreEntity(source === "cabinet" ? "/cabinet-items" : "/assembly-items", id),
-    onSuccess: refresh,
+    onSuccess: invalidateEquipmentQueries,
     onError: (error) =>
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.cabinetItems.errors.restore"))
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: ({ id, source }: { id: number; source: EquipmentInOperationItem["source"] }) =>
+      deleteEntity(source === "cabinet" ? "/cabinet-items" : "/assembly-items", id),
+    onSuccess: invalidateEquipmentQueries,
+    onError: (error) =>
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.cabinetItems.errors.delete"))
   });
 
   const updateMutation = useMutation({
@@ -408,29 +980,24 @@ export default function CabinetItemsPage() {
       quantity: number;
       source: EquipmentInOperationItem["source"];
     }) => updateEntity(source === "cabinet" ? "/cabinet-items" : "/assembly-items", id, { quantity }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["equipment-in-operation"] }),
+    onSuccess: invalidateEquipmentQueries,
     onError: (error) =>
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.cabinetItems.errors.updateQuantity"))
   });
 
   const movementMutation = useMutation({
-    mutationFn: (payload: any) => createEntity("/movements", payload),
+    mutationFn: (payload: Record<string, unknown>) => createEntity("/movements", payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["equipment-in-operation"] });
+      invalidateEquipmentQueries();
       queryClient.invalidateQueries({ queryKey: ["warehouse-items"] });
       queryClient.invalidateQueries({ queryKey: ["movements"] });
-      setDialog(null);
     },
     onError: (error) => {
       if (error instanceof Error && /not found|404/i.test(error.message)) {
         setErrorMessage(t("common.notImplemented"));
         return;
       }
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : t("pagesUi.warehouseItems.errors.actionFailed")
-      );
+      setErrorMessage(error instanceof Error ? error.message : t("pagesUi.warehouseItems.errors.actionFailed"));
     }
   });
 
@@ -445,6 +1012,14 @@ export default function CabinetItemsPage() {
     equipmentTypesQuery.data?.items.forEach((item) => map.set(item.id, item));
     return map;
   }, [equipmentTypesQuery.data?.items]);
+  const equipmentOptions = useMemo(
+    () =>
+      equipmentTypesQuery.data?.items.map((item) => ({
+        value: item.id,
+        label: item.name
+      })) || [],
+    [equipmentTypesQuery.data?.items]
+  );
 
   const containerOptions = useMemo(() => {
     const options: { value: string; label: string }[] = [];
@@ -464,249 +1039,8 @@ export default function CabinetItemsPage() {
     return options;
   }, [assembliesQuery.data?.items, cabinetsQuery.data?.items, i18n.language, t]);
 
-  const shouldForceQtyOne = (values: Record<string, any>) => {
-    const equipmentId = Number(values.equipment_type_id);
-    const equipment = equipmentFlagsMap.get(equipmentId);
-    return Boolean(
-      equipment?.is_channel_forming || equipment?.is_network || equipment?.has_serial_interfaces
-    );
-  };
-
-  const openAddFinishedDialog = () => {
-    setDialog({
-      open: true,
-      title: t("pagesUi.cabinetItems.dialogs.addFinishedTitle"),
-      fields: [
-        {
-          name: "equipment_type_id",
-          label: t("common.fields.equipment"),
-          type: "select",
-          options:
-            equipmentTypesQuery.data?.items.map((item) => ({
-              label: item.name,
-              value: item.id
-            })) || [],
-          onChange: (value) => {
-            const equipment = equipmentFlagsMap.get(Number(value));
-            if (
-              equipment?.is_channel_forming ||
-              equipment?.is_network ||
-              equipment?.has_serial_interfaces
-            ) {
-              return { quantity: 1 };
-            }
-            return {};
-          }
-        },
-        {
-          name: "container_id",
-          label: t("common.fields.cabinetAssembly"),
-          type: "select",
-          options: containerOptions
-        },
-        {
-          name: "quantity",
-          label: t("common.fields.quantity"),
-          type: "number",
-          disabledWhen: (values) => shouldForceQtyOne(values)
-        },
-        { name: "comment", label: t("common.fields.comment"), type: "text" }
-      ],
-      values: {
-        equipment_type_id: "",
-        container_id: "",
-        quantity: 1,
-        comment: ""
-      },
-      onSave: (values) => {
-        const equipmentTypeId = values.equipment_type_id ? Number(values.equipment_type_id) : 0;
-        const containerValue = String(values.container_id || "");
-        const [containerType, containerIdValue] = containerValue.split(":");
-        const containerId = Number(containerIdValue);
-        const quantity = shouldForceQtyOne(values) ? 1 : Number(values.quantity);
-
-        if (
-          !equipmentTypeId ||
-          !containerValue ||
-          !containerId ||
-          !Number.isFinite(quantity) ||
-          quantity < 1
-        ) {
-          setErrorMessage(t("validation.requiredFields"));
-          return;
-        }
-
-        movementMutation.mutate({
-          movement_type: containerType === "assembly" ? "direct_to_assembly" : "direct_to_cabinet",
-          equipment_type_id: equipmentTypeId,
-          to_cabinet_id: containerType === "cabinet" ? containerId : undefined,
-          to_assembly_id: containerType === "assembly" ? containerId : undefined,
-          quantity,
-          comment: values.comment || undefined
-        });
-      }
-    });
-  };
-
-  const containerGroups = useMemo<ContainerGroup[]>(() => {
-    const items = itemsQuery.data?.items || [];
-    const containerMap = new Map<string, ContainerGroup>();
-
-    items.forEach((item) => {
-      const containerKey = `${item.source}:${item.container_id}`;
-      const createdAtMs = item.created_at ? new Date(item.created_at).getTime() : 0;
-      const equipmentName =
-        item.equipment_type_name ||
-        equipmentMap.get(item.equipment_type_id) ||
-        String(item.equipment_type_id);
-      const manufacturerName = item.manufacturer_name || "-";
-      let group = containerMap.get(containerKey);
-
-      if (!group) {
-        group = {
-          key: containerKey,
-          container_id: item.container_id,
-          container_name: item.container_name || "-",
-          container_type: item.source,
-          container_type_label:
-            item.source === "assembly"
-              ? t("common.fields.assembly")
-              : t("common.fields.cabinet"),
-          factory_number: item.container_factory_number || "-",
-          inventory_number: item.container_inventory_number || "-",
-          location_full_path: item.location_full_path || "-",
-          items: [],
-          equipmentGroups: [],
-          created_at_min: createdAtMs,
-          created_at_max: createdAtMs,
-          quantity_sum: 0,
-          equipment_name_sort: equipmentName,
-          manufacturer_name_sort: manufacturerName
-        };
-        containerMap.set(containerKey, group);
-      }
-
-      group.items.push(item);
-      group.quantity_sum += item.quantity || 0;
-      if (createdAtMs) {
-        group.created_at_min = Math.min(group.created_at_min, createdAtMs);
-        group.created_at_max = Math.max(group.created_at_max, createdAtMs);
-      }
-      if (equipmentName && group.equipment_name_sort) {
-        if (equipmentName.localeCompare(group.equipment_name_sort, i18n.language) < 0) {
-          group.equipment_name_sort = equipmentName;
-        }
-      }
-      if (manufacturerName && group.manufacturer_name_sort) {
-        if (manufacturerName.localeCompare(group.manufacturer_name_sort, i18n.language) < 0) {
-          group.manufacturer_name_sort = manufacturerName;
-        }
-      }
-      if (item.location_full_path) {
-        group.location_full_path = item.location_full_path;
-      }
-      if (item.container_factory_number) {
-        group.factory_number = item.container_factory_number;
-      }
-      if (item.container_inventory_number) {
-        group.inventory_number = item.container_inventory_number;
-      }
-    });
-
-    const containers = Array.from(containerMap.values());
-
-    containers.forEach((container) => {
-      const equipmentGroupsMap = new Map<string, EquipmentGroup>();
-
-      container.items.forEach((item) => {
-        const equipmentName =
-          item.equipment_type_name ||
-          equipmentMap.get(item.equipment_type_id) ||
-          String(item.equipment_type_id);
-        const manufacturerName = item.manufacturer_name || "-";
-        const isUniqueInstance = item.can_edit_quantity === false;
-        const groupKey = isUniqueInstance
-          ? `${item.equipment_type_id}:${item.source}:${item.id}`
-          : String(item.equipment_type_id || equipmentName);
-        let equipmentGroup = equipmentGroupsMap.get(groupKey);
-
-        if (!equipmentGroup) {
-          equipmentGroup = {
-            key: groupKey,
-            equipment_type_id: item.equipment_type_id,
-            equipment_type_name: equipmentName,
-            manufacturer_name: manufacturerName,
-            article: item.equipment_type_article || "-",
-            inventory_number: item.equipment_type_inventory_number || "-",
-            photo_url: item.equipment_type_photo_url || null,
-            datasheet_url: item.equipment_type_datasheet_url || null,
-            datasheet_name: item.equipment_type_datasheet_name || null,
-            network_ports: item.network_ports,
-            serial_ports: item.serial_ports,
-            is_channel_forming: item.is_channel_forming,
-            channel_count: item.channel_count ?? null,
-            can_edit_quantity: item.can_edit_quantity ?? true,
-            quantity_sum: 0,
-            items: []
-          };
-          equipmentGroupsMap.set(groupKey, equipmentGroup);
-        }
-
-        equipmentGroup.can_edit_quantity =
-          equipmentGroup.can_edit_quantity && (item.can_edit_quantity ?? true);
-        if (item.is_channel_forming) {
-          equipmentGroup.is_channel_forming = true;
-        }
-        if (item.channel_count !== undefined && item.channel_count !== null) {
-          equipmentGroup.channel_count = item.channel_count;
-        }
-        equipmentGroup.quantity_sum += item.quantity || 0;
-        equipmentGroup.items.push(item);
-      });
-
-      container.equipmentGroups = Array.from(equipmentGroupsMap.values()).sort((a, b) =>
-        a.equipment_type_name.localeCompare(b.equipment_type_name, i18n.language)
-      );
-    });
-
-    const sortField = sort.startsWith("-") ? sort.slice(1) : sort;
-    const sortDirection = sort.startsWith("-") ? -1 : 1;
-
-    containers.sort((a, b) => {
-      if (sortField === "quantity") {
-        return sortDirection * (a.quantity_sum - b.quantity_sum);
-      }
-      if (sortField === "equipment_type_name") {
-        return (
-          sortDirection *
-          (a.equipment_name_sort || "").localeCompare(b.equipment_name_sort || "", i18n.language)
-        );
-      }
-      if (sortField === "manufacturer_name") {
-        return (
-          sortDirection *
-          (a.manufacturer_name_sort || "").localeCompare(
-            b.manufacturer_name_sort || "",
-            i18n.language
-          )
-        );
-      }
-
-      const aDate =
-        sortDirection < 0 ? a.created_at_max || a.created_at_min : a.created_at_min || a.created_at_max;
-      const bDate =
-        sortDirection < 0 ? b.created_at_max || b.created_at_min : b.created_at_min || b.created_at_max;
-      return sortDirection * (aDate - bDate);
-    });
-
-    return containers;
-  }, [equipmentMap, i18n.language, itemsQuery.data?.items, sort, t]);
-
-  const totalContainers = containerGroups.length;
-  const pagedContainers = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return containerGroups.slice(start, start + pageSize);
-  }, [containerGroups, page, pageSize]);
+  const totalContainers = containersQuery.data?.total || 0;
+  const containers = containersQuery.data?.items || [];
 
   useEffect(() => {
     const maxPage = Math.max(1, Math.ceil(totalContainers / pageSize));
@@ -815,7 +1149,6 @@ export default function CabinetItemsPage() {
               emptyOptionLabel={t("common.all")}
               fullWidth
             />
-
           </Box>
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -832,329 +1165,43 @@ export default function CabinetItemsPage() {
               label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
-            {canWrite && (
-              <AppButton variant="contained" onClick={openAddFinishedDialog}>
-                {t("pagesUi.cabinetItems.actions.addFinished")}
-              </AppButton>
-            )}
           </Box>
 
           <Box sx={{ display: "grid", gap: 1 }}>
-            {pagedContainers.map((container) => (
-              <Accordion key={container.key} disableGutters>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreRoundedIcon />}
-                  sx={{
-                    "& .MuiAccordionSummary-expandIconWrapper": {
-                      width: 36,
-                      justifyContent: "center"
-                    },
-                    "& .MuiAccordionSummary-content": {
-                      minWidth: 0
-                    }
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: "grid",
-                      gridTemplateColumns: {
-                        xs: "1fr",
-                        sm: "minmax(220px, 1.2fr) minmax(140px, 0.7fr) minmax(160px, 0.8fr) minmax(220px, 1fr)"
-                      },
-                      gap: 1.5,
-                      alignItems: "center",
-                      width: "100%"
-                    }}
-                  >
-                    <Box sx={{ display: "grid", minWidth: 0 }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                        {container.container_name}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {container.container_type_label}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: "grid" }}>
-                      <Typography variant="caption" color="text.secondary">
-                        {t("common.fields.factoryNumber")}
-                      </Typography>
-                      <Typography variant="body2">{container.factory_number || "-"}</Typography>
-                    </Box>
-                    <Box sx={{ display: "grid" }}>
-                      <Typography variant="caption" color="text.secondary">
-                        {t("common.fields.nomenclatureNumber")}
-                      </Typography>
-                      <Typography variant="body2">{container.inventory_number || "-"}</Typography>
-                    </Box>
-                    <Box sx={{ display: "grid" }}>
-                      <Typography variant="caption" color="text.secondary">
-                        {t("common.fields.location")}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis"
-                        }}
-                      >
-                        {container.location_full_path || "-"}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Box sx={{ display: "grid", gap: 1 }}>
-                    {container.equipmentGroups.map((group) => {
-                      const singleItem = group.items.length === 1 ? group.items[0] : null;
-                      const equipmentDetails = equipmentFlagsMap.get(group.equipment_type_id);
-                      const channelCount =
-                        group.channel_count ?? equipmentDetails?.channel_count ?? null;
-                      const aiCount = equipmentDetails?.ai_count ?? 0;
-                      const diCount = equipmentDetails?.di_count ?? 0;
-                      const aoCount = equipmentDetails?.ao_count ?? 0;
-                      const doCount = equipmentDetails?.do_count ?? 0;
-                      const channelParts: string[] = [];
-                      if (channelCount) {
-                        channelParts.push(`${t("common.fields.channelCount")}: ${channelCount}`);
-                      }
-                      if (aiCount || diCount || aoCount || doCount) {
-                        channelParts.push(
-                          `AI ${aiCount} / DI ${diCount} / AO ${aoCount} / DO ${doCount}`
-                        );
-                      }
-                      const channelValue = channelParts.length
-                        ? `${t("common.yes")}, ${channelParts.join(", ")}`
-                        : t("common.yes");
-                      return (
-                        <Accordion
-                          key={`${container.key}:${group.key}`}
-                          disableGutters
-                          elevation={0}
-                          sx={{ border: "1px solid", borderColor: "divider" }}
-                        >
-                          <AccordionSummary expandIcon={<ExpandMoreRoundedIcon />}>
-                            <Box
-                              sx={{
-                                display: "grid",
-                                gridTemplateColumns: {
-                                  xs: "1fr",
-                                  sm: "minmax(240px, 2fr) minmax(80px, 0.5fr) auto"
-                                },
-                                gap: 1.5,
-                                alignItems: "center",
-                                width: "100%"
-                              }}
-                            >
-                              <Typography>{group.equipment_type_name}</Typography>
-                              <Typography sx={{ fontWeight: 600 }}>{group.quantity_sum}</Typography>
-                              {canWrite && singleItem && singleItem.can_edit_quantity !== false ? (
-                                <Box
-                                  sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}
-                                  onClick={(event) => event.stopPropagation()}
-                                >
-                                  <AppButton
-                                    size="small"
-                                    startIcon={<EditRoundedIcon />}
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      setEditItem(singleItem);
-                                      setEditQuantity(singleItem.quantity);
-                                      setEditOpen(true);
-                                    }}
-                                  >
-                                    {t("actions.edit")}
-                                  </AppButton>
-                                  <AppButton
-                                    size="small"
-                                    color={singleItem.is_deleted ? "success" : "error"}
-                                    startIcon={
-                                      singleItem.is_deleted ? (
-                                        <RestoreRoundedIcon />
-                                      ) : (
-                                        <DeleteOutlineRoundedIcon />
-                                      )
-                                    }
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      if (singleItem.is_deleted) {
-                                        restoreMutation.mutate({
-                                          id: singleItem.id,
-                                          source: singleItem.source
-                                        });
-                                      } else {
-                                        deleteMutation.mutate({
-                                          id: singleItem.id,
-                                          source: singleItem.source
-                                        });
-                                      }
-                                    }}
-                                  >
-                                    {singleItem.is_deleted ? t("actions.restore") : t("actions.delete")}
-                                  </AppButton>
-                                </Box>
-                              ) : canWrite && singleItem ? (
-                                <Box
-                                  sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}
-                                  onClick={(event) => event.stopPropagation()}
-                                >
-                                  <AppButton
-                                    size="small"
-                                    color={singleItem.is_deleted ? "success" : "error"}
-                                    startIcon={
-                                      singleItem.is_deleted ? (
-                                        <RestoreRoundedIcon />
-                                      ) : (
-                                        <DeleteOutlineRoundedIcon />
-                                      )
-                                    }
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      if (singleItem.is_deleted) {
-                                        restoreMutation.mutate({
-                                          id: singleItem.id,
-                                          source: singleItem.source
-                                        });
-                                      } else {
-                                        deleteMutation.mutate({
-                                          id: singleItem.id,
-                                          source: singleItem.source
-                                        });
-                                      }
-                                    }}
-                                  >
-                                    {singleItem.is_deleted ? t("actions.restore") : t("actions.delete")}
-                                  </AppButton>
-                                </Box>
-                              ) : null}
-                            </Box>
-                          </AccordionSummary>
-                          <AccordionDetails>
-                            <Box
-                              sx={{
-                                display: "grid",
-                                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 260px" },
-                                gap: 3,
-                                alignItems: "start"
-                              }}
-                            >
-                              <Box sx={{ display: "grid", gap: 1 }}>
-                                <Typography variant="subtitle2">
-                                  {t("pagesUi.cabinetItems.sections.info")}
-                                </Typography>
-                                <InfoRow
-                                  label={t("common.fields.manufacturer")}
-                                  value={group.manufacturer_name || "-"}
-                                />
-                                <InfoRow
-                                  label={t("pagesUi.equipmentTypes.fields.article")}
-                                  value={group.article || "-"}
-                                />
-                                <InfoRow
-                                  label={t("common.fields.nomenclature")}
-                                  value={group.inventory_number || "-"}
-                                />
-                                <InfoRow
-                                  label={t("common.fields.quantity")}
-                                  value={
-                                    group.can_edit_quantity
-                                      ? group.quantity_sum
-                                      : `${group.quantity_sum} (${t("pagesUi.cabinetItems.placeholders.quantityLocked")})`
-                                  }
-                                />
-                              </Box>
-                              <Box sx={{ display: "grid", gap: 1 }}>
-                                <Typography variant="subtitle2">
-                                  {t("pagesUi.cabinetItems.sections.properties")}
-                                </Typography>
-                                <InfoRow
-                                  label={t("common.fields.portsInterfaces")}
-                                  value={formatNetworkPorts(group.network_ports)}
-                                />
-                                <InfoRow
-                                  label={t("pagesUi.equipmentTypes.fields.hasSerialInterfaces")}
-                                  value={formatSerialPorts(group.serial_ports)}
-                                />
-                                <InfoRow
-                                  label={t("common.fields.datasheet")}
-                                  value={
-                                    <ProtectedDownloadLink
-                                      url={group.datasheet_url || null}
-                                      filename={group.datasheet_name}
-                                      icon={getFileIcon(group.datasheet_name)}
-                                      size="small"
-                                    />
-                                  }
-                                />
-                                {group.is_channel_forming ? (
-                                  <InfoRow
-                                    label={t("common.fields.channelForming")}
-                                    value={channelValue}
-                                  />
-                                ) : null}
-                                {singleItem?.source === "cabinet" ? (
-                                  <IPAMSummaryBlock
-                                    itemId={singleItem.id}
-                                    visible={true}
-                                    onOpenIPAM={() =>
-                                      navigate(`/ipam?equipment_instance_id=${singleItem.id}`)
-                                    }
-                                  />
-                                ) : null}
-                              </Box>
-                              <Box
-                                sx={{
-                                  display: "grid",
-                                  gap: 1,
-                                  justifyItems: { xs: "start", md: "end" },
-                                  textAlign: { xs: "left", md: "right" },
-                                  "& .MuiAvatar-root": { borderRadius: "8px" },
-                                  "& .MuiAvatar-img": { objectFit: "contain" }
-                                }}
-                              >
-                                <Typography variant="subtitle2">
-                                  {t("common.fields.photo")}
-                                </Typography>
-                                <ProtectedImage
-                                  url={group.photo_url || null}
-                                  alt={group.equipment_type_name}
-                                  width={240}
-                                  height={180}
-                                  previewOnHover={true}
-                                  previewMaxWidth={700}
-                                  previewMaxHeight={700}
-                                  fallback={
-                                    <Typography variant="body2" color="text.secondary">
-                                      {t("pagesUi.cabinetItems.placeholders.noPhoto")}
-                                    </Typography>
-                                  }
-                                />
-                              </Box>
-                            </Box>
-                            <Typography variant="caption" color="text.secondary" sx={{ mt: 2 }}>
-                              {t("pagesUi.cabinetItems.placeholders.details")}
-                            </Typography>
-                            {/* TODO: render item-level rows inside the equipment group. */}
-                          </AccordionDetails>
-                        </Accordion>
-                      );
-                    })}
-                    {container.equipmentGroups.length === 0 ? (
-                      <Typography variant="body2" color="text.secondary">
-                        {t("dashboard.common.no_data")}
-                      </Typography>
-                    ) : null}
-                  </Box>
-                </AccordionDetails>
-              </Accordion>
+            {containers.map((container) => (
+              <ContainerAccordion
+                key={`${container.source}:${container.container_id}`}
+                container={container}
+                canWrite={canWrite}
+                detailFilters={detailFilters}
+                equipmentMap={equipmentMap}
+                equipmentFlagsMap={equipmentFlagsMap}
+                equipmentOptions={equipmentOptions}
+                onEditItem={(item) => {
+                  setEditItem(item);
+                  setEditQuantity(item.quantity);
+                  setEditOpen(true);
+                }}
+                onDeleteItem={(item) => deleteMutation.mutate({ id: item.id, source: item.source })}
+                onRestoreItem={(item) => restoreMutation.mutate({ id: item.id, source: item.source })}
+                onAddToCabinet={({ cabinetId, equipmentTypeId, quantity }) =>
+                  movementMutation.mutate({
+                    movement_type: "direct_to_cabinet",
+                    equipment_type_id: equipmentTypeId,
+                    to_cabinet_id: cabinetId,
+                    quantity
+                  })
+                }
+                onErrorMessage={(message) => setErrorMessage(message)}
+              />
             ))}
-            {pagedContainers.length === 0 ? (
+            {!containersQuery.isLoading && containers.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
                 {t("dashboard.common.no_data")}
               </Typography>
             ) : null}
           </Box>
+
           <TablePagination
             component="div"
             {...getTablePaginationProps(t)}
@@ -1171,7 +1218,7 @@ export default function CabinetItemsPage() {
         </CardContent>
       </Card>
 
-      {canWrite && (
+      {canWrite ? (
         <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs">
           <DialogTitle>{t("actions.edit")}</DialogTitle>
           <DialogContent sx={{ display: "grid", gap: 2, mt: 1 }}>
@@ -1210,13 +1257,8 @@ export default function CabinetItemsPage() {
             </AppButton>
           </DialogActions>
         </Dialog>
-      )}
-
-      {dialog && <EntityDialog state={dialog} onClose={() => setDialog(null)} />}
+      ) : null}
       <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage(null)} />
     </Box>
   );
 }
-
-
-

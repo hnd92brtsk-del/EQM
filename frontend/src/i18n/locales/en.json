@@ -668,6 +668,20 @@
                                          "actions":  {
                                                          "addFinished":  "Add finished"
                                                      },
+                                         "inline":  {
+                                                        "add":  "Add",
+                                                        "remove":  "Remove",
+                                                        "addTooltip":  "Add equipment",
+                                                        "removeTooltip":  "Remove equipment",
+                                                        "addDialogTitle":  "Add equipment to cabinet {{name}}",
+                                                        "removeDialogTitle":  "Remove equipment from cabinet {{name}}",
+                                                        "availableToRemove":  "Available to remove: {{count}}",
+                                                        "removeUnavailable":  "Cannot remove the selected quantity from this cabinet.",
+                                                        "nothingToRemove":  "There is no equipment to remove from this cabinet yet."
+                                                    },
+                                         "empty":  {
+                                                       "container":  "No equipment yet."
+                                                   },
                                          "placeholders":  {
                                                               "quantityLocked":  "Quantity is fixed = 1",
                                                               "details":  "Details will be added later.",

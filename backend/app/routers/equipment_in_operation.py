@@ -8,7 +8,10 @@ from app.models.core import Cabinet, EquipmentType, Manufacturer, Location
 from app.models.assemblies import Assembly
 from app.models.security import User
 from app.schemas.common import Pagination
-from app.schemas.equipment_in_operation import EquipmentInOperationOut
+from app.schemas.equipment_in_operation import (
+    EquipmentInOperationContainerOut,
+    EquipmentInOperationOut,
+)
 
 router = APIRouter()
 
@@ -27,27 +30,21 @@ def build_location_full_path(location_id: int | None, locations_map: dict[int, L
     return " / ".join(reversed(parts))
 
 
-@router.get("/", response_model=Pagination[EquipmentInOperationOut])
-def list_equipment_in_operation(
-    page: int = 1,
-    page_size: int = 50,
-    q: str | None = None,
-    sort: str | None = None,
-    is_deleted: bool | None = None,
-    include_deleted: bool = False,
-    cabinet_id: int | None = None,
-    assembly_id: int | None = None,
-    equipment_type_id: int | None = None,
-    manufacturer_id: int | None = None,
-    location_id: int | None = None,
-    created_at_from: datetime | None = None,
-    created_at_to: datetime | None = None,
-    updated_at_from: datetime | None = None,
-    updated_at_to: datetime | None = None,
-    db=Depends(get_db),
-    user: User = Depends(require_read_access()),
+def build_cabinet_items_query(
+    *,
+    q: str | None,
+    is_deleted: bool | None,
+    include_deleted: bool,
+    cabinet_id: int | None,
+    equipment_type_id: int | None,
+    manufacturer_id: int | None,
+    location_id: int | None,
+    created_at_from: datetime | None,
+    created_at_to: datetime | None,
+    updated_at_from: datetime | None,
+    updated_at_to: datetime | None,
 ):
-    cabinet_query = (
+    query = (
         select(
             CabinetItem.id.label("id"),
             literal("cabinet").label("source"),
@@ -56,6 +53,7 @@ def list_equipment_in_operation(
             Cabinet.factory_number.label("container_factory_number"),
             Cabinet.nomenclature_number.label("container_inventory_number"),
             Cabinet.location_id.label("location_id"),
+            Cabinet.created_at.label("container_created_at"),
             CabinetItem.equipment_type_id.label("equipment_type_id"),
             EquipmentType.name.label("equipment_type_name"),
             EquipmentType.article.label("equipment_type_article"),
@@ -87,7 +85,59 @@ def list_equipment_in_operation(
         .outerjoin(Manufacturer, EquipmentType.manufacturer_id == Manufacturer.id)
     )
 
-    assembly_query = (
+    if is_deleted is None:
+        if not include_deleted:
+            query = query.where(CabinetItem.is_deleted == False)
+    else:
+        query = query.where(CabinetItem.is_deleted == is_deleted)
+
+    if cabinet_id:
+        query = query.where(CabinetItem.cabinet_id == cabinet_id)
+    if equipment_type_id:
+        query = query.where(CabinetItem.equipment_type_id == equipment_type_id)
+    if manufacturer_id:
+        query = query.where(EquipmentType.manufacturer_id == manufacturer_id)
+    if location_id:
+        query = query.where(Cabinet.location_id == location_id)
+    if created_at_from:
+        query = query.where(CabinetItem.created_at >= created_at_from)
+    if created_at_to:
+        query = query.where(CabinetItem.created_at <= created_at_to)
+    if updated_at_from:
+        query = query.where(CabinetItem.updated_at >= updated_at_from)
+    if updated_at_to:
+        query = query.where(CabinetItem.updated_at <= updated_at_to)
+
+    if q:
+        if q.isdigit():
+            value = int(q)
+            query = query.where((CabinetItem.cabinet_id == value) | (CabinetItem.equipment_type_id == value))
+        else:
+            query = query.where(
+                EquipmentType.name.ilike(f"%{q}%")
+                | Manufacturer.name.ilike(f"%{q}%")
+                | Cabinet.name.ilike(f"%{q}%")
+                | Cabinet.factory_number.ilike(f"%{q}%")
+                | Cabinet.nomenclature_number.ilike(f"%{q}%")
+            )
+    return query
+
+
+def build_assembly_items_query(
+    *,
+    q: str | None,
+    is_deleted: bool | None,
+    include_deleted: bool,
+    assembly_id: int | None,
+    equipment_type_id: int | None,
+    manufacturer_id: int | None,
+    location_id: int | None,
+    created_at_from: datetime | None,
+    created_at_to: datetime | None,
+    updated_at_from: datetime | None,
+    updated_at_to: datetime | None,
+):
+    query = (
         select(
             AssemblyItem.id.label("id"),
             literal("assembly").label("source"),
@@ -96,6 +146,7 @@ def list_equipment_in_operation(
             Assembly.factory_number.label("container_factory_number"),
             Assembly.nomenclature_number.label("container_inventory_number"),
             Assembly.location_id.label("location_id"),
+            Assembly.created_at.label("container_created_at"),
             AssemblyItem.equipment_type_id.label("equipment_type_id"),
             EquipmentType.name.label("equipment_type_name"),
             EquipmentType.article.label("equipment_type_article"),
@@ -129,59 +180,318 @@ def list_equipment_in_operation(
 
     if is_deleted is None:
         if not include_deleted:
-            cabinet_query = cabinet_query.where(CabinetItem.is_deleted == False)
-            assembly_query = assembly_query.where(AssemblyItem.is_deleted == False)
+            query = query.where(AssemblyItem.is_deleted == False)
     else:
-        cabinet_query = cabinet_query.where(CabinetItem.is_deleted == is_deleted)
-        assembly_query = assembly_query.where(AssemblyItem.is_deleted == is_deleted)
+        query = query.where(AssemblyItem.is_deleted == is_deleted)
 
-    if cabinet_id:
-        cabinet_query = cabinet_query.where(CabinetItem.cabinet_id == cabinet_id)
     if assembly_id:
-        assembly_query = assembly_query.where(AssemblyItem.assembly_id == assembly_id)
+        query = query.where(AssemblyItem.assembly_id == assembly_id)
     if equipment_type_id:
-        cabinet_query = cabinet_query.where(CabinetItem.equipment_type_id == equipment_type_id)
-        assembly_query = assembly_query.where(AssemblyItem.equipment_type_id == equipment_type_id)
+        query = query.where(AssemblyItem.equipment_type_id == equipment_type_id)
     if manufacturer_id:
-        cabinet_query = cabinet_query.where(EquipmentType.manufacturer_id == manufacturer_id)
-        assembly_query = assembly_query.where(EquipmentType.manufacturer_id == manufacturer_id)
+        query = query.where(EquipmentType.manufacturer_id == manufacturer_id)
     if location_id:
-        cabinet_query = cabinet_query.where(Cabinet.location_id == location_id)
-        assembly_query = assembly_query.where(Assembly.location_id == location_id)
-
+        query = query.where(Assembly.location_id == location_id)
     if created_at_from:
-        cabinet_query = cabinet_query.where(CabinetItem.created_at >= created_at_from)
-        assembly_query = assembly_query.where(AssemblyItem.created_at >= created_at_from)
+        query = query.where(AssemblyItem.created_at >= created_at_from)
     if created_at_to:
-        cabinet_query = cabinet_query.where(CabinetItem.created_at <= created_at_to)
-        assembly_query = assembly_query.where(AssemblyItem.created_at <= created_at_to)
+        query = query.where(AssemblyItem.created_at <= created_at_to)
     if updated_at_from:
-        cabinet_query = cabinet_query.where(CabinetItem.updated_at >= updated_at_from)
-        assembly_query = assembly_query.where(AssemblyItem.updated_at >= updated_at_from)
+        query = query.where(AssemblyItem.updated_at >= updated_at_from)
     if updated_at_to:
-        cabinet_query = cabinet_query.where(CabinetItem.updated_at <= updated_at_to)
-        assembly_query = assembly_query.where(AssemblyItem.updated_at <= updated_at_to)
+        query = query.where(AssemblyItem.updated_at <= updated_at_to)
 
     if q:
         if q.isdigit():
             value = int(q)
-            cabinet_query = cabinet_query.where(
-                (CabinetItem.cabinet_id == value) | (CabinetItem.equipment_type_id == value)
-            )
-            assembly_query = assembly_query.where(
-                (AssemblyItem.assembly_id == value) | (AssemblyItem.equipment_type_id == value)
-            )
+            query = query.where((AssemblyItem.assembly_id == value) | (AssemblyItem.equipment_type_id == value))
         else:
-            cabinet_query = cabinet_query.where(
-                EquipmentType.name.ilike(f"%{q}%")
-                | Manufacturer.name.ilike(f"%{q}%")
-                | Cabinet.name.ilike(f"%{q}%")
-            )
-            assembly_query = assembly_query.where(
+            query = query.where(
                 EquipmentType.name.ilike(f"%{q}%")
                 | Manufacturer.name.ilike(f"%{q}%")
                 | Assembly.name.ilike(f"%{q}%")
+                | Assembly.factory_number.ilike(f"%{q}%")
+                | Assembly.nomenclature_number.ilike(f"%{q}%")
             )
+    return query
+
+
+def load_locations_map(db) -> dict[int, Location]:
+    return {loc.id: loc for loc in db.scalars(select(Location)).all()}
+
+
+def serialize_item_rows(rows, locations_map: dict[int, Location]) -> list[dict]:
+    items: list[dict] = []
+    for row in rows:
+        data = dict(row._mapping)
+        equipment_type_id = data.get("equipment_type_id")
+        photo_filename = data.pop("equipment_type_photo_filename", None)
+        datasheet_filename = data.pop("equipment_type_datasheet_filename", None)
+        datasheet_name = data.pop("equipment_type_datasheet_name", None)
+        data["equipment_type_photo_url"] = (
+            f"/equipment-types/{equipment_type_id}/photo" if equipment_type_id and photo_filename else None
+        )
+        if equipment_type_id and datasheet_filename:
+            data["equipment_type_datasheet_url"] = f"/equipment-types/{equipment_type_id}/datasheet"
+            data["equipment_type_datasheet_name"] = datasheet_name
+        else:
+            data["equipment_type_datasheet_url"] = None
+            data["equipment_type_datasheet_name"] = None
+        data["location_full_path"] = build_location_full_path(data.get("location_id"), locations_map)
+        data.pop("location_id", None)
+        data.pop("container_created_at", None)
+        items.append(data)
+    return items
+
+
+def cabinet_matches_query(cabinet: Cabinet, location_full_path: str | None, q: str | None) -> bool:
+    if not q:
+        return True
+    normalized = q.strip().lower()
+    if not normalized:
+        return True
+    fields = [
+        str(cabinet.id),
+        cabinet.name,
+        cabinet.factory_number,
+        cabinet.nomenclature_number,
+        location_full_path,
+    ]
+    return any(normalized in str(value).lower() for value in fields if value not in (None, ""))
+
+
+@router.get("/containers", response_model=Pagination[EquipmentInOperationContainerOut])
+def list_equipment_in_operation_containers(
+    page: int = 1,
+    page_size: int = 50,
+    q: str | None = None,
+    sort: str | None = None,
+    is_deleted: bool | None = None,
+    include_deleted: bool = False,
+    cabinet_id: int | None = None,
+    assembly_id: int | None = None,
+    equipment_type_id: int | None = None,
+    manufacturer_id: int | None = None,
+    location_id: int | None = None,
+    created_at_from: datetime | None = None,
+    created_at_to: datetime | None = None,
+    updated_at_from: datetime | None = None,
+    updated_at_to: datetime | None = None,
+    db=Depends(get_db),
+    user: User = Depends(require_read_access()),
+):
+    locations_map = load_locations_map(db)
+
+    cabinet_rows = db.execute(
+        build_cabinet_items_query(
+            q=q,
+            is_deleted=is_deleted,
+            include_deleted=include_deleted,
+            cabinet_id=cabinet_id,
+            equipment_type_id=equipment_type_id,
+            manufacturer_id=manufacturer_id,
+            location_id=location_id,
+            created_at_from=created_at_from,
+            created_at_to=created_at_to,
+            updated_at_from=updated_at_from,
+            updated_at_to=updated_at_to,
+        )
+    ).all()
+
+    assembly_rows = db.execute(
+        build_assembly_items_query(
+            q=q,
+            is_deleted=is_deleted,
+            include_deleted=include_deleted,
+            assembly_id=assembly_id,
+            equipment_type_id=equipment_type_id,
+            manufacturer_id=manufacturer_id,
+            location_id=location_id,
+            created_at_from=created_at_from,
+            created_at_to=created_at_to,
+            updated_at_from=updated_at_from,
+            updated_at_to=updated_at_to,
+        )
+    ).all()
+
+    cabinet_items_by_id: dict[int, list[dict]] = {}
+    for row in cabinet_rows:
+        data = dict(row._mapping)
+        cabinet_items_by_id.setdefault(data["container_id"], []).append(data)
+
+    assembly_items_by_id: dict[int, list[dict]] = {}
+    for row in assembly_rows:
+        data = dict(row._mapping)
+        assembly_items_by_id.setdefault(data["container_id"], []).append(data)
+
+    cabinets_query = select(Cabinet).where(Cabinet.is_deleted == False)
+    if cabinet_id:
+        cabinets_query = cabinets_query.where(Cabinet.id == cabinet_id)
+    if location_id:
+        cabinets_query = cabinets_query.where(Cabinet.location_id == location_id)
+    cabinets = db.scalars(cabinets_query).all()
+
+    containers: list[dict] = []
+
+    for cabinet in cabinets:
+        location_full_path = build_location_full_path(cabinet.location_id, locations_map)
+        matched_rows = cabinet_items_by_id.get(cabinet.id, [])
+        include_cabinet = False
+
+        if equipment_type_id or manufacturer_id or is_deleted is True:
+            include_cabinet = len(matched_rows) > 0
+        elif q:
+            include_cabinet = cabinet_matches_query(cabinet, location_full_path, q) or len(matched_rows) > 0
+        else:
+            include_cabinet = True
+
+        if not include_cabinet:
+            continue
+
+        equipment_names = sorted(
+            {row.get("equipment_type_name") for row in matched_rows if row.get("equipment_type_name")}
+        )
+        manufacturer_names = sorted(
+            {row.get("manufacturer_name") for row in matched_rows if row.get("manufacturer_name")}
+        )
+        created_values = [row.get("created_at") for row in matched_rows if row.get("created_at")]
+
+        containers.append(
+            {
+                "source": "cabinet",
+                "container_id": cabinet.id,
+                "container_name": cabinet.name,
+                "container_factory_number": cabinet.factory_number,
+                "container_inventory_number": cabinet.nomenclature_number,
+                "location_full_path": location_full_path,
+                "is_empty": len(matched_rows) == 0,
+                "quantity_sum": sum(int(row.get("quantity") or 0) for row in matched_rows),
+                "equipment_type_name_sort": equipment_names[0] if equipment_names else None,
+                "manufacturer_name_sort": manufacturer_names[0] if manufacturer_names else None,
+                "created_at": max(created_values) if created_values else cabinet.created_at,
+                "_created_at_min": min(created_values) if created_values else cabinet.created_at,
+                "_created_at_max": max(created_values) if created_values else cabinet.created_at,
+            }
+        )
+
+    assembly_meta: dict[int, dict] = {}
+    for assembly_id_value, rows in assembly_items_by_id.items():
+        first = rows[0]
+        equipment_names = sorted(
+            {row.get("equipment_type_name") for row in rows if row.get("equipment_type_name")}
+        )
+        manufacturer_names = sorted(
+            {row.get("manufacturer_name") for row in rows if row.get("manufacturer_name")}
+        )
+        created_values = [row.get("created_at") for row in rows if row.get("created_at")]
+        assembly_meta[assembly_id_value] = {
+            "source": "assembly",
+            "container_id": assembly_id_value,
+            "container_name": first.get("container_name"),
+            "container_factory_number": first.get("container_factory_number"),
+            "container_inventory_number": first.get("container_inventory_number"),
+            "location_full_path": build_location_full_path(first.get("location_id"), locations_map),
+            "is_empty": False,
+            "quantity_sum": sum(int(row.get("quantity") or 0) for row in rows),
+            "equipment_type_name_sort": equipment_names[0] if equipment_names else None,
+            "manufacturer_name_sort": manufacturer_names[0] if manufacturer_names else None,
+            "created_at": max(created_values) if created_values else first.get("container_created_at"),
+            "_created_at_min": min(created_values) if created_values else first.get("container_created_at"),
+            "_created_at_max": max(created_values) if created_values else first.get("container_created_at"),
+        }
+    containers.extend(assembly_meta.values())
+
+    sort_value = sort or "-created_at"
+    sort_field = sort_value.lstrip("-")
+    sort_desc = sort_value.startswith("-")
+
+    def compare_text(value: str | None):
+        return (value is None or value == "", (value or "").lower())
+
+    if sort_field == "quantity":
+        containers.sort(key=lambda item: (item["quantity_sum"], item["container_name"].lower()), reverse=sort_desc)
+    elif sort_field == "equipment_type_name":
+        containers.sort(
+            key=lambda item: (compare_text(item.get("equipment_type_name_sort")), item["container_name"].lower()),
+            reverse=sort_desc,
+        )
+    elif sort_field == "manufacturer_name":
+        containers.sort(
+            key=lambda item: (compare_text(item.get("manufacturer_name_sort")), item["container_name"].lower()),
+            reverse=sort_desc,
+        )
+    elif sort_field == "container_name":
+        containers.sort(key=lambda item: item["container_name"].lower(), reverse=sort_desc)
+    else:
+        created_key = "_created_at_max" if sort_desc else "_created_at_min"
+        containers.sort(
+            key=lambda item: (
+                item.get(created_key) is None,
+                item.get(created_key) or datetime.min,
+                item["container_name"].lower(),
+            ),
+            reverse=sort_desc,
+        )
+
+    total = len(containers)
+    start = (page - 1) * page_size
+    paged_items = containers[start : start + page_size]
+    serialized = []
+    for item in paged_items:
+        data = dict(item)
+        data.pop("_created_at_min", None)
+        data.pop("_created_at_max", None)
+        serialized.append(data)
+
+    return Pagination(items=serialized, page=page, page_size=page_size, total=total)
+
+
+@router.get("/", response_model=Pagination[EquipmentInOperationOut])
+def list_equipment_in_operation(
+    page: int = 1,
+    page_size: int = 50,
+    q: str | None = None,
+    sort: str | None = None,
+    is_deleted: bool | None = None,
+    include_deleted: bool = False,
+    cabinet_id: int | None = None,
+    assembly_id: int | None = None,
+    equipment_type_id: int | None = None,
+    manufacturer_id: int | None = None,
+    location_id: int | None = None,
+    created_at_from: datetime | None = None,
+    created_at_to: datetime | None = None,
+    updated_at_from: datetime | None = None,
+    updated_at_to: datetime | None = None,
+    db=Depends(get_db),
+    user: User = Depends(require_read_access()),
+):
+    cabinet_query = build_cabinet_items_query(
+        q=q,
+        is_deleted=is_deleted,
+        include_deleted=include_deleted,
+        cabinet_id=cabinet_id,
+        equipment_type_id=equipment_type_id,
+        manufacturer_id=manufacturer_id,
+        location_id=location_id,
+        created_at_from=created_at_from,
+        created_at_to=created_at_to,
+        updated_at_from=updated_at_from,
+        updated_at_to=updated_at_to,
+    )
+    assembly_query = build_assembly_items_query(
+        q=q,
+        is_deleted=is_deleted,
+        include_deleted=include_deleted,
+        assembly_id=assembly_id,
+        equipment_type_id=equipment_type_id,
+        manufacturer_id=manufacturer_id,
+        location_id=location_id,
+        created_at_from=created_at_from,
+        created_at_to=created_at_to,
+        updated_at_from=updated_at_from,
+        updated_at_to=updated_at_to,
+    )
 
     union_query = union_all(cabinet_query, assembly_query).subquery()
 
@@ -204,26 +514,6 @@ def list_equipment_in_operation(
     query = query.offset((page - 1) * page_size).limit(page_size)
 
     rows = db.execute(query).all()
-    locations = db.scalars(select(Location)).all()
-    locations_map = {loc.id: loc for loc in locations}
-    items: list[dict] = []
-    for row in rows:
-        data = dict(row._mapping)
-        equipment_type_id = data.get("equipment_type_id")
-        photo_filename = data.pop("equipment_type_photo_filename", None)
-        datasheet_filename = data.pop("equipment_type_datasheet_filename", None)
-        datasheet_name = data.pop("equipment_type_datasheet_name", None)
-        data["equipment_type_photo_url"] = (
-            f"/equipment-types/{equipment_type_id}/photo" if equipment_type_id and photo_filename else None
-        )
-        if equipment_type_id and datasheet_filename:
-            data["equipment_type_datasheet_url"] = f"/equipment-types/{equipment_type_id}/datasheet"
-            data["equipment_type_datasheet_name"] = datasheet_name
-        else:
-            data["equipment_type_datasheet_url"] = None
-            data["equipment_type_datasheet_name"] = None
-        data["location_full_path"] = build_location_full_path(data.get("location_id"), locations_map)
-        data.pop("location_id", None)
-        items.append(data)
+    items = serialize_item_rows(rows, load_locations_map(db))
 
     return Pagination(items=items, page=page, page_size=page_size, total=total)

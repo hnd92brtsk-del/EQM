@@ -29,3 +29,17 @@ class EquipmentInOperationOut(BaseModel):
     deleted_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class EquipmentInOperationContainerOut(BaseModel):
+    source: str
+    container_id: int
+    container_name: str
+    container_factory_number: str | None = None
+    container_inventory_number: str | None = None
+    location_full_path: str | None = None
+    is_empty: bool
+    quantity_sum: int
+    equipment_type_name_sort: str | None = None
+    manufacturer_name_sort: str | None = None
+    created_at: datetime | None = None
