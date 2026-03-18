@@ -133,6 +133,17 @@ export function createAppTheme(mode: PaletteMode) {
               : "0 8px 24px rgba(15, 23, 42, 0.08)"
           }
         }
+      },
+      MuiTableCell: {
+        styleOverrides: {
+          head: {
+            backgroundColor: isDark ? alpha("#8fb4ff", 0.12) : alpha("#1f4b99", 0.08),
+            color: isDark ? "#f4f7fb" : "#21304a",
+            fontWeight: 800,
+            borderBottom: `1px solid ${alpha(isDark ? "#c9d8ec" : "#24406f", isDark ? 0.2 : 0.14)}`,
+            backdropFilter: "blur(8px)"
+          }
+        }
       }
     }
   });
