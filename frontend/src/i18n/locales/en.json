@@ -781,6 +781,9 @@
                                   "prompts":  {
                                                  "deleteVlan":  "Delete VLAN?",
                                                  "deleteSubnet":  "Delete subnet?"
+                                             },
+                                  "errors":  {
+                                                 "network":  "Could not reach the server. Check backend availability and network connectivity."
                                              }
                               },
                     "warehouseItems":  {

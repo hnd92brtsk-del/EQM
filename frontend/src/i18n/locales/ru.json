@@ -771,6 +771,9 @@
                                   "prompts":  {
                                                  "deleteVlan":  "Удалить VLAN?",
                                                  "deleteSubnet":  "Удалить подсеть?"
+                                             },
+                                  "errors":  {
+                                                 "network":  "Не удалось связаться с сервером. Проверьте доступность backend и сеть."
                                              }
                               },
                     "warehouseItems":  {

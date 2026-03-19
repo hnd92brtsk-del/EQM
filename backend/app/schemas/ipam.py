@@ -52,6 +52,18 @@ class SubnetCreate(SubnetBase):
     pass
 
 
+class SubnetCalculatorCreate(BaseModel):
+    network_address_input: str = Field(min_length=1, max_length=64)
+    cidr: int = Field(ge=0, le=32)
+    vlan_id: int | None = None
+    gateway_ip: str | None = None
+    name: str | None = None
+    description: str | None = None
+    location_id: int | None = None
+    vrf: str | None = None
+    is_active: bool = True
+
+
 class SubnetUpdate(BaseModel):
     vlan_id: int | None = None
     gateway_ip: str | None = None
@@ -78,7 +90,9 @@ class SubnetOut(EntityBase, SoftDeleteFields):
 
 
 class EquipmentNetworkInterfaceOut(EntityBase, SoftDeleteFields):
-    equipment_instance_id: int
+    equipment_instance_id: int | None = None
+    equipment_item_source: str | None = None
+    equipment_item_id: int | None = None
     interface_name: str
     interface_index: int | None = None
     interface_type: str | None = None
@@ -89,11 +103,15 @@ class EquipmentNetworkInterfaceOut(EntityBase, SoftDeleteFields):
 
 
 class EligibleEquipmentOut(BaseModel):
-    equipment_instance_id: int
+    equipment_source: str
+    equipment_item_id: int
+    equipment_instance_id: int | None = None
     display_name: str
     source: str = "cabinet"
-    cabinet_id: int
-    cabinet_name: str
+    cabinet_id: int | None = None
+    cabinet_name: str | None = None
+    assembly_id: int | None = None
+    assembly_name: str | None = None
     location: str | None = None
     manufacturer_id: int | None = None
     manufacturer_name: str | None = None
@@ -117,6 +135,8 @@ class IPAddressDetailsOut(EntityBase, SoftDeleteFields):
     dns_name: str | None = None
     mac_address: str | None = None
     comment: str | None = None
+    equipment_source: str | None = None
+    equipment_item_id: int | None = None
     equipment_instance_id: int | None = None
     equipment_interface_id: int | None = None
     equipment_interface_name: str | None = None
@@ -132,6 +152,8 @@ class IPAddressUpdate(BaseModel):
     hostname: str | None = None
     dns_name: str | None = None
     comment: str | None = None
+    equipment_source: str | None = None
+    equipment_item_id: int | None = None
     equipment_instance_id: int | None = None
     equipment_interface_id: int | None = None
     is_primary: bool | None = None
@@ -142,7 +164,9 @@ class IPAssignPayload(BaseModel):
     hostname: str | None = None
     dns_name: str | None = None
     comment: str | None = None
-    equipment_instance_id: int
+    equipment_source: str
+    equipment_item_id: int
+    equipment_instance_id: int | None = None
     equipment_interface_id: int
     is_primary: bool = True
     mac_address: str | None = None
@@ -158,6 +182,7 @@ class AddressSummaryOut(BaseModel):
     free: int
     used: int
     reserved: int
+    service: int
     gateway: int
     broadcast: int
     network: int
@@ -170,6 +195,7 @@ class HeatmapAggregateOut(BaseModel):
     free: int
     used: int
     reserved: int
+    service: int
     gateway: int
     broadcast: int
     network: int
@@ -207,3 +233,26 @@ class CabinetItemIPAMSummaryOut(BaseModel):
     linked_ip_addresses: list[str] = Field(default_factory=list)
     linked_subnets: list[str] = Field(default_factory=list)
     current_ip_links_count: int = 0
+
+
+class HostEquipmentTreeLeaf(BaseModel):
+    value: str
+    label: str
+    equipment_source: str
+    equipment_item_id: int
+    equipment_instance_id: int | None = None
+    location_full_path: str | None = None
+    container_name: str | None = None
+    manufacturer_name: str | None = None
+    equipment_type_name: str
+    network_interfaces: list[EquipmentNetworkInterfaceOut] = Field(default_factory=list)
+
+
+class HostEquipmentTreeNode(BaseModel):
+    value: str
+    label: str
+    children: list["HostEquipmentTreeNode"] = Field(default_factory=list)
+    equipment: list[HostEquipmentTreeLeaf] = Field(default_factory=list)
+
+
+HostEquipmentTreeNode.model_rebuild()

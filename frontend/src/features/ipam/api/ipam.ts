@@ -6,6 +6,7 @@ import type {
   AddressGridResponse,
   CabinetItemIPAMSummary,
   EligibleEquipment,
+  HostEquipmentTreeNode,
   IPAddressDetails,
   Subnet,
   Vlan
@@ -70,6 +71,23 @@ export function createSubnet(payload: {
   });
 }
 
+export function createSubnetFromCalculator(payload: {
+  network_address_input: string;
+  cidr: number;
+  vlan_id?: number | null;
+  gateway_ip?: string | null;
+  name?: string | null;
+  description?: string | null;
+  location_id?: number | null;
+  vrf?: string | null;
+  is_active?: boolean;
+}) {
+  return apiFetch<Subnet>("/ipam/subnets/create-from-calculator", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
 export function updateSubnet(
   subnetId: number,
   payload: {
@@ -111,6 +129,8 @@ export function patchAddress(
     hostname?: string | null;
     dns_name?: string | null;
     comment?: string | null;
+    equipment_source?: string | null;
+    equipment_item_id?: number | null;
     equipment_instance_id?: number | null;
     equipment_interface_id?: number | null;
     is_primary?: boolean;
@@ -130,7 +150,9 @@ export function assignAddress(
     hostname?: string;
     dns_name?: string;
     comment?: string;
-    equipment_instance_id: number;
+    equipment_source: string;
+    equipment_item_id: number;
+    equipment_instance_id?: number | null;
     equipment_interface_id: number;
     is_primary?: boolean;
     mac_address?: string;
@@ -169,4 +191,8 @@ export function getCabinetItemIPAMSummary(itemId: number) {
 
 export function exportSubnetCsv(subnetId: number) {
   return downloadFile(`/ipam/subnets/${subnetId}/export.csv`, {}, `subnet-${subnetId}.csv`);
+}
+
+export function getHostEquipmentTree(params: Record<string, string | number | boolean | undefined>) {
+  return apiFetch<HostEquipmentTreeNode[]>(`/ipam/equipment/host-tree${buildQuery(params)}`);
 }

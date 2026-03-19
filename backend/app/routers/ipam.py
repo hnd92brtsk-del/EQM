@@ -16,11 +16,13 @@ from app.schemas.common import Pagination
 from app.schemas.ipam import (
     AddressGridResponse,
     EligibleEquipmentOut,
+    HostEquipmentTreeNode,
     IPAddressAuditLogOut,
     IPAddressDetailsOut,
     IPAddressUpdate,
     IPAssignPayload,
     IPReservePayload,
+    SubnetCalculatorCreate,
     SubnetCreate,
     SubnetOut,
     SubnetUpdate,
@@ -30,7 +32,9 @@ from app.schemas.ipam import (
 )
 from app.services.ipam import (
     apply_assignment_to_record,
+    build_host_equipment_tree,
     build_address_grid_response,
+    create_subnet_from_calculator_payload,
     ensure_service_address_records,
     export_subnet_csv,
     get_ip_record_for_offset,
@@ -213,6 +217,37 @@ def create_subnet(payload: SubnetCreate, db=Depends(get_db), current_user: User 
     return subnet_to_out(subnet)
 
 
+@router.post("/subnets/create-from-calculator", response_model=SubnetOut)
+def create_subnet_from_calculator(
+    payload: SubnetCalculatorCreate,
+    db=Depends(get_db),
+    current_user: User = Depends(require_admin()),
+):
+    network, prefix, data = create_subnet_from_calculator_payload(db, payload)
+    existing = db.scalar(select(Subnet).where(Subnet.cidr == str(network), Subnet.is_deleted == False))
+    if existing:
+        raise HTTPException(status_code=400, detail="Subnet already exists")
+    if data["vlan_id"] is not None:
+        vlan = db.scalar(select(Vlan).where(Vlan.id == data["vlan_id"], Vlan.is_deleted == False))
+        if not vlan:
+            raise HTTPException(status_code=404, detail="VLAN not found")
+    subnet = Subnet(prefix=prefix, network_address=str(network.network_address), **data)
+    db.add(subnet)
+    db.flush()
+    ensure_service_address_records(db, subnet)
+    add_audit_log(
+        db,
+        actor_id=current_user.id,
+        action="CREATE",
+        entity="ipam_subnets",
+        entity_id=subnet.id,
+        after=model_to_dict(subnet),
+    )
+    db.commit()
+    db.refresh(subnet)
+    return subnet_to_out(subnet)
+
+
 @router.get("/subnets/{subnet_id}", response_model=SubnetOut)
 def get_subnet(subnet_id: int, db=Depends(get_db), user: User = Depends(require_read_access())):
     return subnet_to_out(get_subnet_or_404(db, subnet_id))
@@ -302,6 +337,8 @@ def patch_address(
         hostname=data.get("hostname", record.hostname if record else None),
         dns_name=data.get("dns_name", record.dns_name if record else None),
         comment=data.get("comment", record.comment if record else None),
+        equipment_source=data.get("equipment_source", record.equipment_item_source if record else None),
+        equipment_item_id=data.get("equipment_item_id", record.equipment_item_id if record else None),
         equipment_instance_id=data.get("equipment_instance_id", record.equipment_instance_id if record else None),
         equipment_interface_id=data.get("equipment_interface_id", record.equipment_interface_id if record else None),
         is_primary=data.get("is_primary", record.is_primary if record else None),
@@ -331,6 +368,8 @@ def assign_address(
         hostname=payload.hostname,
         dns_name=payload.dns_name,
         comment=payload.comment,
+        equipment_source=payload.equipment_source,
+        equipment_item_id=payload.equipment_item_id,
         equipment_instance_id=payload.equipment_instance_id,
         equipment_interface_id=payload.equipment_interface_id,
         is_primary=payload.is_primary,
@@ -425,3 +464,12 @@ def get_eligible_equipment(
     )
     db.commit()
     return items
+
+
+@router.get("/equipment/host-tree", response_model=list[HostEquipmentTreeNode])
+def get_host_equipment_tree(
+    q: str | None = None,
+    db=Depends(get_db),
+    user: User = Depends(require_read_access()),
+):
+    return build_host_equipment_tree(db, q=q)

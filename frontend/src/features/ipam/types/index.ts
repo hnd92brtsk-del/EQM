@@ -31,6 +31,7 @@ export type AddressSummary = {
   free: number;
   used: number;
   reserved: number;
+  service: number;
   gateway: number;
   broadcast: number;
   network: number;
@@ -38,7 +39,9 @@ export type AddressSummary = {
 
 export type NetworkInterface = {
   id: number;
-  equipment_instance_id: number;
+  equipment_instance_id?: number | null;
+  equipment_item_source?: "cabinet" | "assembly" | null;
+  equipment_item_id?: number | null;
   interface_name: string;
   interface_index?: number | null;
   interface_type?: string | null;
@@ -49,11 +52,15 @@ export type NetworkInterface = {
 };
 
 export type EligibleEquipment = {
-  equipment_instance_id: number;
+  equipment_source: "cabinet" | "assembly";
+  equipment_item_id: number;
+  equipment_instance_id?: number | null;
   display_name: string;
-  source: "cabinet";
-  cabinet_id: number;
-  cabinet_name: string;
+  source: "cabinet" | "assembly";
+  cabinet_id?: number | null;
+  cabinet_name?: string | null;
+  assembly_id?: number | null;
+  assembly_name?: string | null;
   location?: string | null;
   manufacturer_id?: number | null;
   manufacturer_name?: string | null;
@@ -72,11 +79,13 @@ export type IPAddressDetails = {
   subnet_id: number;
   ip_address: string;
   ip_offset: number;
-  status: "free" | "used" | "reserved" | "gateway" | "broadcast" | "network";
+  status: "free" | "used" | "reserved" | "service" | "gateway" | "broadcast" | "network";
   hostname?: string | null;
   dns_name?: string | null;
   mac_address?: string | null;
   comment?: string | null;
+  equipment_source?: "cabinet" | "assembly" | null;
+  equipment_item_id?: number | null;
   equipment_instance_id?: number | null;
   equipment_interface_id?: number | null;
   equipment_interface_name?: string | null;
@@ -94,6 +103,7 @@ export type HeatmapAggregate = {
   free: number;
   used: number;
   reserved: number;
+  service: number;
   gateway: number;
   broadcast: number;
   network: number;
@@ -119,4 +129,24 @@ export type CabinetItemIPAMSummary = {
   linked_ip_addresses: string[];
   linked_subnets: string[];
   current_ip_links_count: number;
+};
+
+export type HostEquipmentTreeLeaf = {
+  value: string;
+  label: string;
+  equipment_source: "cabinet" | "assembly";
+  equipment_item_id: number;
+  equipment_instance_id?: number | null;
+  location_full_path?: string | null;
+  container_name?: string | null;
+  manufacturer_name?: string | null;
+  equipment_type_name: string;
+  network_interfaces: NetworkInterface[];
+};
+
+export type HostEquipmentTreeNode = {
+  value: string;
+  label: string;
+  children: HostEquipmentTreeNode[];
+  equipment: HostEquipmentTreeLeaf[];
 };

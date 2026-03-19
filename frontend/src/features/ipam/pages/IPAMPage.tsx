@@ -1,381 +1,178 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Box,
-  Card,
-  Chip,
-  CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControl,
-  FormControlLabel,
-  InputLabel,
-  MenuItem,
-  Select,
-  Stack,
-  Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography
-} from "@mui/material";
+import { Alert, Box, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Select, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
-import BookmarkAddedRoundedIcon from "@mui/icons-material/BookmarkAddedRounded";
-import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
-import DeleteSweepRoundedIcon from "@mui/icons-material/DeleteSweepRounded";
 import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
-import EditRoundedIcon from "@mui/icons-material/EditRounded";
-import LinkRoundedIcon from "@mui/icons-material/LinkRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { useTranslation } from "react-i18next";
 
 import { ErrorSnackbar } from "../../../components/ErrorSnackbar";
+import { SearchableTreeSelectField, type SearchableTreeSelectOption } from "../../../components/SearchableTreeSelectField";
 import { AppButton } from "../../../components/ui/AppButton";
-import { SearchableSelectField } from "../../../components/SearchableSelectField";
 import { useAuth } from "../../../context/AuthContext";
 import { buildLocationLookups, fetchLocationsTree } from "../../../utils/locations";
-import {
-  assignAddress,
-  createSubnet,
-  createVlan,
-  deleteSubnet,
-  deleteVlan,
-  exportSubnetCsv,
-  getAddressDetails,
-  getSubnetAddresses,
-  listEligibleEquipment,
-  listSubnets,
-  listVlans,
-  patchAddress,
-  releaseAddress,
-  reserveAddress,
-  updateSubnet,
-  updateVlan
-} from "../api/ipam";
-import type { EligibleEquipment, IPAddressDetails, Subnet, Vlan } from "../types";
+import { assignAddress, createSubnetFromCalculator, exportSubnetCsv, getAddressDetails, getHostEquipmentTree, getSubnetAddresses, listSubnets, listVlans, patchAddress, releaseAddress } from "../api/ipam";
+import type { HostEquipmentTreeLeaf, HostEquipmentTreeNode, IPAddressDetails } from "../types";
 
 type StatusFilter = "all" | "free" | "used" | "reserved";
-type ViewMode = "grid" | "list" | "heatmap";
+type EditStatus = "free" | "used" | "reserved" | "service";
 
-const tones: Record<string, { bg: string; fg: string }> = {
-  free: { bg: "#cfe5a8", fg: "#21311b" },
-  used: { bg: "#ef9ca1", fg: "#3a1619" },
-  reserved: { bg: "#f3cf8c", fg: "#37280f" },
-  gateway: { bg: "#9ac4ff", fg: "#0a2241" },
-  network: { bg: "#bfbfbf", fg: "#1d1d1d" },
-  broadcast: { bg: "#e4d8cb", fg: "#31231b" }
-};
+const tones = {
+  free: { bg: "#4c7a47", fg: "#d9f6d4" },
+  used: { bg: "#7d4343", fg: "#ffd7d7" },
+  reserved: { bg: "#79652d", fg: "#fff0b8" },
+  service: { bg: "#58457e", fg: "#efe2ff" },
+  gateway: { bg: "#38658d", fg: "#d8efff" },
+  network: { bg: "#2d2d2d", fg: "#d0d0d0" },
+  broadcast: { bg: "#242424", fg: "#d0d0d0" }
+} as const;
 
-const darkCardSx = {
-  bgcolor: "#2c2b28",
-  color: "#f6f1e9",
-  borderRadius: 3,
-  border: "1px solid rgba(255,255,255,0.08)"
-};
+function err(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
 
-const darkInputSx = {
-  "& .MuiInputBase-root": {
-    color: "#fff",
-    bgcolor: "rgba(255,255,255,0.04)",
-    borderRadius: 2
-  }
-};
+function validIp(ip: string) {
+  const parts = ip.trim().split(".");
+  return parts.length === 4 && parts.every((part) => part !== "" && Number(part) >= 0 && Number(part) <= 255);
+}
 
-function Metric({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <Box sx={{ px: 1.5, py: 1, borderRadius: 2, bgcolor: "rgba(255,255,255,0.04)", minWidth: 84 }}>
-      <Typography variant="h6" sx={{ color, fontWeight: 800, lineHeight: 1 }}>
-        {value}
-      </Typography>
-      <Typography variant="caption" sx={{ color: "text.secondary", textTransform: "uppercase" }}>
-        {label}
-      </Typography>
-    </Box>
-  );
+function ipToInt(ip: string) {
+  return ip.split(".").reduce((acc, part) => ((acc << 8) | Number(part)) >>> 0, 0);
+}
+
+function intToIp(n: number) {
+  return [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join(".");
+}
+
+function calcSubnet(ip: string, cidrRaw: string) {
+  const cidr = Number(cidrRaw);
+  if (!validIp(ip) || !Number.isInteger(cidr) || cidr < 0 || cidr > 32) return null;
+  const mask = cidr === 0 ? 0 : (0xffffffff << (32 - cidr)) >>> 0;
+  const ni = ipToInt(ip) & mask;
+  const bc = (ni | (~mask >>> 0)) >>> 0;
+  const total = Math.pow(2, 32 - cidr);
+  const hosts = cidr <= 30 ? total - 2 : cidr === 31 ? 2 : 1;
+  return { cidr, network: intToIp(ni), broadcast: intToIp(bc), mask: intToIp(mask), firstHost: intToIp(cidr === 32 ? ni : ni + 1), lastHost: intToIp(cidr === 32 ? bc : Math.max(ni, bc - 1)), total, hosts, size: cidr >= 24 ? "Небольшая сеть" : cidr >= 16 ? "Средняя сеть" : "Большая сеть" };
+}
+
+function flattenTree(nodes: HostEquipmentTreeNode[]) {
+  const map = new Map<string, HostEquipmentTreeLeaf>();
+  const walk = (items: HostEquipmentTreeNode[]): SearchableTreeSelectOption[] =>
+    items.map((item) => ({
+      label: item.label,
+      value: item.value,
+      children: [
+        ...walk(item.children),
+        ...item.equipment.map((leaf) => {
+          map.set(leaf.value, leaf);
+          return { label: `${leaf.location_full_path ? `${leaf.location_full_path} / ` : ""}${leaf.label}`, value: leaf.value };
+        })
+      ]
+    }));
+  return { options: walk(nodes), map };
 }
 
 export default function IPAMPage() {
-  const { t } = useTranslation();
   const { user } = useAuth();
   const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
   const canOperate = user?.role === "admin" || user?.role === "engineer";
   const canAdmin = user?.role === "admin";
-  const [q, setQ] = useState(params.get("ip") || "");
+  const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
-  const [mode, setMode] = useState<ViewMode>("grid");
-  const [groupByVlan, setGroupByVlan] = useState(true);
-  const [selectedSubnetId, setSelectedSubnetId] = useState<number | null>(
-    Number(params.get("subnet_id") || 0) || null
-  );
-  const [selectedOffset, setSelectedOffset] = useState<number | null>(
-    params.get("offset") ? Number(params.get("offset")) : null
-  );
+  const [sidebarTab, setSidebarTab] = useState<"subnets" | "vlans">("subnets");
+  const [selectedSubnetId, setSelectedSubnetId] = useState<number | null>(Number(params.get("subnet_id") || 0) || null);
+  const [selectedOffset, setSelectedOffset] = useState<number | null>(params.get("offset") ? Number(params.get("offset")) : null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [vlanOpen, setVlanOpen] = useState(false);
-  const [subnetOpen, setSubnetOpen] = useState(false);
-  const [editingVlan, setEditingVlan] = useState<Vlan | null>(null);
-  const [editingSubnet, setEditingSubnet] = useState<Subnet | null>(null);
-  const [vlanForm, setVlanForm] = useState({
-    vlan_number: "",
-    name: "",
-    purpose: "",
-    description: "",
-    location_id: "",
-    is_active: true
-  });
-  const [subnetForm, setSubnetForm] = useState({
-    vlan_id: "",
-    cidr: "",
-    gateway_ip: "",
-    name: "",
-    description: "",
-    location_id: "",
-    vrf: "",
-    is_active: true
-  });
-  const [addressForm, setAddressForm] = useState({
-    hostname: "",
-    dns_name: "",
-    mac_address: "",
-    comment: "",
-    equipmentQuery: "",
-    equipment_instance_id: "" as number | "",
-    equipment_interface_id: "" as number | "",
-    is_primary: true
-  });
+  const [calculatorOpen, setCalculatorOpen] = useState(false);
+  const [calculatorDone, setCalculatorDone] = useState(false);
+  const [calculator, setCalculator] = useState({ network_address_input: "10.10.0.0", cidr: "24", name: "", vlan_id: "", gateway_ip: "", description: "", location_id: "", vrf: "" });
+  const [form, setForm] = useState({ status: "free" as EditStatus, hostname: "", dns_name: "", mac_address: "", comment: "", equipment_value: "", equipment_interface_id: "" });
 
-  const locationsQuery = useQuery({
-    queryKey: ["ipam-locations"],
-    queryFn: () => fetchLocationsTree(false)
-  });
-  const { options: locationOptions, breadcrumbMap } = useMemo(
-    () => buildLocationLookups(locationsQuery.data || []),
-    [locationsQuery.data]
-  );
-  const vlansQuery = useQuery({
-    queryKey: ["ipam-vlans"],
-    queryFn: () => listVlans({ page: 1, page_size: 200, sort: "vlan_number" })
-  });
-  const subnetsQuery = useQuery({
-    queryKey: ["ipam-subnets", q],
-    queryFn: () => listSubnets({ page: 1, page_size: 300, q: q || undefined, sort: "cidr" })
-  });
+  const calc = useMemo(() => calcSubnet(calculator.network_address_input, calculator.cidr), [calculator.network_address_input, calculator.cidr]);
+  const locationsQuery = useQuery({ queryKey: ["ipam-locations"], queryFn: () => fetchLocationsTree(false) });
+  const vlansQuery = useQuery({ queryKey: ["ipam-vlans"], queryFn: () => listVlans({ page: 1, page_size: 200, sort: "vlan_number" }) });
+  const subnetsQuery = useQuery({ queryKey: ["ipam-subnets"], queryFn: () => listSubnets({ page: 1, page_size: 200, sort: "network_address" }) });
+  const hostTreeQuery = useQuery({ queryKey: ["ipam-host-tree"], queryFn: () => getHostEquipmentTree({}) });
+  const addressQuery = useQuery({ queryKey: ["ipam-address", selectedSubnetId, selectedOffset], enabled: Boolean(selectedSubnetId && selectedOffset !== null), queryFn: () => getAddressDetails(selectedSubnetId!, selectedOffset!) });
+  const gridQuery = useQuery({ queryKey: ["ipam-grid", selectedSubnetId], enabled: Boolean(selectedSubnetId), queryFn: () => getSubnetAddresses(selectedSubnetId!, { mode: "grid", include_service: true }) });
+  const listQuery = useQuery({ queryKey: ["ipam-list", selectedSubnetId, search, status], enabled: Boolean(selectedSubnetId), queryFn: () => getSubnetAddresses(selectedSubnetId!, { mode: "grid", include_service: true, q: search || undefined, status: status === "all" ? undefined : status }) });
 
-  const vlans = vlansQuery.data?.items || [];
+  const { options: locationOptions } = useMemo(() => buildLocationLookups(locationsQuery.data || []), [locationsQuery.data]);
+  const { options: hostOptions, map: hostMap } = useMemo(() => flattenTree(hostTreeQuery.data || []), [hostTreeQuery.data]);
   const subnets = subnetsQuery.data?.items || [];
-  const selectedSubnet = useMemo(
-    () => subnets.find((x) => x.id === selectedSubnetId) || subnets[0] || null,
-    [subnets, selectedSubnetId]
-  );
+  const vlans = vlansQuery.data?.items || [];
+  const selectedSubnet = useMemo(() => subnets.find((item) => item.id === selectedSubnetId) || subnets[0] || null, [selectedSubnetId, subnets]);
+  const selectedEquipment = form.equipment_value ? hostMap.get(form.equipment_value) || null : null;
+  const gridItems = (gridQuery.data?.items || []).slice(0, 256);
+  const rows = (listQuery.data?.items || []).slice(0, 256);
+  const serviceLocked = Boolean(addressQuery.data?.is_service);
 
   useEffect(() => {
-    if (!selectedSubnetId && subnets[0]) {
-      setSelectedSubnetId(subnets[0].id);
-    }
+    if (!selectedSubnetId && subnets[0]) setSelectedSubnetId(subnets[0].id);
   }, [selectedSubnetId, subnets]);
-
-  const effectiveMode: ViewMode =
-    selectedSubnet?.prefix === 16 ? (mode === "list" ? "list" : "heatmap") : mode;
-
-  const addressesQuery = useQuery({
-    queryKey: ["ipam-addresses", selectedSubnet?.id, q, status, effectiveMode],
-    enabled: Boolean(selectedSubnet?.id),
-    queryFn: () =>
-      getSubnetAddresses(selectedSubnet!.id, {
-        q: q || undefined,
-        status: status === "all" ? undefined : status,
-        mode: effectiveMode,
-        include_service: true,
-        page: 1,
-        page_size: 512
-      })
-  });
-  const addressQuery = useQuery({
-    queryKey: ["ipam-address", selectedSubnet?.id, selectedOffset],
-    enabled: Boolean(selectedSubnet?.id && selectedOffset !== null),
-    queryFn: () => getAddressDetails(selectedSubnet!.id, selectedOffset as number)
-  });
-  const eligibleQuery = useQuery({
-    queryKey: ["ipam-eligible", addressForm.equipmentQuery],
-    enabled: addressForm.equipmentQuery.trim().length >= 2,
-    queryFn: () => listEligibleEquipment({ q: addressForm.equipmentQuery.trim() })
-  });
-  const selectedEquipment = useMemo(
-    () =>
-      (eligibleQuery.data || []).find(
-        (x: EligibleEquipment) => x.equipment_instance_id === addressForm.equipment_instance_id
-      ) || null,
-    [eligibleQuery.data, addressForm.equipment_instance_id]
-  );
 
   useEffect(() => {
     const item = addressQuery.data;
-    if (!item) {
-      return;
-    }
-    setAddressForm({
+    if (!item) return;
+    setForm({
+      status: item.status === "gateway" || item.status === "network" || item.status === "broadcast" ? "free" : item.status,
       hostname: item.hostname || "",
       dns_name: item.dns_name || "",
       mac_address: item.mac_address || "",
       comment: item.comment || "",
-      equipmentQuery: "",
-      equipment_instance_id: item.equipment_instance_id || "",
-      equipment_interface_id: item.equipment_interface_id || "",
-      is_primary: item.is_primary ?? true
+      equipment_value: item.equipment_source && item.equipment_item_id ? `${item.equipment_source}:${item.equipment_item_id}` : "",
+      equipment_interface_id: item.equipment_interface_id ? String(item.equipment_interface_id) : ""
     });
   }, [addressQuery.data]);
 
+  useEffect(() => {
+    if (selectedEquipment && !selectedEquipment.network_interfaces.some((item) => String(item.id) === form.equipment_interface_id)) {
+      setForm((prev) => ({ ...prev, equipment_interface_id: selectedEquipment.network_interfaces[0] ? String(selectedEquipment.network_interfaces[0].id) : "" }));
+    }
+  }, [form.equipment_interface_id, selectedEquipment]);
+
   const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["ipam-vlans"] });
     qc.invalidateQueries({ queryKey: ["ipam-subnets"] });
-    qc.invalidateQueries({ queryKey: ["ipam-addresses"] });
+    qc.invalidateQueries({ queryKey: ["ipam-grid"] });
+    qc.invalidateQueries({ queryKey: ["ipam-list"] });
     qc.invalidateQueries({ queryKey: ["ipam-address"] });
+    qc.invalidateQueries({ queryKey: ["ipam-host-tree"] });
     qc.invalidateQueries({ queryKey: ["cabinet-item-ipam-summary"] });
   };
 
-  const onError = (e: unknown) =>
-    setErrorMessage(e instanceof Error ? e.message : t("errors.saveFailed"));
-
-  const saveVlanMutation = useMutation({
-    mutationFn: () => {
-      const payload = {
-        vlan_number: Number(vlanForm.vlan_number),
-        name: vlanForm.name.trim(),
-        purpose: vlanForm.purpose || null,
-        description: vlanForm.description || null,
-        location_id: vlanForm.location_id ? Number(vlanForm.location_id) : null,
-        is_active: vlanForm.is_active
-      };
-      return editingVlan ? updateVlan(editingVlan.id, payload) : createVlan(payload);
+  const createSubnetMutation = useMutation({
+    mutationFn: async () => {
+      if (!calc || !calculator.name.trim()) throw new Error("Заполните корректно калькулятор и название подсети.");
+      return createSubnetFromCalculator({ network_address_input: calculator.network_address_input.trim(), cidr: calc.cidr, vlan_id: calculator.vlan_id ? Number(calculator.vlan_id) : null, gateway_ip: calculator.gateway_ip.trim() || calc.firstHost, name: calculator.name.trim(), description: calculator.description.trim() || null, location_id: calculator.location_id ? Number(calculator.location_id) : null, vrf: calculator.vrf.trim() || null, is_active: true });
     },
-    onSuccess: () => {
+    onSuccess: (subnet) => {
       refresh();
-      setVlanOpen(false);
-      setEditingVlan(null);
-      setVlanForm({
-        vlan_number: "",
-        name: "",
-        purpose: "",
-        description: "",
-        location_id: "",
-        is_active: true
-      });
+      setCalculatorOpen(false);
+      setCalculatorDone(false);
+      setSelectedSubnetId(subnet.id);
+      setSelectedOffset(null);
+      setCalculator({ network_address_input: "10.10.0.0", cidr: "24", name: "", vlan_id: "", gateway_ip: "", description: "", location_id: "", vrf: "" });
     },
-    onError
-  });
-
-  const saveSubnetMutation = useMutation({
-    mutationFn: () => {
-      const payload = {
-        vlan_id: subnetForm.vlan_id ? Number(subnetForm.vlan_id) : null,
-        cidr: subnetForm.cidr.trim(),
-        gateway_ip: subnetForm.gateway_ip || null,
-        name: subnetForm.name || null,
-        description: subnetForm.description || null,
-        location_id: subnetForm.location_id ? Number(subnetForm.location_id) : null,
-        vrf: subnetForm.vrf || null,
-        is_active: subnetForm.is_active
-      };
-      return editingSubnet
-        ? updateSubnet(editingSubnet.id, {
-            vlan_id: payload.vlan_id,
-            gateway_ip: payload.gateway_ip,
-            name: payload.name,
-            description: payload.description,
-            location_id: payload.location_id,
-            vrf: payload.vrf,
-            is_active: payload.is_active
-          })
-        : createSubnet(payload);
-    },
-    onSuccess: (saved) => {
-      refresh();
-      setSubnetOpen(false);
-      setEditingSubnet(null);
-      if (saved?.id) {
-        setSelectedSubnetId(saved.id);
-      }
-    },
-    onError
+    onError: (error) => setErrorMessage(err(error, "Не удалось создать подсеть"))
   });
 
   const saveAddressMutation = useMutation({
-    mutationFn: () =>
-      patchAddress(selectedSubnet!.id, selectedOffset as number, {
-        hostname: addressForm.hostname || null,
-        dns_name: addressForm.dns_name || null,
-        comment: addressForm.comment || null,
-        equipment_instance_id: addressForm.equipment_instance_id || null,
-        equipment_interface_id: addressForm.equipment_interface_id || null,
-        is_primary: addressForm.is_primary,
-        mac_address: addressForm.mac_address || null
-      }),
-    onSuccess: refresh,
-    onError
-  });
-  const assignMutation = useMutation({
-    mutationFn: () =>
-      assignAddress(selectedSubnet!.id, selectedOffset as number, {
-        hostname: addressForm.hostname || undefined,
-        dns_name: addressForm.dns_name || undefined,
-        comment: addressForm.comment || undefined,
-        equipment_instance_id: Number(addressForm.equipment_instance_id),
-        equipment_interface_id: Number(addressForm.equipment_interface_id),
-        is_primary: addressForm.is_primary,
-        mac_address: addressForm.mac_address || undefined
-      }),
-    onSuccess: refresh,
-    onError
-  });
-  const reserveMutation = useMutation({
-    mutationFn: () =>
-      reserveAddress(selectedSubnet!.id, selectedOffset as number, {
-        hostname: addressForm.hostname || undefined,
-        comment: addressForm.comment || undefined
-      }),
-    onSuccess: refresh,
-    onError
-  });
-  const releaseMutation = useMutation({
-    mutationFn: () => releaseAddress(selectedSubnet!.id, selectedOffset as number),
-    onSuccess: refresh,
-    onError
-  });
-  const deleteVlanMutation = useMutation({
-    mutationFn: (id: number) => deleteVlan(id),
-    onSuccess: refresh,
-    onError
-  });
-  const deleteSubnetMutation = useMutation({
-    mutationFn: (id: number) => deleteSubnet(id),
-    onSuccess: refresh,
-    onError
-  });
-
-  const grouped = useMemo(() => {
-    if (!groupByVlan) {
-      return [{ key: "all", label: t("common.all"), items: subnets }];
-    }
-    const map = new Map<string, { key: string; label: string; items: Subnet[] }>();
-    subnets.forEach((item) => {
-      const key = item.vlan_id ? `v:${item.vlan_id}` : "none";
-      const label = item.vlan_number ? `VLAN ${item.vlan_number}` : t("pagesUi.ipam.labels.noVlan");
-      if (!map.has(key)) {
-        map.set(key, { key, label, items: [] });
+    mutationFn: async () => {
+      if (!selectedSubnet || selectedOffset === null) throw new Error("Адрес не выбран.");
+      if (form.status === "used") {
+        if (!selectedEquipment || !form.equipment_interface_id) throw new Error("Для занятого адреса выберите оборудование и интерфейс.");
+        return assignAddress(selectedSubnet.id, selectedOffset, { hostname: form.hostname || undefined, dns_name: form.dns_name || undefined, comment: form.comment || undefined, mac_address: form.mac_address || undefined, equipment_source: selectedEquipment.equipment_source, equipment_item_id: selectedEquipment.equipment_item_id, equipment_instance_id: selectedEquipment.equipment_instance_id || null, equipment_interface_id: Number(form.equipment_interface_id) });
       }
-      map.get(key)!.items.push(item);
-    });
-    return Array.from(map.values());
-  }, [groupByVlan, subnets, t]);
+      if (form.status === "free") return releaseAddress(selectedSubnet.id, selectedOffset);
+      return patchAddress(selectedSubnet.id, selectedOffset, { status: form.status, hostname: form.hostname || null, dns_name: form.dns_name || null, comment: form.comment || null, mac_address: form.mac_address || null, equipment_source: null, equipment_item_id: null, equipment_instance_id: null, equipment_interface_id: null });
+    },
+    onSuccess: () => refresh(),
+    onError: (error) => setErrorMessage(err(error, "Не удалось сохранить адрес"))
+  });
 
-  const selectSubnet = (id: number) => {
+  const pickSubnet = (id: number) => {
     setSelectedSubnetId(id);
     setSelectedOffset(null);
     const next = new URLSearchParams(params);
@@ -384,321 +181,141 @@ export default function IPAMPage() {
     setParams(next);
   };
 
-  const selectAddress = (item: IPAddressDetails) => {
+  const pickAddress = (item: IPAddressDetails) => {
     setSelectedOffset(item.ip_offset);
     const next = new URLSearchParams(params);
-    if (selectedSubnet?.id) {
-      next.set("subnet_id", String(selectedSubnet.id));
-    }
+    if (selectedSubnetId) next.set("subnet_id", String(selectedSubnetId));
     next.set("offset", String(item.ip_offset));
     setParams(next);
   };
 
-  const summary = addressesQuery.data?.summary;
-  const items = addressesQuery.data?.items || [];
-  const rows = (effectiveMode === "heatmap" ? items.filter((x) => x.status !== "free") : items).slice(
-    0,
-    256
-  );
-  const heatmap = addressesQuery.data?.aggregates || [];
-  const selectedAddress = addressQuery.data || null;
-  const serviceLocked = Boolean(selectedAddress?.is_service);
-  const gridCols =
-    selectedSubnet?.prefix === 20 ? "repeat(64, 28px)" : "repeat(16, 28px)";
-
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
-      <Box
-        sx={{
-          display: "grid",
-          gap: 2,
-          gridTemplateColumns: { xs: "1fr", lg: "290px minmax(0,1fr) 340px" }
-        }}
-      >
-        <Card sx={darkCardSx}>
-          <Box sx={{ p: 2, display: "grid", gap: 1.5 }}>
-            <Box sx={{ display: "flex", gap: 1 }}>
-              <AppButton
-                variant={groupByVlan ? "contained" : "outlined"}
-                size="small"
-                onClick={() => setGroupByVlan(true)}
-                sx={
-                  groupByVlan
-                    ? { bgcolor: "#5e5a4f", color: "#fff" }
-                    : { color: "#fff", borderColor: "rgba(255,255,255,0.18)" }
-                }
-              >
-                VLAN
-              </AppButton>
-              <AppButton
-                variant={!groupByVlan ? "contained" : "outlined"}
-                size="small"
-                onClick={() => setGroupByVlan(false)}
-                sx={
-                  !groupByVlan
-                    ? { bgcolor: "#5e5a4f", color: "#fff" }
-                    : { color: "#fff", borderColor: "rgba(255,255,255,0.18)" }
-                }
-              >
-                {t("pagesUi.ipam.sidebar.flat")}
-              </AppButton>
-              {canAdmin ? (
-                <AppButton
-                  variant="outlined"
-                  size="small"
-                  startIcon={<AddRoundedIcon />}
-                  onClick={() => {
-                    setEditingSubnet(null);
-                    setSubnetForm({
-                      vlan_id: selectedSubnet?.vlan_id ? String(selectedSubnet.vlan_id) : "",
-                      cidr: "",
-                      gateway_ip: "",
-                      name: "",
-                      description: "",
-                      location_id: "",
-                      vrf: "",
-                      is_active: true
-                    });
-                    setSubnetOpen(true);
-                  }}
-                  sx={{ color: "#fff", borderColor: "rgba(255,255,255,0.18)" }}
-                >
-                  {t("pagesUi.ipam.actions.addSubnet")}
-                </AppButton>
-              ) : null}
-            </Box>
+      <Box sx={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
+        <Typography variant="h4" sx={{ fontWeight: 800 }}>IPAM / Сеть</Typography>
+        <Stack direction="row" spacing={1}>
+          {canAdmin ? <AppButton startIcon={<AddRoundedIcon />} variant="contained" onClick={() => setCalculatorOpen(true)}>+ Подсеть</AppButton> : null}
+          <AppButton startIcon={<DownloadRoundedIcon />} variant="outlined" onClick={() => selectedSubnet && exportSubnetCsv(selectedSubnet.id)} disabled={!selectedSubnet}>CSV</AppButton>
+        </Stack>
+      </Box>
 
-            <TextField
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={t("pagesUi.ipam.filters.searchSubnets")}
-              size="small"
-              fullWidth
-              sx={darkInputSx}
-            />
+      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", lg: "270px minmax(0,1fr) 300px" } }}>
+        <Card sx={{ bgcolor: "#0b1220", color: "#d3e8ff", border: `1px solid ${alpha("#7ea2d6", 0.14)}`, boxShadow: "none" }}>
+          <CardContent sx={{ display: "grid", gap: 1.5 }}>
+            <Stack direction="row" spacing={1}>
+              <AppButton variant={sidebarTab === "subnets" ? "contained" : "outlined"} size="small" onClick={() => setSidebarTab("subnets")}>Подсети</AppButton>
+              <AppButton variant={sidebarTab === "vlans" ? "contained" : "outlined"} size="small" onClick={() => setSidebarTab("vlans")}>VLAN</AppButton>
+            </Stack>
+            <TextField size="small" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Поиск IP или хоста..." fullWidth />
+            <Box sx={{ maxHeight: 760, overflowY: "auto", display: "grid", gap: 1 }}>
+              {subnetsQuery.isLoading || vlansQuery.isLoading ? <Box sx={{ py: 6, display: "grid", placeItems: "center" }}><CircularProgress size={28} /></Box> : null}
+              {sidebarTab === "subnets" ? subnets.map((item) => (
+                <Box key={item.id} onClick={() => pickSubnet(item.id)} sx={{ p: 1.4, borderRadius: 2, cursor: "pointer", border: `1px solid ${selectedSubnet?.id === item.id ? alpha("#5ea8ff", 0.6) : alpha("#7ea2d6", 0.12)}`, bgcolor: selectedSubnet?.id === item.id ? alpha("#153250", 0.6) : "#0f1728" }}>
+                  <Stack direction="row" justifyContent="space-between"><Typography sx={{ fontWeight: 700, color: "#8fd0ff" }}>{item.cidr}</Typography>{item.vlan_number ? <Chip size="small" label={`V${item.vlan_number}`} sx={{ bgcolor: alpha("#4b79b7", 0.18), color: "#7ebeff" }} /> : null}</Stack>
+                  <Typography sx={{ mt: 0.5 }}>{item.name || "Без названия"}</Typography>
+                  <Typography sx={{ mt: 0.25, fontSize: 12, color: "#6d88aa" }}>{item.description || item.vlan_name || "Без описания"}</Typography>
+                </Box>
+              )) : vlans.map((item) => (
+                <Box key={item.id} onClick={() => { const subnet = subnets.find((subnetItem) => subnetItem.vlan_id === item.id); if (subnet) pickSubnet(subnet.id); }} sx={{ p: 1.4, borderRadius: 2, cursor: "pointer", border: `1px solid ${alpha("#7ea2d6", 0.12)}`, bgcolor: "#0f1728" }}>
+                  <Typography sx={{ fontWeight: 700, color: "#8fd0ff" }}>{`VLAN ${item.vlan_number}`}</Typography>
+                  <Typography sx={{ mt: 0.5 }}>{item.name}</Typography>
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
 
-            <Box sx={{ maxHeight: { xs: 320, lg: 760 }, overflowY: "auto", display: "grid", gap: 1.25 }}>
-              {subnetsQuery.isLoading ? (
-                <Box sx={{ py: 4, display: "grid", placeItems: "center" }}>
-                  <CircularProgress size={28} />
-                </Box>
-              ) : (
-                grouped.map((g) => (
-                  <Box key={g.key} sx={{ display: "grid", gap: 0.75 }}>
-                    {groupByVlan ? (
-                      <Typography
-                        variant="caption"
-                        sx={{ color: "rgba(255,255,255,0.56)", textTransform: "uppercase" }}
-                      >
-                        {g.label}
-                      </Typography>
-                    ) : null}
-                    {g.items.map((subnet) => (
-                      <Box
-                        key={subnet.id}
-                        onClick={() => selectSubnet(subnet.id)}
-                        sx={{
-                          p: 1.2,
-                          borderRadius: 2,
-                          cursor: "pointer",
-                          border: "1px solid rgba(255,255,255,0.08)",
-                          bgcolor: selectedSubnet?.id === subnet.id ? "#29456f" : "rgba(255,255,255,0.02)"
-                        }}
-                      >
-                        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-                          <Typography variant="body2" sx={{ fontWeight: 700, color: "#fff" }}>
-                            {subnet.cidr}
-                          </Typography>
-                          {subnet.vlan_number ? (
-                            <Chip
-                              size="small"
-                              label={`V${subnet.vlan_number}`}
-                              sx={{ height: 18, color: "#fff", bgcolor: "rgba(0,0,0,0.22)" }}
-                            />
-                          ) : null}
-                        </Box>
-                        <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.8)" }}>
-                          {subnet.name || subnet.description || t("pagesUi.ipam.placeholders.noDescription")}
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Box>
-                ))
-              )}
+        <Card sx={{ bgcolor: "#0b1220", color: "#d3e8ff", border: `1px solid ${alpha("#7ea2d6", 0.14)}`, boxShadow: "none" }}>
+          <CardContent sx={{ display: "grid", gap: 2 }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
+              <Box>
+                <Typography sx={{ fontSize: 28, fontWeight: 800, color: "#8fd0ff" }}>{selectedSubnet?.cidr || "Подсеть не выбрана"}</Typography>
+                <Typography sx={{ color: "#6d88aa" }}>{selectedSubnet?.name || selectedSubnet?.description || "Выберите подсеть слева"}</Typography>
+              </Box>
+              <Stack direction="row" spacing={1}>
+                <Box sx={{ p: 1.2, borderRadius: 2, bgcolor: alpha("#5b9a57", 0.12), minWidth: 92 }}><Typography sx={{ fontSize: 28, fontWeight: 800, color: "#5b9a57" }}>{gridQuery.data?.summary.free || 0}</Typography><Typography sx={{ fontSize: 11, color: "#6d88aa" }}>Свободно</Typography></Box>
+                <Box sx={{ p: 1.2, borderRadius: 2, bgcolor: alpha("#b85050", 0.12), minWidth: 92 }}><Typography sx={{ fontSize: 28, fontWeight: 800, color: "#b85050" }}>{gridQuery.data?.summary.used || 0}</Typography><Typography sx={{ fontSize: 11, color: "#6d88aa" }}>Занято</Typography></Box>
+                <Box sx={{ p: 1.2, borderRadius: 2, bgcolor: alpha("#b19239", 0.12), minWidth: 92 }}><Typography sx={{ fontSize: 28, fontWeight: 800, color: "#b19239" }}>{gridQuery.data?.summary.reserved || 0}</Typography><Typography sx={{ fontSize: 11, color: "#6d88aa" }}>Резерв</Typography></Box>
+              </Stack>
             </Box>
-          </Box>
-        </Card>
-        <Card sx={darkCardSx}>
-          <Box sx={{ p: 2, display: "grid", gap: 2 }}>
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-              <TextField value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("pagesUi.ipam.filters.searchSubnets")} size="small" sx={{ ...darkInputSx, minWidth: 220, flexGrow: 1 }} />
-              {(["all", "free", "used", "reserved"] as StatusFilter[]).map((item) => <AppButton key={item} variant={status === item ? "contained" : "outlined"} size="small" onClick={() => setStatus(item)} sx={status === item ? { bgcolor: "#5e5a4f", color: "#fff" } : { color: "#fff", borderColor: "rgba(255,255,255,0.18)" }}>{item === "all" ? t("common.all") : t(`pagesUi.ipam.status.${item}`)}</AppButton>)}
-              {(["grid", "list", "heatmap"] as ViewMode[]).map((item) => <AppButton key={item} variant={effectiveMode === item ? "contained" : "outlined"} size="small" disabled={selectedSubnet?.prefix !== 16 && item === "heatmap"} onClick={() => setMode(item)} sx={effectiveMode === item ? { bgcolor: "#4d5b3d", color: "#fff" } : { color: "#fff", borderColor: "rgba(255,255,255,0.18)" }}>{t(`pagesUi.ipam.modes.${item}`)}</AppButton>)}
-              <AppButton variant="outlined" size="small" startIcon={<DownloadRoundedIcon />} onClick={() => selectedSubnet?.id && exportSubnetCsv(selectedSubnet.id)} sx={{ color: "#fff", borderColor: "rgba(255,255,255,0.18)" }}>CSV</AppButton>
+            <Stack direction="row" spacing={1}>{(["all", "free", "used", "reserved"] as StatusFilter[]).map((item) => <AppButton key={item} size="small" variant={status === item ? "contained" : "outlined"} onClick={() => setStatus(item)}>{item === "all" ? "все" : item === "free" ? "своб." : item === "used" ? "занят." : "резерв"}</AppButton>)}</Stack>
+            {selectedSubnet && selectedSubnet.prefix !== 24 ? <Alert severity="info">Для {selectedSubnet.cidr} показаны первые 256 адресов из {gridQuery.data?.summary.total || 0}.</Alert> : null}
+            <Box sx={{ borderRadius: 3, border: `1px solid ${alpha("#7ea2d6", 0.14)}`, bgcolor: "#0f1728", p: 1, overflow: "auto" }}>
+              <Box sx={{ display: "grid", gridTemplateColumns: "repeat(16, 28px)", gap: 0.5, width: "max-content" }}>
+                {gridItems.map((item) => <Box key={`${item.subnet_id}:${item.ip_offset}`} title={`${item.ip_address}${item.hostname ? ` · ${item.hostname}` : ""} (${item.status})`} onClick={() => pickAddress(item)} sx={{ width: 28, height: 28, borderRadius: 0.75, cursor: "pointer", bgcolor: tones[item.status].bg, border: `2px solid ${selectedOffset === item.ip_offset ? "#d8edff" : alpha("#ffffff", 0.06)}`, "&:hover": { filter: "brightness(1.18)" } }} />)}
+              </Box>
             </Box>
-            {!selectedSubnet ? (
-              <Box
-                sx={{
-                  minHeight: 220,
-                  borderRadius: 3,
-                  border: "1px dashed rgba(255,255,255,0.14)",
-                  display: "grid",
-                  placeItems: "center",
-                  textAlign: "center",
-                  px: 3
-                }}
-              >
-                <Box sx={{ display: "grid", gap: 1.5, maxWidth: 420 }}>
-                  <Typography variant="h6">{t("pagesUi.ipam.empty.title")}</Typography>
-                  <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.72)" }}>
-                    {t("pagesUi.ipam.empty.description")}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.56)" }}>
-                    {t("pagesUi.ipam.empty.heatmapHint")}
-                  </Typography>
-                  {canAdmin ? (
-                    <Box>
-                      <AppButton
-                        variant="contained"
-                        startIcon={<AddRoundedIcon />}
-                        onClick={() => {
-                          setEditingSubnet(null);
-                          setSubnetForm({
-                            vlan_id: "",
-                            cidr: "",
-                            gateway_ip: "",
-                            name: "",
-                            description: "",
-                            location_id: "",
-                            vrf: "",
-                            is_active: true
-                          });
-                          setSubnetOpen(true);
-                        }}
-                      >
-                        {t("pagesUi.ipam.actions.addSubnet")}
-                      </AppButton>
-                    </Box>
-                  ) : null}
-                </Box>
+            <Box sx={{ borderRadius: 3, border: `1px solid ${alpha("#7ea2d6", 0.14)}`, overflow: "hidden" }}>
+              <Box sx={{ px: 2, py: 1.1, display: "flex", justifyContent: "space-between", bgcolor: "#111a2c" }}><Typography sx={{ fontSize: 12, color: "#6d88aa" }}>СПИСОК АДРЕСОВ</Typography><Typography sx={{ fontSize: 12, color: "#6d88aa" }}>{rows.length} записей</Typography></Box>
+              <Box sx={{ maxHeight: 360, overflow: "auto" }}>
+                <Table size="small" stickyHeader>
+                  <TableHead><TableRow><TableCell sx={{ bgcolor: "#111a2c", color: "#6d88aa" }}>IP</TableCell><TableCell sx={{ bgcolor: "#111a2c", color: "#6d88aa" }}>Статус</TableCell><TableCell sx={{ bgcolor: "#111a2c", color: "#6d88aa" }}>Хост</TableCell><TableCell sx={{ bgcolor: "#111a2c", color: "#6d88aa" }}>Offset</TableCell></TableRow></TableHead>
+                  <TableBody>{rows.map((item) => <TableRow key={`${item.subnet_id}:${item.ip_offset}:row`} hover selected={selectedOffset === item.ip_offset} onClick={() => pickAddress(item)} sx={{ cursor: "pointer" }}><TableCell sx={{ color: "#cfe7ff", fontWeight: 700 }}>{item.ip_address}</TableCell><TableCell><Chip size="small" label={item.status} sx={{ bgcolor: tones[item.status].bg, color: tones[item.status].fg }} /></TableCell><TableCell sx={{ color: "#b3c7e6" }}>{item.hostname || "—"}</TableCell><TableCell sx={{ color: "#7ea2d6" }}>{`.${item.ip_offset}`}</TableCell></TableRow>)}</TableBody>
+                </Table>
               </Box>
-            ) : null}
-            {selectedSubnet && selectedSubnet.prefix !== 16 ? (
-              <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.56)" }}>
-                {t("pagesUi.ipam.empty.heatmapHint")}
-              </Typography>
-            ) : null}
-            {selectedSubnet ? <>
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "start" }}>
-                <Box sx={{ display: "grid", gap: 0.5, minWidth: 260, flexGrow: 1 }}>
-                  <Typography variant="h5" sx={{ fontWeight: 700 }}>{selectedSubnet.cidr}{selectedSubnet.name ? ` - ${selectedSubnet.name}` : ""}</Typography>
-                  <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.72)" }}>{selectedSubnet.description || t("pagesUi.ipam.placeholders.noDescription")}</Typography>
-                  <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.72)" }}>{t("pagesUi.ipam.labels.gateway")}: {selectedSubnet.gateway_ip || "-"} · {selectedSubnet.vlan_number ? `VLAN ${selectedSubnet.vlan_number}` : t("pagesUi.ipam.labels.noVlan")}{selectedSubnet.location_id ? ` · ${breadcrumbMap.get(selectedSubnet.location_id) || ""}` : ""}</Typography>
-                </Box>
-                <Stack direction="row" spacing={1}><Metric label={t("pagesUi.ipam.status.free")} value={summary?.free || 0} color={tones.free.bg} /><Metric label={t("pagesUi.ipam.status.used")} value={summary?.used || 0} color={tones.used.bg} /><Metric label={t("pagesUi.ipam.status.reserved")} value={summary?.reserved || 0} color={tones.reserved.bg} /></Stack>
-              </Box>
-              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                {Object.keys(tones).map((s) => <Chip key={s} label={t(`pagesUi.ipam.status.${s}`)} size="small" sx={{ color: tones[s].fg, bgcolor: tones[s].bg, fontWeight: 700 }} />)}
-                <Box sx={{ flexGrow: 1 }} />
-                {canAdmin ? <>
-                  <AppButton size="small" startIcon={<EditRoundedIcon />} onClick={() => { setEditingSubnet(selectedSubnet); setSubnetForm({ vlan_id: selectedSubnet.vlan_id ? String(selectedSubnet.vlan_id) : "", cidr: selectedSubnet.cidr, gateway_ip: selectedSubnet.gateway_ip || "", name: selectedSubnet.name || "", description: selectedSubnet.description || "", location_id: selectedSubnet.location_id ? String(selectedSubnet.location_id) : "", vrf: selectedSubnet.vrf || "", is_active: selectedSubnet.is_active }); setSubnetOpen(true); }}>{t("actions.edit")}</AppButton>
-                  <AppButton size="small" color="error" startIcon={<DeleteOutlineRoundedIcon />} onClick={() => window.confirm(t("pagesUi.ipam.prompts.deleteSubnet")) && deleteSubnetMutation.mutate(selectedSubnet.id)}>{t("actions.delete")}</AppButton>
-                </> : null}
-              </Box>
-              {addressesQuery.isLoading ? <Box sx={{ minHeight: 260, display: "grid", placeItems: "center" }}><CircularProgress /></Box> : effectiveMode === "heatmap" ? (
-                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 1 }}>
-                  {heatmap.map((block) => { const usedRate = (block.used + block.reserved) / Math.max(block.used + block.reserved + block.free, 1); const hue = Math.max(0, 110 - Math.round(usedRate * 110)); return <Box key={block.block_cidr} sx={{ borderRadius: 2, p: 1.25, minHeight: 90, bgcolor: `hsl(${hue} 48% 32%)`, border: "1px solid rgba(255,255,255,0.12)" }}><Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{block.block_cidr}</Typography><Typography variant="caption" sx={{ opacity: 0.8 }}>{t("pagesUi.ipam.status.used")}: {block.used} · {t("pagesUi.ipam.status.reserved")}: {block.reserved}</Typography><Typography variant="caption" sx={{ display: "block", opacity: 0.8 }}>{t("pagesUi.ipam.status.free")}: {block.free}</Typography></Box>; })}
-                </Box>
-              ) : <Box sx={{ display: "grid", gap: 2 }}>
-                <Box sx={{ overflow: "auto", borderRadius: 2, border: "1px solid rgba(255,255,255,0.08)", bgcolor: "#353430", p: 1.25 }}>
-                  <Box sx={{ display: "grid", gridTemplateColumns: gridCols, gap: 0.5, width: "max-content" }}>
-                    {items.map((item) => <Box key={`${item.subnet_id}:${item.ip_offset}`} onClick={() => selectAddress(item)} sx={{ width: 28, height: 28, borderRadius: 0.7, cursor: "pointer", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 700, bgcolor: tones[item.status].bg, color: tones[item.status].fg, border: "2px solid", borderColor: selectedOffset === item.ip_offset ? "#fff" : "rgba(0,0,0,0.08)" }}>{item.ip_address.split(".").pop()}</Box>)}
-                  </Box>
-                </Box>
-                <Box sx={{ borderRadius: 2, border: "1px solid rgba(255,255,255,0.08)", bgcolor: "#353430", overflow: "hidden" }}>
-                  <Box sx={{ px: 2, py: 1.2, borderBottom: "1px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-between" }}><Typography variant="overline">{t("pagesUi.ipam.sections.addressList")}</Typography><Typography variant="caption" sx={{ color: "rgba(255,255,255,0.56)" }}>{rows.length} {t("pagesUi.ipam.labels.records")}</Typography></Box>
-                  <Box sx={{ maxHeight: 340, overflow: "auto" }}>
-                    <Table size="small" stickyHeader><TableHead><TableRow><TableCell>IP</TableCell><TableCell>{t("common.status.label")}</TableCell><TableCell>{t("pagesUi.ipam.fields.hostname")}</TableCell><TableCell>Offset</TableCell></TableRow></TableHead><TableBody>{rows.map((item) => <TableRow key={`${item.subnet_id}:${item.ip_offset}:row`} hover selected={selectedOffset === item.ip_offset} onClick={() => selectAddress(item)} sx={{ cursor: "pointer" }}><TableCell sx={{ color: "#fff", fontWeight: 700 }}>{item.ip_address}</TableCell><TableCell><Chip size="small" label={t(`pagesUi.ipam.status.${item.status}`)} sx={{ color: tones[item.status].fg, bgcolor: tones[item.status].bg, fontWeight: 700 }} /></TableCell><TableCell sx={{ color: "rgba(255,255,255,0.82)" }}>{item.hostname || "—"}</TableCell><TableCell sx={{ color: "rgba(255,255,255,0.56)" }}>.{item.ip_offset}</TableCell></TableRow>)}</TableBody></Table>
-                  </Box>
-                </Box>
-              </Box>}
-            </> : <Typography color="text.secondary">{t("dashboard.common.no_data")}</Typography>}
-          </Box>
+            </Box>
+          </CardContent>
         </Card>
-        <Card sx={darkCardSx}>
-          <Box sx={{ p: 2, display: "grid", gap: 2 }}>
-            <Typography variant="h6">{t("pagesUi.ipam.panels.address")}</Typography>
-            {selectedAddress ? (
+
+        <Card sx={{ bgcolor: "#0b1220", color: "#d3e8ff", border: `1px solid ${alpha("#7ea2d6", 0.14)}`, boxShadow: "none" }}>
+          <CardContent sx={{ display: "grid", gap: 2 }}>
+            {addressQuery.data ? (
               <>
-                <Box sx={{ p: 1.5, borderRadius: 2, border: "1px solid rgba(255,255,255,0.08)", bgcolor: "rgba(255,255,255,0.03)" }}>
-                  <Typography variant="h5" sx={{ fontWeight: 800 }}>{selectedAddress.ip_address}</Typography>
-                  <Chip size="small" label={t(`pagesUi.ipam.status.${selectedAddress.status}`)} sx={{ mt: 1, color: tones[selectedAddress.status].fg, bgcolor: tones[selectedAddress.status].bg, fontWeight: 700 }} />
+                <Typography sx={{ fontSize: 12, color: "#6d88aa" }}>IP-АДРЕС</Typography>
+                <Typography sx={{ fontSize: 30, fontWeight: 800, color: "#79d4ff" }}>{addressQuery.data.ip_address}</Typography>
+                <FormControl size="small" fullWidth disabled={serviceLocked}><InputLabel>Статус</InputLabel><Select label="Статус" value={form.status} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as EditStatus }))}><MenuItem value="free">свободен</MenuItem><MenuItem value="used">занят</MenuItem><MenuItem value="reserved">резерв</MenuItem><MenuItem value="service">служ.</MenuItem></Select></FormControl>
+                <TextField size="small" label="Имя хоста" value={form.hostname} onChange={(e) => setForm((prev) => ({ ...prev, hostname: e.target.value }))} disabled={serviceLocked} />
+                <TextField size="small" label="DNS" value={form.dns_name} onChange={(e) => setForm((prev) => ({ ...prev, dns_name: e.target.value }))} disabled={serviceLocked} />
+                <TextField size="small" label="MAC" value={form.mac_address} onChange={(e) => setForm((prev) => ({ ...prev, mac_address: e.target.value }))} disabled={serviceLocked} />
+                <TextField size="small" label="Комментарий" value={form.comment} onChange={(e) => setForm((prev) => ({ ...prev, comment: e.target.value }))} disabled={serviceLocked} multiline minRows={3} />
+                <SearchableTreeSelectField label="Хост / оборудование" value={form.equipment_value} options={hostOptions} onChange={(next) => setForm((prev) => ({ ...prev, equipment_value: String(next), equipment_interface_id: "" }))} emptyOptionLabel="Не выбрано" leafOnly disabled={serviceLocked || form.status !== "used"} />
+                <FormControl size="small" fullWidth disabled={serviceLocked || form.status !== "used" || !selectedEquipment}><InputLabel>Интерфейс</InputLabel><Select label="Интерфейс" value={form.equipment_interface_id} onChange={(e) => setForm((prev) => ({ ...prev, equipment_interface_id: String(e.target.value) }))}>{(selectedEquipment?.network_interfaces || []).map((item) => <MenuItem key={item.id} value={String(item.id)}>{item.interface_name}</MenuItem>)}</Select></FormControl>
+                <AppButton startIcon={<SaveRoundedIcon />} variant="contained" color="success" onClick={() => saveAddressMutation.mutate()} disabled={!canOperate || serviceLocked || saveAddressMutation.isPending}>✓ Сохранить</AppButton>
+                <Box sx={{ display: "grid", gap: 0.5, pt: 1, borderTop: `1px solid ${alpha("#7ea2d6", 0.12)}` }}>
+                  <Typography sx={{ display: "flex", justifyContent: "space-between", color: "#6d88aa" }}><span>Offset</span><span>{`.${addressQuery.data.ip_offset}`}</span></Typography>
+                  <Typography sx={{ display: "flex", justifyContent: "space-between", color: "#6d88aa" }}><span>Сеть</span><span>{selectedSubnet?.cidr || "-"}</span></Typography>
+                  <Typography sx={{ display: "flex", justifyContent: "space-between", color: "#6d88aa" }}><span>Шлюз</span><span>{selectedSubnet?.gateway_ip || "-"}</span></Typography>
                 </Box>
-                <TextField label={t("pagesUi.ipam.fields.hostname")} value={addressForm.hostname} onChange={(e) => setAddressForm((p) => ({ ...p, hostname: e.target.value }))} size="small" fullWidth disabled={serviceLocked} />
-                <TextField label={t("pagesUi.ipam.fields.dnsName")} value={addressForm.dns_name} onChange={(e) => setAddressForm((p) => ({ ...p, dns_name: e.target.value }))} size="small" fullWidth disabled={serviceLocked} />
-                <TextField label={t("pagesUi.ipam.fields.macAddress")} value={addressForm.mac_address} onChange={(e) => setAddressForm((p) => ({ ...p, mac_address: e.target.value }))} size="small" fullWidth disabled={serviceLocked} />
-                <TextField label={t("common.fields.comment")} value={addressForm.comment} onChange={(e) => setAddressForm((p) => ({ ...p, comment: e.target.value }))} size="small" multiline minRows={3} fullWidth disabled={serviceLocked} />
-                <TextField label={t("pagesUi.ipam.fields.searchEquipment")} value={addressForm.equipmentQuery} onChange={(e) => setAddressForm((p) => ({ ...p, equipmentQuery: e.target.value }))} size="small" fullWidth disabled={serviceLocked} />
-                {(eligibleQuery.data || []).length ? <FormControl size="small" fullWidth disabled={serviceLocked}><InputLabel>{t("pagesUi.ipam.fields.equipment")}</InputLabel><Select label={t("pagesUi.ipam.fields.equipment")} value={addressForm.equipment_instance_id} onChange={(e) => { const found = (eligibleQuery.data || []).find((x: EligibleEquipment) => x.equipment_instance_id === Number(e.target.value)); setAddressForm((p) => ({ ...p, equipment_instance_id: Number(e.target.value), equipment_interface_id: found?.network_interfaces[0]?.id || "" })); }}>{(eligibleQuery.data || []).map((item: EligibleEquipment) => <MenuItem key={item.equipment_instance_id} value={item.equipment_instance_id}>{item.display_name}</MenuItem>)}</Select></FormControl> : null}
-                <FormControl size="small" fullWidth disabled={!selectedEquipment || serviceLocked}><InputLabel>{t("pagesUi.ipam.fields.interface")}</InputLabel><Select label={t("pagesUi.ipam.fields.interface")} value={addressForm.equipment_interface_id} onChange={(e) => setAddressForm((p) => ({ ...p, equipment_interface_id: Number(e.target.value) }))}>{(selectedEquipment?.network_interfaces || []).map((item) => <MenuItem key={item.id} value={item.id}>{item.interface_name}</MenuItem>)}</Select></FormControl>
-                <FormControlLabel control={<Switch checked={addressForm.is_primary} onChange={(e) => setAddressForm((p) => ({ ...p, is_primary: e.target.checked }))} disabled={serviceLocked} />} label={t("pagesUi.ipam.fields.isPrimary")} />
-                <Stack direction="row" spacing={1} flexWrap="wrap">
-                  <AppButton variant="contained" startIcon={<SaveRoundedIcon />} onClick={() => saveAddressMutation.mutate()} disabled={!canOperate || !selectedSubnet || selectedOffset === null || serviceLocked}>{t("actions.save")}</AppButton>
-                  <AppButton variant="contained" color="warning" startIcon={<BookmarkAddedRoundedIcon />} onClick={() => reserveMutation.mutate()} disabled={!canOperate || !selectedSubnet || selectedOffset === null || serviceLocked}>{t("pagesUi.ipam.actions.reserve")}</AppButton>
-                  <AppButton variant="contained" color="success" startIcon={<LinkRoundedIcon />} onClick={() => assignMutation.mutate()} disabled={!canOperate || !selectedSubnet || selectedOffset === null || !addressForm.equipment_instance_id || !addressForm.equipment_interface_id || serviceLocked}>{t("pagesUi.ipam.actions.assign")}</AppButton>
-                  <AppButton variant="outlined" color="error" startIcon={<DeleteSweepRoundedIcon />} onClick={() => releaseMutation.mutate()} disabled={!canOperate || !selectedSubnet || selectedOffset === null || serviceLocked}>{t("pagesUi.ipam.actions.release")}</AppButton>
-                </Stack>
-                {serviceLocked ? <Typography variant="caption" color="warning.main">{t("pagesUi.ipam.placeholders.serviceLocked")}</Typography> : null}
               </>
-            ) : (
-              <Typography color="text.secondary">{t("pagesUi.ipam.placeholders.selectAddress")}</Typography>
-            )}
-            {canAdmin ? <Box sx={{ display: "grid", gap: 1 }}>
-              <Typography variant="subtitle2">{t("pagesUi.ipam.sections.vlans")}</Typography>
-              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                <AppButton size="small" startIcon={<AddRoundedIcon />} onClick={() => { setEditingVlan(null); setVlanForm({ vlan_number: "", name: "", purpose: "", description: "", location_id: "", is_active: true }); setVlanOpen(true); }}>{t("pagesUi.ipam.actions.addVlan")}</AppButton>
-                {vlans.slice(0, 6).map((vlan) => <Chip key={vlan.id} label={`VLAN ${vlan.vlan_number} · ${vlan.name}`} onClick={() => { setEditingVlan(vlan); setVlanForm({ vlan_number: String(vlan.vlan_number), name: vlan.name || "", purpose: vlan.purpose || "", description: vlan.description || "", location_id: vlan.location_id ? String(vlan.location_id) : "", is_active: vlan.is_active }); setVlanOpen(true); }} />)}
-              </Box>
-            </Box> : null}
-          </Box>
+            ) : <Typography sx={{ color: "#6d88aa" }}>Выберите адрес в сетке или таблице.</Typography>}
+          </CardContent>
         </Card>
       </Box>
 
-      <Dialog open={vlanOpen} onClose={() => setVlanOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{editingVlan ? t("pagesUi.ipam.dialogs.editVlan") : t("pagesUi.ipam.dialogs.createVlan")}</DialogTitle>
-        <DialogContent sx={{ display: "grid", gap: 2, mt: 1 }}>
-          <TextField label={t("pagesUi.ipam.fields.vlanNumber")} type="number" value={vlanForm.vlan_number} onChange={(e) => setVlanForm((p) => ({ ...p, vlan_number: e.target.value }))} fullWidth />
-          <TextField label={t("common.fields.name")} value={vlanForm.name} onChange={(e) => setVlanForm((p) => ({ ...p, name: e.target.value }))} fullWidth />
-          <TextField label={t("pagesUi.ipam.fields.purpose")} value={vlanForm.purpose} onChange={(e) => setVlanForm((p) => ({ ...p, purpose: e.target.value }))} fullWidth />
-          <TextField label={t("common.fields.comment")} value={vlanForm.description} onChange={(e) => setVlanForm((p) => ({ ...p, description: e.target.value }))} multiline minRows={3} fullWidth />
-          <SearchableSelectField label={t("common.fields.location")} value={vlanForm.location_id} options={locationOptions.map((item) => ({ value: String(item.value), label: item.label }))} onChange={(nextValue) => setVlanForm((p) => ({ ...p, location_id: String(nextValue) }))} emptyOptionLabel={t("actions.notSelected")} fullWidth />
-          <FormControlLabel control={<Switch checked={vlanForm.is_active} onChange={(e) => setVlanForm((p) => ({ ...p, is_active: e.target.checked }))} />} label={t("common.status.active")} />
+      <Dialog open={calculatorOpen} onClose={() => setCalculatorOpen(false)} fullWidth maxWidth="sm" PaperProps={{ sx: { bgcolor: "#162132", color: "#d3e8ff", border: `1px solid ${alpha("#7ea2d6", 0.14)}` } }}>
+        <DialogTitle>IP-калькулятор</DialogTitle>
+        <DialogContent sx={{ display: "grid", gap: 2 }}>
+          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: "minmax(0,1fr) 96px" }}>
+            <TextField label="Сетевой адрес" value={calculator.network_address_input} onChange={(e) => setCalculator((prev) => ({ ...prev, network_address_input: e.target.value }))} />
+            <TextField label="CIDR" value={calculator.cidr} onChange={(e) => setCalculator((prev) => ({ ...prev, cidr: e.target.value }))} />
+          </Box>
+          <AppButton variant="contained" onClick={() => { setCalculatorDone(true); if (calc && !calculator.gateway_ip) setCalculator((prev) => ({ ...prev, gateway_ip: calc.firstHost })); }} disabled={!calc}>⚡ Вычислить</AppButton>
+          {calculatorDone && calc ? (
+            <>
+              <Box sx={{ borderRadius: 3, border: `1px solid ${alpha("#7ea2d6", 0.14)}`, bgcolor: "#0d1727", p: 2, display: "grid", gap: 1, gridTemplateColumns: "repeat(2, minmax(0,1fr))" }}>
+                <Typography>Адрес сети<br />{`${calc.network}/${calc.cidr}`}</Typography>
+                <Typography>Маска<br />{calc.mask}</Typography>
+                <Typography>Шлюз (1й хост)<br />{calc.firstHost}</Typography>
+                <Typography>Broadcast<br />{calc.broadcast}</Typography>
+                <Typography>Последний хост<br />{calc.lastHost}</Typography>
+                <Typography>Кол-во хостов<br />{calc.hosts}</Typography>
+                <Typography>Всего адресов<br />{calc.total}</Typography>
+                <Typography>Тип<br />{calc.size}</Typography>
+              </Box>
+              <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: "repeat(2, minmax(0,1fr))" }}>
+                <TextField label="Название подсети *" value={calculator.name} onChange={(e) => setCalculator((prev) => ({ ...prev, name: e.target.value }))} />
+                <FormControl fullWidth><InputLabel>VLAN</InputLabel><Select label="VLAN" value={calculator.vlan_id} onChange={(e) => setCalculator((prev) => ({ ...prev, vlan_id: String(e.target.value) }))}><MenuItem value="">Не выбрано</MenuItem>{vlans.map((item) => <MenuItem key={item.id} value={String(item.id)}>{`VLAN ${item.vlan_number} / ${item.name}`}</MenuItem>)}</Select></FormControl>
+                <TextField label={`Шлюз (по умолч. ${calc.firstHost})`} value={calculator.gateway_ip} onChange={(e) => setCalculator((prev) => ({ ...prev, gateway_ip: e.target.value }))} />
+                <FormControl fullWidth><InputLabel>Локация</InputLabel><Select label="Локация" value={calculator.location_id} onChange={(e) => setCalculator((prev) => ({ ...prev, location_id: String(e.target.value) }))}><MenuItem value="">Не выбрано</MenuItem>{locationOptions.map((item) => <MenuItem key={item.value} value={String(item.value)}>{item.label}</MenuItem>)}</Select></FormControl>
+                <TextField label="VRF" value={calculator.vrf} onChange={(e) => setCalculator((prev) => ({ ...prev, vrf: e.target.value }))} />
+                <TextField label="Описание" value={calculator.description} onChange={(e) => setCalculator((prev) => ({ ...prev, description: e.target.value }))} />
+              </Box>
+            </>
+          ) : null}
         </DialogContent>
         <DialogActions>
-          {editingVlan ? <AppButton color="error" startIcon={<DeleteOutlineRoundedIcon />} onClick={() => window.confirm(t("pagesUi.ipam.prompts.deleteVlan")) && deleteVlanMutation.mutate(editingVlan.id)}>{t("actions.delete")}</AppButton> : null}
-          <Box sx={{ flexGrow: 1 }} />
-          <AppButton onClick={() => setVlanOpen(false)}>{t("actions.cancel")}</AppButton>
-          <AppButton variant="contained" onClick={() => saveVlanMutation.mutate()}>{t("actions.save")}</AppButton>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={subnetOpen} onClose={() => setSubnetOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{editingSubnet ? t("pagesUi.ipam.dialogs.editSubnet") : t("pagesUi.ipam.dialogs.createSubnet")}</DialogTitle>
-        <DialogContent sx={{ display: "grid", gap: 2, mt: 1 }}>
-          <FormControl fullWidth><InputLabel>VLAN</InputLabel><Select label="VLAN" value={subnetForm.vlan_id} onChange={(e) => setSubnetForm((p) => ({ ...p, vlan_id: String(e.target.value) }))}><MenuItem value="">{t("pagesUi.ipam.labels.noVlan")}</MenuItem>{vlans.map((item) => <MenuItem key={item.id} value={String(item.id)}>{`VLAN ${item.vlan_number} · ${item.name}`}</MenuItem>)}</Select></FormControl>
-          <TextField label="CIDR" value={subnetForm.cidr} onChange={(e) => setSubnetForm((p) => ({ ...p, cidr: e.target.value }))} disabled={Boolean(editingSubnet)} helperText={editingSubnet ? t("pagesUi.ipam.placeholders.cidrLocked") : "10.10.0.0/24"} fullWidth />
-          <TextField label={t("pagesUi.ipam.labels.gateway")} value={subnetForm.gateway_ip} onChange={(e) => setSubnetForm((p) => ({ ...p, gateway_ip: e.target.value }))} fullWidth />
-          <TextField label={t("common.fields.name")} value={subnetForm.name} onChange={(e) => setSubnetForm((p) => ({ ...p, name: e.target.value }))} fullWidth />
-          <TextField label={t("common.fields.comment")} value={subnetForm.description} onChange={(e) => setSubnetForm((p) => ({ ...p, description: e.target.value }))} multiline minRows={3} fullWidth />
-          <TextField label="VRF" value={subnetForm.vrf} onChange={(e) => setSubnetForm((p) => ({ ...p, vrf: e.target.value }))} fullWidth />
-          <SearchableSelectField label={t("common.fields.location")} value={subnetForm.location_id} options={locationOptions.map((item) => ({ value: String(item.value), label: item.label }))} onChange={(nextValue) => setSubnetForm((p) => ({ ...p, location_id: String(nextValue) }))} emptyOptionLabel={t("actions.notSelected")} fullWidth />
-          <FormControlLabel control={<Switch checked={subnetForm.is_active} onChange={(e) => setSubnetForm((p) => ({ ...p, is_active: e.target.checked }))} />} label={t("common.status.active")} />
-        </DialogContent>
-        <DialogActions>
-          {editingSubnet ? <AppButton color="error" startIcon={<DeleteOutlineRoundedIcon />} onClick={() => window.confirm(t("pagesUi.ipam.prompts.deleteSubnet")) && deleteSubnetMutation.mutate(editingSubnet.id)}>{t("actions.delete")}</AppButton> : null}
-          <Box sx={{ flexGrow: 1 }} />
-          <AppButton onClick={() => setSubnetOpen(false)}>{t("actions.cancel")}</AppButton>
-          <AppButton variant="contained" onClick={() => saveSubnetMutation.mutate()}>{t("actions.save")}</AppButton>
+          <AppButton onClick={() => setCalculatorOpen(false)}>Отмена</AppButton>
+          <AppButton variant="contained" onClick={() => createSubnetMutation.mutate()} disabled={!calculatorDone || !calc || !calculator.name.trim() || createSubnetMutation.isPending}>✓ Создать подсеть</AppButton>
         </DialogActions>
       </Dialog>
 

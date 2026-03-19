@@ -61,11 +61,6 @@ class Subnet(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     vlan: Mapped["Vlan | None"] = relationship()
     location: Mapped["Location | None"] = relationship()
 
-    __table_args__ = (
-        CheckConstraint("prefix IN (16, 20, 24)", name="ck_subnets_prefix_allowed"),
-    )
-
-
 Index(
     "ix_subnets_cidr_active_unique",
     Subnet.cidr,
@@ -79,9 +74,11 @@ class EquipmentNetworkInterface(Base, TimestampMixin, SoftDeleteMixin, VersionMi
     __tablename__ = "equipment_network_interfaces"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    equipment_instance_id: Mapped[int] = mapped_column(
-        ForeignKey("cabinet_items.id", ondelete="CASCADE"), index=True, nullable=False
+    equipment_instance_id: Mapped[int | None] = mapped_column(
+        ForeignKey("cabinet_items.id", ondelete="CASCADE"), index=True
     )
+    equipment_item_source: Mapped[str | None] = mapped_column(String(32), index=True)
+    equipment_item_id: Mapped[int | None] = mapped_column(Integer, index=True)
     interface_name: Mapped[str] = mapped_column(String(255), nullable=False)
     interface_index: Mapped[int | None] = mapped_column(Integer)
     interface_type: Mapped[str | None] = mapped_column(String(100))
@@ -93,6 +90,13 @@ class EquipmentNetworkInterface(Base, TimestampMixin, SoftDeleteMixin, VersionMi
     equipment_instance: Mapped["CabinetItem"] = relationship()
 
     __table_args__ = (
+        UniqueConstraint(
+            "equipment_item_source",
+            "equipment_item_id",
+            "interface_name",
+            "interface_index",
+            name="uq_equipment_network_interfaces_target_identity",
+        ),
         UniqueConstraint(
             "equipment_instance_id",
             "interface_name",
@@ -117,6 +121,8 @@ class IPAddress(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     equipment_instance_id: Mapped[int | None] = mapped_column(
         ForeignKey("cabinet_items.id", ondelete="SET NULL"), index=True
     )
+    equipment_item_source: Mapped[str | None] = mapped_column(String(32), index=True)
+    equipment_item_id: Mapped[int | None] = mapped_column(Integer, index=True)
     equipment_interface_id: Mapped[int | None] = mapped_column(
         ForeignKey("equipment_network_interfaces.id", ondelete="SET NULL"), index=True
     )
@@ -131,7 +137,7 @@ class IPAddress(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     __table_args__ = (
         UniqueConstraint("subnet_id", "ip_offset", name="uq_ip_addresses_subnet_offset"),
         CheckConstraint(
-            "status IN ('free','used','reserved','gateway','broadcast','network')",
+            "status IN ('free','used','reserved','service','gateway','broadcast','network')",
             name="ck_ip_addresses_status_allowed",
         ),
     )
@@ -161,6 +167,10 @@ class IPAddressAuditLog(Base, TimestampMixin):
     new_hostname: Mapped[str | None] = mapped_column(String(255))
     old_equipment_instance_id: Mapped[int | None] = mapped_column(Integer)
     new_equipment_instance_id: Mapped[int | None] = mapped_column(Integer)
+    old_equipment_item_source: Mapped[str | None] = mapped_column(String(32))
+    new_equipment_item_source: Mapped[str | None] = mapped_column(String(32))
+    old_equipment_item_id: Mapped[int | None] = mapped_column(Integer)
+    new_equipment_item_id: Mapped[int | None] = mapped_column(Integer)
     actor_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     payload_json: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
 

@@ -3,7 +3,13 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
-from app.services.ipam import equipment_has_network_interfaces, parse_network_ports, validate_subnet_cidr
+from app.services.ipam import (
+    create_subnet_from_calculator_payload,
+    equipment_has_network_interfaces,
+    normalize_equipment_target,
+    parse_network_ports,
+    validate_subnet_cidr,
+)
 
 
 def make_equipment_type(**overrides):
@@ -53,3 +59,26 @@ def test_validate_subnet_cidr_rejects_unsupported_prefix():
     with pytest.raises(HTTPException) as exc:
         validate_subnet_cidr("10.0.0.0/25")
     assert exc.value.status_code == 400
+
+
+def test_create_subnet_from_calculator_payload_normalizes_network_and_gateway():
+    payload = SimpleNamespace(
+        network_address_input="10.10.0.19",
+        cidr=24,
+        vlan_id=None,
+        gateway_ip=None,
+        name="Office LAN",
+        description=None,
+        location_id=None,
+        vrf=None,
+        is_active=True,
+    )
+    network, prefix, data = create_subnet_from_calculator_payload(None, payload)
+    assert str(network) == "10.10.0.0/24"
+    assert prefix == 24
+    assert data["gateway_ip"] == "10.10.0.1"
+
+
+def test_normalize_equipment_target_supports_legacy_and_universal_payloads():
+    assert normalize_equipment_target("assembly", 12) == ("assembly", 12)
+    assert normalize_equipment_target(None, None, 5) == ("cabinet", 5)
