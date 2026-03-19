@@ -7,6 +7,7 @@ import {
   Card,
   CardContent,
   Chip,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -18,7 +19,6 @@ import {
   MenuItem,
   Select,
   Switch,
-  TablePagination,
   TextField,
   Tooltip,
   Typography
@@ -29,6 +29,7 @@ import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
+import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import PictureAsPdfRoundedIcon from "@mui/icons-material/PictureAsPdfRounded";
 import TableChartRoundedIcon from "@mui/icons-material/TableChartRounded";
 import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
@@ -39,16 +40,14 @@ import { useNavigate } from "react-router-dom";
 
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
+import { apiFetch } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
-import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
 import { ProtectedImage } from "../components/ProtectedImage";
 import { ProtectedDownloadLink } from "../components/ProtectedDownloadLink";
 import { getCabinetItemIPAMSummary } from "../features/ipam/api/ipam";
 import { SearchableSelectField } from "../components/SearchableSelectField";
-
-const pageSizeOptions = [10, 20, 50, 100];
 
 const InfoRow = ({ label, value }: { label: string; value?: ReactNode }) => {
   const displayValue = value === null || value === undefined || value === "" ? "-" : value;
@@ -135,11 +134,25 @@ type EquipmentInOperationContainer = {
   container_factory_number?: string | null;
   container_inventory_number?: string | null;
   location_full_path?: string | null;
+  container_is_deleted: boolean;
   is_empty: boolean;
   quantity_sum: number;
+  active_items_count: number;
+  deleted_items_count: number;
   equipment_type_name_sort?: string | null;
   manufacturer_name_sort?: string | null;
   created_at?: string | null;
+};
+
+type EquipmentInOperationLocationNode = {
+  location_id: number;
+  location_name: string;
+  location_full_path: string;
+  active_containers_count: number;
+  deleted_containers_count: number;
+  quantity_sum: number;
+  children: EquipmentInOperationLocationNode[];
+  containers: EquipmentInOperationContainer[];
 };
 
 type Cabinet = { id: number; name: string };
@@ -287,6 +300,48 @@ async function fetchAllEquipmentInOperationItems(params: {
   return items;
 }
 
+async function fetchEquipmentInOperationTree(params: {
+  q?: string;
+  sort?: string;
+  is_deleted: boolean;
+  include_deleted?: boolean;
+  cabinet_id?: number;
+  assembly_id?: number;
+  equipment_type_id?: number;
+  manufacturer_id?: number;
+  location_id?: number;
+}): Promise<EquipmentInOperationLocationNode[]> {
+  const search = new URLSearchParams();
+  if (params.q) {
+    search.set("q", params.q);
+  }
+  if (params.sort) {
+    search.set("sort", params.sort);
+  }
+  search.set("is_deleted", String(params.is_deleted));
+  if (params.include_deleted) {
+    search.set("include_deleted", "true");
+  }
+  if (params.cabinet_id) {
+    search.set("cabinet_id", String(params.cabinet_id));
+  }
+  if (params.assembly_id) {
+    search.set("assembly_id", String(params.assembly_id));
+  }
+  if (params.equipment_type_id) {
+    search.set("equipment_type_id", String(params.equipment_type_id));
+  }
+  if (params.manufacturer_id) {
+    search.set("manufacturer_id", String(params.manufacturer_id));
+  }
+  if (params.location_id) {
+    search.set("location_id", String(params.location_id));
+  }
+
+  const query = search.toString();
+  return apiFetch<EquipmentInOperationLocationNode[]>(`/equipment-in-operation/tree${query ? `?${query}` : ""}`);
+}
+
 function IPAMSummaryBlock({
   itemId,
   visible,
@@ -350,6 +405,27 @@ function IPAMSummaryBlock({
           {t("pagesUi.cabinetItems.ipam.open")}
         </AppButton>
       </Box>
+    </Box>
+  );
+}
+
+function StatCell({
+  label,
+  value,
+  color = "text.primary"
+}: {
+  label: string;
+  value: ReactNode;
+  color?: string;
+}) {
+  return (
+    <Box sx={{ display: "grid", justifyItems: "end", minWidth: 88 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ textAlign: "right" }}>
+        {label}
+      </Typography>
+      <Typography variant="body2" sx={{ fontWeight: 700, textAlign: "right" }} color={color}>
+        {value}
+      </Typography>
     </Box>
   );
 }
@@ -479,7 +555,7 @@ function ContainerAccordion({
             display: "grid",
             gridTemplateColumns: {
               xs: "1fr",
-              sm: "minmax(220px, 1.2fr) minmax(140px, 0.7fr) minmax(160px, 0.8fr) minmax(220px, 1fr)"
+              lg: "minmax(220px, 1.2fr) minmax(140px, 0.7fr) minmax(160px, 0.8fr) minmax(220px, 1fr) auto"
             },
             gap: 1.5,
             alignItems: "center",
@@ -487,9 +563,14 @@ function ContainerAccordion({
           }}
         >
           <Box sx={{ display: "grid", minWidth: 0 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              {container.container_name}
-            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                {container.container_name}
+              </Typography>
+              {container.container_is_deleted ? (
+                <Chip size="small" color="warning" label={t("common.status.deleted")} />
+              ) : null}
+            </Box>
             <Typography variant="caption" color="text.secondary">
               {container.source === "assembly" ? t("common.fields.assembly") : t("common.fields.cabinet")}
             </Typography>
@@ -517,6 +598,18 @@ function ContainerAccordion({
             >
               {container.location_full_path || "-"}
             </Typography>
+          </Box>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "repeat(3, minmax(88px, 1fr))", lg: "repeat(3, minmax(88px, auto))" },
+              gap: 1.5,
+              justifyContent: "end"
+            }}
+          >
+            <StatCell label={t("common.status.active")} value={container.active_items_count} />
+            <StatCell label={t("common.status.deleted")} value={container.deleted_items_count} />
+            <StatCell label={t("common.fields.quantity")} value={container.quantity_sum} />
           </Box>
         </Box>
       </AccordionSummary>
@@ -587,7 +680,7 @@ function ContainerAccordion({
                         display: "grid",
                         gridTemplateColumns: {
                           xs: "1fr",
-                          sm: "minmax(240px, 2fr) minmax(80px, 0.5fr) auto"
+                          sm: "minmax(240px, 2fr) minmax(112px, 0.6fr) auto"
                         },
                         gap: 1.5,
                         alignItems: "center",
@@ -595,7 +688,7 @@ function ContainerAccordion({
                       }}
                     >
                       <Typography>{group.equipment_type_name}</Typography>
-                      <Typography sx={{ fontWeight: 600 }}>{group.quantity_sum}</Typography>
+                      <StatCell label={t("common.fields.quantity")} value={group.quantity_sum} />
                       <Box />
                     </Box>
                   </AccordionSummary>
@@ -606,7 +699,7 @@ function ContainerAccordion({
                           key={item.id}
                           sx={{
                             display: "grid",
-                            gridTemplateColumns: { xs: "1fr", sm: "minmax(160px, 1fr) auto" },
+                            gridTemplateColumns: { xs: "1fr", sm: "minmax(160px, 1fr) minmax(112px, auto) auto" },
                             gap: 1.5,
                             alignItems: "center",
                             p: 1.25,
@@ -620,34 +713,33 @@ function ContainerAccordion({
                             <Typography variant="body2" sx={{ fontWeight: 600 }}>
                               {`ID ${item.id}`}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {t("common.fields.quantity")}:{" "}
-                              {item.can_edit_quantity === false
-                                ? `${item.quantity} (${t("pagesUi.cabinetItems.placeholders.quantityLocked")})`
-                                : item.quantity}
-                            </Typography>
                             {item.created_at ? (
                               <Typography variant="caption" color="text.secondary">
                                 {new Date(item.created_at).toLocaleString(i18n.language)}
                               </Typography>
                             ) : null}
                           </Box>
+                          <StatCell
+                            label={t("common.fields.quantity")}
+                            value={
+                              item.can_edit_quantity === false
+                                ? `${item.quantity} (${t("pagesUi.cabinetItems.placeholders.quantityLocked")})`
+                                : item.quantity
+                            }
+                          />
                           {canWrite ? (
                             <Box
                               sx={{ display: "flex", justifyContent: { xs: "flex-start", sm: "flex-end" }, gap: 0.5 }}
                             >
                               {item.is_deleted ? (
-                                <Tooltip title={t("actions.restore")}>
-                                  <span>
-                                    <IconButton
-                                      size="small"
-                                      color="success"
-                                      onClick={() => onRestoreItem(item)}
-                                    >
-                                      <RestoreRoundedIcon fontSize="small" />
-                                    </IconButton>
-                                  </span>
-                                </Tooltip>
+                                <AppButton
+                                  size="small"
+                                  color="success"
+                                  startIcon={<RestoreRoundedIcon fontSize="small" />}
+                                  onClick={() => onRestoreItem(item)}
+                                >
+                                  {t("actions.restore")}
+                                </AppButton>
                               ) : (
                                 <>
                                   <Tooltip title={t("actions.edit")}>
@@ -826,14 +918,138 @@ function ContainerAccordion({
   );
 }
 
+function LocationTreeNodeCard({
+  node,
+  level,
+  canWrite,
+  detailFilters,
+  equipmentMap,
+  equipmentFlagsMap,
+  onEditItem,
+  onDeleteItem,
+  onRestoreItem,
+  onAddToCabinet,
+  equipmentOptions,
+  onErrorMessage
+}: {
+  node: EquipmentInOperationLocationNode;
+  level: number;
+  canWrite: boolean;
+  detailFilters: DetailFilters;
+  equipmentMap: Map<number, string>;
+  equipmentFlagsMap: Map<number, EquipmentType>;
+  onEditItem: (item: EquipmentInOperationItem) => void;
+  onDeleteItem: (item: EquipmentInOperationItem) => void;
+  onRestoreItem: (item: EquipmentInOperationItem) => void;
+  onAddToCabinet: (payload: { cabinetId: number; equipmentTypeId: number; quantity: number }) => void;
+  equipmentOptions: { value: number; label: string }[];
+  onErrorMessage: (message: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(level < 1);
+  const hasChildren = node.children.length > 0 || node.containers.length > 0;
+
+  return (
+    <Box sx={{ display: "grid", gap: 1 }}>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "auto 1fr", lg: "auto minmax(260px, 1fr) minmax(220px, 1fr) auto" },
+          gap: 1.5,
+          alignItems: "center",
+          p: 1.5,
+          pl: 1.5 + level * 2,
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 2,
+          backgroundColor: "background.paper"
+        }}
+      >
+        {hasChildren ? (
+          <IconButton size="small" onClick={() => setExpanded((prev) => !prev)}>
+            {expanded ? <ExpandMoreRoundedIcon /> : <ChevronRightRoundedIcon />}
+          </IconButton>
+        ) : (
+          <Box sx={{ width: 32 }} />
+        )}
+        <Box sx={{ display: "grid", minWidth: 0 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+            {node.location_name}
+          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+          >
+            {node.location_full_path}
+          </Typography>
+        </Box>
+        <Typography variant="body2" color="text.secondary" sx={{ display: { xs: "none", lg: "block" } }}>
+          {t("common.fields.location")}
+        </Typography>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, minmax(96px, auto))",
+            gap: 1.5,
+            justifyContent: "end"
+          }}
+        >
+          <StatCell label={t("common.status.active")} value={node.active_containers_count} />
+          <StatCell label={t("common.status.deleted")} value={node.deleted_containers_count} />
+          <StatCell label={t("common.fields.quantity")} value={node.quantity_sum} />
+        </Box>
+      </Box>
+
+      <Collapse in={expanded} timeout="auto" unmountOnExit>
+        <Box sx={{ display: "grid", gap: 1, pl: { xs: 1.5, sm: 2.5 } }}>
+          {node.children.map((child) => (
+            <LocationTreeNodeCard
+              key={`location:${child.location_id}`}
+              node={child}
+              level={level + 1}
+              canWrite={canWrite}
+              detailFilters={detailFilters}
+              equipmentMap={equipmentMap}
+              equipmentFlagsMap={equipmentFlagsMap}
+              onEditItem={onEditItem}
+              onDeleteItem={onDeleteItem}
+              onRestoreItem={onRestoreItem}
+              onAddToCabinet={onAddToCabinet}
+              equipmentOptions={equipmentOptions}
+              onErrorMessage={onErrorMessage}
+            />
+          ))}
+
+          {node.containers.map((container) => (
+            <Box key={`${container.source}:${container.container_id}`} sx={{ pl: 1 }}>
+              <ContainerAccordion
+                container={container}
+                canWrite={canWrite}
+                detailFilters={detailFilters}
+                equipmentMap={equipmentMap}
+                equipmentFlagsMap={equipmentFlagsMap}
+                equipmentOptions={equipmentOptions}
+                onEditItem={onEditItem}
+                onDeleteItem={onDeleteItem}
+                onRestoreItem={onRestoreItem}
+                onAddToCabinet={onAddToCabinet}
+                onErrorMessage={onErrorMessage}
+              />
+            </Box>
+          ))}
+        </Box>
+      </Collapse>
+    </Box>
+  );
+}
+
 export default function CabinetItemsPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const canWrite = user?.role === "admin" || user?.role === "engineer";
   const queryClient = useQueryClient();
 
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("-created_at");
   const [containerFilter, setContainerFilter] = useState<string>("");
@@ -882,9 +1098,7 @@ export default function CabinetItemsPage() {
 
   const containersQuery = useQuery({
     queryKey: [
-      "equipment-in-operation-containers",
-      page,
-      pageSize,
+      "equipment-in-operation-tree",
       q,
       sort,
       containerFilter,
@@ -894,18 +1108,15 @@ export default function CabinetItemsPage() {
       showDeleted
     ],
     queryFn: () =>
-      listEntity<EquipmentInOperationContainer>("/equipment-in-operation/containers", {
-        page,
-        page_size: pageSize,
+      fetchEquipmentInOperationTree({
         q: q || undefined,
         sort: sort || undefined,
-        filters: {
-          cabinet_id: containerType === "cabinet" ? containerId : undefined,
-          assembly_id: containerType === "assembly" ? containerId : undefined,
-          equipment_type_id: equipmentFilter || undefined,
-          manufacturer_id: manufacturerFilter || undefined,
-          location_id: locationFilter || undefined
-        },
+        include_deleted: showDeleted,
+        cabinet_id: containerType === "cabinet" ? containerId : undefined,
+        assembly_id: containerType === "assembly" ? containerId : undefined,
+        equipment_type_id: equipmentFilter || undefined,
+        manufacturer_id: manufacturerFilter || undefined,
+        location_id: locationFilter || undefined,
         is_deleted: showDeleted ? true : false
       })
   });
@@ -951,6 +1162,7 @@ export default function CabinetItemsPage() {
   const invalidateEquipmentQueries = () => {
     queryClient.invalidateQueries({ queryKey: ["equipment-in-operation"] });
     queryClient.invalidateQueries({ queryKey: ["equipment-in-operation-containers"] });
+    queryClient.invalidateQueries({ queryKey: ["equipment-in-operation-tree"] });
     queryClient.invalidateQueries({ queryKey: ["equipment-in-operation-container-items"] });
   };
 
@@ -1039,15 +1251,7 @@ export default function CabinetItemsPage() {
     return options;
   }, [assembliesQuery.data?.items, cabinetsQuery.data?.items, i18n.language, t]);
 
-  const totalContainers = containersQuery.data?.total || 0;
-  const containers = containersQuery.data?.items || [];
-
-  useEffect(() => {
-    const maxPage = Math.max(1, Math.ceil(totalContainers / pageSize));
-    if (page > maxPage) {
-      setPage(1);
-    }
-  }, [page, pageSize, totalContainers]);
+  const locationNodes = containersQuery.data || [];
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
@@ -1064,10 +1268,7 @@ export default function CabinetItemsPage() {
             <TextField
               label={t("actions.search")}
               value={q}
-              onChange={(event) => {
-                setQ(event.target.value);
-                setPage(1);
-              }}
+              onChange={(event) => setQ(event.target.value)}
               fullWidth
             />
 
@@ -1087,10 +1288,7 @@ export default function CabinetItemsPage() {
               <Select
                 label={t("common.fields.cabinetAssembly")}
                 value={containerFilter}
-                onChange={(event) => {
-                  setContainerFilter(event.target.value);
-                  setPage(1);
-                }}
+                onChange={(event) => setContainerFilter(event.target.value)}
               >
                 <MenuItem value="">{t("common.all")}</MenuItem>
                 {containerOptions.map((item) => (
@@ -1109,7 +1307,6 @@ export default function CabinetItemsPage() {
                 onChange={(event) => {
                   const value = event.target.value;
                   setEquipmentFilter(value === "" ? "" : Number(value));
-                  setPage(1);
                 }}
               >
                 <MenuItem value="">{t("common.all")}</MenuItem>
@@ -1132,7 +1329,6 @@ export default function CabinetItemsPage() {
               }
               onChange={(nextValue) => {
                 setManufacturerFilter(nextValue === "" ? "" : Number(nextValue));
-                setPage(1);
               }}
               emptyOptionLabel={t("common.all")}
               fullWidth
@@ -1144,7 +1340,6 @@ export default function CabinetItemsPage() {
               options={locationOptions}
               onChange={(nextValue) => {
                 setLocationFilter(nextValue === "" ? "" : Number(nextValue));
-                setPage(1);
               }}
               emptyOptionLabel={t("common.all")}
               fullWidth
@@ -1158,7 +1353,6 @@ export default function CabinetItemsPage() {
                   checked={showDeleted}
                   onChange={(event) => {
                     setShowDeleted(event.target.checked);
-                    setPage(1);
                   }}
                 />
               }
@@ -1168,10 +1362,11 @@ export default function CabinetItemsPage() {
           </Box>
 
           <Box sx={{ display: "grid", gap: 1 }}>
-            {containers.map((container) => (
-              <ContainerAccordion
-                key={`${container.source}:${container.container_id}`}
-                container={container}
+            {locationNodes.map((node) => (
+              <LocationTreeNodeCard
+                key={`location:${node.location_id}`}
+                node={node}
+                level={0}
                 canWrite={canWrite}
                 detailFilters={detailFilters}
                 equipmentMap={equipmentMap}
@@ -1195,26 +1390,12 @@ export default function CabinetItemsPage() {
                 onErrorMessage={(message) => setErrorMessage(message)}
               />
             ))}
-            {!containersQuery.isLoading && containers.length === 0 ? (
+            {!containersQuery.isLoading && locationNodes.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
                 {t("dashboard.common.no_data")}
               </Typography>
             ) : null}
           </Box>
-
-          <TablePagination
-            component="div"
-            {...getTablePaginationProps(t)}
-            count={totalContainers}
-            page={page - 1}
-            onPageChange={(_, value) => setPage(value + 1)}
-            rowsPerPage={pageSize}
-            onRowsPerPageChange={(event) => {
-              setPageSize(Number(event.target.value));
-              setPage(1);
-            }}
-            rowsPerPageOptions={pageSizeOptions}
-          />
         </CardContent>
       </Card>
 

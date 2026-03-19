@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class EquipmentInOperationOut(BaseModel):
@@ -38,8 +38,29 @@ class EquipmentInOperationContainerOut(BaseModel):
     container_factory_number: str | None = None
     container_inventory_number: str | None = None
     location_full_path: str | None = None
+    container_is_deleted: bool = False
     is_empty: bool
     quantity_sum: int
+    active_items_count: int = 0
+    deleted_items_count: int = 0
     equipment_type_name_sort: str | None = None
     manufacturer_name_sort: str | None = None
     created_at: datetime | None = None
+
+
+class EquipmentInOperationContainerNode(EquipmentInOperationContainerOut):
+    pass
+
+
+class EquipmentInOperationLocationNode(BaseModel):
+    location_id: int
+    location_name: str
+    location_full_path: str
+    active_containers_count: int
+    deleted_containers_count: int
+    quantity_sum: int
+    children: list["EquipmentInOperationLocationNode"] = Field(default_factory=list)
+    containers: list[EquipmentInOperationContainerNode] = Field(default_factory=list)
+
+
+EquipmentInOperationLocationNode.model_rebuild()
