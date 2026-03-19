@@ -9,10 +9,7 @@ import {
 } from "@mui/material";
 import { useTranslation } from "react-i18next";
 
-import {
-  LIVE_FILTER_DIM_OPACITY,
-  annotateLiveFlatOptions
-} from "../utils/liveFilter";
+import { annotateLiveFlatOptions } from "../utils/liveFilter";
 
 export type SearchableSelectOption = {
   label: string;
@@ -21,15 +18,17 @@ export type SearchableSelectOption = {
 };
 
 type Props = {
-  label: string;
+  label?: string;
   value: number | string;
   options: SearchableSelectOption[];
   onChange: (value: number | string) => void;
   placeholder?: string;
   emptyOptionLabel?: string;
+  noOptionsLabel?: string;
   disabled?: boolean;
   fullWidth?: boolean;
   size?: "small" | "medium";
+  hideEmptyOption?: boolean;
 };
 
 export function SearchableSelectField({
@@ -39,9 +38,11 @@ export function SearchableSelectField({
   onChange,
   placeholder,
   emptyOptionLabel,
+  noOptionsLabel,
   disabled = false,
   fullWidth = true,
-  size = "medium"
+  size = "medium",
+  hideEmptyOption = false
 }: Props) {
   const { t } = useTranslation();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -115,7 +116,8 @@ export function SearchableSelectField({
             width: anchorEl ? anchorEl.clientWidth : 320,
             maxWidth: "min(560px, calc(100vw - 32px))",
             maxHeight: 420,
-            p: 1
+            p: 1,
+            borderRadius: 2
           }
         }}
       >
@@ -134,21 +136,24 @@ export function SearchableSelectField({
             }}
           />
           <MenuList dense autoFocusItem={false} sx={{ p: 0, maxHeight: 320, overflowY: "auto" }}>
-            <MenuItem
-              selected={value === "" || value === null || value === undefined}
-              onClick={() => {
-                onChange("");
-                setAnchorEl(null);
-              }}
-            >
-              {resolvedEmptyLabel}
-            </MenuItem>
+            {!hideEmptyOption ? (
+              <MenuItem
+                selected={value === "" || value === null || value === undefined}
+                onClick={() => {
+                  onChange("");
+                  setAnchorEl(null);
+                }}
+                sx={{ borderRadius: 1, mb: 0.5 }}
+              >
+                {resolvedEmptyLabel}
+              </MenuItem>
+            ) : null}
             {annotations.length === 0 ? (
               <Typography variant="body2" color="text.secondary" sx={{ px: 1.5, py: 1 }}>
-                {t("common.liveFilter.noOptions")}
+                {noOptionsLabel || t("common.liveFilter.noOptions")}
               </Typography>
             ) : (
-              annotations.map(({ item, label: optionLabel, isDimmed }) => {
+              annotations.map(({ item, label: optionLabel }) => {
                 const selected = value === item.value;
 
                 return (
@@ -161,13 +166,10 @@ export function SearchableSelectField({
                       setAnchorEl(null);
                     }}
                     sx={{
-                      opacity: selected ? 1 : isDimmed ? LIVE_FILTER_DIM_OPACITY : 1,
+                      borderRadius: 1,
                       whiteSpace: "normal",
                       overflowWrap: "anywhere",
-                      wordBreak: "break-word",
-                      "&:hover": { opacity: 1 },
-                      "&.Mui-focusVisible": { opacity: 1 },
-                      "&.Mui-selected": { opacity: 1 }
+                      wordBreak: "break-word"
                     }}
                   >
                     {optionLabel}

@@ -16,7 +16,7 @@ import { useTranslation } from "react-i18next";
 
 import { ISA_INSTRUMENTS, inferMainEquipmentShapeKey } from "../../constants/pidPalette";
 import type { MainEquipmentTreeNode } from "../../utils/mainEquipment";
-import { LIVE_FILTER_DIM_OPACITY, annotateLiveTree, type LiveTreeAnnotation } from "../../utils/liveFilter";
+import { annotateLiveTree, type LiveTreeAnnotation } from "../../utils/liveFilter";
 
 export type PidEditorMode = "select" | "delete" | "add-node" | "add-edge";
 
@@ -124,8 +124,7 @@ export function PidToolbox({
               sx={{
                 color: "text.primary",
                 fontWeight: 600,
-                pl: 0.25,
-                opacity: entry.isDimmed ? LIVE_FILTER_DIM_OPACITY : 1
+                pl: 0.25
               }}
             >
               {node.name}
@@ -157,7 +156,6 @@ export function PidToolbox({
         onClick={() => onPresetPick(preset)}
         sx={{
           pl: depth * 1.5 + 4,
-          opacity: entry.isDimmed ? LIVE_FILTER_DIM_OPACITY : 1,
           "&:hover": { opacity: 1 },
           "&.Mui-focusVisible": { opacity: 1 }
         }}

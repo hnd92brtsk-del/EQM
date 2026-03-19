@@ -631,25 +631,22 @@ export default function WarehouseItemsPage() {
               </Select>
             </FormControl>
 
-            <FormControl fullWidth>
-              <InputLabel>{t("common.fields.warehouse")}</InputLabel>
-              <Select
-                label={t("common.fields.warehouse")}
-                value={warehouseFilter}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setWarehouseFilter(value === "" ? "" : Number(value));
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                {warehousesQuery.data?.items.map((item) => (
-                  <MenuItem key={item.id} value={item.id}>
-                    {item.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <SearchableSelectField
+              label={t("common.fields.warehouse")}
+              value={warehouseFilter}
+              options={
+                warehousesQuery.data?.items.map((item) => ({
+                  value: item.id,
+                  label: item.name
+                })) || []
+              }
+              onChange={(nextValue) => {
+                setWarehouseFilter(nextValue === "" ? "" : Number(nextValue));
+                setPage(1);
+              }}
+              emptyOptionLabel={t("common.all")}
+              fullWidth
+            />
 
             <SearchableSelectField
               label={t("common.fields.location")}
@@ -663,25 +660,22 @@ export default function WarehouseItemsPage() {
               fullWidth
             />
 
-            <FormControl fullWidth>
-              <InputLabel>{t("common.fields.equipment")}</InputLabel>
-              <Select
-                label={t("common.fields.equipment")}
-                value={equipmentFilter}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setEquipmentFilter(value === "" ? "" : Number(value));
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                {equipmentTypesQuery.data?.items.map((item) => (
-                  <MenuItem key={item.id} value={item.id}>
-                    {item.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <SearchableSelectField
+              label={t("common.fields.equipment")}
+              value={equipmentFilter}
+              options={
+                equipmentTypesQuery.data?.items.map((item) => ({
+                  value: item.id,
+                  label: item.name
+                })) || []
+              }
+              onChange={(nextValue) => {
+                setEquipmentFilter(nextValue === "" ? "" : Number(nextValue));
+                setPage(1);
+              }}
+              emptyOptionLabel={t("common.all")}
+              fullWidth
+            />
 
             <SearchableSelectField
               label={t("common.fields.manufacturer")}

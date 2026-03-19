@@ -26,7 +26,7 @@ import { EntityDialog, DialogState, TreeFieldOption } from "../components/Entity
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { AppButton } from "../components/ui/AppButton";
 import { useAuth } from "../context/AuthContext";
-import { LIVE_FILTER_DIM_OPACITY, annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
+import { annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
 
 type Manufacturer = {
   id: number;
@@ -311,7 +311,7 @@ export default function ManufacturersPage() {
           ) : (
             <Box sx={{ width: 32 }} />
           )}
-          <Box sx={{ display: "grid", gap: 0.25, opacity: entry.isDimmed ? LIVE_FILTER_DIM_OPACITY : 1 }}>
+          <Box sx={{ display: "grid", gap: 0.25 }}>
             <Typography sx={{ fontWeight: 500 }}>
               {node.name}
               {node.is_deleted ? t("common.deletedSuffix") : ""}

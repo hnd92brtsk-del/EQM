@@ -37,7 +37,7 @@ import { buildMeasurementUnitLookups, fetchMeasurementUnitsTree } from "../utils
 import { buildDataTypeLookups, fetchDataTypesTree } from "../utils/dataTypes";
 import { buildFieldEquipmentLookups, fetchFieldEquipmentsTree } from "../utils/fieldEquipments";
 import { buildSignalTypeLookups, fetchSignalTypesTree } from "../utils/signalTypes";
-import { LIVE_FILTER_DIM_OPACITY, annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
+import { annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
 
 const signalTypeOptions = [
   { value: "AI", label: "AI" },
@@ -352,8 +352,7 @@ export default function IOSignalsPage() {
           borderRadius: 1,
           cursor: "pointer",
           backgroundColor: isSelected ? "action.selected" : "transparent",
-          opacity: isSelected ? 1 : entry.isDimmed ? LIVE_FILTER_DIM_OPACITY : 1,
-          "&:hover": { backgroundColor: "action.hover", opacity: 1 }
+          "&:hover": { backgroundColor: "action.hover" }
         }}
         onClick={() => setSelectedDevice(device)}
       >
@@ -384,8 +383,7 @@ export default function IOSignalsPage() {
             display: "flex",
             alignItems: "center",
             gap: 1,
-            pl: `${level * 16}px`,
-            opacity: entry.isDimmed ? LIVE_FILTER_DIM_OPACITY : 1
+            pl: `${level * 16}px`
           }}
         >
           {hasChildren ? (
@@ -429,8 +427,7 @@ export default function IOSignalsPage() {
             display: "flex",
             alignItems: "center",
             gap: 1,
-            pl: `${level * 16}px`,
-            opacity: entry.isDimmed ? LIVE_FILTER_DIM_OPACITY : 1
+            pl: `${level * 16}px`
           }}
         >
           {hasChildren ? (

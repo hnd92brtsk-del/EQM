@@ -1410,40 +1410,25 @@ export default function CabinetItemsPage() {
               </Select>
             </FormControl>
 
-            <FormControl fullWidth>
-              <InputLabel>{t("common.fields.cabinetAssembly")}</InputLabel>
-              <Select
-                label={t("common.fields.cabinetAssembly")}
-                value={containerFilter}
-                onChange={(event) => setContainerFilter(event.target.value)}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                {containerOptions.map((item) => (
-                  <MenuItem key={item.value} value={item.value}>
-                    {item.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <SearchableSelectField
+              label={t("common.fields.cabinetAssembly")}
+              value={containerFilter}
+              options={containerOptions}
+              onChange={(nextValue) => setContainerFilter(String(nextValue))}
+              emptyOptionLabel={t("common.all")}
+              fullWidth
+            />
 
-            <FormControl fullWidth>
-              <InputLabel>{t("common.fields.equipment")}</InputLabel>
-              <Select
-                label={t("common.fields.equipment")}
-                value={equipmentFilter}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setEquipmentFilter(value === "" ? "" : Number(value));
-                }}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                {equipmentTypesQuery.data?.items.map((item) => (
-                  <MenuItem key={item.id} value={item.id}>
-                    {item.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <SearchableSelectField
+              label={t("common.fields.equipment")}
+              value={equipmentFilter}
+              options={equipmentOptions}
+              onChange={(nextValue) => {
+                setEquipmentFilter(nextValue === "" ? "" : Number(nextValue));
+              }}
+              emptyOptionLabel={t("common.all")}
+              fullWidth
+            />
 
             <SearchableSelectField
               label={t("common.fields.manufacturer")}

@@ -13,11 +13,7 @@ import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import { useTranslation } from "react-i18next";
 
-import {
-  LIVE_FILTER_DIM_OPACITY,
-  annotateLiveTree,
-  type LiveTreeAnnotation
-} from "../utils/liveFilter";
+import { annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
 
 export type SearchableTreeSelectOption = {
   label: string;
@@ -27,18 +23,20 @@ export type SearchableTreeSelectOption = {
 };
 
 type Props = {
-  label: string;
+  label?: string;
   value: number | string;
   options?: SearchableTreeSelectOption[];
   onChange: (value: number | string) => void;
   placeholder?: string;
   emptyOptionLabel?: string;
+  noOptionsLabel?: string;
   disabled?: boolean;
   fullWidth?: boolean;
   size?: "small" | "medium";
   leafOnly?: boolean;
   groupOnlyLabel?: string;
   loadingLabel?: string;
+  hideEmptyOption?: boolean;
 };
 
 export function SearchableTreeSelectField({
@@ -48,12 +46,14 @@ export function SearchableTreeSelectField({
   onChange,
   placeholder,
   emptyOptionLabel,
+  noOptionsLabel,
   disabled = false,
   fullWidth = true,
   size = "medium",
   leafOnly = false,
   groupOnlyLabel,
-  loadingLabel
+  loadingLabel,
+  hideEmptyOption = false
 }: Props) {
   const { t } = useTranslation();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -148,8 +148,9 @@ export function SearchableTreeSelectField({
 
   const renderNode = (node: LiveTreeAnnotation<SearchableTreeSelectOption>, depth: number): ReactNode => {
     const option = node.item;
-    const hasChildren = node.children.length > 0;
-    const isLeaf = !hasChildren;
+    const hasVisibleChildren = node.children.length > 0;
+    const hasNestedOptions = Boolean(option.children?.length);
+    const isLeaf = !hasNestedOptions;
     const key = String(option.value);
     const expanded = normalizedQuery ? node.shouldForceExpand : expandedIds.has(key);
     const selected = value === option.value;
@@ -159,7 +160,7 @@ export function SearchableTreeSelectField({
       <Box key={key}>
         <Box sx={{ display: "flex", alignItems: "center" }}>
           <Box sx={{ width: depth * 16 }} />
-          {hasChildren ? (
+          {hasVisibleChildren ? (
             <IconButton size="small" onClick={() => toggleExpanded(option.value)} sx={{ mr: 0.5 }}>
               {expanded ? <ExpandMoreRoundedIcon fontSize="small" /> : <ChevronRightRoundedIcon fontSize="small" />}
             </IconButton>
@@ -180,21 +181,17 @@ export function SearchableTreeSelectField({
             sx={{
               borderRadius: 1,
               py: 0.5,
-              px: 1,
-              opacity: selected ? 1 : node.isDimmed ? LIVE_FILTER_DIM_OPACITY : 1,
-              "&:hover": { opacity: 1 },
-              "&.Mui-focusVisible": { opacity: 1 },
-              "&.Mui-selected": { opacity: 1 }
+              px: 1
             }}
           >
             <ListItemText
               primary={option.label}
               primaryTypographyProps={{ sx: { whiteSpace: "normal", wordBreak: "break-word" } }}
-              secondary={hasChildren && leafOnly ? groupOnlyLabel || t("common.treeSelect.groupOnly") : undefined}
+              secondary={hasNestedOptions && leafOnly ? groupOnlyLabel || t("common.treeSelect.groupOnly") : undefined}
             />
           </ListItemButton>
         </Box>
-        {hasChildren && expanded ? (
+        {hasVisibleChildren && expanded ? (
           <Box sx={{ display: "grid", gap: 0.25 }}>
             {node.children.map((child) => renderNode(child, depth + 1))}
           </Box>
@@ -239,7 +236,8 @@ export function SearchableTreeSelectField({
             width: anchorEl ? anchorEl.clientWidth : 560,
             maxWidth: "min(560px, calc(100vw - 32px))",
             maxHeight: 420,
-            p: 1
+            p: 1,
+            borderRadius: 2
           }
         }}
       >
@@ -258,27 +256,29 @@ export function SearchableTreeSelectField({
             }}
           />
           <List dense sx={{ p: 0, maxHeight: 320, overflowY: "auto" }}>
-            <ListItemButton
-              dense
-              selected={value === "" || value === null || value === undefined}
-              onClick={() => {
-                onChange("");
-                setAnchorEl(null);
-              }}
-              disabled={disabled}
-              sx={{ borderRadius: 1 }}
-            >
-              <ListItemText primary={resolvedEmptyLabel} />
-            </ListItemButton>
+            {!hideEmptyOption ? (
+              <ListItemButton
+                dense
+                selected={value === "" || value === null || value === undefined}
+                onClick={() => {
+                  onChange("");
+                  setAnchorEl(null);
+                }}
+                disabled={disabled}
+                sx={{ borderRadius: 1, mb: 0.5 }}
+              >
+                <ListItemText primary={resolvedEmptyLabel} />
+              </ListItemButton>
+            ) : null}
             {options == null ? (
               <Typography variant="body2" color="text.secondary" sx={{ px: 1, py: 0.5 }}>
                 {loadingLabel || t("common.loading")}
               </Typography>
-            ) : options.length ? (
+            ) : annotations.length ? (
               annotations.map((node) => renderNode(node, 0))
             ) : (
               <Typography variant="body2" color="text.secondary" sx={{ px: 1, py: 0.5 }}>
-                {t("common.liveFilter.noOptions")}
+                {noOptionsLabel || t("common.liveFilter.noOptions")}
               </Typography>
             )}
           </List>

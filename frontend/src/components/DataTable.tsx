@@ -6,9 +6,6 @@ import {
 } from "@tanstack/react-table";
 import {
   Box,
-  FormControl,
-  MenuItem,
-  Select,
   Table,
   TableBody,
   TableCell,
@@ -21,6 +18,7 @@ import {
   type Theme
 } from "@mui/material";
 import { useMemo, useState } from "react";
+import { SearchableSelectField } from "./SearchableSelectField";
 
 export type DataTableFilterType = "text" | "select" | "number" | "date" | "boolean";
 
@@ -215,48 +213,55 @@ export function DataTable<T>({
         ) : null}
 
         {filterKey && meta.filterType === "select" ? (
-          <FormControl size="small" fullWidth disabled={meta.filterDisabled}>
-            <Select
-              displayEmpty
-              value={activeFilters[filterKey] ?? ""}
-              onChange={(event) => handleFilterChange(filterKey, String(event.target.value))}
-            >
-              <MenuItem value="">{meta.filterPlaceholder || "All"}</MenuItem>
-              {(meta.filterOptions || []).map((option) => (
-                <MenuItem key={String(option.value)} value={String(option.value)}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <SearchableSelectField
+            value={activeFilters[filterKey] ?? ""}
+            options={(meta.filterOptions || []).map((option) => ({
+              value: String(option.value),
+              label: option.label
+            }))}
+            onChange={(value) => handleFilterChange(filterKey, String(value))}
+            placeholder={meta.filterPlaceholder || "All"}
+            emptyOptionLabel={meta.filterPlaceholder || "All"}
+            noOptionsLabel={meta.filterPlaceholder || "All"}
+            disabled={meta.filterDisabled}
+            size="small"
+            hideEmptyOption={false}
+            fullWidth
+          />
         ) : null}
 
         {filterKey && meta.filterType === "boolean" ? (
-          <FormControl size="small" fullWidth disabled={meta.filterDisabled}>
-            <Select
-              displayEmpty
-              value={activeFilters[filterKey] ?? ""}
-              onChange={(event) => handleFilterChange(filterKey, String(event.target.value))}
-            >
-              <MenuItem value="">{meta.filterPlaceholder || "All"}</MenuItem>
-              <MenuItem value="true">Yes</MenuItem>
-              <MenuItem value="false">No</MenuItem>
-            </Select>
-          </FormControl>
+          <SearchableSelectField
+            value={activeFilters[filterKey] ?? ""}
+            options={[
+              { value: "true", label: "Yes" },
+              { value: "false", label: "No" }
+            ]}
+            onChange={(value) => handleFilterChange(filterKey, String(value))}
+            placeholder={meta.filterPlaceholder || "All"}
+            emptyOptionLabel={meta.filterPlaceholder || "All"}
+            noOptionsLabel={meta.filterPlaceholder || "All"}
+            disabled={meta.filterDisabled}
+            size="small"
+            fullWidth
+          />
         ) : null}
 
         {alphabetFilterKey ? (
-          <FormControl size="small" fullWidth disabled={meta.filterDisabled}>
-            <Select
-              displayEmpty
-              value={activeFilters[alphabetFilterKey] ?? ""}
-              onChange={(event) => handleFilterChange(alphabetFilterKey, String(event.target.value))}
-            >
-              <MenuItem value="">All</MenuItem>
-              <MenuItem value="ru">RU</MenuItem>
-              <MenuItem value="en">EN</MenuItem>
-            </Select>
-          </FormControl>
+          <SearchableSelectField
+            value={activeFilters[alphabetFilterKey] ?? ""}
+            options={[
+              { value: "ru", label: "RU" },
+              { value: "en", label: "EN" }
+            ]}
+            onChange={(value) => handleFilterChange(alphabetFilterKey, String(value))}
+            placeholder="All"
+            emptyOptionLabel="All"
+            noOptionsLabel="All"
+            disabled={meta.filterDisabled}
+            size="small"
+            fullWidth
+          />
         ) : null}
       </Box>
     );

@@ -21,6 +21,7 @@ import { createEntity, listEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
+import { SearchableSelectField } from "../components/SearchableSelectField";
 
 const pageSizeOptions = [10, 20, 50, 100];
 
@@ -403,35 +404,28 @@ export default function MovementsPage() {
               gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))"
             }}
           >
-            <FormControl fullWidth>
-              <InputLabel>{t("pagesUi.movements.fields.movementType")}</InputLabel>
-              <Select
-                label={t("pagesUi.movements.fields.movementType")}
-                value={movementType}
-                onChange={(event) => setMovementType(event.target.value)}
-              >
-                {movementOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <SearchableSelectField
+              label={t("pagesUi.movements.fields.movementType")}
+              value={movementType}
+              options={movementOptions}
+              onChange={(nextValue) => setMovementType(String(nextValue))}
+              emptyOptionLabel={t("actions.notSelected")}
+              fullWidth
+            />
 
-            <FormControl fullWidth>
-              <InputLabel>{t("common.fields.nomenclature")}</InputLabel>
-              <Select
-                label={t("common.fields.nomenclature")}
-                value={equipmentTypeId}
-                onChange={(event) => setEquipmentTypeId(parseSelectValue(event.target.value))}
-              >
-                {equipmentTypesQuery.data?.items.map((item) => (
-                  <MenuItem key={item.id} value={item.id}>
-                    {item.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <SearchableSelectField
+              label={t("common.fields.nomenclature")}
+              value={equipmentTypeId}
+              options={
+                equipmentTypesQuery.data?.items.map((item) => ({
+                  value: item.id,
+                  label: item.name
+                })) || []
+              }
+              onChange={(nextValue) => setEquipmentTypeId(parseSelectValue(nextValue))}
+              emptyOptionLabel={t("actions.notSelected")}
+              fullWidth
+            />
 
             <TextField
               label={t("common.fields.quantity")}
@@ -443,122 +437,115 @@ export default function MovementsPage() {
             />
 
             {movementType === "to_warehouse" && (
-              <FormControl fullWidth>
-                <InputLabel>{t("pagesUi.movements.fields.toWarehouse")}</InputLabel>
-                <Select
-                  label={t("pagesUi.movements.fields.toWarehouse")}
-                  value={toWarehouseId}
-                  onChange={(event) => setToWarehouseId(parseSelectValue(event.target.value))}
-                >
-                  {warehousesQuery.data?.items.map((warehouse) => (
-                    <MenuItem key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <SearchableSelectField
+                label={t("pagesUi.movements.fields.toWarehouse")}
+                value={toWarehouseId}
+                options={
+                  warehousesQuery.data?.items.map((warehouse) => ({
+                    value: warehouse.id,
+                    label: warehouse.name
+                  })) || []
+                }
+                onChange={(nextValue) => setToWarehouseId(parseSelectValue(nextValue))}
+                emptyOptionLabel={t("actions.notSelected")}
+                fullWidth
+              />
             )}
 
             {movementType === "to_cabinet" && (
               <>
-                <FormControl fullWidth>
-                  <InputLabel>{t("pagesUi.movements.fields.fromWarehouse")}</InputLabel>
-                  <Select
-                    label={t("pagesUi.movements.fields.fromWarehouse")}
-                    value={fromWarehouseId}
-                    onChange={(event) => setFromWarehouseId(parseSelectValue(event.target.value))}
-                  >
-                    {warehousesQuery.data?.items.map((warehouse) => (
-                      <MenuItem key={warehouse.id} value={warehouse.id}>
-                        {warehouse.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <SearchableSelectField
+                  label={t("pagesUi.movements.fields.fromWarehouse")}
+                  value={fromWarehouseId}
+                  options={
+                    warehousesQuery.data?.items.map((warehouse) => ({
+                      value: warehouse.id,
+                      label: warehouse.name
+                    })) || []
+                  }
+                  onChange={(nextValue) => setFromWarehouseId(parseSelectValue(nextValue))}
+                  emptyOptionLabel={t("actions.notSelected")}
+                  fullWidth
+                />
 
-                <FormControl fullWidth>
-                  <InputLabel>{t("pagesUi.movements.fields.toCabinet")}</InputLabel>
-                  <Select
-                    label={t("pagesUi.movements.fields.toCabinet")}
-                    value={toCabinetId}
-                    onChange={(event) => setToCabinetId(parseSelectValue(event.target.value))}
-                  >
-                    {cabinetsQuery.data?.items.map((cabinet) => (
-                      <MenuItem key={cabinet.id} value={cabinet.id}>
-                        {cabinet.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <SearchableSelectField
+                  label={t("pagesUi.movements.fields.toCabinet")}
+                  value={toCabinetId}
+                  options={
+                    cabinetsQuery.data?.items.map((cabinet) => ({
+                      value: cabinet.id,
+                      label: cabinet.name
+                    })) || []
+                  }
+                  onChange={(nextValue) => setToCabinetId(parseSelectValue(nextValue))}
+                  emptyOptionLabel={t("actions.notSelected")}
+                  fullWidth
+                />
               </>
             )}
 
             {movementType === "direct_to_cabinet" && (
-              <FormControl fullWidth>
-                <InputLabel>{t("pagesUi.movements.fields.toCabinet")}</InputLabel>
-                <Select
-                  label={t("pagesUi.movements.fields.toCabinet")}
-                  value={toCabinetId}
-                  onChange={(event) => setToCabinetId(parseSelectValue(event.target.value))}
-                >
-                  {cabinetsQuery.data?.items.map((cabinet) => (
-                    <MenuItem key={cabinet.id} value={cabinet.id}>
-                      {cabinet.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <SearchableSelectField
+                label={t("pagesUi.movements.fields.toCabinet")}
+                value={toCabinetId}
+                options={
+                  cabinetsQuery.data?.items.map((cabinet) => ({
+                    value: cabinet.id,
+                    label: cabinet.name
+                  })) || []
+                }
+                onChange={(nextValue) => setToCabinetId(parseSelectValue(nextValue))}
+                emptyOptionLabel={t("actions.notSelected")}
+                fullWidth
+              />
             )}
 
             {movementType === "to_assembly" && (
               <>
-                <FormControl fullWidth>
-                  <InputLabel>{t("pagesUi.movements.fields.fromWarehouse")}</InputLabel>
-                  <Select
-                    label={t("pagesUi.movements.fields.fromWarehouse")}
-                    value={fromWarehouseId}
-                    onChange={(event) => setFromWarehouseId(parseSelectValue(event.target.value))}
-                  >
-                    {warehousesQuery.data?.items.map((warehouse) => (
-                      <MenuItem key={warehouse.id} value={warehouse.id}>
-                        {warehouse.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <SearchableSelectField
+                  label={t("pagesUi.movements.fields.fromWarehouse")}
+                  value={fromWarehouseId}
+                  options={
+                    warehousesQuery.data?.items.map((warehouse) => ({
+                      value: warehouse.id,
+                      label: warehouse.name
+                    })) || []
+                  }
+                  onChange={(nextValue) => setFromWarehouseId(parseSelectValue(nextValue))}
+                  emptyOptionLabel={t("actions.notSelected")}
+                  fullWidth
+                />
 
-                <FormControl fullWidth>
-                  <InputLabel>{t("pagesUi.movements.fields.toAssembly")}</InputLabel>
-                  <Select
-                    label={t("pagesUi.movements.fields.toAssembly")}
-                    value={toAssemblyId}
-                    onChange={(event) => setToAssemblyId(parseSelectValue(event.target.value))}
-                  >
-                    {assembliesQuery.data?.items.map((assembly) => (
-                      <MenuItem key={assembly.id} value={assembly.id}>
-                        {assembly.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <SearchableSelectField
+                  label={t("pagesUi.movements.fields.toAssembly")}
+                  value={toAssemblyId}
+                  options={
+                    assembliesQuery.data?.items.map((assembly) => ({
+                      value: assembly.id,
+                      label: assembly.name
+                    })) || []
+                  }
+                  onChange={(nextValue) => setToAssemblyId(parseSelectValue(nextValue))}
+                  emptyOptionLabel={t("actions.notSelected")}
+                  fullWidth
+                />
               </>
             )}
 
             {movementType === "direct_to_assembly" && (
-              <FormControl fullWidth>
-                <InputLabel>{t("pagesUi.movements.fields.toAssembly")}</InputLabel>
-                <Select
-                  label={t("pagesUi.movements.fields.toAssembly")}
-                  value={toAssemblyId}
-                  onChange={(event) => setToAssemblyId(parseSelectValue(event.target.value))}
-                >
-                  {assembliesQuery.data?.items.map((assembly) => (
-                    <MenuItem key={assembly.id} value={assembly.id}>
-                      {assembly.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <SearchableSelectField
+                label={t("pagesUi.movements.fields.toAssembly")}
+                value={toAssemblyId}
+                options={
+                  assembliesQuery.data?.items.map((assembly) => ({
+                    value: assembly.id,
+                    label: assembly.name
+                  })) || []
+                }
+                onChange={(nextValue) => setToAssemblyId(parseSelectValue(nextValue))}
+                emptyOptionLabel={t("actions.notSelected")}
+                fullWidth
+              />
             )}
 
             <TextField

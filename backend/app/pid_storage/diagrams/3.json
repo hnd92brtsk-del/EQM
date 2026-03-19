@@ -1,0 +1,55 @@
+{
+  "processId": 3,
+  "version": 1,
+  "updatedAt": "2026-03-19T14:38:34.624000Z",
+  "viewport": {
+    "x": 0.0,
+    "y": 0.0,
+    "zoom": 0.9999965176714793
+  },
+  "nodes": [
+    {
+      "id": "node_1773930953750",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "17.7",
+      "label": "Вентилятор / Дымосос (технологический)",
+      "tag": "",
+      "position": {
+        "x": 138.78125,
+        "y": 160.86328125
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 354,
+        "name": "Вентилятор / Дымосос (технологический)",
+        "meta": {
+          "shapeKey": "generic"
+        }
+      },
+      "properties": {}
+    },
+    {
+      "id": "node_1773931007641",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "13.1.3",
+      "label": "Дисковый затвор (баттерфляй)",
+      "tag": "",
+      "position": {
+        "x": 541.4940185602429,
+        "y": 163.00628633229792
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 364,
+        "name": "Дисковый затвор (баттерфляй)",
+        "meta": {
+          "shapeKey": "generic"
+        }
+      },
+      "properties": {}
+    }
+  ],
+  "edges": []
+}

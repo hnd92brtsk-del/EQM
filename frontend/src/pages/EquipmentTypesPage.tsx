@@ -971,21 +971,20 @@ export default function EquipmentTypesPage() {
               fullWidth
             />
 
-            <FormControl fullWidth>
-              <InputLabel>{t("common.fields.channelForming")}</InputLabel>
-              <Select
-                label={t("common.fields.channelForming")}
-                value={channelFormingFilter}
-                onChange={(event) => {
-                  setChannelFormingFilter(event.target.value as "" | "true" | "false");
-                  setPage(1);
-                }}
-              >
-                <MenuItem value="">{t("common.all")}</MenuItem>
-                <MenuItem value="true">{t("common.yes")}</MenuItem>
-                <MenuItem value="false">{t("common.no")}</MenuItem>
-              </Select>
-            </FormControl>
+            <SearchableSelectField
+              label={t("common.fields.channelForming")}
+              value={channelFormingFilter}
+              options={[
+                { value: "true", label: t("common.yes") },
+                { value: "false", label: t("common.no") }
+              ]}
+              onChange={(nextValue) => {
+                setChannelFormingFilter(nextValue as "" | "true" | "false");
+                setPage(1);
+              }}
+              emptyOptionLabel={t("common.all")}
+              fullWidth
+            />
           </Box>
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>

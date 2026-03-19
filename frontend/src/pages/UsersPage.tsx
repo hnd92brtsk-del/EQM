@@ -30,6 +30,7 @@ import { AppButton } from "../components/ui/AppButton";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
+import { SearchableSelectField } from "../components/SearchableSelectField";
 
 const pageSizeOptions = [10, 20, 50, 100];
 
@@ -301,18 +302,18 @@ export default function UsersPage() {
               onChange={(event) => setPassword(event.target.value)}
               fullWidth
             />
-            <FormControl fullWidth>
-              <InputLabel>{t("common.fields.role")}</InputLabel>
-              <Select
-                label={t("common.fields.role")}
-                value={role}
-                onChange={(event) => setRole(event.target.value as User["role"])}
-              >
-                <MenuItem value="admin">{t("roles.admin")}</MenuItem>
-                <MenuItem value="engineer">{t("roles.engineer")}</MenuItem>
-                <MenuItem value="viewer">{t("roles.viewer")}</MenuItem>
-              </Select>
-            </FormControl>
+            <SearchableSelectField
+              label={t("common.fields.role")}
+              value={role}
+              options={[
+                { value: "admin", label: t("roles.admin") },
+                { value: "engineer", label: t("roles.engineer") },
+                { value: "viewer", label: t("roles.viewer") }
+              ]}
+              onChange={(nextValue) => setRole(nextValue as User["role"])}
+              emptyOptionLabel={t("actions.notSelected")}
+              fullWidth
+            />
           </DialogContent>
           <DialogActions>
             <AppButton variant="text" onClick={() => setDialogOpen(false)}>

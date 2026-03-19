@@ -27,7 +27,7 @@ import { apiFetch } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import { buildMeasurementUnitLookups } from "../utils/measurementUnits";
-import { LIVE_FILTER_DIM_OPACITY, annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
+import { annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
 
 type MeasurementUnit = {
   id: number;
@@ -276,7 +276,7 @@ export default function MeasurementUnitsPage() {
           ) : (
             <Box sx={{ width: 32 }} />
           )}
-          <Box sx={{ display: "grid", opacity: entry.isDimmed ? LIVE_FILTER_DIM_OPACITY : 1 }}>
+          <Box sx={{ display: "grid" }}>
             <Typography sx={{ fontWeight: 500 }}>
               {node.name}
               {node.is_deleted ? t("common.deletedSuffix") : ""}

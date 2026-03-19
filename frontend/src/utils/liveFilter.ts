@@ -1,24 +1,61 @@
-export const LIVE_FILTER_DIM_OPACITY = 0.1;
-
 export function normalizeLiveFilterQuery(value: string | null | undefined) {
   return String(value || "").trim().toLocaleLowerCase();
 }
 
+function getMatchScore(label: string, query: string) {
+  if (!query) {
+    return 0;
+  }
+
+  const normalizedLabel = normalizeLiveFilterQuery(label);
+  if (!normalizedLabel) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  if (normalizedLabel === query) {
+    return 3;
+  }
+
+  if (normalizedLabel.startsWith(query)) {
+    return 2;
+  }
+
+  if (normalizedLabel.includes(query)) {
+    return 1;
+  }
+
+  return Number.NEGATIVE_INFINITY;
+}
+
+function compareMatches(
+  left: { score: number; label: string; index: number },
+  right: { score: number; label: string; index: number }
+) {
+  if (left.score !== right.score) {
+    return right.score - left.score;
+  }
+
+  const labelOrder = left.label.localeCompare(right.label, undefined, { sensitivity: "base" });
+  if (labelOrder !== 0) {
+    return labelOrder;
+  }
+
+  return left.index - right.index;
+}
+
 export type LiveTreeAnnotation<T> = {
   item: T;
-  label: string;
-  selfMatch: boolean;
-  hasMatchInSubtree: boolean;
-  isDimmed: boolean;
-  shouldForceExpand: boolean;
   children: LiveTreeAnnotation<T>[];
+  selfMatch: boolean;
+  shouldForceExpand: boolean;
+  bestMatchScore: number;
 };
 
 export type LiveFlatAnnotation<T> = {
   item: T;
   label: string;
   selfMatch: boolean;
-  isDimmed: boolean;
+  matchScore: number;
 };
 
 export function annotateLiveTree<T>(
@@ -34,29 +71,49 @@ export function annotateLiveTree<T>(
 ): LiveTreeAnnotation<T>[] {
   const normalizedQuery = normalizeLiveFilterQuery(query);
 
-  const walk = (item: T): LiveTreeAnnotation<T> => {
-    const children = (getChildren(item) || []).map(walk);
+  const walk = (item: T): LiveTreeAnnotation<T> | null => {
     const label = getLabel(item);
-    const normalizedLabel = normalizeLiveFilterQuery(label);
-    const selfMatch = normalizedQuery === "" ? true : normalizedLabel.includes(normalizedQuery);
-    const hasMatchInSubtree =
-      normalizedQuery === "" ? true : selfMatch || children.some((child) => child.hasMatchInSubtree);
+    const selfScore = getMatchScore(label, normalizedQuery);
+    const selfMatch = normalizedQuery === "" ? true : selfScore > Number.NEGATIVE_INFINITY;
+
+    const children = (getChildren(item) || [])
+      .map(walk)
+      .filter((child): child is LiveTreeAnnotation<T> => child !== null)
+      .sort((left, right) =>
+        compareMatches(
+          { score: left.bestMatchScore, label: getLabel(left.item), index: 0 },
+          { score: right.bestMatchScore, label: getLabel(right.item), index: 0 }
+        )
+      );
+
+    if (normalizedQuery !== "" && !selfMatch && children.length === 0) {
+      return null;
+    }
 
     return {
       item,
-      label,
+      children,
       selfMatch,
-      hasMatchInSubtree,
-      isDimmed: normalizedQuery !== "" && !selfMatch,
-      shouldForceExpand:
-        normalizedQuery !== "" &&
-        children.length > 0 &&
-        (selfMatch || children.some((child) => child.hasMatchInSubtree)),
-      children
+      shouldForceExpand: normalizedQuery !== "" && children.length > 0,
+      bestMatchScore:
+        normalizedQuery === ""
+          ? 0
+          : Math.max(
+              selfScore,
+              ...children.map((child) => child.bestMatchScore)
+            )
     };
   };
 
-  return items.map(walk);
+  return items
+    .map(walk)
+    .filter((item): item is LiveTreeAnnotation<T> => item !== null)
+    .sort((left, right) =>
+      compareMatches(
+        { score: left.bestMatchScore, label: getLabel(left.item), index: 0 },
+        { score: right.bestMatchScore, label: getLabel(right.item), index: 0 }
+      )
+    );
 }
 
 export function annotateLiveFlatOptions<T>(
@@ -66,16 +123,26 @@ export function annotateLiveFlatOptions<T>(
 ): LiveFlatAnnotation<T>[] {
   const normalizedQuery = normalizeLiveFilterQuery(query);
 
-  return items.map((item) => {
-    const label = getLabel(item);
-    const normalizedLabel = normalizeLiveFilterQuery(label);
-    const selfMatch = normalizedQuery === "" ? true : normalizedLabel.includes(normalizedQuery);
+  return items
+    .map((item, index) => {
+      const label = getLabel(item);
+      const matchScore = getMatchScore(label, normalizedQuery);
+      const selfMatch = normalizedQuery === "" ? true : matchScore > Number.NEGATIVE_INFINITY;
 
-    return {
-      item,
-      label,
-      selfMatch,
-      isDimmed: normalizedQuery !== "" && !selfMatch
-    };
-  });
+      return {
+        item,
+        label,
+        selfMatch,
+        matchScore,
+        index
+      };
+    })
+    .filter((item) => normalizedQuery === "" || item.selfMatch)
+    .sort((left, right) =>
+      compareMatches(
+        { score: left.matchScore, label: left.label, index: left.index },
+        { score: right.matchScore, label: right.label, index: right.index }
+      )
+    )
+    .map(({ index: _index, ...item }) => item);
 }
