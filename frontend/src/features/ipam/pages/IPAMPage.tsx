@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import { Alert, Box, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Select, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
+﻿import { useEffect, useMemo, useState } from "react";
+import { Alert, Box, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, IconButton, InputLabel, MenuItem, Select, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
+import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
@@ -12,8 +14,8 @@ import { SearchableTreeSelectField, type SearchableTreeSelectOption } from "../.
 import { AppButton } from "../../../components/ui/AppButton";
 import { useAuth } from "../../../context/AuthContext";
 import { buildLocationLookups, fetchLocationsTree } from "../../../utils/locations";
-import { assignAddress, createSubnetFromCalculator, exportSubnetCsv, getAddressDetails, getHostEquipmentTree, getSubnetAddresses, listSubnets, listVlans, patchAddress, releaseAddress } from "../api/ipam";
-import type { HostEquipmentTreeLeaf, HostEquipmentTreeNode, IPAddressDetails } from "../types";
+import { assignAddress, createSubnetFromCalculator, createVlan, deleteSubnet, deleteVlan, exportSubnetCsv, getAddressDetails, getHostEquipmentTree, getSubnetAddresses, listSubnets, listVlans, patchAddress, releaseAddress, updateSubnet, updateVlan } from "../api/ipam";
+import type { HostEquipmentTreeLeaf, HostEquipmentTreeNode, IPAddressDetails, Subnet, Vlan } from "../types";
 
 type StatusFilter = "all" | "free" | "used" | "reserved";
 type EditStatus = "free" | "used" | "reserved" | "service";
@@ -88,6 +90,27 @@ export default function IPAMPage() {
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [calculatorDone, setCalculatorDone] = useState(false);
   const [calculator, setCalculator] = useState({ network_address_input: "10.10.0.0", cidr: "24", name: "", vlan_id: "", gateway_ip: "", description: "", location_id: "", vrf: "" });
+  const [vlanDialog, setVlanDialog] = useState<{
+    mode: "create" | "edit";
+    vlanId?: number;
+    vlan_number: string;
+    name: string;
+    purpose: string;
+    description: string;
+    location_id: string;
+    is_active: string;
+  } | null>(null);
+  const [subnetDialog, setSubnetDialog] = useState<{
+    subnetId: number;
+    cidr: string;
+    vlan_id: string;
+    gateway_ip: string;
+    name: string;
+    description: string;
+    location_id: string;
+    vrf: string;
+    is_active: string;
+  } | null>(null);
   const [form, setForm] = useState({ status: "free" as EditStatus, hostname: "", dns_name: "", mac_address: "", comment: "", equipment_value: "", equipment_interface_id: "" });
 
   const calc = useMemo(() => calcSubnet(calculator.network_address_input, calculator.cidr), [calculator.network_address_input, calculator.cidr]);
@@ -134,6 +157,7 @@ export default function IPAMPage() {
   }, [form.equipment_interface_id, selectedEquipment]);
 
   const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["ipam-vlans"] });
     qc.invalidateQueries({ queryKey: ["ipam-subnets"] });
     qc.invalidateQueries({ queryKey: ["ipam-grid"] });
     qc.invalidateQueries({ queryKey: ["ipam-list"] });
@@ -141,6 +165,31 @@ export default function IPAMPage() {
     qc.invalidateQueries({ queryKey: ["ipam-host-tree"] });
     qc.invalidateQueries({ queryKey: ["cabinet-item-ipam-summary"] });
   };
+
+  const openCreateVlanDialog = () => setVlanDialog({ mode: "create", vlan_number: "", name: "", purpose: "", description: "", location_id: "", is_active: "true" });
+  const openEditVlanDialog = (vlan: Vlan) =>
+    setVlanDialog({
+      mode: "edit",
+      vlanId: vlan.id,
+      vlan_number: String(vlan.vlan_number),
+      name: vlan.name,
+      purpose: vlan.purpose || "",
+      description: vlan.description || "",
+      location_id: vlan.location_id ? String(vlan.location_id) : "",
+      is_active: vlan.is_active ? "true" : "false"
+    });
+  const openEditSubnetDialog = (subnet: Subnet) =>
+    setSubnetDialog({
+      subnetId: subnet.id,
+      cidr: subnet.cidr,
+      vlan_id: subnet.vlan_id ? String(subnet.vlan_id) : "",
+      gateway_ip: subnet.gateway_ip || "",
+      name: subnet.name || "",
+      description: subnet.description || "",
+      location_id: subnet.location_id ? String(subnet.location_id) : "",
+      vrf: subnet.vrf || "",
+      is_active: subnet.is_active ? "true" : "false"
+    });
 
   const createSubnetMutation = useMutation({
     mutationFn: async () => {
@@ -156,6 +205,70 @@ export default function IPAMPage() {
       setCalculator({ network_address_input: "10.10.0.0", cidr: "24", name: "", vlan_id: "", gateway_ip: "", description: "", location_id: "", vrf: "" });
     },
     onError: (error) => setErrorMessage(err(error, "Не удалось создать подсеть"))
+  });
+
+  const vlanMutation = useMutation({
+    mutationFn: async () => {
+      if (!vlanDialog) throw new Error("VLAN dialog is closed.");
+      const payload = {
+        vlan_number: Number(vlanDialog.vlan_number),
+        name: vlanDialog.name.trim(),
+        purpose: vlanDialog.purpose.trim() || null,
+        description: vlanDialog.description.trim() || null,
+        location_id: vlanDialog.location_id ? Number(vlanDialog.location_id) : null,
+        is_active: vlanDialog.is_active === "true"
+      };
+      return vlanDialog.mode === "create" ? createVlan(payload) : updateVlan(vlanDialog.vlanId!, payload);
+    },
+    onSuccess: () => {
+      refresh();
+      setVlanDialog(null);
+    },
+    onError: (error) => setErrorMessage(err(error, "Не удалось сохранить VLAN"))
+  });
+
+  const deleteVlanMutation = useMutation({
+    mutationFn: (vlanId: number) => deleteVlan(vlanId),
+    onSuccess: () => refresh(),
+    onError: (error) => setErrorMessage(err(error, "Не удалось удалить VLAN"))
+  });
+
+  const subnetMutation = useMutation({
+    mutationFn: async () => {
+      if (!subnetDialog) throw new Error("Subnet dialog is closed.");
+      return updateSubnet(subnetDialog.subnetId, {
+        vlan_id: subnetDialog.vlan_id ? Number(subnetDialog.vlan_id) : null,
+        gateway_ip: subnetDialog.gateway_ip.trim() || null,
+        name: subnetDialog.name.trim() || null,
+        description: subnetDialog.description.trim() || null,
+        location_id: subnetDialog.location_id ? Number(subnetDialog.location_id) : null,
+        vrf: subnetDialog.vrf.trim() || null,
+        is_active: subnetDialog.is_active === "true"
+      });
+    },
+    onSuccess: () => {
+      refresh();
+      setSubnetDialog(null);
+    },
+    onError: (error) => setErrorMessage(err(error, "Не удалось сохранить подсеть"))
+  });
+
+  const deleteSubnetMutation = useMutation({
+    mutationFn: (subnetId: number) => deleteSubnet(subnetId),
+    onSuccess: (_, subnetId) => {
+      refresh();
+      if (selectedSubnetId === subnetId) {
+        const nextSubnet = subnets.find((item) => item.id !== subnetId) || null;
+        setSelectedSubnetId(nextSubnet?.id || null);
+        setSelectedOffset(null);
+        const next = new URLSearchParams(params);
+        if (nextSubnet) next.set("subnet_id", String(nextSubnet.id));
+        else next.delete("subnet_id");
+        next.delete("offset");
+        setParams(next);
+      }
+    },
+    onError: (error) => setErrorMessage(err(error, "Не удалось удалить подсеть"))
   });
 
   const saveAddressMutation = useMutation({
@@ -194,7 +307,6 @@ export default function IPAMPage() {
       <Box sx={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
         <Typography variant="h4" sx={{ fontWeight: 800 }}>IPAM / Сеть</Typography>
         <Stack direction="row" spacing={1}>
-          {canAdmin ? <AppButton startIcon={<AddRoundedIcon />} variant="contained" onClick={() => setCalculatorOpen(true)}>+ Подсеть</AppButton> : null}
           <AppButton startIcon={<DownloadRoundedIcon />} variant="outlined" onClick={() => selectedSubnet && exportSubnetCsv(selectedSubnet.id)} disabled={!selectedSubnet}>CSV</AppButton>
         </Stack>
       </Box>
@@ -207,18 +319,67 @@ export default function IPAMPage() {
               <AppButton variant={sidebarTab === "vlans" ? "contained" : "outlined"} size="small" onClick={() => setSidebarTab("vlans")}>VLAN</AppButton>
             </Stack>
             <TextField size="small" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Поиск IP или хоста..." fullWidth />
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#6d88aa", textTransform: "uppercase" }}>
+                {sidebarTab === "subnets" ? "Подсети" : "VLAN"}
+              </Typography>
+              {canAdmin ? (
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    if (sidebarTab === "subnets") setCalculatorOpen(true);
+                    else openCreateVlanDialog();
+                  }}
+                  sx={{ color: "#d7ebff", border: `1px solid ${alpha("#7ea2d6", 0.2)}`, bgcolor: alpha("#7ea2d6", 0.08) }}
+                >
+                  <AddRoundedIcon fontSize="small" />
+                </IconButton>
+              ) : null}
+            </Stack>
             <Box sx={{ maxHeight: 760, overflowY: "auto", display: "grid", gap: 1 }}>
               {subnetsQuery.isLoading || vlansQuery.isLoading ? <Box sx={{ py: 6, display: "grid", placeItems: "center" }}><CircularProgress size={28} /></Box> : null}
               {sidebarTab === "subnets" ? subnets.map((item) => (
                 <Box key={item.id} onClick={() => pickSubnet(item.id)} sx={{ p: 1.4, borderRadius: 2, cursor: "pointer", border: `1px solid ${selectedSubnet?.id === item.id ? alpha("#5ea8ff", 0.6) : alpha("#7ea2d6", 0.12)}`, bgcolor: selectedSubnet?.id === item.id ? alpha("#153250", 0.6) : "#0f1728" }}>
-                  <Stack direction="row" justifyContent="space-between"><Typography sx={{ fontWeight: 700, color: "#8fd0ff" }}>{item.cidr}</Typography>{item.vlan_number ? <Chip size="small" label={`V${item.vlan_number}`} sx={{ bgcolor: alpha("#4b79b7", 0.18), color: "#7ebeff" }} /> : null}</Stack>
-                  <Typography sx={{ mt: 0.5 }}>{item.name || "Без названия"}</Typography>
-                  <Typography sx={{ mt: 0.25, fontSize: 12, color: "#6d88aa" }}>{item.description || item.vlan_name || "Без описания"}</Typography>
+                  <Stack direction="row" justifyContent="space-between" spacing={1} alignItems="flex-start">
+                    <Box sx={{ minWidth: 0 }}>
+                      <Stack direction="row" justifyContent="space-between" spacing={1} alignItems="center">
+                        <Typography sx={{ fontWeight: 700, color: "#8fd0ff" }}>{item.cidr}</Typography>
+                        {item.vlan_number ? <Chip size="small" label={`V${item.vlan_number}`} sx={{ bgcolor: alpha("#4b79b7", 0.18), color: "#7ebeff" }} /> : null}
+                      </Stack>
+                      <Typography sx={{ mt: 0.5 }}>{item.name || "Без названия"}</Typography>
+                      <Typography sx={{ mt: 0.25, fontSize: 12, color: "#6d88aa" }}>{item.description || item.vlan_name || "Без описания"}</Typography>
+                    </Box>
+                    {canAdmin ? (
+                      <Stack direction="row" spacing={0.5} sx={{ ml: 1, flexShrink: 0 }}>
+                        <IconButton size="small" onClick={(event) => { event.stopPropagation(); openEditSubnetDialog(item); }} sx={{ color: "#b7d9ff" }}>
+                          <EditRoundedIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton size="small" onClick={(event) => { event.stopPropagation(); if (window.confirm("Удалить подсеть?")) deleteSubnetMutation.mutate(item.id); }} sx={{ color: "#ff7b7b" }}>
+                          <DeleteOutlineRoundedIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    ) : null}
+                  </Stack>
                 </Box>
               )) : vlans.map((item) => (
                 <Box key={item.id} onClick={() => { const subnet = subnets.find((subnetItem) => subnetItem.vlan_id === item.id); if (subnet) pickSubnet(subnet.id); }} sx={{ p: 1.4, borderRadius: 2, cursor: "pointer", border: `1px solid ${alpha("#7ea2d6", 0.12)}`, bgcolor: "#0f1728" }}>
-                  <Typography sx={{ fontWeight: 700, color: "#8fd0ff" }}>{`VLAN ${item.vlan_number}`}</Typography>
-                  <Typography sx={{ mt: 0.5 }}>{item.name}</Typography>
+                  <Stack direction="row" justifyContent="space-between" spacing={1} alignItems="flex-start">
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontWeight: 700, color: "#8fd0ff" }}>{`VLAN ${item.vlan_number}`}</Typography>
+                      <Typography sx={{ mt: 0.5 }}>{item.name}</Typography>
+                      <Typography sx={{ mt: 0.25, fontSize: 12, color: "#6d88aa" }}>{item.purpose || item.description || "Без описания"}</Typography>
+                    </Box>
+                    {canAdmin ? (
+                      <Stack direction="row" spacing={0.5} sx={{ ml: 1, flexShrink: 0 }}>
+                        <IconButton size="small" onClick={(event) => { event.stopPropagation(); openEditVlanDialog(item); }} sx={{ color: "#b7d9ff" }}>
+                          <EditRoundedIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton size="small" onClick={(event) => { event.stopPropagation(); if (window.confirm("Удалить VLAN?")) deleteVlanMutation.mutate(item.id); }} sx={{ color: "#ff7b7b" }}>
+                          <DeleteOutlineRoundedIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    ) : null}
+                  </Stack>
                 </Box>
               ))}
             </Box>
@@ -316,6 +477,40 @@ export default function IPAMPage() {
         <DialogActions>
           <AppButton onClick={() => setCalculatorOpen(false)}>Отмена</AppButton>
           <AppButton variant="contained" onClick={() => createSubnetMutation.mutate()} disabled={!calculatorDone || !calc || !calculator.name.trim() || createSubnetMutation.isPending}>✓ Создать подсеть</AppButton>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={Boolean(vlanDialog)} onClose={() => setVlanDialog(null)} fullWidth maxWidth="sm" PaperProps={{ sx: { bgcolor: "#162132", color: "#d3e8ff", border: `1px solid ${alpha("#7ea2d6", 0.14)}` } }}>
+        <DialogTitle>{vlanDialog?.mode === "edit" ? "Редактирование VLAN" : "Создание VLAN"}</DialogTitle>
+        <DialogContent sx={{ display: "grid", gap: 2 }}>
+          <TextField label="Номер VLAN" type="number" value={vlanDialog?.vlan_number || ""} onChange={(e) => setVlanDialog((prev) => (prev ? { ...prev, vlan_number: e.target.value } : prev))} />
+          <TextField label="Название" value={vlanDialog?.name || ""} onChange={(e) => setVlanDialog((prev) => (prev ? { ...prev, name: e.target.value } : prev))} />
+          <TextField label="Назначение" value={vlanDialog?.purpose || ""} onChange={(e) => setVlanDialog((prev) => (prev ? { ...prev, purpose: e.target.value } : prev))} />
+          <TextField label="Описание" value={vlanDialog?.description || ""} onChange={(e) => setVlanDialog((prev) => (prev ? { ...prev, description: e.target.value } : prev))} multiline minRows={3} />
+          <FormControl fullWidth><InputLabel>Локация</InputLabel><Select label="Локация" value={vlanDialog?.location_id || ""} onChange={(e) => setVlanDialog((prev) => (prev ? { ...prev, location_id: String(e.target.value) } : prev))}><MenuItem value="">Не выбрано</MenuItem>{locationOptions.map((item) => <MenuItem key={item.value} value={String(item.value)}>{item.label}</MenuItem>)}</Select></FormControl>
+          <FormControl fullWidth><InputLabel>Статус</InputLabel><Select label="Статус" value={vlanDialog?.is_active || "true"} onChange={(e) => setVlanDialog((prev) => (prev ? { ...prev, is_active: String(e.target.value) } : prev))}><MenuItem value="true">Активен</MenuItem><MenuItem value="false">Неактивен</MenuItem></Select></FormControl>
+        </DialogContent>
+        <DialogActions>
+          <AppButton onClick={() => setVlanDialog(null)}>Отмена</AppButton>
+          <AppButton variant="contained" onClick={() => vlanMutation.mutate()} disabled={!vlanDialog?.vlan_number.trim() || !vlanDialog?.name.trim() || vlanMutation.isPending}>Сохранить</AppButton>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={Boolean(subnetDialog)} onClose={() => setSubnetDialog(null)} fullWidth maxWidth="sm" PaperProps={{ sx: { bgcolor: "#162132", color: "#d3e8ff", border: `1px solid ${alpha("#7ea2d6", 0.14)}` } }}>
+        <DialogTitle>Редактирование подсети</DialogTitle>
+        <DialogContent sx={{ display: "grid", gap: 2 }}>
+          <TextField label="CIDR" value={subnetDialog?.cidr || ""} InputProps={{ readOnly: true }} helperText="CIDR недоступен для редактирования" />
+          <FormControl fullWidth><InputLabel>VLAN</InputLabel><Select label="VLAN" value={subnetDialog?.vlan_id || ""} onChange={(e) => setSubnetDialog((prev) => (prev ? { ...prev, vlan_id: String(e.target.value) } : prev))}><MenuItem value="">Не выбрано</MenuItem>{vlans.map((item) => <MenuItem key={item.id} value={String(item.id)}>{`VLAN ${item.vlan_number} / ${item.name}`}</MenuItem>)}</Select></FormControl>
+          <TextField label="Шлюз" value={subnetDialog?.gateway_ip || ""} onChange={(e) => setSubnetDialog((prev) => (prev ? { ...prev, gateway_ip: e.target.value } : prev))} />
+          <TextField label="Название" value={subnetDialog?.name || ""} onChange={(e) => setSubnetDialog((prev) => (prev ? { ...prev, name: e.target.value } : prev))} />
+          <TextField label="Описание" value={subnetDialog?.description || ""} onChange={(e) => setSubnetDialog((prev) => (prev ? { ...prev, description: e.target.value } : prev))} multiline minRows={3} />
+          <FormControl fullWidth><InputLabel>Локация</InputLabel><Select label="Локация" value={subnetDialog?.location_id || ""} onChange={(e) => setSubnetDialog((prev) => (prev ? { ...prev, location_id: String(e.target.value) } : prev))}><MenuItem value="">Не выбрано</MenuItem>{locationOptions.map((item) => <MenuItem key={item.value} value={String(item.value)}>{item.label}</MenuItem>)}</Select></FormControl>
+          <TextField label="VRF" value={subnetDialog?.vrf || ""} onChange={(e) => setSubnetDialog((prev) => (prev ? { ...prev, vrf: e.target.value } : prev))} />
+          <FormControl fullWidth><InputLabel>Статус</InputLabel><Select label="Статус" value={subnetDialog?.is_active || "true"} onChange={(e) => setSubnetDialog((prev) => (prev ? { ...prev, is_active: String(e.target.value) } : prev))}><MenuItem value="true">Активна</MenuItem><MenuItem value="false">Неактивна</MenuItem></Select></FormControl>
+        </DialogContent>
+        <DialogActions>
+          <AppButton onClick={() => setSubnetDialog(null)}>Отмена</AppButton>
+          <AppButton variant="contained" onClick={() => subnetMutation.mutate()} disabled={subnetMutation.isPending}>Сохранить</AppButton>
         </DialogActions>
       </Dialog>
 
