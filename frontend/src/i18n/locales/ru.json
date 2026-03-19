@@ -655,9 +655,11 @@
                                          "dialogs":  {
                                                          "addFinishedTitle":  "Ввести готовое"
                                                      },
-                                         "actions":  {
-                                                         "addFinished":  "Ввести готовое"
-                                                     },
+                                           "actions":  {
+                                                           "addFinished":  "Ввести готовое",
+                                                           "expandAll":  "Развернуть все",
+                                                           "collapseAll":  "Свернуть все"
+                                                       },
                                          "inline":  {
                                                         "add":  "Добавить",
                                                         "remove":  "Удалить",

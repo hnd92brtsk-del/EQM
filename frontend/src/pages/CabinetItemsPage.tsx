@@ -208,6 +208,19 @@ type DetailFilters = {
   locationFilter: number | "";
 };
 
+type ExpandedGroupKeysByContainer = Record<string, string[]>;
+
+const getContainerKey = (container: Pick<EquipmentInOperationContainer, "source" | "container_id">) =>
+  `${container.source}:${container.container_id}`;
+
+function collectLocationIds(nodes: EquipmentInOperationLocationNode[]): number[] {
+  return nodes.flatMap((node) => [node.location_id, ...collectLocationIds(node.children)]);
+}
+
+function collectContainers(nodes: EquipmentInOperationLocationNode[]): EquipmentInOperationContainer[] {
+  return nodes.flatMap((node) => [...node.containers, ...collectContainers(node.children)]);
+}
+
 function buildEquipmentGroups(
   items: EquipmentInOperationItem[],
   equipmentMap: Map<number, string>,
@@ -432,6 +445,10 @@ function StatCell({
 
 function ContainerAccordion({
   container,
+  expanded,
+  onExpandedChange,
+  expandedGroupKeys,
+  onExpandedGroupKeysChange,
   canWrite,
   detailFilters,
   equipmentMap,
@@ -444,6 +461,10 @@ function ContainerAccordion({
   onErrorMessage
 }: {
   container: EquipmentInOperationContainer;
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
+  expandedGroupKeys: string[];
+  onExpandedGroupKeysChange: (groupKeys: string[]) => void;
   canWrite: boolean;
   detailFilters: DetailFilters;
   equipmentMap: Map<number, string>;
@@ -458,7 +479,6 @@ function ContainerAccordion({
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const theme = useTheme();
-  const [expanded, setExpanded] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedEquipmentId, setSelectedEquipmentId] = useState<number | "">("");
   const [inlineQuantity, setInlineQuantity] = useState(1);
@@ -536,7 +556,7 @@ function ContainerAccordion({
       key={`${container.source}:${container.container_id}`}
       disableGutters
       expanded={expanded}
-      onChange={(_, isExpanded) => setExpanded(isExpanded)}
+      onChange={(_, isExpanded) => onExpandedChange(isExpanded)}
     >
       <AccordionSummary
         expandIcon={<ExpandMoreRoundedIcon />}
@@ -620,23 +640,39 @@ function ContainerAccordion({
           </Typography>
         ) : null}
 
-        {!detailQuery.isLoading && container.source === "cabinet" && canWrite ? (
-          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mb: 1.5 }}>
-            <Tooltip title={t("pagesUi.cabinetItems.inline.addTooltip")}>
-              <span>
-                <IconButton
+        {!detailQuery.isLoading && (equipmentGroups.length > 0 || (container.source === "cabinet" && canWrite)) ? (
+          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mb: 1.5, flexWrap: "wrap" }}>
+            {equipmentGroups.length > 0 ? (
+              <>
+                <AppButton
+                  variant="outlined"
                   size="small"
-                  onClick={handleAddDialogOpen}
-                  sx={{
-                    color: theme.palette.mode === "light" ? "common.black" : "common.white",
-                    border: "1px solid",
-                    borderColor: "divider"
-                  }}
+                  onClick={() => onExpandedGroupKeysChange(equipmentGroups.map((group) => group.key))}
                 >
-                  <AddRoundedIcon fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
+                  {t("pagesUi.cabinetItems.actions.expandAll")}
+                </AppButton>
+                <AppButton variant="outlined" size="small" onClick={() => onExpandedGroupKeysChange([])}>
+                  {t("pagesUi.cabinetItems.actions.collapseAll")}
+                </AppButton>
+              </>
+            ) : null}
+            {container.source === "cabinet" && canWrite ? (
+              <Tooltip title={t("pagesUi.cabinetItems.inline.addTooltip")}>
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={handleAddDialogOpen}
+                    sx={{
+                      color: theme.palette.mode === "light" ? "common.black" : "common.white",
+                      border: "1px solid",
+                      borderColor: "divider"
+                    }}
+                  >
+                    <AddRoundedIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            ) : null}
           </Box>
         ) : null}
 
@@ -672,6 +708,14 @@ function ContainerAccordion({
                   key={`${container.source}:${container.container_id}:${group.key}`}
                   disableGutters
                   elevation={0}
+                  expanded={expandedGroupKeys.includes(group.key)}
+                  onChange={(_, isExpanded) =>
+                    onExpandedGroupKeysChange(
+                      isExpanded
+                        ? [...new Set([...expandedGroupKeys, group.key])]
+                        : expandedGroupKeys.filter((key) => key !== group.key)
+                    )
+                  }
                   sx={{ border: "1px solid", borderColor: "divider" }}
                 >
                   <AccordionSummary expandIcon={<ExpandMoreRoundedIcon />}>
@@ -921,6 +965,12 @@ function ContainerAccordion({
 function LocationTreeNodeCard({
   node,
   level,
+  expandedLocationIds,
+  onToggleLocation,
+  expandedContainerKeys,
+  onToggleContainer,
+  expandedGroupKeysByContainer,
+  onExpandedGroupKeysChange,
   canWrite,
   detailFilters,
   equipmentMap,
@@ -934,6 +984,12 @@ function LocationTreeNodeCard({
 }: {
   node: EquipmentInOperationLocationNode;
   level: number;
+  expandedLocationIds: number[];
+  onToggleLocation: (locationId: number) => void;
+  expandedContainerKeys: string[];
+  onToggleContainer: (containerKey: string, expanded: boolean) => void;
+  expandedGroupKeysByContainer: ExpandedGroupKeysByContainer;
+  onExpandedGroupKeysChange: (containerKey: string, groupKeys: string[]) => void;
   canWrite: boolean;
   detailFilters: DetailFilters;
   equipmentMap: Map<number, string>;
@@ -946,7 +1002,7 @@ function LocationTreeNodeCard({
   onErrorMessage: (message: string) => void;
 }) {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = useState(level < 1);
+  const expanded = expandedLocationIds.includes(node.location_id);
   const hasChildren = node.children.length > 0 || node.containers.length > 0;
 
   return (
@@ -966,7 +1022,7 @@ function LocationTreeNodeCard({
         }}
       >
         {hasChildren ? (
-          <IconButton size="small" onClick={() => setExpanded((prev) => !prev)}>
+          <IconButton size="small" onClick={() => onToggleLocation(node.location_id)}>
             {expanded ? <ExpandMoreRoundedIcon /> : <ChevronRightRoundedIcon />}
           </IconButton>
         ) : (
@@ -1008,6 +1064,12 @@ function LocationTreeNodeCard({
               key={`location:${child.location_id}`}
               node={child}
               level={level + 1}
+              expandedLocationIds={expandedLocationIds}
+              onToggleLocation={onToggleLocation}
+              expandedContainerKeys={expandedContainerKeys}
+              onToggleContainer={onToggleContainer}
+              expandedGroupKeysByContainer={expandedGroupKeysByContainer}
+              onExpandedGroupKeysChange={onExpandedGroupKeysChange}
               canWrite={canWrite}
               detailFilters={detailFilters}
               equipmentMap={equipmentMap}
@@ -1025,6 +1087,12 @@ function LocationTreeNodeCard({
             <Box key={`${container.source}:${container.container_id}`} sx={{ pl: 1 }}>
               <ContainerAccordion
                 container={container}
+                expanded={expandedContainerKeys.includes(getContainerKey(container))}
+                onExpandedChange={(isExpanded) => onToggleContainer(getContainerKey(container), isExpanded)}
+                expandedGroupKeys={expandedGroupKeysByContainer[getContainerKey(container)] || []}
+                onExpandedGroupKeysChange={(groupKeys) =>
+                  onExpandedGroupKeysChange(getContainerKey(container), groupKeys)
+                }
                 canWrite={canWrite}
                 detailFilters={detailFilters}
                 equipmentMap={equipmentMap}
@@ -1058,6 +1126,9 @@ export default function CabinetItemsPage() {
   const [locationFilter, setLocationFilter] = useState<number | "">("");
   const [showDeleted, setShowDeleted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [expandedLocationIds, setExpandedLocationIds] = useState<number[]>([]);
+  const [expandedContainerKeys, setExpandedContainerKeys] = useState<string[]>([]);
+  const [expandedGroupKeysByContainer, setExpandedGroupKeysByContainer] = useState<ExpandedGroupKeysByContainer>({});
 
   const [editOpen, setEditOpen] = useState(false);
   const [editItem, setEditItem] = useState<EquipmentInOperationItem | null>(null);
@@ -1252,6 +1323,62 @@ export default function CabinetItemsPage() {
   }, [assembliesQuery.data?.items, cabinetsQuery.data?.items, i18n.language, t]);
 
   const locationNodes = containersQuery.data || [];
+  const allLocationIds = useMemo(() => collectLocationIds(locationNodes), [locationNodes]);
+  const allContainers = useMemo(() => collectContainers(locationNodes), [locationNodes]);
+  const allContainerKeys = useMemo(() => allContainers.map((container) => getContainerKey(container)), [allContainers]);
+
+  useEffect(() => {
+    setExpandedLocationIds([]);
+    setExpandedContainerKeys([]);
+    setExpandedGroupKeysByContainer({});
+  }, [q, sort, containerFilter, equipmentFilter, manufacturerFilter, locationFilter, showDeleted, locationNodes]);
+
+  const toggleLocation = (locationId: number) => {
+    setExpandedLocationIds((prev) =>
+      prev.includes(locationId) ? prev.filter((id) => id !== locationId) : [...prev, locationId]
+    );
+  };
+
+  const toggleContainer = (containerKey: string, expanded: boolean) => {
+    setExpandedContainerKeys((prev) =>
+      expanded ? [...new Set([...prev, containerKey])] : prev.filter((key) => key !== containerKey)
+    );
+    if (!expanded) {
+      setExpandedGroupKeysByContainer((prev) => {
+        if (!(containerKey in prev)) {
+          return prev;
+        }
+        const next = { ...prev };
+        delete next[containerKey];
+        return next;
+      });
+    }
+  };
+
+  const handleExpandedGroupKeysChange = (containerKey: string, groupKeys: string[]) => {
+    setExpandedGroupKeysByContainer((prev) => {
+      if (groupKeys.length === 0) {
+        if (!(containerKey in prev)) {
+          return prev;
+        }
+        const next = { ...prev };
+        delete next[containerKey];
+        return next;
+      }
+      return { ...prev, [containerKey]: groupKeys };
+    });
+  };
+
+  const expandAll = () => {
+    setExpandedLocationIds(allLocationIds);
+    setExpandedContainerKeys(allContainerKeys);
+  };
+
+  const collapseAll = () => {
+    setExpandedLocationIds([]);
+    setExpandedContainerKeys([]);
+    setExpandedGroupKeysByContainer({});
+  };
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
@@ -1359,6 +1486,12 @@ export default function CabinetItemsPage() {
               label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
+            <AppButton variant="outlined" size="small" onClick={expandAll} disabled={locationNodes.length === 0}>
+              {t("pagesUi.cabinetItems.actions.expandAll")}
+            </AppButton>
+            <AppButton variant="outlined" size="small" onClick={collapseAll} disabled={locationNodes.length === 0}>
+              {t("pagesUi.cabinetItems.actions.collapseAll")}
+            </AppButton>
           </Box>
 
           <Box sx={{ display: "grid", gap: 1 }}>
@@ -1367,6 +1500,12 @@ export default function CabinetItemsPage() {
                 key={`location:${node.location_id}`}
                 node={node}
                 level={0}
+                expandedLocationIds={expandedLocationIds}
+                onToggleLocation={toggleLocation}
+                expandedContainerKeys={expandedContainerKeys}
+                onToggleContainer={toggleContainer}
+                expandedGroupKeysByContainer={expandedGroupKeysByContainer}
+                onExpandedGroupKeysChange={handleExpandedGroupKeysChange}
                 canWrite={canWrite}
                 detailFilters={detailFilters}
                 equipmentMap={equipmentMap}

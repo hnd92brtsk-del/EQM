@@ -665,9 +665,11 @@
                                          "dialogs":  {
                                                          "addFinishedTitle":  "Add finished"
                                                      },
-                                         "actions":  {
-                                                         "addFinished":  "Add finished"
-                                                     },
+                                           "actions":  {
+                                                           "addFinished":  "Add finished",
+                                                           "expandAll":  "Expand all",
+                                                           "collapseAll":  "Collapse all"
+                                                       },
                                          "inline":  {
                                                         "add":  "Add",
                                                         "remove":  "Remove",
