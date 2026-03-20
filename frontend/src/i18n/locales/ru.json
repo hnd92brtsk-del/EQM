@@ -149,6 +149,7 @@
                  "engineering":  "Инженерия",
                  "io_signals":  "Сигналы I/O",
                  "dcl":  "DCL",
+                 "serial_map":  "Карта последовательных протоколов",
                  "dictionaries":  "Справочники",
                  "warehouses":  "Склады",
                  "manufacturers":  "Производители",

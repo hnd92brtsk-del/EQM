@@ -132,6 +132,13 @@ export const navTree: NavItem[] = [
         path: "/engineering/dcl",
         icon: NumbersSignalIcon,
         roles: ["viewer", "engineer", "admin"]
+      },
+      {
+        id: "serial-map",
+        labelKey: "menu.serial_map",
+        path: "/engineering/serial-map",
+        icon: NumbersSignalIcon,
+        roles: ["viewer", "engineer", "admin"]
       }
     ]
   },

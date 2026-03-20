@@ -149,6 +149,7 @@
                  "engineering":  "Engineering",
                  "io_signals":  "IO Signals",
                  "dcl":  "DCL",
+                 "serial_map":  "Serial Protocol Map",
                  "dictionaries":  "Dictionaries",
                  "warehouses":  "Warehouses",
                  "manufacturers":  "Manufacturers",
