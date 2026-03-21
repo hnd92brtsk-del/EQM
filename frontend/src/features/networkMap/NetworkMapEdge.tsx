@@ -32,18 +32,27 @@ export function NetworkMapEdge({ id, sourceX, sourceY, targetX, targetY, sourceP
   const edge = data?.edge;
   if (!edge) return null;
   const stroke = getStroke(edge, traced);
-  const labelTone = traced ? "border-blue-200 bg-blue-50 text-blue-700" : edge.status === "critical" ? "border-red-200 bg-red-50 text-red-700" : edge.status === "warning" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-slate-200 bg-white text-slate-600";
+  const labelTone = traced
+    ? "border-blue-200 bg-blue-50 text-blue-700"
+    : edge.status === "critical"
+      ? "border-red-200 bg-red-50 text-red-700"
+      : edge.status === "warning"
+        ? "border-amber-200 bg-amber-50 text-amber-700"
+        : "border-slate-200 bg-white text-slate-600";
 
   return (
     <>
-      <BaseEdge id={`${id}-halo`} path={path} style={{ stroke: selected ? "rgba(15,23,42,0.22)" : "rgba(15,23,42,0.08)", strokeWidth: stroke.width + 5 }} />
+      <BaseEdge id={`${id}-halo`} path={path} style={{ stroke: selected ? "rgba(15,23,42,0.22)" : "rgba(15,23,42,0.08)", strokeWidth: stroke.width + 5.5 }} />
       <BaseEdge id={id} path={path} style={{ stroke: selected ? "#0f172a" : stroke.color, strokeWidth: stroke.width, strokeDasharray: stroke.dash }} />
       <EdgeLabelRenderer>
         <div
-          className={`pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full border px-3 py-1 text-[10px] font-semibold shadow-sm ${labelTone}`}
+          className={`pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full border px-3 py-1 text-[10px] font-semibold shadow-[0_6px_20px_rgba(15,23,42,0.08)] ${labelTone}`}
           style={{ transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)` }}
         >
-          {edge.label || edge.network || edge.style}
+          <span className="relative block">
+            <span className="absolute inset-x-2 -top-1 h-px bg-current opacity-10" />
+            <span>{edge.label || edge.network || edge.style}</span>
+          </span>
         </div>
       </EdgeLabelRenderer>
     </>

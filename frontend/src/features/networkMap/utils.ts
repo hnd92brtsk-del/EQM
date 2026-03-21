@@ -137,7 +137,7 @@ export function createNodeFromEquipment(item: NetworkTopologyEligibleEquipment, 
     status: networkInterface.is_active ? "up" : "down",
   }));
   return {
-    id: createId("node"),
+    id: createEquipmentNodeId(item),
     name: item.display_name,
     type,
     x: position.x,
@@ -156,6 +156,21 @@ export function createNodeFromEquipment(item: NetworkTopologyEligibleEquipment, 
   };
 }
 
+export function createEquipmentNodeId(item: Pick<NetworkTopologyEligibleEquipment, "equipment_source" | "equipment_item_id">) {
+  return `eqm_${item.equipment_source}_${item.equipment_item_id}`;
+}
+
+export function isEquipmentAlreadyOnCanvas(document: TopologyDocument, item: Pick<NetworkTopologyEligibleEquipment, "equipment_source" | "equipment_item_id" | "display_name" | "equipment_type_name" | "primary_ip">) {
+  const deterministicId = createEquipmentNodeId(item);
+  return document.nodes.some((node) => {
+    if (node.id === deterministicId) return true;
+    if (node.name !== item.display_name) return false;
+    if (node.model !== item.equipment_type_name) return false;
+    if (item.primary_ip && node.ip) return node.ip === item.primary_ip;
+    return true;
+  });
+}
+
 export function toFlowNode(node: NetworkNode): Node<{ node: NetworkNode }> {
   return {
     id: node.id,
@@ -164,6 +179,12 @@ export function toFlowNode(node: NetworkNode): Node<{ node: NetworkNode }> {
     data: { node },
     draggable: true,
     selectable: true,
+    style: {
+      width: 168,
+      background: "transparent",
+      border: "none",
+      boxShadow: "none",
+    },
   };
 }
 

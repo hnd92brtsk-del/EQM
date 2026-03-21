@@ -140,6 +140,7 @@
                                                        "title":  "Inventory",
                                                        "subtitle":  "Installed network-capable equipment from EQM/IPAM",
                                                        "search":  "Search inventory",
+                                                       "added":  "On canvas",
                                                        "empty":  "No matching inventory items."
                                                    },
                                      "pathTracing":  {
@@ -178,6 +179,9 @@
                                                  },
                                      "fields":  {
                                                     "description":  "Topology description",
+                                                    "subnet":  "Subnet",
+                                                    "address":  "Address",
+                                                    "selectSubnetFirst":  "Select a subnet first",
                                                     "ip":  "IP address",
                                                     "vlan":  "VLAN / segment",
                                                     "zone":  "Zone",
