@@ -97,9 +97,10 @@
                                      "defaultName":  "Network topology",
                                      "subtitle":  "Multi-select, import/export, custom visuals, path tracing, and network-aware editing.",
                                      "documents":  {
-                                                       "newDocument":  "New topology",
-                                                       "title":  "Documents",
-                                                       "search":  "Search documents",
+                                                       "newDocument":  "New diagram",
+                                                       "title":  "Contours",
+                                                       "subtitle":  "Each contour is stored as its own network diagram.",
+                                                       "search":  "Search diagrams",
                                                        "active":  "active",
                                                        "noDescription":  "No description",
                                                        "empty":  "No topology documents found."
@@ -110,7 +111,8 @@
                                                      "autoLayout":  "Auto-layout",
                                                      "fitView":  "Fit view",
                                                      "searchPlaceholder":  "Search by name, model, IP, VLAN, or zone",
-                                                     "exportJson":  "Export JSON"
+                                                     "exportJson":  "Export JSON",
+                                                     "linkMode":  "Link"
                                                  },
                                      "states":  {
                                                     "saving":  "Saving...",
@@ -144,15 +146,31 @@
                                                        "empty":  "No matching inventory items."
                                                    },
                                      "pathTracing":  {
-                                                          "title":  "Path tracing",
+                                                          "title":  "Tracing",
+                                                          "subtitle":  "Pick two nodes, inspect the route, and create a direct link when needed.",
                                                           "start":  "Select start",
                                                           "end":  "Select destination",
                                                           "useSelection":  "Use selection",
+                                                          "createLink":  "Create link",
                                                           "clear":  "Clear",
                                                           "placeholder":  "Select two nodes to highlight the computed path.",
                                                           "noPath":  "No path found between selected nodes.",
                                                           "hops":  "{{count}} hops"
                                                       },
+                                     "scheme":  {
+                                                    "title":  "Diagram properties",
+                                                    "subtitle":  "Description and quick metrics for the active contour."
+                                                },
+                                     "linkCreation":  {
+                                                            "pickFirst":  "Link mode is enabled. Pick the first node on the canvas.",
+                                                            "pickSecond":  "First node selected. Now click the second node.",
+                                                            "pendingFirst":  "Waiting for the first node",
+                                                            "pendingSecond":  "Waiting for the second node",
+                                                            "created":  "Link created.",
+                                                            "duplicate":  "That link already exists.",
+                                                            "sameNode":  "You cannot link a node to itself.",
+                                                            "selectTwoNodes":  "Select two different nodes."
+                                                        },
                                      "properties":  {
                                                         "title":  "Properties",
                                                         "empty":  "Select a device or link on the canvas to inspect and edit its parameters.",
