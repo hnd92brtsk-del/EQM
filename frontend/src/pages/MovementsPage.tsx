@@ -12,15 +12,17 @@ import {
   Alert
 } from "@mui/material";
 import { ColumnDef } from "@tanstack/react-table";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
+import { LOOKUP_QUERY_STALE_TIME } from "../api/queryDefaults";
 import { type ColumnMeta, DataTable, type DataTableFiltersState } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, listEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { SearchableSelectField } from "../components/SearchableSelectField";
 
 const pageSizeOptions = [10, 20, 50, 100];
@@ -70,6 +72,9 @@ export default function MovementsPage() {
   const [sort, setSort] = useState("-created_at");
   const [columnFilters, setColumnFilters] = useState<DataTableFiltersState>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const debouncedColumnFilters = useDebouncedValue(columnFilters, 250);
+  const needsCabinetOptions = movementType === "to_cabinet" || movementType === "direct_to_cabinet";
+  const needsAssemblyOptions = movementType === "to_assembly" || movementType === "direct_to_assembly";
 
   const movementOptions = useMemo(
     () => [
@@ -104,7 +109,7 @@ export default function MovementsPage() {
       page,
       pageSize,
       sort,
-      columnFilters
+      debouncedColumnFilters
     ],
     queryFn: () =>
       listEntity<Movement>("/movements", {
@@ -112,55 +117,68 @@ export default function MovementsPage() {
         page_size: pageSize,
         sort: sort || undefined,
         filters: {
-          movement_type: columnFilters.movement_type || undefined,
+          movement_type: debouncedColumnFilters.movement_type || undefined,
           equipment_type_id:
-            columnFilters.equipment_type_id && !Number.isNaN(Number(columnFilters.equipment_type_id))
-              ? Number(columnFilters.equipment_type_id)
+            debouncedColumnFilters.equipment_type_id &&
+            !Number.isNaN(Number(debouncedColumnFilters.equipment_type_id))
+              ? Number(debouncedColumnFilters.equipment_type_id)
               : undefined,
           from_warehouse_id:
-            columnFilters.from_warehouse_id && !Number.isNaN(Number(columnFilters.from_warehouse_id))
-              ? Number(columnFilters.from_warehouse_id)
+            debouncedColumnFilters.from_warehouse_id &&
+            !Number.isNaN(Number(debouncedColumnFilters.from_warehouse_id))
+              ? Number(debouncedColumnFilters.from_warehouse_id)
               : undefined,
           to_warehouse_id:
-            columnFilters.to_warehouse_id && !Number.isNaN(Number(columnFilters.to_warehouse_id))
-              ? Number(columnFilters.to_warehouse_id)
+            debouncedColumnFilters.to_warehouse_id &&
+            !Number.isNaN(Number(debouncedColumnFilters.to_warehouse_id))
+              ? Number(debouncedColumnFilters.to_warehouse_id)
               : undefined,
           from_cabinet_id:
-            columnFilters.from_cabinet_id && !Number.isNaN(Number(columnFilters.from_cabinet_id))
-              ? Number(columnFilters.from_cabinet_id)
+            debouncedColumnFilters.from_cabinet_id &&
+            !Number.isNaN(Number(debouncedColumnFilters.from_cabinet_id))
+              ? Number(debouncedColumnFilters.from_cabinet_id)
               : undefined,
           to_cabinet_id:
-            columnFilters.to_cabinet_id && !Number.isNaN(Number(columnFilters.to_cabinet_id))
-              ? Number(columnFilters.to_cabinet_id)
+            debouncedColumnFilters.to_cabinet_id &&
+            !Number.isNaN(Number(debouncedColumnFilters.to_cabinet_id))
+              ? Number(debouncedColumnFilters.to_cabinet_id)
               : undefined,
           performed_by_id:
-            columnFilters.performed_by_id && !Number.isNaN(Number(columnFilters.performed_by_id))
-              ? Number(columnFilters.performed_by_id)
+            debouncedColumnFilters.performed_by_id &&
+            !Number.isNaN(Number(debouncedColumnFilters.performed_by_id))
+              ? Number(debouncedColumnFilters.performed_by_id)
               : undefined,
-          created_at_from: columnFilters.created_at_from || undefined,
-          created_at_to: columnFilters.created_at_to || undefined
+          created_at_from: debouncedColumnFilters.created_at_from || undefined,
+          created_at_to: debouncedColumnFilters.created_at_to || undefined
         }
-      })
+      }),
+    placeholderData: keepPreviousData
   });
 
   const equipmentTypesQuery = useQuery({
     queryKey: ["equipment-types-options"],
-    queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: 200 })
+    queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: 200 }),
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const warehousesQuery = useQuery({
     queryKey: ["warehouses-options"],
-    queryFn: () => listEntity<Warehouse>("/warehouses", { page: 1, page_size: 200 })
+    queryFn: () => listEntity<Warehouse>("/warehouses", { page: 1, page_size: 200 }),
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const cabinetsQuery = useQuery({
     queryKey: ["cabinets-options"],
-    queryFn: () => listEntity<Cabinet>("/cabinets", { page: 1, page_size: 200 })
+    queryFn: () => listEntity<Cabinet>("/cabinets", { page: 1, page_size: 200 }),
+    enabled: needsCabinetOptions,
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const assembliesQuery = useQuery({
     queryKey: ["assemblies-options"],
-    queryFn: () => listEntity<Assembly>("/assemblies", { page: 1, page_size: 200 })
+    queryFn: () => listEntity<Assembly>("/assemblies", { page: 1, page_size: 200 }),
+    enabled: needsAssemblyOptions,
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   useEffect(() => {

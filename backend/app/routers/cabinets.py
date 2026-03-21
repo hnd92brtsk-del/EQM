@@ -10,28 +10,9 @@ from app.models.core import Cabinet, Location
 from app.models.security import User
 from app.schemas.common import Pagination
 from app.schemas.cabinets import CabinetOut, CabinetCreate, CabinetUpdate
+from app.services.location_paths import attach_location_full_path
 
 router = APIRouter()
-
-def build_location_full_path(location_id: int | None, locations_map: dict[int, Location]) -> str | None:
-    if not location_id or location_id not in locations_map:
-        return None
-    parts: list[str] = []
-    current_id: int | None = location_id
-    seen: set[int] = set()
-    while current_id and current_id in locations_map and current_id not in seen:
-        location = locations_map[current_id]
-        parts.append(location.name)
-        seen.add(current_id)
-        current_id = location.parent_id
-    return " / ".join(reversed(parts))
-
-
-def attach_location_full_path(items: list[Cabinet], db) -> None:
-    locations = db.scalars(select(Location)).all()
-    locations_map = {loc.id: loc for loc in locations}
-    for item in items:
-        item.location_full_path = build_location_full_path(item.location_id, locations_map)
 
 
 @router.get("/", response_model=Pagination[CabinetOut])
@@ -72,7 +53,7 @@ def list_cabinets(
     query = apply_sort(query, Cabinet, sort)
 
     total, items = paginate(query, db, page, page_size)
-    attach_location_full_path(items, db)
+    attach_location_full_path(items, db=db, location_getter=lambda item: item.location_id)
     return Pagination(items=items, page=page, page_size=page_size, total=total)
 
 
@@ -89,7 +70,7 @@ def get_cabinet(
     cabinet = db.scalar(query)
     if not cabinet:
         raise HTTPException(status_code=404, detail="Cabinet not found")
-    attach_location_full_path([cabinet], db)
+    attach_location_full_path([cabinet], db=db, location_getter=lambda item: item.location_id)
     return cabinet
 
 
@@ -128,7 +109,7 @@ def create_cabinet(
 
     db.commit()
     db.refresh(cabinet)
-    attach_location_full_path([cabinet], db)
+    attach_location_full_path([cabinet], db=db, location_getter=lambda item: item.location_id)
     return cabinet
 
 
@@ -175,7 +156,7 @@ def update_cabinet(
 
     db.commit()
     db.refresh(cabinet)
-    attach_location_full_path([cabinet], db)
+    attach_location_full_path([cabinet], db=db, location_getter=lambda item: item.location_id)
     return cabinet
 
 
@@ -245,5 +226,5 @@ def restore_cabinet(
 
     db.commit()
     db.refresh(cabinet)
-    attach_location_full_path([cabinet], db)
+    attach_location_full_path([cabinet], db=db, location_getter=lambda item: item.location_id)
     return cabinet

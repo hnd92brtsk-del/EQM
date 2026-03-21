@@ -16,9 +16,10 @@ import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import { ColumnDef } from "@tanstack/react-table";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
+import { LOOKUP_QUERY_STALE_TIME } from "../api/queryDefaults";
 import { type ColumnMeta, DataTable, type DataTableFiltersState } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
@@ -26,6 +27,7 @@ import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } f
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
 
 type Assembly = {
@@ -54,6 +56,7 @@ export default function AssembliesPage() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const debouncedColumnFilters = useDebouncedValue(columnFilters, 250);
 
   const sortOptions = useMemo(
     () => [
@@ -66,7 +69,7 @@ export default function AssembliesPage() {
   );
 
   const assembliesQuery = useQuery({
-    queryKey: ["assemblies", page, pageSize, sort, columnFilters, showDeleted],
+    queryKey: ["assemblies", page, pageSize, sort, debouncedColumnFilters, showDeleted],
     queryFn: () =>
       listEntity<Assembly>("/assemblies", {
         page,
@@ -74,21 +77,23 @@ export default function AssembliesPage() {
         sort: sort || undefined,
         is_deleted: showDeleted ? true : false,
         filters: {
-          name: columnFilters.name || undefined,
-          name_alphabet: columnFilters.name_alphabet || undefined,
-          factory_number: columnFilters.factory_number || undefined,
-          nomenclature_number: columnFilters.nomenclature_number || undefined,
+          name: debouncedColumnFilters.name || undefined,
+          name_alphabet: debouncedColumnFilters.name_alphabet || undefined,
+          factory_number: debouncedColumnFilters.factory_number || undefined,
+          nomenclature_number: debouncedColumnFilters.nomenclature_number || undefined,
           location_id:
-            columnFilters.location_id && !Number.isNaN(Number(columnFilters.location_id))
-              ? Number(columnFilters.location_id)
+            debouncedColumnFilters.location_id && !Number.isNaN(Number(debouncedColumnFilters.location_id))
+              ? Number(debouncedColumnFilters.location_id)
               : undefined
         }
-      })
+      }),
+    placeholderData: keepPreviousData
   });
 
   const locationsTreeQuery = useQuery({
     queryKey: ["locations-tree-options", false],
-    queryFn: () => fetchLocationsTree(false)
+    queryFn: () => fetchLocationsTree(false),
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   useEffect(() => {

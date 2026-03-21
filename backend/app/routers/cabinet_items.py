@@ -19,30 +19,9 @@ from app.services.equipment_uniqueness import (
 from app.services.io_signals import ensure_io_signals_for_equipment_in_operation
 from app.services.ipam import build_cabinet_item_ipam_summary
 from app.schemas.ipam import CabinetItemIPAMSummaryOut
+from app.services.location_paths import attach_location_full_path
 
 router = APIRouter()
-
-
-def build_location_full_path(location_id: int | None, locations_map: dict[int, Location]) -> str | None:
-    if not location_id or location_id not in locations_map:
-        return None
-    parts: list[str] = []
-    current_id: int | None = location_id
-    seen: set[int] = set()
-    while current_id and current_id in locations_map and current_id not in seen:
-        location = locations_map[current_id]
-        parts.append(location.name)
-        seen.add(current_id)
-        current_id = location.parent_id
-    return " / ".join(reversed(parts))
-
-
-def attach_location_full_path(items: list[CabinetItem], db) -> None:
-    locations = db.scalars(select(Location)).all()
-    locations_map = {loc.id: loc for loc in locations}
-    for item in items:
-        location_id = item.cabinet.location_id if item.cabinet else None
-        item.location_full_path = build_location_full_path(location_id, locations_map)
 
 
 @router.get("/", response_model=Pagination[CabinetItemOut])
@@ -105,7 +84,11 @@ def list_cabinet_items(
             query = apply_sort(query, CabinetItem, sort)
 
     total, items = paginate(query, db, page, page_size)
-    attach_location_full_path(items, db)
+    attach_location_full_path(
+        items,
+        db=db,
+        location_getter=lambda item: item.cabinet.location_id if item.cabinet else None,
+    )
     return Pagination(items=items, page=page, page_size=page_size, total=total)
 
 
@@ -122,7 +105,11 @@ def get_cabinet_item(
     item = db.scalar(query)
     if not item:
         raise HTTPException(status_code=404, detail="Cabinet item not found")
-    attach_location_full_path([item], db)
+    attach_location_full_path(
+        [item],
+        db=db,
+        location_getter=lambda current_item: current_item.cabinet.location_id if current_item.cabinet else None,
+    )
     return item
 
 
@@ -191,7 +178,11 @@ def create_cabinet_item(
 
     db.commit()
     db.refresh(item)
-    attach_location_full_path([item], db)
+    attach_location_full_path(
+        [item],
+        db=db,
+        location_getter=lambda current_item: current_item.cabinet.location_id if current_item.cabinet else None,
+    )
     return item
 
 
@@ -228,7 +219,11 @@ def update_cabinet_item(
 
     db.commit()
     db.refresh(item)
-    attach_location_full_path([item], db)
+    attach_location_full_path(
+        [item],
+        db=db,
+        location_getter=lambda current_item: current_item.cabinet.location_id if current_item.cabinet else None,
+    )
     return item
 
 
@@ -298,5 +293,9 @@ def restore_cabinet_item(
 
     db.commit()
     db.refresh(item)
-    attach_location_full_path([item], db)
+    attach_location_full_path(
+        [item],
+        db=db,
+        location_getter=lambda current_item: current_item.cabinet.location_id if current_item.cabinet else None,
+    )
     return item

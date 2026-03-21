@@ -1,0 +1,3 @@
+export const DEFAULT_QUERY_STALE_TIME = 30_000;
+export const LOOKUP_QUERY_STALE_TIME = 2 * 60_000;
+export const DEFAULT_QUERY_GC_TIME = 10 * 60_000;

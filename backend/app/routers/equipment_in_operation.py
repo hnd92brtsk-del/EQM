@@ -14,31 +14,14 @@ from app.schemas.equipment_in_operation import (
     EquipmentInOperationLocationNode,
     EquipmentInOperationOut,
 )
+from app.services.location_paths import LocationContext, load_location_context
 
 router = APIRouter()
 
 
-def build_location_full_path(location_id: int | None, locations_map: dict[int, Location]) -> str | None:
-    if not location_id or location_id not in locations_map:
+def get_location_scope_ids(location_id: int | None, context: LocationContext) -> list[int] | None:
+    if not location_id or location_id not in context.locations_map:
         return None
-    parts: list[str] = []
-    current_id: int | None = location_id
-    seen: set[int] = set()
-    while current_id and current_id in locations_map and current_id not in seen:
-        location = locations_map[current_id]
-        parts.append(location.name)
-        seen.add(current_id)
-        current_id = location.parent_id
-    return " / ".join(reversed(parts))
-
-
-def get_location_scope_ids(location_id: int | None, locations_map: dict[int, Location]) -> list[int] | None:
-    if not location_id or location_id not in locations_map:
-        return None
-
-    children_by_parent: dict[int | None, list[int]] = {}
-    for location in locations_map.values():
-        children_by_parent.setdefault(location.parent_id, []).append(location.id)
 
     scope_ids: list[int] = []
     stack = [location_id]
@@ -49,7 +32,7 @@ def get_location_scope_ids(location_id: int | None, locations_map: dict[int, Loc
             continue
         seen.add(current_id)
         scope_ids.append(current_id)
-        stack.extend(children_by_parent.get(current_id, []))
+        stack.extend(context.children_by_parent.get(current_id, []))
 
     return scope_ids
 
@@ -240,19 +223,15 @@ def build_assembly_items_query(
     return query
 
 
-def load_locations_map(db) -> dict[int, Location]:
-    return {loc.id: loc for loc in db.scalars(select(Location)).all()}
-
-
 def build_location_tree_response(
     *,
-    locations_map: dict[int, Location],
+    context: LocationContext,
     containers: list[dict],
 ) -> list[EquipmentInOperationLocationNode]:
     node_map: dict[int, EquipmentInOperationLocationNode] = {}
 
-    for location in locations_map.values():
-        full_path = build_location_full_path(location.id, locations_map) or location.name
+    for location in context.locations_map.values():
+        full_path = context.full_path_by_id.get(location.id, location.name)
         node_map[location.id] = EquipmentInOperationLocationNode(
             location_id=location.id,
             location_name=location.name,
@@ -274,7 +253,7 @@ def build_location_tree_response(
             else:
                 node.active_containers_count += 1
             node.quantity_sum += int(container.get("quantity_sum") or 0)
-            current_location = locations_map.get(current_id)
+            current_location = context.locations_map.get(current_id)
             current_id = current_location.parent_id if current_location else None
 
         payload = dict(container)
@@ -285,7 +264,7 @@ def build_location_tree_response(
         node.containers.sort(key=lambda item: (item.container_name or "").lower())
 
     roots: list[EquipmentInOperationLocationNode] = []
-    for location in locations_map.values():
+    for location in context.locations_map.values():
         node = node_map[location.id]
         if (
             node.active_containers_count == 0
@@ -325,7 +304,7 @@ def build_location_tree_response(
     return sort_nodes(roots)
 
 
-def serialize_item_rows(rows, locations_map: dict[int, Location]) -> list[dict]:
+def serialize_item_rows(rows, context: LocationContext) -> list[dict]:
     items: list[dict] = []
     for row in rows:
         data = dict(row._mapping)
@@ -342,7 +321,7 @@ def serialize_item_rows(rows, locations_map: dict[int, Location]) -> list[dict]:
         else:
             data["equipment_type_datasheet_url"] = None
             data["equipment_type_datasheet_name"] = None
-        data["location_full_path"] = build_location_full_path(data.get("location_id"), locations_map)
+        data["location_full_path"] = context.full_path_by_id.get(data.get("location_id"))
         data.pop("location_id", None)
         data.pop("container_created_at", None)
         items.append(data)
@@ -403,7 +382,7 @@ def sort_container_rows(containers: list[dict], sort: str | None) -> list[dict]:
 def build_container_rows(
     *,
     db,
-    locations_map: dict[int, Location],
+    context: LocationContext,
     q: str | None,
     sort: str | None,
     is_deleted: bool | None,
@@ -418,7 +397,7 @@ def build_container_rows(
     updated_at_from: datetime | None,
     updated_at_to: datetime | None,
 ) -> list[dict]:
-    location_scope_ids = get_location_scope_ids(location_id, locations_map)
+    location_scope_ids = get_location_scope_ids(location_id, context)
 
     cabinet_rows = db.execute(
         build_cabinet_items_query(
@@ -474,7 +453,7 @@ def build_container_rows(
     cabinets = db.scalars(cabinets_query).all()
 
     for cabinet in cabinets:
-        location_full_path = build_location_full_path(cabinet.location_id, locations_map)
+        location_full_path = context.full_path_by_id.get(cabinet.location_id)
         matched_rows = cabinet_items_by_id.get(cabinet.id, [])
         include_cabinet = False
 
@@ -547,7 +526,7 @@ def build_container_rows(
                 "container_factory_number": assembly.factory_number,
                 "container_inventory_number": assembly.nomenclature_number,
                 "location_id": assembly.location_id,
-                "location_full_path": build_location_full_path(assembly.location_id, locations_map),
+                "location_full_path": context.full_path_by_id.get(assembly.location_id),
                 "container_is_deleted": assembly.is_deleted,
                 "is_empty": False,
                 "quantity_sum": sum(int(row.get("quantity") or 0) for row in rows),
@@ -584,10 +563,10 @@ def list_equipment_in_operation_containers(
     db=Depends(get_db),
     user: User = Depends(require_read_access()),
 ):
-    locations_map = load_locations_map(db)
+    context = load_location_context(db)
     containers = build_container_rows(
         db=db,
-        locations_map=locations_map,
+        context=context,
         q=q,
         sort=sort,
         is_deleted=is_deleted,
@@ -634,10 +613,10 @@ def get_equipment_in_operation_tree(
     db=Depends(get_db),
     user: User = Depends(require_read_access()),
 ):
-    locations_map = load_locations_map(db)
+    context = load_location_context(db)
     containers = build_container_rows(
         db=db,
-        locations_map=locations_map,
+        context=context,
         q=q,
         sort=sort,
         is_deleted=is_deleted,
@@ -652,7 +631,7 @@ def get_equipment_in_operation_tree(
         updated_at_from=updated_at_from,
         updated_at_to=updated_at_to,
     )
-    return build_location_tree_response(locations_map=locations_map, containers=containers)
+    return build_location_tree_response(context=context, containers=containers)
 
 
 @router.get("/", response_model=Pagination[EquipmentInOperationOut])
@@ -675,8 +654,8 @@ def list_equipment_in_operation(
     db=Depends(get_db),
     user: User = Depends(require_read_access()),
 ):
-    locations_map = load_locations_map(db)
-    location_scope_ids = get_location_scope_ids(location_id, locations_map)
+    context = load_location_context(db)
+    location_scope_ids = get_location_scope_ids(location_id, context)
 
     cabinet_query = build_cabinet_items_query(
         q=q,
@@ -726,6 +705,6 @@ def list_equipment_in_operation(
     query = query.offset((page - 1) * page_size).limit(page_size)
 
     rows = db.execute(query).all()
-    items = serialize_item_rows(rows, locations_map)
+    items = serialize_item_rows(rows, context)
 
     return Pagination(items=items, page=page, page_size=page_size, total=total)

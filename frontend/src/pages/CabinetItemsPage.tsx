@@ -38,6 +38,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
+import { LOOKUP_QUERY_STALE_TIME } from "../api/queryDefaults";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { apiFetch } from "../api/client";
@@ -47,6 +48,7 @@ import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
 import { ProtectedImage } from "../components/ProtectedImage";
 import { ProtectedDownloadLink } from "../components/ProtectedDownloadLink";
 import { getCabinetItemIPAMSummary } from "../features/ipam/api/ipam";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { SearchableSelectField } from "../components/SearchableSelectField";
 
 const InfoRow = ({ label, value }: { label: string; value?: ReactNode }) => {
@@ -1133,6 +1135,7 @@ export default function CabinetItemsPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editItem, setEditItem] = useState<EquipmentInOperationItem | null>(null);
   const [editQuantity, setEditQuantity] = useState(0);
+  const debouncedQuery = useDebouncedValue(q, 300);
 
   const sortOptions = useMemo(
     () => [
@@ -1158,19 +1161,19 @@ export default function CabinetItemsPage() {
 
   const detailFilters = useMemo(
     () => ({
-      q,
+      q: debouncedQuery,
       showDeleted,
       equipmentFilter,
       manufacturerFilter,
       locationFilter
     }),
-    [equipmentFilter, locationFilter, manufacturerFilter, q, showDeleted]
+    [debouncedQuery, equipmentFilter, locationFilter, manufacturerFilter, showDeleted]
   );
 
   const containersQuery = useQuery({
     queryKey: [
       "equipment-in-operation-tree",
-      q,
+      debouncedQuery,
       sort,
       containerFilter,
       equipmentFilter,
@@ -1180,7 +1183,7 @@ export default function CabinetItemsPage() {
     ],
     queryFn: () =>
       fetchEquipmentInOperationTree({
-        q: q || undefined,
+        q: debouncedQuery || undefined,
         sort: sort || undefined,
         include_deleted: showDeleted,
         cabinet_id: containerType === "cabinet" ? containerId : undefined,
@@ -1194,27 +1197,32 @@ export default function CabinetItemsPage() {
 
   const cabinetsQuery = useQuery({
     queryKey: ["cabinets-options"],
-    queryFn: () => listEntity<Cabinet>("/cabinets", { page: 1, page_size: 200 })
+    queryFn: () => listEntity<Cabinet>("/cabinets", { page: 1, page_size: 200 }),
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const assembliesQuery = useQuery({
     queryKey: ["assemblies-options"],
-    queryFn: () => listEntity<Assembly>("/assemblies", { page: 1, page_size: 200 })
+    queryFn: () => listEntity<Assembly>("/assemblies", { page: 1, page_size: 200 }),
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const equipmentTypesQuery = useQuery({
     queryKey: ["equipment-types-options"],
-    queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: 200 })
+    queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: 200 }),
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const manufacturersQuery = useQuery({
     queryKey: ["manufacturers-options"],
-    queryFn: () => listEntity<Manufacturer>("/manufacturers", { page: 1, page_size: 200 })
+    queryFn: () => listEntity<Manufacturer>("/manufacturers", { page: 1, page_size: 200 }),
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const locationsTreeQuery = useQuery({
     queryKey: ["locations-tree-options", false],
-    queryFn: () => fetchLocationsTree(false)
+    queryFn: () => fetchLocationsTree(false),
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const { options: locationOptions } = useMemo(

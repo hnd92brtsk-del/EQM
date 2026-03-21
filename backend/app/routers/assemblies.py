@@ -11,29 +11,9 @@ from app.models.core import Location
 from app.models.security import User
 from app.schemas.common import Pagination
 from app.schemas.assemblies import AssemblyOut, AssemblyCreate, AssemblyUpdate
+from app.services.location_paths import attach_location_full_path
 
 router = APIRouter()
-
-
-def build_location_full_path(location_id: int | None, locations_map: dict[int, Location]) -> str | None:
-    if not location_id or location_id not in locations_map:
-        return None
-    parts: list[str] = []
-    current_id: int | None = location_id
-    seen: set[int] = set()
-    while current_id and current_id in locations_map and current_id not in seen:
-        location = locations_map[current_id]
-        parts.append(location.name)
-        seen.add(current_id)
-        current_id = location.parent_id
-    return " / ".join(reversed(parts))
-
-
-def attach_location_full_path(items: list[Assembly], db) -> None:
-    locations = db.scalars(select(Location)).all()
-    locations_map = {loc.id: loc for loc in locations}
-    for item in items:
-        item.location_full_path = build_location_full_path(item.location_id, locations_map)
 
 
 @router.get("/", response_model=Pagination[AssemblyOut])
@@ -74,7 +54,7 @@ def list_assemblies(
     query = apply_sort(query, Assembly, sort)
 
     total, items = paginate(query, db, page, page_size)
-    attach_location_full_path(items, db)
+    attach_location_full_path(items, db=db, location_getter=lambda item: item.location_id)
     return Pagination(items=items, page=page, page_size=page_size, total=total)
 
 
@@ -91,7 +71,7 @@ def get_assembly(
     assembly = db.scalar(query)
     if not assembly:
         raise HTTPException(status_code=404, detail="Assembly not found")
-    attach_location_full_path([assembly], db)
+    attach_location_full_path([assembly], db=db, location_getter=lambda item: item.location_id)
     return assembly
 
 
@@ -130,7 +110,7 @@ def create_assembly(
 
     db.commit()
     db.refresh(assembly)
-    attach_location_full_path([assembly], db)
+    attach_location_full_path([assembly], db=db, location_getter=lambda item: item.location_id)
     return assembly
 
 
@@ -177,7 +157,7 @@ def update_assembly(
 
     db.commit()
     db.refresh(assembly)
-    attach_location_full_path([assembly], db)
+    attach_location_full_path([assembly], db=db, location_getter=lambda item: item.location_id)
     return assembly
 
 
@@ -247,5 +227,5 @@ def restore_assembly(
 
     db.commit()
     db.refresh(assembly)
-    attach_location_full_path([assembly], db)
+    attach_location_full_path([assembly], db=db, location_getter=lambda item: item.location_id)
     return assembly

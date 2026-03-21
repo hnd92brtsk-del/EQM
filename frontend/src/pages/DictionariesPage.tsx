@@ -16,6 +16,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
+import { LOOKUP_QUERY_STALE_TIME } from "../api/queryDefaults";
 import { DataTable } from "../components/DataTable";
 import { EntityDialog, type DialogState } from "../components/EntityDialog";
 import { createEntity, listEntity, updateEntity } from "../api/entities";
@@ -75,35 +76,53 @@ export default function DictionariesPage() {
   const [tab, setTab] = useState(0);
   const [showDeleted, setShowDeleted] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
+  const manufacturersEnabled = tab === 0 || tab === 2;
+  const locationsEnabled = tab === 1;
+  const locationTreeEnabled = tab === 1 || tab === 3 || tab === 4;
+  const equipmentTypesEnabled = tab === 2;
+  const warehousesEnabled = tab === 3;
+  const cabinetsEnabled = tab === 4;
 
   const manufacturersQuery = useQuery({
     queryKey: ["manufacturers", showDeleted],
-    queryFn: () => listEntity<Manufacturer>("/manufacturers", { page: 1, page_size: PAGE_SIZE, include_deleted: showDeleted })
+    queryFn: () => listEntity<Manufacturer>("/manufacturers", { page: 1, page_size: PAGE_SIZE, include_deleted: showDeleted }),
+    enabled: manufacturersEnabled,
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const locationsQuery = useQuery({
     queryKey: ["locations", showDeleted],
-    queryFn: () => listEntity<Location>("/locations", { page: 1, page_size: PAGE_SIZE, include_deleted: showDeleted })
+    queryFn: () => listEntity<Location>("/locations", { page: 1, page_size: PAGE_SIZE, include_deleted: showDeleted }),
+    enabled: locationsEnabled,
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const locationsTreeQuery = useQuery({
     queryKey: ["locations-tree-options", showDeleted],
-    queryFn: () => fetchLocationsTree(showDeleted)
+    queryFn: () => fetchLocationsTree(showDeleted),
+    enabled: locationTreeEnabled,
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const equipmentTypesQuery = useQuery({
     queryKey: ["equipment-types", showDeleted],
-    queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: PAGE_SIZE, include_deleted: showDeleted })
+    queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: PAGE_SIZE, include_deleted: showDeleted }),
+    enabled: equipmentTypesEnabled,
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const warehousesQuery = useQuery({
     queryKey: ["warehouses", showDeleted],
-    queryFn: () => listEntity<Warehouse>("/warehouses", { page: 1, page_size: PAGE_SIZE, include_deleted: showDeleted })
+    queryFn: () => listEntity<Warehouse>("/warehouses", { page: 1, page_size: PAGE_SIZE, include_deleted: showDeleted }),
+    enabled: warehousesEnabled,
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const cabinetsQuery = useQuery({
     queryKey: ["cabinets", showDeleted],
-    queryFn: () => listEntity<Cabinet>("/cabinets", { page: 1, page_size: PAGE_SIZE, include_deleted: showDeleted })
+    queryFn: () => listEntity<Cabinet>("/cabinets", { page: 1, page_size: PAGE_SIZE, include_deleted: showDeleted }),
+    enabled: cabinetsEnabled,
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const refresh = () => {

@@ -20,9 +20,10 @@ import TableChartRoundedIcon from "@mui/icons-material/TableChartRounded";
 import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
 import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import { ColumnDef } from "@tanstack/react-table";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
+import { LOOKUP_QUERY_STALE_TIME } from "../api/queryDefaults";
 import { DataTable } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
@@ -30,6 +31,7 @@ import { AppButton } from "../components/ui/AppButton";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
 import { ProtectedImage } from "../components/ProtectedImage";
 import { ProtectedDownloadLink } from "../components/ProtectedDownloadLink";
@@ -103,6 +105,8 @@ export default function WarehouseItemsPage() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [movementDialogMode, setMovementDialogMode] = useState<"warehouse" | "cabinet" | null>(null);
+  const debouncedQuery = useDebouncedValue(q, 300);
 
   const sortOptions = useMemo(
     () => [
@@ -127,7 +131,7 @@ export default function WarehouseItemsPage() {
       "warehouse-items",
       page,
       pageSize,
-      q,
+      debouncedQuery,
       sort,
       warehouseFilter,
       locationFilter,
@@ -142,7 +146,7 @@ export default function WarehouseItemsPage() {
       listEntity<WarehouseItem>("/warehouse-items", {
         page,
         page_size: pageSize,
-        q: q || undefined,
+        q: debouncedQuery || undefined,
         sort: sort || undefined,
         filters: {
           warehouse_id: warehouseFilter || undefined,
@@ -154,17 +158,20 @@ export default function WarehouseItemsPage() {
           unit_price_rub_max: priceMax ? Number(priceMax) : undefined
         },
         is_deleted: showDeleted ? true : false
-      })
+      }),
+    placeholderData: keepPreviousData
   });
 
   const warehousesQuery = useQuery({
     queryKey: ["warehouses-options"],
-    queryFn: () => listEntity<Warehouse>("/warehouses", { page: 1, page_size: 200 })
+    queryFn: () => listEntity<Warehouse>("/warehouses", { page: 1, page_size: 200 }),
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const locationsTreeQuery = useQuery({
     queryKey: ["locations-tree-options", false],
-    queryFn: () => fetchLocationsTree(false)
+    queryFn: () => fetchLocationsTree(false),
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const { options: locationOptions } = useMemo(
@@ -174,27 +181,34 @@ export default function WarehouseItemsPage() {
 
   const equipmentTypesQuery = useQuery({
     queryKey: ["equipment-types-options"],
-    queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: 200 })
+    queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: 200 }),
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const equipmentCategoriesQuery = useQuery({
     queryKey: ["equipment-categories-options"],
-    queryFn: () => listEntity<EquipmentCategory>("/equipment-categories", { page: 1, page_size: 200 })
+    queryFn: () => listEntity<EquipmentCategory>("/equipment-categories", { page: 1, page_size: 200 }),
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const manufacturersQuery = useQuery({
     queryKey: ["manufacturers-options"],
-    queryFn: () => listEntity<Manufacturer>("/manufacturers", { page: 1, page_size: 200 })
+    queryFn: () => listEntity<Manufacturer>("/manufacturers", { page: 1, page_size: 200 }),
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const cabinetsQuery = useQuery({
     queryKey: ["cabinets-options"],
-    queryFn: () => listEntity<Cabinet>("/cabinets", { page: 1, page_size: 200 })
+    queryFn: () => listEntity<Cabinet>("/cabinets", { page: 1, page_size: 200 }),
+    enabled: movementDialogMode === "cabinet",
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   const assembliesQuery = useQuery({
     queryKey: ["assemblies-options"],
-    queryFn: () => listEntity<Assembly>("/assemblies", { page: 1, page_size: 200 })
+    queryFn: () => listEntity<Assembly>("/assemblies", { page: 1, page_size: 200 }),
+    enabled: movementDialogMode === "cabinet",
+    staleTime: LOOKUP_QUERY_STALE_TIME
   });
 
   useEffect(() => {
@@ -282,6 +296,7 @@ export default function WarehouseItemsPage() {
   };
 
   const openToWarehouseDialog = () => {
+    setMovementDialogMode("warehouse");
     setDialog({
       open: true,
       title: t("pagesUi.warehouseItems.dialogs.toWarehouseTitle"),
@@ -340,6 +355,7 @@ export default function WarehouseItemsPage() {
   };
 
   const openToCabinetDialog = () => {
+    setMovementDialogMode("cabinet");
     setDialog({
       open: true,
       title: t("pagesUi.warehouseItems.dialogs.toCabinetTitle"),
@@ -775,7 +791,15 @@ export default function WarehouseItemsPage() {
           />
         </CardContent>
       </Card>
-      {dialog && <EntityDialog state={dialog} onClose={() => setDialog(null)} />}
+      {dialog && (
+        <EntityDialog
+          state={dialog}
+          onClose={() => {
+            setDialog(null);
+            setMovementDialogMode(null);
+          }}
+        />
+      )}
       <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage(null)} />
     </Box>
   );
