@@ -25,6 +25,7 @@ from app.models.attachments import Attachment
 from app.models.cabinet_files import CabinetFile
 from app.models.pid import PidProcess
 from app.models.ipam import Vlan, Subnet, EquipmentNetworkInterface, IPAddress, IPAddressAuditLog
+from app.models.network_topology import NetworkTopologyDocument
 
 __all__ = [
     "User",
@@ -61,4 +62,5 @@ __all__ = [
     "EquipmentNetworkInterface",
     "IPAddress",
     "IPAddressAuditLog",
+    "NetworkTopologyDocument",
 ]

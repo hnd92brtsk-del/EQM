@@ -27,6 +27,7 @@ from app.routers import personnel
 from app.routers import chat
 from app.routers import pid
 from app.routers import ipam
+from app.routers import network_topologies
 
 __all__ = [
     "auth",
@@ -57,4 +58,5 @@ __all__ = [
     "chat",
     "pid",
     "ipam",
+    "network_topologies",
 ]

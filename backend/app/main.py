@@ -33,6 +33,7 @@ from app.routers import (
     equipment_in_operation,
     pid,
     ipam,
+    network_topologies,
 )
 
 settings = get_settings()
@@ -83,6 +84,7 @@ app.include_router(chat.router, prefix="/api/v1", tags=["chat"])
 app.include_router(personnel.router, prefix="/api/v1/personnel", tags=["personnel"])
 app.include_router(pid.router, prefix="/api/v1/pid", tags=["pid"])
 app.include_router(ipam.router, prefix="/api/v1/ipam", tags=["ipam"])
+app.include_router(network_topologies.router, prefix="/api/v1/network-topologies", tags=["network-topologies"])
 
 pid_images_dir = BASE_DIR / "app" / "pid_storage" / "images"
 pid_images_dir.mkdir(parents=True, exist_ok=True)

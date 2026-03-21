@@ -28,6 +28,7 @@ const SessionsPage = lazy(() => import("./pages/SessionsPage"));
 const AuditLogsPage = lazy(() => import("./pages/AuditLogsPage"));
 const DclPage = lazy(() => import("./pages/DclPage"));
 const SerialMapPage = lazy(() => import("./pages/SerialMapPage"));
+const NetworkMapPage = lazy(() => import("./pages/NetworkMapPage"));
 const CabinetCompositionPage = lazy(() => import("./pages/CabinetCompositionPage"));
 const HelpPage = lazy(() => import("./pages/HelpPage"));
 const PersonnelPage = lazy(() => import("./pages/PersonnelPage"));
@@ -96,6 +97,7 @@ export default function App() {
                   <Route path="/ipam" element={<IPAMPage />} />
                   <Route path="/engineering/dcl" element={<DclPage />} />
                   <Route path="/engineering/serial-map" element={<SerialMapPage />} />
+                  <Route path="/engineering/network-map" element={<NetworkMapPage />} />
                   <Route path="/help" element={<HelpPage />} />
                   <Route path="/personnel" element={<PersonnelPage />} />
                   <Route path="/personnel/:id" element={<PersonnelDetailsPage />} />

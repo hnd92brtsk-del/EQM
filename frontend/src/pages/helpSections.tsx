@@ -82,6 +82,18 @@ export const getHelpSections = (t: TFunction): HelpSection[] => [
     )
   },
   {
+    id: "network-map",
+    title: `${t("menu.engineering")} / ${t("menu.network_map")}`,
+    content: (
+      <Box sx={{ display: "grid", gap: 1 }}>
+        <Typography variant="body1">{t("help.networkMap")}</Typography>
+        <Typography variant="body2" color="text.secondary">
+          {t("help.networkMapSecondary")}
+        </Typography>
+      </Box>
+    )
+  },
+  {
     id: "main-equipment",
     title: `${t("menu.dictionaries")} / ${t("menu.main_equipment")}`,
     content: (

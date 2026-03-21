@@ -91,7 +91,163 @@
                   "auditLogs":  "Audit Logs",
                   "sessions":  "Sessions",
                   "personnel_details":  "Personnel details",
-                  "helpTableOfContents":  "Table of contents"
+                  "helpTableOfContents":  "Table of contents",
+                  "networkMap":  {
+                                     "title":  "Network topology",
+                                     "defaultName":  "Network topology",
+                                     "subtitle":  "Multi-select, import/export, custom visuals, path tracing, and network-aware editing.",
+                                     "documents":  {
+                                                       "newDocument":  "New topology",
+                                                       "title":  "Documents",
+                                                       "search":  "Search documents",
+                                                       "active":  "active",
+                                                       "noDescription":  "No description",
+                                                       "empty":  "No topology documents found."
+                                                   },
+                                     "toolbar":  {
+                                                     "addDevice":  "Add Device",
+                                                     "duplicate":  "Duplicate",
+                                                     "autoLayout":  "Auto-layout",
+                                                     "fitView":  "Fit view",
+                                                     "searchPlaceholder":  "Search by name, model, IP, VLAN, or zone",
+                                                     "exportJson":  "Export JSON"
+                                                 },
+                                     "states":  {
+                                                    "saving":  "Saving...",
+                                                    "saved":  "Saved",
+                                                    "error":  "Save error",
+                                                    "unsaved":  "Unsaved"
+                                                },
+                                     "stats":  {
+                                                   "devices":  "Devices",
+                                                   "links":  "Links",
+                                                   "interfaces":  "Interfaces",
+                                                   "routes":  "Routes",
+                                                   "warnings":  "Warnings",
+                                                   "critical":  "Critical",
+                                                   "zoom":  "Zoom",
+                                                   "selection":  "Selection"
+                                               },
+                                     "canvas":  {
+                                                    "title":  "Topology Canvas",
+                                                    "subtitle":  "{{visibleNodes}} visible nodes, {{visibleLinks}} visible links",
+                                                    "hints":  {
+                                                                    "pan":  "Pan: wheel, trackpad, or drag the canvas",
+                                                                    "select":  "Selection: click, Ctrl/Cmd multi-select, or drag a frame"
+                                                                }
+                                                },
+                                     "inventory":  {
+                                                       "title":  "Inventory",
+                                                       "subtitle":  "Installed network-capable equipment from EQM/IPAM",
+                                                       "search":  "Search inventory",
+                                                       "empty":  "No matching inventory items."
+                                                   },
+                                     "pathTracing":  {
+                                                          "title":  "Path tracing",
+                                                          "start":  "Select start",
+                                                          "end":  "Select destination",
+                                                          "useSelection":  "Use selection",
+                                                          "clear":  "Clear",
+                                                          "placeholder":  "Select two nodes to highlight the computed path.",
+                                                          "noPath":  "No path found between selected nodes.",
+                                                          "hops":  "{{count}} hops"
+                                                      },
+                                     "properties":  {
+                                                        "title":  "Properties",
+                                                        "empty":  "Select a device or link on the canvas to inspect and edit its parameters.",
+                                                        "multiSelection":  "{{count}} nodes selected",
+                                                        "interfaces":  "Interfaces",
+                                                        "routes":  "Routes"
+                                                    },
+                                     "policies":  {
+                                                      "title":  "Routing & Policies",
+                                                      "empty":  "No policies have been added yet."
+                                                  },
+                                     "validation":  {
+                                                        "title":  "Topology validation",
+                                                        "clear":  "No validation issues detected."
+                                                    },
+                                     "context":  {
+                                                     "centerNode":  "Center on device",
+                                                     "setPathStart":  "Set as path start",
+                                                     "setPathEnd":  "Set as path end",
+                                                     "duplicateNode":  "Duplicate device",
+                                                     "deleteNode":  "Delete device",
+                                                     "toggleEdgeHealth":  "Toggle link health",
+                                                     "deleteEdge":  "Delete link"
+                                                 },
+                                     "fields":  {
+                                                    "description":  "Topology description",
+                                                    "ip":  "IP address",
+                                                    "vlan":  "VLAN / segment",
+                                                    "zone":  "Zone",
+                                                    "asn":  "ASN",
+                                                    "model":  "Model",
+                                                    "os":  "OS",
+                                                    "label":  "Label",
+                                                    "bandwidth":  "Bandwidth",
+                                                    "latency":  "Latency",
+                                                    "network":  "Network",
+                                                    "type":  "Type",
+                                                    "target":  "Target",
+                                                    "interfaceName":  "Interface name",
+                                                    "prefix":  "Prefix",
+                                                    "nextHop":  "Next hop",
+                                                    "metric":  "Metric"
+                                                },
+                                     "health":  {
+                                                    "healthy":  "healthy",
+                                                    "warning":  "warning",
+                                                    "critical":  "critical"
+                                                },
+                                     "interfaceStatus":  {
+                                                             "up":  "up",
+                                                             "down":  "down",
+                                                             "degraded":  "degraded"
+                                                         },
+                                     "policyState":  {
+                                                         "active":  "active",
+                                                         "triggered":  "triggered",
+                                                         "disabled":  "disabled"
+                                                     },
+                                     "layers":  {
+                                                    "core":  "core",
+                                                    "distribution":  "distribution",
+                                                    "access":  "access",
+                                                    "security":  "security",
+                                                    "datacenter":  "datacenter",
+                                                    "wan":  "wan",
+                                                    "edge":  "edge"
+                                                },
+                                     "edgeStyles":  {
+                                                        "ethernet":  "Ethernet",
+                                                        "fiber":  "Fiber",
+                                                        "vpn":  "VPN",
+                                                        "wireless":  "Wireless",
+                                                        "mpls":  "MPLS",
+                                                        "trunk":  "Trunk"
+                                                    },
+                                     "nodeTypes":  {
+                                                       "router":  "Router",
+                                                       "core-switch":  "Core switch",
+                                                       "switch":  "Switch",
+                                                       "firewall":  "Firewall",
+                                                       "load-balancer":  "Load balancer",
+                                                       "vpn-gateway":  "VPN gateway",
+                                                       "wireless-controller":  "Wireless controller",
+                                                       "access-point":  "Access point",
+                                                       "server":  "Server",
+                                                       "vm-host":  "VM host",
+                                                       "storage":  "Storage",
+                                                       "nas":  "NAS",
+                                                       "cloud":  "Cloud",
+                                                       "internet":  "Internet",
+                                                       "workstation":  "Workstation",
+                                                       "printer":  "Printer",
+                                                       "camera":  "Camera",
+                                                       "iot-gateway":  "IoT gateway"
+                                                   }
+                                 }
               },
     "dashboard":  {
                       "kpis":  {
@@ -150,6 +306,7 @@
                  "io_signals":  "IO Signals",
                  "dcl":  "DCL",
                  "serial_map":  "Serial Protocol Map",
+                 "network_map":  "Network topology",
                  "dictionaries":  "Dictionaries",
                  "warehouses":  "Warehouses",
                  "manufacturers":  "Manufacturers",
@@ -191,6 +348,8 @@
                  "cabinetComposition":  "Cabinet composition is a dedicated view for the cabinet structure and items. It is a focused area for cabinet details and composition-related actions.",
                  "engineering":  "Engineering includes IO Signals and DCL. These screens manage signals, connections, and related definitions using add/edit/delete/restore actions.",
                  "engineeringSecondary":  "I/O Signals now includes Data type, Equipment, and Connection point fields. Data types and field equipment are selected from dictionary trees, and Measurement type is no longer used.",
+                 "networkMap":  "Network Topology is a graphical React Flow editor for building and reviewing the network landscape with inventory-backed nodes, custom links, validation, and path tracing.",
+                 "networkMapSecondary":  "The screen supports read-only and edit modes based on role, loads installed network-capable equipment from EQM/IPAM, and stores the topology document on the server.",
                  "main_equipment":  "The Main equipment dictionary is a hierarchical tree with unlimited depth. Node level is calculated automatically from the selected parent.",
                  "field_equipments":  "The Field equipment dictionary is a hierarchical tree. It supports creating root and child nodes, editing, soft delete, and restore.",
                  "data_types":  "The Data types dictionary is a tree. You can create root and child nodes, edit name, parent, and tooltip. Tooltip is shown on hover over the node name and may be empty.",
