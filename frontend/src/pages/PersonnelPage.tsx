@@ -29,6 +29,7 @@ import {
   Personnel,
   createPersonnel,
   deletePersonnel,
+  listPersonnelScheduleTemplates,
   listPersonnel,
   restorePersonnel,
   updatePersonnel
@@ -89,6 +90,11 @@ export default function PersonnelPage() {
     queryFn: () => listEntity<UserOption>("/users", { page: 1, page_size: 200, include_deleted: false })
   });
 
+  const scheduleTemplatesQuery = useQuery({
+    queryKey: ["personnel-schedule-templates-options"],
+    queryFn: () => listPersonnelScheduleTemplates()
+  });
+
   useEffect(() => {
     if (personnelQuery.error) {
       setErrorMessage(
@@ -103,6 +109,11 @@ export default function PersonnelPage() {
     () =>
       usersQuery.data?.items.map((item) => ({ label: item.username, value: item.id })) || [],
     [usersQuery.data?.items]
+  );
+
+  const scheduleTemplateOptions = useMemo(
+    () => scheduleTemplatesQuery.data?.map((item) => ({ label: item.label, value: item.id })) || [],
+    [scheduleTemplatesQuery.data]
   );
 
   const refresh = () => {
@@ -198,6 +209,12 @@ export default function PersonnelPage() {
                       label: t("pagesUi.personnel.fields.personnelNumber"),
                       type: "text"
                     },
+                    {
+                      name: "schedule_template_id",
+                      label: t("pagesUi.personnel.fields.scheduleTemplate"),
+                      type: "select",
+                      options: scheduleTemplateOptions
+                    },
                     { name: "user_id", label: t("common.fields.login"), type: "select", options: userOptions }
                   ],
                   values: row.original,
@@ -210,6 +227,7 @@ export default function PersonnelPage() {
                         middle_name: values.middle_name || null,
                         position: values.position,
                         personnel_number: values.personnel_number || null,
+                        schedule_template_id: values.schedule_template_id || null,
                         user_id: values.user_id || null
                       }
                     });
@@ -238,7 +256,7 @@ export default function PersonnelPage() {
     }
 
     return base;
-  }, [canWrite, deleteMutation, navigate, restoreMutation, t, updateMutation, userOptions]);
+  }, [canWrite, deleteMutation, navigate, restoreMutation, scheduleTemplateOptions, t, updateMutation, userOptions]);
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
@@ -315,6 +333,9 @@ export default function PersonnelPage() {
               />
             )}
             <Box sx={{ flexGrow: 1 }} />
+            <AppButton variant="outlined" onClick={() => navigate("/personnel/schedule")}>
+              {t("yearlySchedule.actions.openPlanner")}
+            </AppButton>
             {canWrite && (
               <AppButton
                 variant="contained"
@@ -333,6 +354,12 @@ export default function PersonnelPage() {
                         label: t("pagesUi.personnel.fields.personnelNumber"),
                         type: "text"
                       },
+                      {
+                        name: "schedule_template_id",
+                        label: t("pagesUi.personnel.fields.scheduleTemplate"),
+                        type: "select",
+                        options: scheduleTemplateOptions
+                      },
                       { name: "user_id", label: t("common.fields.login"), type: "select", options: userOptions }
                     ],
                     values: {
@@ -341,6 +368,7 @@ export default function PersonnelPage() {
                       middle_name: "",
                       position: "",
                       personnel_number: "",
+                      schedule_template_id: "",
                       user_id: ""
                     },
                     onSave: (values) => {
@@ -350,6 +378,7 @@ export default function PersonnelPage() {
                         middle_name: values.middle_name || null,
                         position: values.position,
                         personnel_number: values.personnel_number || null,
+                        schedule_template_id: values.schedule_template_id || null,
                         user_id: values.user_id || null
                       });
                       setDialog(null);

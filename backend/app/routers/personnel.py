@@ -1,10 +1,11 @@
-from datetime import datetime
+from calendar import monthrange
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from fastapi.responses import FileResponse
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import selectinload
 
 from app.core.config import get_settings
@@ -12,20 +13,39 @@ from app.core.dependencies import get_db, require_read_access, require_admin
 from app.core.pagination import paginate
 from app.core.query import apply_search, apply_sort, apply_date_filters
 from app.core.audit import add_audit_log, model_to_dict
-from app.models.core import Personnel, PersonnelCompetency, PersonnelTraining
+from app.models.core import (
+    Personnel,
+    PersonnelCompetency,
+    PersonnelScheduleTemplate,
+    PersonnelTraining,
+    PersonnelYearlyScheduleAssignment,
+    PersonnelYearlyScheduleEvent,
+)
 from app.models.attachments import Attachment
 from app.models.security import User
 from app.schemas.common import Pagination
 from app.schemas.personnel import (
+    DeleteYearlyScheduleEventRequest,
+    MonthFillYearlyScheduleRequest,
     PersonnelOut,
     PersonnelCreate,
     PersonnelUpdate,
     PersonnelCompetencyCreate,
     PersonnelCompetencyUpdate,
     PersonnelCompetencyOut,
+    PersonnelScheduleTemplateOut,
     PersonnelTrainingCreate,
     PersonnelTrainingUpdate,
     PersonnelTrainingOut,
+    PersonnelYearlyScheduleAssignmentOut,
+    PersonnelYearlyScheduleEventOut,
+    PersonnelYearlyScheduleResponse,
+    SCHEDULE_STATUSES,
+    UpdateYearlyScheduleStatusesRequest,
+    UpsertYearlyScheduleEventRequest,
+    YearlyScheduleEmployeeOut,
+    YearlyScheduleEmployeeSummary,
+    YearlyScheduleSummaryResponse,
 )
 
 router = APIRouter()
@@ -41,13 +61,352 @@ ALLOWED_ATTACHMENT_TYPES = {
 
 
 def ensure_personnel(db, person_id: int, include_deleted: bool = False) -> Personnel:
-    query = select(Personnel).where(Personnel.id == person_id)
-    if not include_deleted:
-        query = query.where(Personnel.is_deleted == False)
-    personnel = db.scalar(query)
-    if not personnel:
+    personnel = db.scalar(select(Personnel).where(Personnel.id == person_id))
+    if not personnel or (not include_deleted and personnel.is_deleted):
         raise HTTPException(status_code=404, detail="Personnel not found")
     return personnel
+
+
+def ensure_schedule_template(db, schedule_template_id: int | None) -> PersonnelScheduleTemplate | None:
+    if schedule_template_id is None:
+        return None
+    template = db.scalar(select(PersonnelScheduleTemplate).where(PersonnelScheduleTemplate.id == schedule_template_id))
+    if not template or template.is_deleted:
+        raise HTTPException(status_code=404, detail="Schedule template not found")
+    return template
+
+
+def validate_schedule_status(value: str) -> str:
+    if value not in SCHEDULE_STATUSES:
+        raise HTTPException(status_code=422, detail="Unsupported schedule status")
+    return value
+
+
+def ensure_year_matches(work_date: date, year: int) -> None:
+    if work_date.year != year:
+        raise HTTPException(status_code=422, detail="Date is outside the requested year")
+
+
+def build_full_name(personnel: Personnel) -> str:
+    return " ".join(
+        part for part in [personnel.last_name, personnel.first_name, personnel.middle_name] if part
+    )
+
+
+def empty_status_counters() -> dict[str, int]:
+    return {status_code: 0 for status_code in SCHEDULE_STATUSES}
+
+
+def accumulate_summary(
+    rows: list[tuple[int, int, str]],
+) -> tuple[dict[str, int], dict[str, YearlyScheduleEmployeeSummary]]:
+    global_summary = empty_status_counters()
+    employees: dict[str, YearlyScheduleEmployeeSummary] = {}
+
+    for personnel_id, month, status_code in rows:
+        if status_code not in global_summary:
+            continue
+        global_summary[status_code] += 1
+        employee_key = str(personnel_id)
+        employee_summary = employees.setdefault(
+            employee_key,
+            YearlyScheduleEmployeeSummary(year=empty_status_counters(), months={}),
+        )
+        employee_summary.year[status_code] += 1
+        month_key = str(month - 1)
+        month_summary = employee_summary.months.setdefault(month_key, empty_status_counters())
+        month_summary[status_code] += 1
+
+    return global_summary, employees
+
+
+@router.get("/schedule-templates", response_model=list[PersonnelScheduleTemplateOut])
+def list_schedule_templates(
+    include_deleted: bool = False,
+    db=Depends(get_db),
+    user: User = Depends(require_read_access()),
+):
+    query = select(PersonnelScheduleTemplate)
+    if not include_deleted:
+        query = query.where(PersonnelScheduleTemplate.is_deleted == False)
+    return db.scalars(query.order_by(PersonnelScheduleTemplate.label)).all()
+
+
+@router.get("/schedules/yearly", response_model=PersonnelYearlyScheduleResponse)
+def get_yearly_schedule(
+    year: int,
+    include_deleted: bool = False,
+    db=Depends(get_db),
+    user: User = Depends(require_read_access()),
+):
+    personnel_query = (
+        select(Personnel)
+        .options(selectinload(Personnel.schedule_template))
+        .order_by(Personnel.last_name, Personnel.first_name, Personnel.middle_name)
+    )
+    if not include_deleted:
+        personnel_query = personnel_query.where(Personnel.is_deleted == False)
+    personnel_items = db.scalars(personnel_query).all()
+
+    assignments_query = select(PersonnelYearlyScheduleAssignment).where(
+        PersonnelYearlyScheduleAssignment.year == year
+    )
+    events_query = select(PersonnelYearlyScheduleEvent).where(PersonnelYearlyScheduleEvent.year == year)
+    if not include_deleted:
+        assignments_query = assignments_query.where(PersonnelYearlyScheduleAssignment.is_deleted == False)
+        events_query = events_query.where(PersonnelYearlyScheduleEvent.is_deleted == False)
+
+    assignments = db.scalars(assignments_query.order_by(PersonnelYearlyScheduleAssignment.work_date)).all()
+    events = db.scalars(events_query.order_by(PersonnelYearlyScheduleEvent.work_date)).all()
+
+    return PersonnelYearlyScheduleResponse(
+        year=year,
+        employees=[
+            YearlyScheduleEmployeeOut(
+                id=item.id,
+                full_name=build_full_name(item),
+                schedule_label=item.schedule_label,
+                schedule_template_id=item.schedule_template_id,
+                is_deleted=item.is_deleted,
+            )
+            for item in personnel_items
+        ],
+        assignments=[
+            PersonnelYearlyScheduleAssignmentOut(
+                personnel_id=item.personnel_id,
+                iso_date=item.work_date,
+                status=item.status,
+            )
+            for item in assignments
+        ],
+        events=[
+            PersonnelYearlyScheduleEventOut(
+                personnel_id=item.personnel_id,
+                iso_date=item.work_date,
+                label=item.label,
+            )
+            for item in events
+        ],
+    )
+
+
+@router.get("/schedules/yearly/summary", response_model=YearlyScheduleSummaryResponse)
+def get_yearly_schedule_summary(
+    year: int,
+    db=Depends(get_db),
+    user: User = Depends(require_read_access()),
+):
+    rows = db.execute(
+        select(
+            PersonnelYearlyScheduleAssignment.personnel_id,
+            func.extract("month", PersonnelYearlyScheduleAssignment.work_date),
+            PersonnelYearlyScheduleAssignment.status,
+        ).where(
+            PersonnelYearlyScheduleAssignment.year == year,
+            PersonnelYearlyScheduleAssignment.is_deleted == False,
+        )
+    ).all()
+    normalized_rows = [(int(personnel_id), int(month), status_code) for personnel_id, month, status_code in rows]
+    global_summary, employees = accumulate_summary(normalized_rows)
+    return YearlyScheduleSummaryResponse.model_validate({"global": global_summary, "employees": employees})
+
+
+@router.patch("/schedules/yearly/statuses", response_model=list[PersonnelYearlyScheduleAssignmentOut])
+def update_yearly_schedule_statuses(
+    payload: UpdateYearlyScheduleStatusesRequest,
+    db=Depends(get_db),
+    current_user: User = Depends(require_admin()),
+):
+    updated_records: list[PersonnelYearlyScheduleAssignment] = []
+
+    for operation in payload.operations:
+        validate_schedule_status(operation.status)
+        ensure_personnel(db, operation.personnel_id)
+        if operation.to_date < operation.from_date:
+            raise HTTPException(status_code=422, detail="to_date must be greater than or equal to from_date")
+        ensure_year_matches(operation.from_date, payload.year)
+        clipped_to_date = min(operation.to_date, date(payload.year, 12, 31))
+
+        current_date = operation.from_date
+        while current_date <= clipped_to_date:
+            existing = db.scalar(
+                select(PersonnelYearlyScheduleAssignment).where(
+                    PersonnelYearlyScheduleAssignment.personnel_id == operation.personnel_id,
+                    PersonnelYearlyScheduleAssignment.work_date == current_date,
+                )
+            )
+            if existing:
+                before = model_to_dict(existing)
+                existing.year = payload.year
+                existing.status = operation.status
+                existing.is_deleted = False
+                existing.deleted_at = None
+                existing.deleted_by_id = None
+                updated_records.append(existing)
+                add_audit_log(
+                    db,
+                    actor_id=current_user.id,
+                    action="UPDATE",
+                    entity="personnel_yearly_schedule_assignments",
+                    entity_id=existing.id,
+                    before=before,
+                    after=model_to_dict(existing),
+                )
+            else:
+                assignment = PersonnelYearlyScheduleAssignment(
+                    personnel_id=operation.personnel_id,
+                    year=payload.year,
+                    work_date=current_date,
+                    status=operation.status,
+                    is_deleted=False,
+                )
+                db.add(assignment)
+                db.flush()
+                updated_records.append(assignment)
+                add_audit_log(
+                    db,
+                    actor_id=current_user.id,
+                    action="CREATE",
+                    entity="personnel_yearly_schedule_assignments",
+                    entity_id=assignment.id,
+                    before=None,
+                    after=model_to_dict(assignment),
+                )
+            current_date += timedelta(days=1)
+
+    db.commit()
+    return [
+        PersonnelYearlyScheduleAssignmentOut(
+            personnel_id=item.personnel_id,
+            iso_date=item.work_date,
+            status=item.status,
+        )
+        for item in updated_records
+    ]
+
+
+@router.patch("/schedules/yearly/month-fill", response_model=list[PersonnelYearlyScheduleAssignmentOut])
+def fill_yearly_schedule_month(
+    payload: MonthFillYearlyScheduleRequest,
+    db=Depends(get_db),
+    current_user: User = Depends(require_admin()),
+):
+    validate_schedule_status(payload.status)
+    ensure_personnel(db, payload.personnel_id)
+    day_count = monthrange(payload.year, payload.month + 1)[1]
+    start_date = date(payload.year, payload.month + 1, 1)
+    end_date = date(payload.year, payload.month + 1, day_count)
+    return update_yearly_schedule_statuses(
+        UpdateYearlyScheduleStatusesRequest(
+            year=payload.year,
+            operations=[
+                {
+                    "personnel_id": payload.personnel_id,
+                    "from_date": start_date,
+                    "to_date": end_date,
+                    "status": payload.status,
+                }
+            ],
+        ),
+        db,
+        current_user,
+    )
+
+
+@router.put("/schedules/yearly/event", response_model=PersonnelYearlyScheduleEventOut)
+def upsert_yearly_schedule_event(
+    payload: UpsertYearlyScheduleEventRequest,
+    db=Depends(get_db),
+    current_user: User = Depends(require_admin()),
+):
+    ensure_personnel(db, payload.personnel_id)
+    ensure_year_matches(payload.iso_date, payload.year)
+    normalized_label = payload.label.strip()
+    if not normalized_label:
+        raise HTTPException(status_code=422, detail="Event label cannot be empty")
+
+    event = db.scalar(
+        select(PersonnelYearlyScheduleEvent).where(
+            PersonnelYearlyScheduleEvent.personnel_id == payload.personnel_id,
+            PersonnelYearlyScheduleEvent.work_date == payload.iso_date,
+        )
+    )
+    if event:
+        before = model_to_dict(event)
+        event.year = payload.year
+        event.label = normalized_label
+        event.is_deleted = False
+        event.deleted_at = None
+        event.deleted_by_id = None
+        add_audit_log(
+            db,
+            actor_id=current_user.id,
+            action="UPDATE",
+            entity="personnel_yearly_schedule_events",
+            entity_id=event.id,
+            before=before,
+            after=model_to_dict(event),
+        )
+    else:
+        event = PersonnelYearlyScheduleEvent(
+            personnel_id=payload.personnel_id,
+            year=payload.year,
+            work_date=payload.iso_date,
+            label=normalized_label,
+            is_deleted=False,
+        )
+        db.add(event)
+        db.flush()
+        add_audit_log(
+            db,
+            actor_id=current_user.id,
+            action="CREATE",
+            entity="personnel_yearly_schedule_events",
+            entity_id=event.id,
+            before=None,
+            after=model_to_dict(event),
+        )
+    db.commit()
+    return PersonnelYearlyScheduleEventOut(
+        personnel_id=event.personnel_id,
+        iso_date=event.work_date,
+        label=event.label,
+    )
+
+
+@router.delete("/schedules/yearly/event")
+def delete_yearly_schedule_event(
+    payload: DeleteYearlyScheduleEventRequest,
+    db=Depends(get_db),
+    current_user: User = Depends(require_admin()),
+):
+    ensure_personnel(db, payload.personnel_id)
+    ensure_year_matches(payload.iso_date, payload.year)
+    event = db.scalar(
+        select(PersonnelYearlyScheduleEvent).where(
+            PersonnelYearlyScheduleEvent.personnel_id == payload.personnel_id,
+            PersonnelYearlyScheduleEvent.work_date == payload.iso_date,
+            PersonnelYearlyScheduleEvent.is_deleted == False,
+        )
+    )
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    before = model_to_dict(event)
+    event.is_deleted = True
+    event.deleted_at = datetime.utcnow()
+    event.deleted_by_id = current_user.id
+    add_audit_log(
+        db,
+        actor_id=current_user.id,
+        action="DELETE",
+        entity="personnel_yearly_schedule_events",
+        entity_id=event.id,
+        before=before,
+        after=model_to_dict(event),
+    )
+    db.commit()
+    return {"status": "ok"}
 
 
 @router.get("/", response_model=Pagination[PersonnelOut])
@@ -70,7 +429,7 @@ def list_personnel(
     db=Depends(get_db),
     user: User = Depends(require_read_access()),
 ):
-    query = select(Personnel).options(selectinload(Personnel.user))
+    query = select(Personnel).options(selectinload(Personnel.user), selectinload(Personnel.schedule_template))
     if is_deleted is None:
         if not include_deleted:
             query = query.where(Personnel.is_deleted == False)
@@ -117,6 +476,7 @@ def get_personnel(
         .where(Personnel.id == person_id)
         .options(
             selectinload(Personnel.user),
+            selectinload(Personnel.schedule_template),
             selectinload(Personnel.competencies),
             selectinload(Personnel.trainings),
         )
@@ -138,7 +498,8 @@ def create_personnel(
     db=Depends(get_db),
     current_user: User = Depends(require_admin()),
 ):
-    personnel = Personnel(**payload.model_dump())
+    ensure_schedule_template(db, payload.schedule_template_id)
+    personnel = Personnel(is_deleted=False, **payload.model_dump())
     db.add(personnel)
     db.flush()
 
@@ -170,6 +531,8 @@ def update_personnel(
 
     before = model_to_dict(personnel)
     data = payload.model_dump(exclude_unset=True)
+    if "schedule_template_id" in data:
+        ensure_schedule_template(db, data["schedule_template_id"])
     for key, value in data.items():
         setattr(personnel, key, value)
 
@@ -255,7 +618,7 @@ def create_competency(
     current_user: User = Depends(require_admin()),
 ):
     ensure_personnel(db, person_id)
-    competency = PersonnelCompetency(personnel_id=person_id, **payload.model_dump())
+    competency = PersonnelCompetency(personnel_id=person_id, is_deleted=False, **payload.model_dump())
     db.add(competency)
     db.flush()
 
@@ -390,7 +753,7 @@ def create_training(
     current_user: User = Depends(require_admin()),
 ):
     ensure_personnel(db, person_id)
-    training = PersonnelTraining(personnel_id=person_id, **payload.model_dump())
+    training = PersonnelTraining(personnel_id=person_id, is_deleted=False, **payload.model_dump())
     db.add(training)
     db.flush()
 

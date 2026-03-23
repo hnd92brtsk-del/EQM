@@ -1,0 +1,50 @@
+{
+  "processId": 4,
+  "version": 1,
+  "updatedAt": "2026-03-21T15:46:23.941000Z",
+  "viewport": {
+    "x": 0.0,
+    "y": 0.0,
+    "zoom": 1.0800597212636864
+  },
+  "nodes": [
+    {
+      "id": "node_1774107922212",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "17.8",
+      "label": "Вакуум-насос (для фильтров)",
+      "tag": "",
+      "position": {
+        "x": 533.3210056051332,
+        "y": 434.362618706421
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 355,
+        "name": "Вакуум-насос (для фильтров)",
+        "meta": {
+          "shapeKey": "pump_centrifugal"
+        }
+      },
+      "properties": {}
+    },
+    {
+      "id": "node_1774107930248",
+      "type": "instrument",
+      "category": "instrument",
+      "symbolKey": "PT",
+      "label": "Датчик давления",
+      "tag": "",
+      "position": {
+        "x": 569.593668079168,
+        "y": 245.8438647276892
+      },
+      "sourceRef": {
+        "source": "palette"
+      },
+      "properties": {}
+    }
+  ],
+  "edges": []
+}

@@ -7,4 +7,4 @@ Start-Sleep -Milliseconds 400
 Assert-PortFree -Port 5173 -ServiceName "EQM frontend"
 
 Set-Location ".\frontend"
-& "npm.cmd" run dev -- --host localhost --port 5173
+& "npm.cmd" run dev -- --host 127.0.0.1 --port 5173

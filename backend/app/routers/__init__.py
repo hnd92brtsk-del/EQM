@@ -28,6 +28,9 @@ from app.routers import chat
 from app.routers import pid
 from app.routers import ipam
 from app.routers import network_topologies
+from app.routers import serial_map_documents
+from app.routers import diagnostics
+from app.routers import digital_twins
 
 __all__ = [
     "auth",
@@ -59,4 +62,7 @@ __all__ = [
     "pid",
     "ipam",
     "network_topologies",
+    "serial_map_documents",
+    "diagnostics",
+    "digital_twins",
 ]

@@ -284,6 +284,14 @@ class EquipmentType(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     network_ports: Mapped[list[dict] | None] = mapped_column(JSONB)
     has_serial_interfaces: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
     serial_ports: Mapped[list[dict]] = mapped_column(JSONB, server_default="[]", nullable=False)
+    current_type: Mapped[str | None] = mapped_column(String(32))
+    supply_voltage: Mapped[str | None] = mapped_column(String(32))
+    current_consumption_a: Mapped[float | None] = mapped_column(nullable=True)
+    mount_type: Mapped[str | None] = mapped_column(String(32))
+    mount_width_mm: Mapped[int | None] = mapped_column(Integer)
+    power_role: Mapped[str | None] = mapped_column(String(32))
+    output_voltage: Mapped[str | None] = mapped_column(String(32))
+    max_output_current_a: Mapped[float | None] = mapped_column(nullable=True)
     meta_data: Mapped[dict | None] = mapped_column(JSONB)
     photo_filename: Mapped[str | None] = mapped_column(String(255))
     photo_mime: Mapped[str | None] = mapped_column(String(100))
@@ -360,11 +368,35 @@ class Cabinet(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
 
     location: Mapped[Location | None] = relationship()
 
+
+class PersonnelScheduleTemplate(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
+    __tablename__ = "personnel_schedule_templates"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    number: Mapped[str | None] = mapped_column(String(50))
+    label: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+
+    personnel: Mapped[list["Personnel"]] = relationship(back_populates="schedule_template")
+
+
+Index(
+    "ix_personnel_schedule_templates_label_active_unique",
+    PersonnelScheduleTemplate.label,
+    unique=True,
+    postgresql_where=(PersonnelScheduleTemplate.is_deleted == False),
+)
+
+
 class Personnel(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     __tablename__ = "personnel"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
+    schedule_template_id: Mapped[int | None] = mapped_column(
+        ForeignKey("personnel_schedule_templates.id"), index=True
+    )
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     middle_name: Mapped[str | None] = mapped_column(String(100))
@@ -382,10 +414,17 @@ class Personnel(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     notes: Mapped[str | None] = mapped_column(Text)
 
     user: Mapped[User | None] = relationship(foreign_keys=[user_id])
+    schedule_template: Mapped[PersonnelScheduleTemplate | None] = relationship(back_populates="personnel")
     competencies: Mapped[list["PersonnelCompetency"]] = relationship(
         back_populates="personnel", cascade="all, delete-orphan"
     )
     trainings: Mapped[list["PersonnelTraining"]] = relationship(
+        back_populates="personnel", cascade="all, delete-orphan"
+    )
+    yearly_assignments: Mapped[list["PersonnelYearlyScheduleAssignment"]] = relationship(
+        back_populates="personnel", cascade="all, delete-orphan"
+    )
+    yearly_events: Mapped[list["PersonnelYearlyScheduleEvent"]] = relationship(
         back_populates="personnel", cascade="all, delete-orphan"
     )
 
@@ -394,6 +433,12 @@ class Personnel(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
         if not self.hire_date:
             return None
         return (date.today() - self.hire_date).days // 365
+
+    @property
+    def schedule_label(self) -> str | None:
+        if self.schedule_template:
+            return self.schedule_template.label
+        return None
 
 
 Index(
@@ -446,4 +491,44 @@ class PersonnelTraining(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
         if not self.completion_date:
             return None
         return (date.today() - self.completion_date).days
+
+
+class PersonnelYearlyScheduleAssignment(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
+    __tablename__ = "personnel_yearly_schedule_assignments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    personnel_id: Mapped[int] = mapped_column(ForeignKey("personnel.id"), index=True, nullable=False)
+    year: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
+    work_date: Mapped[date] = mapped_column(Date, index=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(8), nullable=False)
+
+    personnel: Mapped[Personnel] = relationship(back_populates="yearly_assignments")
+
+
+Index(
+    "ix_personnel_yearly_schedule_assignments_person_date_unique",
+    PersonnelYearlyScheduleAssignment.personnel_id,
+    PersonnelYearlyScheduleAssignment.work_date,
+    unique=True,
+)
+
+
+class PersonnelYearlyScheduleEvent(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
+    __tablename__ = "personnel_yearly_schedule_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    personnel_id: Mapped[int] = mapped_column(ForeignKey("personnel.id"), index=True, nullable=False)
+    year: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
+    work_date: Mapped[date] = mapped_column(Date, index=True, nullable=False)
+    label: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    personnel: Mapped[Personnel] = relationship(back_populates="yearly_events")
+
+
+Index(
+    "ix_personnel_yearly_schedule_events_person_date_unique",
+    PersonnelYearlyScheduleEvent.personnel_id,
+    PersonnelYearlyScheduleEvent.work_date,
+    unique=True,
+)
 

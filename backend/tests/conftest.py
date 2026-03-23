@@ -8,7 +8,14 @@ from sqlalchemy.pool import StaticPool
 from app.db.base import Base
 from app.core.dependencies import get_current_user, get_db, require_admin
 from app.models.security import User, UserRole
-from app.models.core import Personnel, PersonnelCompetency, PersonnelTraining
+from app.models.core import (
+    Personnel,
+    PersonnelCompetency,
+    PersonnelScheduleTemplate,
+    PersonnelTraining,
+    PersonnelYearlyScheduleAssignment,
+    PersonnelYearlyScheduleEvent,
+)
 from app.routers import personnel as personnel_router
 
 
@@ -25,9 +32,12 @@ def db_session():
         engine,
         tables=[
             User.__table__,
+            PersonnelScheduleTemplate.__table__,
             Personnel.__table__,
             PersonnelCompetency.__table__,
             PersonnelTraining.__table__,
+            PersonnelYearlyScheduleAssignment.__table__,
+            PersonnelYearlyScheduleEvent.__table__,
         ],
     )
 
@@ -39,9 +49,12 @@ def db_session():
         Base.metadata.drop_all(
             engine,
             tables=[
+                PersonnelYearlyScheduleEvent.__table__,
+                PersonnelYearlyScheduleAssignment.__table__,
                 PersonnelTraining.__table__,
                 PersonnelCompetency.__table__,
                 Personnel.__table__,
+                PersonnelScheduleTemplate.__table__,
                 User.__table__,
             ],
         )

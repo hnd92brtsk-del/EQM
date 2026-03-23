@@ -4,6 +4,7 @@ import { createEntity, deleteEntity, listEntity } from "./entities";
 export type Personnel = {
   id: number;
   user_id?: number | null;
+  schedule_template_id?: number | null;
   first_name: string;
   last_name: string;
   middle_name?: string | null;
@@ -20,10 +21,21 @@ export type Personnel = {
   phone?: string | null;
   notes?: string | null;
   tenure_years?: number | null;
+  schedule_label?: string | null;
   is_deleted: boolean;
   user?: { id: number; username: string; role: string } | null;
+  schedule_template?: PersonnelScheduleTemplate | null;
   competencies?: PersonnelCompetency[];
   trainings?: PersonnelTraining[];
+};
+
+export type PersonnelScheduleTemplate = {
+  id: number;
+  name: string;
+  number?: string | null;
+  label: string;
+  description?: string | null;
+  is_deleted: boolean;
 };
 
 export type PersonnelCompetency = {
@@ -83,6 +95,15 @@ export function deletePersonnel(id: number) {
 
 export function restorePersonnel(id: number) {
   return apiFetch<Personnel>(`/personnel/${id}/restore`, { method: "POST" });
+}
+
+export function listPersonnelScheduleTemplates(includeDeleted?: boolean) {
+  const search = new URLSearchParams();
+  if (includeDeleted) {
+    search.set("include_deleted", "true");
+  }
+  const suffix = search.size ? `?${search.toString()}` : "";
+  return apiFetch<PersonnelScheduleTemplate[]>(`/personnel/schedule-templates${suffix}`);
 }
 
 export function createCompetency(personId: number, payload: Partial<PersonnelCompetency>) {

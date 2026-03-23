@@ -38,6 +38,9 @@ class EquipmentTypeOut(EntityBase, SoftDeleteFields):
     name: str
     article: str | None = None
     nomenclature_number: str
+    current_type: str | None = None
+    supply_voltage: str | None = None
+    current_consumption_a: float | None = None
     manufacturer_id: int
     equipment_category_id: int | None = None
     is_channel_forming: bool
@@ -50,6 +53,11 @@ class EquipmentTypeOut(EntityBase, SoftDeleteFields):
     network_ports: list[NetworkPortOut] | None = None
     has_serial_interfaces: bool
     serial_ports: list[SerialPort]
+    mount_type: str | None = None
+    mount_width_mm: int | None = None
+    power_role: str | None = None
+    output_voltage: str | None = None
+    max_output_current_a: float | None = None
     unit_price_rub: float | None = None
     meta_data: Optional[Dict[str, Any]] = None
     photo_url: str | None = None
@@ -61,6 +69,9 @@ class EquipmentTypeCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     article: str | None = None
     nomenclature_number: str = Field(min_length=1, max_length=100)
+    current_type: str | None = Field(default=None, max_length=32)
+    supply_voltage: str | None = Field(default=None, max_length=32)
+    current_consumption_a: float | None = Field(default=None, ge=0)
     manufacturer_id: int
     equipment_category_id: int | None = None
     is_channel_forming: bool = False
@@ -73,6 +84,11 @@ class EquipmentTypeCreate(BaseModel):
     network_ports: list[NetworkPortIn] | None = None
     has_serial_interfaces: bool = False
     serial_ports: list[SerialPort] = Field(default_factory=list)
+    mount_type: str | None = Field(default=None, max_length=32)
+    mount_width_mm: int | None = Field(default=None, ge=0)
+    power_role: str | None = Field(default=None, max_length=32)
+    output_voltage: str | None = Field(default=None, max_length=32)
+    max_output_current_a: float | None = Field(default=None, ge=0)
     unit_price_rub: float | None = Field(default=None, ge=0)
     meta_data: Optional[Dict[str, Any]] = None
 
@@ -80,6 +96,9 @@ class EquipmentTypeCreate(BaseModel):
 class EquipmentTypeUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     article: str | None = None
+    current_type: str | None = Field(default=None, max_length=32)
+    supply_voltage: str | None = Field(default=None, max_length=32)
+    current_consumption_a: float | None = Field(default=None, ge=0)
     manufacturer_id: int | None = None
     equipment_category_id: int | None = None
     is_channel_forming: bool | None = None
@@ -92,6 +111,11 @@ class EquipmentTypeUpdate(BaseModel):
     network_ports: list[NetworkPortIn] | None = None
     has_serial_interfaces: bool | None = None
     serial_ports: list[SerialPort] | None = None
+    mount_type: str | None = Field(default=None, max_length=32)
+    mount_width_mm: int | None = Field(default=None, ge=0)
+    power_role: str | None = Field(default=None, max_length=32)
+    output_voltage: str | None = Field(default=None, max_length=32)
+    max_output_current_a: float | None = Field(default=None, ge=0)
     unit_price_rub: float | None = Field(default=None, ge=0)
     meta_data: Optional[Dict[str, Any]] = None
     is_deleted: bool | None = None

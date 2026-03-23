@@ -26,12 +26,14 @@ const IOSignalsPage = lazy(() => import("./pages/IOSignalsPage"));
 const UsersPage = lazy(() => import("./pages/UsersPage"));
 const SessionsPage = lazy(() => import("./pages/SessionsPage"));
 const AuditLogsPage = lazy(() => import("./pages/AuditLogsPage"));
+const AdminDiagnosticsPage = lazy(() => import("./pages/AdminDiagnosticsPage"));
 const DclPage = lazy(() => import("./pages/DclPage"));
 const SerialMapPage = lazy(() => import("./pages/SerialMapPage"));
 const NetworkMapPage = lazy(() => import("./pages/NetworkMapPage"));
 const CabinetCompositionPage = lazy(() => import("./pages/CabinetCompositionPage"));
 const HelpPage = lazy(() => import("./pages/HelpPage"));
 const PersonnelPage = lazy(() => import("./pages/PersonnelPage"));
+const PersonnelSchedulePage = lazy(() => import("./pages/PersonnelSchedulePage"));
 const PersonnelDetailsPage = lazy(() => import("./pages/PersonnelDetailsPage"));
 const TechnologicalEquipmentPage = lazy(() => import("./pages/TechnologicalEquipmentPage"));
 const IPAMPage = lazy(() => import("./features/ipam/pages/IPAMPage"));
@@ -92,6 +94,7 @@ export default function App() {
                   <Route path="/cabinet-items" element={<CabinetItemsPage />} />
                   <Route path="/equipment/technological" element={<TechnologicalEquipmentPage />} />
                   <Route path="/cabinets/:id/composition" element={<CabinetCompositionPage />} />
+                  <Route path="/assemblies/:id/composition" element={<CabinetCompositionPage />} />
                   <Route path="/movements" element={<MovementsPage />} />
                   <Route path="/io-signals" element={<IOSignalsPage />} />
                   <Route path="/ipam" element={<IPAMPage />} />
@@ -100,10 +103,12 @@ export default function App() {
                   <Route path="/engineering/network-map" element={<NetworkMapPage />} />
                   <Route path="/help" element={<HelpPage />} />
                   <Route path="/personnel" element={<PersonnelPage />} />
+                  <Route path="/personnel/schedule" element={<PersonnelSchedulePage />} />
                   <Route path="/personnel/:id" element={<PersonnelDetailsPage />} />
                   <Route path="/admin/users" element={<UsersPage />} />
                   <Route path="/admin/sessions" element={<SessionsPage />} />
                   <Route path="/admin/audit" element={<AuditLogsPage />} />
+                  <Route path="/admin/diagnostics" element={<AdminDiagnosticsPage />} />
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 </Routes>
               </Suspense>

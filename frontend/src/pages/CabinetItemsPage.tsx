@@ -50,6 +50,7 @@ import { ProtectedDownloadLink } from "../components/ProtectedDownloadLink";
 import { getCabinetItemIPAMSummary } from "../features/ipam/api/ipam";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { SearchableSelectField } from "../components/SearchableSelectField";
+import { DigitalTwinIcon } from "../icons";
 
 const InfoRow = ({ label, value }: { label: string; value?: ReactNode }) => {
   const displayValue = value === null || value === undefined || value === "" ? "-" : value;
@@ -589,6 +590,21 @@ function ContainerAccordion({
               <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                 {container.container_name}
               </Typography>
+              <AppButton
+                size="small"
+                variant="outlined"
+                startIcon={<DigitalTwinIcon />}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  navigate(
+                    container.source === "assembly"
+                      ? `/assemblies/${container.container_id}/composition`
+                      : `/cabinets/${container.container_id}/composition`
+                  );
+                }}
+              >
+                Открыть состав
+              </AppButton>
               {container.container_is_deleted ? (
                 <Chip size="small" color="warning" label={t("common.status.deleted")} />
               ) : null}
@@ -773,11 +789,25 @@ function ContainerAccordion({
                                 : item.quantity
                             }
                           />
-                          {canWrite ? (
-                            <Box
-                              sx={{ display: "flex", justifyContent: { xs: "flex-start", sm: "flex-end" }, gap: 0.5 }}
+                          <Box
+                            sx={{ display: "flex", justifyContent: { xs: "flex-start", sm: "flex-end" }, gap: 0.5, flexWrap: "wrap" }}
+                          >
+                            <AppButton
+                              size="small"
+                              variant="outlined"
+                              startIcon={<DigitalTwinIcon />}
+                              onClick={() =>
+                                navigate(
+                                  item.source === "assembly"
+                                    ? `/assemblies/${container.container_id}/composition`
+                                    : `/cabinets/${container.container_id}/composition`
+                                )
+                              }
                             >
-                              {item.is_deleted ? (
+                              Состав
+                            </AppButton>
+                            {canWrite ? (
+                              item.is_deleted ? (
                                 <AppButton
                                   size="small"
                                   color="success"
@@ -811,9 +841,9 @@ function ContainerAccordion({
                                     </span>
                                   </Tooltip>
                                 </>
-                              )}
-                            </Box>
-                          ) : null}
+                              )
+                            ) : null}
+                          </Box>
                         </Box>
                       ))}
                     </Box>

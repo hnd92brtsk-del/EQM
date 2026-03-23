@@ -27,6 +27,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import AutoFixHighRoundedIcon from "@mui/icons-material/AutoFixHighRounded";
 
 import { type ColumnMeta, DataTable, type DataTableFiltersState } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
@@ -39,6 +40,7 @@ import {
   listCabinetFiles,
   uploadCabinetFile
 } from "../api/cabinetFiles";
+import { syncDigitalTwinFromOperation } from "../api/digitalTwins";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
@@ -236,6 +238,13 @@ export default function CabinetsPage() {
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const generateTwinMutation = useMutation({
+    mutationFn: (cabinetId: number) => syncDigitalTwinFromOperation("cabinet", cabinetId),
+    onSuccess: (data) => navigate(`/cabinets/${data.source_id}/composition`),
+    onError: (error) =>
+      setErrorMessage(error instanceof Error ? error.message : "Не удалось сгенерировать цифровой двойник")
+  });
+
   const sortOptions = useMemo(
     () => [
       { value: "name", label: t("pagesUi.cabinets.sort.byNameAsc") },
@@ -393,8 +402,19 @@ export default function CabinetsPage() {
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
             <AppButton size="small" onClick={() => navigate(`/cabinets/${row.original.id}/composition`)}>
-            {t("pagesUi.cabinets.actions.openComposition")}
-          </AppButton>
+              {t("pagesUi.cabinets.actions.openComposition")}
+            </AppButton>
+            {canWrite ? (
+              <AppButton
+                size="small"
+                variant="outlined"
+                startIcon={<AutoFixHighRoundedIcon />}
+                onClick={() => generateTwinMutation.mutate(row.original.id)}
+                disabled={generateTwinMutation.isPending}
+              >
+                Сгенерировать состав
+              </AppButton>
+            ) : null}
           {canWrite && (
             <>
               <AppButton

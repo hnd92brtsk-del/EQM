@@ -26,9 +26,23 @@ export const navTree: NavItem[] = [
   {
     id: "personnel",
     labelKey: "menu.personnel",
-    path: "/personnel",
-    icon: PeopleOutlineRoundedIcon,
-    roles: ["viewer", "engineer", "admin"]
+    roles: ["viewer", "engineer", "admin"],
+    children: [
+      {
+        id: "personnel-list",
+        labelKey: "menu.personnel_list",
+        path: "/personnel",
+        icon: PeopleOutlineRoundedIcon,
+        roles: ["viewer", "engineer", "admin"]
+      },
+      {
+        id: "personnel-schedule",
+        labelKey: "menu.personnel_schedule",
+        path: "/personnel/schedule",
+        icon: PeopleOutlineRoundedIcon,
+        roles: ["viewer", "engineer", "admin"]
+      }
+    ]
   },
   {
     id: "personnel-details",
@@ -102,6 +116,13 @@ export const navTree: NavItem[] = [
         id: "cabinet-composition",
         labelKey: "menu.cabinet_composition",
         path: "/cabinets/:id/composition",
+        roles: ["viewer", "engineer", "admin"],
+        showInMenu: false
+      },
+      {
+        id: "assembly-composition",
+        labelKey: "menu.cabinet_composition",
+        path: "/assemblies/:id/composition",
         roles: ["viewer", "engineer", "admin"],
         showInMenu: false
       }
@@ -242,6 +263,13 @@ export const navTree: NavItem[] = [
         id: "admin-audit",
         labelKey: "menu.admin_audit",
         path: "/admin/audit",
+        icon: AdminGearIcon,
+        roles: ["admin"]
+      },
+      {
+        id: "admin-diagnostics",
+        labelKey: "menu.admin_diagnostics",
+        path: "/admin/diagnostics",
         icon: AdminGearIcon,
         roles: ["admin"]
       }

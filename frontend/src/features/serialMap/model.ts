@@ -3,6 +3,7 @@ import type {
   SerialMapDataPoolEntry,
   SerialMapDiagnostic,
   SerialMapEligibleEquipment,
+  SerialMapGatewayMapping,
   SerialMapNode,
   SerialMapNodeKind,
   SerialMapProjectDraft,
@@ -96,6 +97,19 @@ export function createEmptyDataPoolEntry(protocol: SerialMapProtocol): SerialMap
   };
 }
 
+export function createEmptyGatewayMapping(): SerialMapGatewayMapping {
+  return {
+    id: createId("map"),
+    srcRegisterType: "",
+    srcAddress: "",
+    srcDataType: "",
+    dstRegisterType: "",
+    dstAddress: "",
+    dstDataType: "",
+    note: ""
+  };
+}
+
 export function createScheme(name = "Контур 1"): SerialMapScheme {
   return {
     id: createId("scheme"),
@@ -142,7 +156,8 @@ export function applySnapshotToScheme(scheme: SerialMapScheme, snapshot: SerialM
 export function withSchemeMutation(
   project: SerialMapProjectDraft,
   schemeId: string,
-  mutate: (scheme: SerialMapScheme) => SerialMapScheme
+  mutate: (scheme: SerialMapScheme) => SerialMapScheme,
+  options?: { recordHistory?: boolean }
 ): SerialMapProjectDraft {
   return {
     ...project,
@@ -153,6 +168,9 @@ export function withSchemeMutation(
       }
       const before = snapshotOfScheme(scheme);
       const nextScheme = mutate(structuredClone(scheme));
+      if (options?.recordHistory === false) {
+        return nextScheme;
+      }
       const historyPast = [...scheme.history.past, before].slice(-100);
       return {
         ...nextScheme,
@@ -193,6 +211,8 @@ export function createNodeFromEquipment(item: SerialMapEligibleEquipment, positi
     position,
     dataPool: [],
     serialPorts: structuredClone(item.serialPorts),
+    bridgeProtocol: null,
+    converterMappings: [],
     sourceRef: {
       source: item.source,
       equipmentInOperationId: item.id,
@@ -223,6 +243,8 @@ export function createNodeFromPreset(kind: Exclude<SerialMapNodeKind, "equipment
     position,
     dataPool: [],
     serialPorts: [],
+    bridgeProtocol: kind === "gateway" ? "Profibus DP" : null,
+    converterMappings: [],
     sourceRef: null
   };
 }
@@ -253,6 +275,9 @@ export function computeConflicts(project: SerialMapProjectDraft): SerialMapConfl
     const grouped = new Map<string, SerialMapNode[]>();
     scheme.nodes.forEach((node) => {
       if (node.address === null) {
+        return;
+      }
+      if (node.kind === "bus" || node.kind === "repeater") {
         return;
       }
       if (node.kind === "master" && node.address === 0) {
@@ -307,6 +332,18 @@ export function computeDiagnostics(scheme: SerialMapScheme): SerialMapDiagnostic
     }
   });
   scheme.nodes.forEach((node) => {
+    if (node.protocol === "Profibus DP" && node.address === 126) {
+      diagnostics.push({
+        level: "warning",
+        message: `Узел ${node.name}: адрес 126 для Profibus DP считается ненастроенным.`
+      });
+    }
+    if (node.kind === "gateway" && (!node.converterMappings || node.converterMappings.length === 0)) {
+      diagnostics.push({
+        level: "info",
+        message: `Шлюз ${node.name}: маппинги конвертера пока не заданы.`
+      });
+    }
     const meta = getProtocolMeta(node.protocol);
     node.dataPool.forEach((entry) => {
       if (!meta.registerTypes.includes(entry.registerType)) {
@@ -324,6 +361,86 @@ export function computeDiagnostics(scheme: SerialMapScheme): SerialMapDiagnostic
     });
   });
   return diagnostics;
+}
+
+export function createDemoProjectDraft(): SerialMapProjectDraft {
+  const project = createDefaultProjectDraft();
+
+  const rs = createScheme("Контур 1: Основная RS-485");
+  const rsMaster = createNodeFromPreset("master", { x: 80, y: 40 }, 1);
+  rsMaster.name = "Siemens S7-300";
+  const rsBus = createNodeFromPreset("bus", { x: 50, y: 155 }, 1);
+  rsBus.name = "Шина RS-485";
+  const rsSlave1 = createNodeFromPreset("slave", { x: 80, y: 245 }, 1);
+  rsSlave1.name = "VFD Привод 1";
+  rsSlave1.address = 1;
+  const rsSlave2 = createNodeFromPreset("slave", { x: 260, y: 245 }, 2);
+  rsSlave2.name = "VFD Привод 2";
+  rsSlave2.address = 2;
+  const rsSensor = createNodeFromPreset("sensor", { x: 440, y: 245 }, 3);
+  rsSensor.name = "Датчик T-01";
+  rsSensor.address = 3;
+  rsSensor.note = "Температура";
+  const rsGateway = createNodeFromPreset("gateway", { x: 620, y: 245 }, 4);
+  rsGateway.name = "Шлюз Profibus";
+  rsGateway.address = 4;
+  rsGateway.converterMappings = [createEmptyGatewayMapping(), createEmptyGatewayMapping()];
+  rs.nodes = [rsMaster, rsBus, rsSlave1, rsSlave2, rsSensor, rsGateway];
+  rs.edges = [
+    { id: createId("edge"), fromNodeId: rsMaster.id, toNodeId: rsBus.id, protocol: "RS-485", baudRate: 9600, label: "", meta: {} },
+    { id: createId("edge"), fromNodeId: rsBus.id, toNodeId: rsSlave1.id, protocol: "Modbus RTU", baudRate: 9600, label: "", meta: {} },
+    { id: createId("edge"), fromNodeId: rsBus.id, toNodeId: rsSlave2.id, protocol: "Modbus RTU", baudRate: 9600, label: "", meta: {} },
+    { id: createId("edge"), fromNodeId: rsBus.id, toNodeId: rsSensor.id, protocol: "Modbus RTU", baudRate: 9600, label: "", meta: {} },
+    { id: createId("edge"), fromNodeId: rsBus.id, toNodeId: rsGateway.id, protocol: "Modbus RTU", baudRate: 9600, label: "", meta: {} }
+  ];
+
+  const pb = createScheme("Контур 2: Profibus DP");
+  const pbMaster = createNodeFromPreset("master", { x: 90, y: 40 }, 1);
+  pbMaster.name = "Beckhoff CX5120";
+  pbMaster.protocol = "Profibus DP";
+  pbMaster.baudRate = 1500000;
+  const pbBus = createNodeFromPreset("bus", { x: 60, y: 155 }, 1);
+  pbBus.name = "Шина Profibus DP";
+  pbBus.protocol = "Profibus DP";
+  const pbSlave1 = createNodeFromPreset("slave", { x: 90, y: 245 }, 1);
+  pbSlave1.name = "ET200S Модуль 1";
+  pbSlave1.protocol = "Profibus DP";
+  pbSlave1.baudRate = 1500000;
+  pbSlave1.address = 3;
+  const pbSlave2 = createNodeFromPreset("slave", { x: 280, y: 245 }, 2);
+  pbSlave2.name = "ET200S Модуль 2";
+  pbSlave2.protocol = "Profibus DP";
+  pbSlave2.baudRate = 1500000;
+  pbSlave2.address = 4;
+  pb.nodes = [pbMaster, pbBus, pbSlave1, pbSlave2];
+  pb.edges = [
+    { id: createId("edge"), fromNodeId: pbMaster.id, toNodeId: pbBus.id, protocol: "Profibus DP", baudRate: 1500000, label: "", meta: {} },
+    { id: createId("edge"), fromNodeId: pbBus.id, toNodeId: pbSlave1.id, protocol: "Profibus DP", baudRate: 1500000, label: "", meta: {} },
+    { id: createId("edge"), fromNodeId: pbBus.id, toNodeId: pbSlave2.id, protocol: "Profibus DP", baudRate: 1500000, label: "", meta: {} }
+  ];
+
+  const can = createScheme("Контур 3: CAN Bus");
+  const canMaster = createNodeFromPreset("master", { x: 90, y: 40 }, 1);
+  canMaster.name = "ECU Главный";
+  canMaster.protocol = "CAN Bus";
+  canMaster.baudRate = 500000;
+  const canBus = createNodeFromPreset("bus", { x: 60, y: 155 }, 1);
+  canBus.name = "CAN High-Speed Bus";
+  canBus.protocol = "CAN Bus";
+  const canSlave = createNodeFromPreset("slave", { x: 90, y: 245 }, 1);
+  canSlave.name = "Узел CAN 1";
+  canSlave.protocol = "CAN Bus";
+  canSlave.baudRate = 500000;
+  canSlave.address = 1;
+  can.nodes = [canMaster, canBus, canSlave];
+  can.edges = [
+    { id: createId("edge"), fromNodeId: canMaster.id, toNodeId: canBus.id, protocol: "CAN Bus", baudRate: 500000, label: "", meta: {} },
+    { id: createId("edge"), fromNodeId: canBus.id, toNodeId: canSlave.id, protocol: "CAN Bus", baudRate: 500000, label: "", meta: {} }
+  ];
+
+  project.schemes = [rs, pb, can];
+  project.activeSchemeId = rs.id;
+  return project;
 }
 
 export function validateImportedProject(input: unknown): { project: SerialMapProjectDraft | null; diagnostics: SerialMapDiagnostic[] } {

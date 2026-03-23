@@ -34,6 +34,9 @@ from app.routers import (
     pid,
     ipam,
     network_topologies,
+    serial_map_documents,
+    diagnostics,
+    digital_twins,
 )
 
 settings = get_settings()
@@ -85,6 +88,9 @@ app.include_router(personnel.router, prefix="/api/v1/personnel", tags=["personne
 app.include_router(pid.router, prefix="/api/v1/pid", tags=["pid"])
 app.include_router(ipam.router, prefix="/api/v1/ipam", tags=["ipam"])
 app.include_router(network_topologies.router, prefix="/api/v1/network-topologies", tags=["network-topologies"])
+app.include_router(serial_map_documents.router, prefix="/api/v1/serial-map-documents", tags=["serial-map-documents"])
+app.include_router(diagnostics.router, prefix="/api/v1/admin/diagnostics", tags=["diagnostics"])
+app.include_router(digital_twins.router, prefix="/api/v1/digital-twins", tags=["digital-twins"])
 
 pid_images_dir = BASE_DIR / "app" / "pid_storage" / "images"
 pid_images_dir.mkdir(parents=True, exist_ok=True)

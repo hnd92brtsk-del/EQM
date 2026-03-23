@@ -1,1357 +1,1721 @@
-﻿{
-    "app":  {
-                "title":  "EQM",
-                "greeting":  "Hi, {{name}}"
-            },
-    "nav":  {
-                "dashboard":  "Overview",
-                "dictionaries":  "Dictionaries",
-                "warehouses":  "Warehouses",
-                "warehouseItems":  "Warehouse Items",
-                "cabinets":  "Cabinets",
-                "assemblies":  "Assemblies",
-                "cabinetItems":  "Equipment in operation",
-                "movements":  "Movements",
-                "ioSignals":  "I/O Signals"
-            },
-    "admin":  {
-                  "title":  "Admin",
-                  "users":  "Users",
-                  "sessions":  "Sessions",
-                  "audit":  "Audit Logs"
-              },
-    "theme":  {
-                  "light":  "Light",
-                  "dark":  "Dark",
-                  "label":  "Theme"
-              },
-    "language":  {
-                     "label":  "Language",
-                     "ru":  "RU",
-                     "en":  "EN"
-                 },
-    "auth":  {
-                 "loginTitle":  "Sign in to EQM",
-                 "loginHint":  "Use admin/admin12345 for the first login.",
-                 "username":  "Username",
-                 "password":  "Password",
-                 "signIn":  "Sign in",
-                 "invalidCredentials":  "Invalid username or password",
-                 "promoTitle":  "Unified control center for equipment",
-                 "promoSubtitle":  "Monitor assets, track movements, and keep inventory aligned in one workspace.",
-                 "fields":  {
-                                "login":  "Login",
-                                "password":  "Password"
-                            },
-                 "actions":  {
-                                 "submit":  "Sign in"
-                             },
-                 "helper":  {
-                                "accountCreation":  "To create an account, contact the administrator via corporate email or TrueConf"
-                            },
-                 "brandTitle":  "EQM Platform",
-                 "brandSubtitle":  "Manage assets, workflows, and inventory from a single secure workspace."
-             },
-    "actions":  {
-                    "add":  "Add",
-                    "edit":  "Edit",
-                    "delete":  "Delete",
-                    "restore":  "Restore",
-                    "save":  "Save",
-                    "cancel":  "Cancel",
-                    "logout":  "Sign out",
-                    "search":  "Search",
-                    "filters":  "Filters",
-                    "actions":  "Actions",
-                    "notSelected":  "Not selected",
-                    "close":  "Close",
-                    "downloadTemplate":  "Download template",
-                    "upload":  "Upload",
-                    "download":  "Download",
-                    "deleteFile":  "Delete file",
-                    "import":  "Import",
-                    "exportActiveCsv":  "Export active (CSV)",
-                    "exportActiveXlsx":  "Export active (XLSX)",
-                    "exportDeletedCsv":  "Export deleted (CSV)",
-                    "exportDeletedXlsx":  "Export deleted (XLSX)"
-                },
-    "pages":  {
-                  "dashboard":  "Overview",
-                  "users":  "Users",
-                  "dictionaries":  "Dictionaries",
-                  "warehouses":  "Warehouses",
-                  "cabinets":  "Cabinets",
-                  "assemblies":  "Assemblies",
-                  "warehouseItems":  "Warehouse Items",
-                  "cabinetItems":  "Equipment in operation",
-                  "movements":  "Movements",
-                  "ioSignals":  "I/O Signals",
-                  "help":  "Help",
-                  "personnel":  "Personnel",
-                  "auditLogs":  "Audit Logs",
-                  "sessions":  "Sessions",
-                  "personnel_details":  "Personnel details",
-                  "helpTableOfContents":  "Table of contents",
-                  "networkMap":  {
-                                     "title":  "Network topology",
-                                     "defaultName":  "Network topology",
-                                     "subtitle":  "Multi-select, import/export, custom visuals, path tracing, and network-aware editing.",
-                                     "documents":  {
-                                                       "newDocument":  "New diagram",
-                                                       "title":  "Contours",
-                                                       "subtitle":  "Each contour is stored as its own network diagram.",
-                                                       "search":  "Search diagrams",
-                                                       "active":  "active",
-                                                       "noDescription":  "No description",
-                                                       "empty":  "No topology documents found."
-                                                   },
-                                     "toolbar":  {
-                                                     "addDevice":  "Add Device",
-                                                     "duplicate":  "Duplicate",
-                                                     "autoLayout":  "Auto-layout",
-                                                     "fitView":  "Fit view",
-                                                     "searchPlaceholder":  "Search by name, model, IP, VLAN, or zone",
-                                                     "exportJson":  "Export JSON",
-                                                     "linkMode":  "Link"
-                                                 },
-                                     "states":  {
-                                                    "saving":  "Saving...",
-                                                    "saved":  "Saved",
-                                                    "error":  "Save error",
-                                                    "unsaved":  "Unsaved"
-                                                },
-                                     "stats":  {
-                                                   "devices":  "Devices",
-                                                   "links":  "Links",
-                                                   "interfaces":  "Interfaces",
-                                                   "routes":  "Routes",
-                                                   "warnings":  "Warnings",
-                                                   "critical":  "Critical",
-                                                   "zoom":  "Zoom",
-                                                   "selection":  "Selection"
-                                               },
-                                     "canvas":  {
-                                                    "title":  "Topology Canvas",
-                                                    "subtitle":  "{{visibleNodes}} visible nodes, {{visibleLinks}} visible links",
-                                                    "hints":  {
-                                                                    "pan":  "Pan: wheel, trackpad, or drag the canvas",
-                                                                    "select":  "Selection: click, Ctrl/Cmd multi-select, or drag a frame"
-                                                                }
-                                                },
-                                     "inventory":  {
-                                                       "title":  "Inventory",
-                                                       "subtitle":  "Installed network-capable equipment from EQM/IPAM",
-                                                       "search":  "Search inventory",
-                                                       "added":  "On canvas",
-                                                       "empty":  "No matching inventory items."
-                                                   },
-                                     "pathTracing":  {
-                                                          "title":  "Tracing",
-                                                          "subtitle":  "Pick two nodes, inspect the route, and create a direct link when needed.",
-                                                          "start":  "Select start",
-                                                          "end":  "Select destination",
-                                                          "useSelection":  "Use selection",
-                                                          "createLink":  "Create link",
-                                                          "clear":  "Clear",
-                                                          "placeholder":  "Select two nodes to highlight the computed path.",
-                                                          "noPath":  "No path found between selected nodes.",
-                                                          "hops":  "{{count}} hops"
-                                                      },
-                                     "scheme":  {
-                                                    "title":  "Diagram properties",
-                                                    "subtitle":  "Description and quick metrics for the active contour."
-                                                },
-                                     "linkCreation":  {
-                                                            "pickFirst":  "Link mode is enabled. Pick the first node on the canvas.",
-                                                            "pickSecond":  "First node selected. Now click the second node.",
-                                                            "pendingFirst":  "Waiting for the first node",
-                                                            "pendingSecond":  "Waiting for the second node",
-                                                            "created":  "Link created.",
-                                                            "duplicate":  "That link already exists.",
-                                                            "sameNode":  "You cannot link a node to itself.",
-                                                            "selectTwoNodes":  "Select two different nodes."
-                                                        },
-                                     "properties":  {
-                                                        "title":  "Properties",
-                                                        "empty":  "Select a device or link on the canvas to inspect and edit its parameters.",
-                                                        "multiSelection":  "{{count}} nodes selected",
-                                                        "interfaces":  "Interfaces",
-                                                        "routes":  "Routes"
-                                                    },
-                                     "policies":  {
-                                                      "title":  "Routing & Policies",
-                                                      "empty":  "No policies have been added yet."
-                                                  },
-                                     "validation":  {
-                                                        "title":  "Topology validation",
-                                                        "clear":  "No validation issues detected."
-                                                    },
-                                     "context":  {
-                                                     "centerNode":  "Center on device",
-                                                     "setPathStart":  "Set as path start",
-                                                     "setPathEnd":  "Set as path end",
-                                                     "duplicateNode":  "Duplicate device",
-                                                     "deleteNode":  "Delete device",
-                                                     "toggleEdgeHealth":  "Toggle link health",
-                                                     "deleteEdge":  "Delete link"
-                                                 },
-                                     "fields":  {
-                                                    "description":  "Topology description",
-                                                    "subnet":  "Subnet",
-                                                    "address":  "Address",
-                                                    "selectSubnetFirst":  "Select a subnet first",
-                                                    "ip":  "IP address",
-                                                    "vlan":  "VLAN / segment",
-                                                    "zone":  "Zone",
-                                                    "asn":  "ASN",
-                                                    "model":  "Model",
-                                                    "os":  "OS",
-                                                    "label":  "Label",
-                                                    "bandwidth":  "Bandwidth",
-                                                    "latency":  "Latency",
-                                                    "network":  "Network",
-                                                    "type":  "Type",
-                                                    "target":  "Target",
-                                                    "interfaceName":  "Interface name",
-                                                    "prefix":  "Prefix",
-                                                    "nextHop":  "Next hop",
-                                                    "metric":  "Metric"
-                                                },
-                                     "health":  {
-                                                    "healthy":  "healthy",
-                                                    "warning":  "warning",
-                                                    "critical":  "critical"
-                                                },
-                                     "interfaceStatus":  {
-                                                             "up":  "up",
-                                                             "down":  "down",
-                                                             "degraded":  "degraded"
-                                                         },
-                                     "policyState":  {
-                                                         "active":  "active",
-                                                         "triggered":  "triggered",
-                                                         "disabled":  "disabled"
-                                                     },
-                                     "layers":  {
-                                                    "core":  "core",
-                                                    "distribution":  "distribution",
-                                                    "access":  "access",
-                                                    "security":  "security",
-                                                    "datacenter":  "datacenter",
-                                                    "wan":  "wan",
-                                                    "edge":  "edge"
-                                                },
-                                     "edgeStyles":  {
-                                                        "ethernet":  "Ethernet",
-                                                        "fiber":  "Fiber",
-                                                        "vpn":  "VPN",
-                                                        "wireless":  "Wireless",
-                                                        "mpls":  "MPLS",
-                                                        "trunk":  "Trunk"
-                                                    },
-                                     "nodeTypes":  {
-                                                       "router":  "Router",
-                                                       "core-switch":  "Core switch",
-                                                       "switch":  "Switch",
-                                                       "firewall":  "Firewall",
-                                                       "load-balancer":  "Load balancer",
-                                                       "vpn-gateway":  "VPN gateway",
-                                                       "wireless-controller":  "Wireless controller",
-                                                       "access-point":  "Access point",
-                                                       "server":  "Server",
-                                                       "vm-host":  "VM host",
-                                                       "storage":  "Storage",
-                                                       "nas":  "NAS",
-                                                       "cloud":  "Cloud",
-                                                       "internet":  "Internet",
-                                                       "workstation":  "Workstation",
-                                                       "printer":  "Printer",
-                                                       "camera":  "Camera",
-                                                       "iot-gateway":  "IoT gateway"
-                                                   }
-                                 }
-              },
-    "dashboard":  {
-                      "kpis":  {
-                                   "total_cabinets":  "Total cabinets",
-                                   "total_plc_in_cabinets":  "Total PLCs in cabinets",
-                                   "total_plc_in_warehouses":  "Total PLCs in warehouses",
-                                   "total_channels":  "Total channels",
-                                   "ai":  "AI",
-                                   "di":  "DI",
-                                   "ao":  "AO",
-                                   "do":  "DO",
-                                   "total":  "Total",
-                                   "total_warehouse_value_rub":  "Total equipment value"
-                               },
-                      "titles":  {
-                                     "by_type":  "Distribution by type",
-                                     "by_warehouse_qty":  "Stock by warehouse",
-                                     "accounted_vs_not":  "Accounted / Not accounted",
-                                     "by_warehouse_value":  "Value by warehouse",
-                                     "recent_actions":  "Recent actions",
-                                     "recent_logins":  "Recent logins"
-                                 },
-                      "columns":  {
-                                      "action":  "Action",
-                                      "entity":  "Entity",
-                                      "user":  "User",
-                                      "date":  "Date",
-                                      "login":  "Login",
-                                      "logout":  "Logout",
-                                      "reason":  "Reason"
-                                  },
-                      "common":  {
-                                     "loading":  "Loading",
-                                     "no_data":  "No data",
-                                     "last_rows":  "Showing last {{count}} records"
-                                 },
-                      "errors":  {
-                                     "overview":  "Failed to load dashboard overview. Check /api/v1/dashboard/overview.",
-                                     "actions":  "Failed to load actions.",
-                                     "logins":  "Failed to load logins."
-                                 },
-                      "units":  "units"
-                  },
-    "menu":  {
-                 "root":  "Menu",
-                 "overview":  "Overview",
-                 "equipment":  "Equipment",
-                 "warehouse_items":  "Warehouse Items",
-                 "cabinets":  "Cabinets",
-                 "assemblies":  "Assemblies",
-                 "movements":  "Movements",
-                 "cabinets_group":  "Cabinets / Assemblies",
-                 "cabinet_items":  "Equipment in operation",
-                 "cabinet_composition":  "Cabinet Composition",
-                 "engineering":  "Engineering",
-                 "io_signals":  "IO Signals",
-                 "dcl":  "DCL",
-                 "serial_map":  "Serial Protocol Map",
-                 "network_map":  "Network topology",
-                 "dictionaries":  "Dictionaries",
-                 "warehouses":  "Warehouses",
-                 "manufacturers":  "Manufacturers",
-                 "nomenclature":  "Nomenclature",
-                 "locations":  "Locations",
-                 "equipment_categories":  "Equipment Categories",
-                 "admin":  "Admin",
-                 "admin_users":  "Users",
-                 "admin_sessions":  "Sessions",
-                 "admin_audit":  "Audit Logs",
-                 "help":  "Help",
-                 "personnel":  "Personnel",
-                 "chat":  "Chatbot",
-                 "measurement_units":  "Measurement units",
-                 "signal_types":  "Signal types",
-                 "field_equipments":  "Field equipment",
-                 "main_equipment":  "Main equipment",
-                 "data_types":  "Data types",
-                 "technological_equipment":  "Technological equipment",
-                 "ipam":  "IPAM / Network"
-             },
-    "sidebar":  {
-                    "pin":  "Pin sidebar",
-                    "unpin":  "Unpin sidebar"
-                },
-    "chat":  {
-                 "title":  "Chatbot",
-                 "placeholder":  "Enter your message…",
-                 "send":  "Send"
-             },
-    "help":  {
-                 "personnel_overview":  "Personnel is available in the left sidebar. The list supports search, filters, and sorting; admins can add, edit, delete, and restore records.",
-                 "personnel_details":  "Opening a row shows the Personnel card with profile fields, photo upload, competencies, training with expiry warnings and reminder offsets, and notes.",
-                 "overview":  "The overview is a read-only dashboard with KPI cards, charts, and summary tables. It provides a snapshot of the system and does not allow editing records directly.",
-                 "equipmentWarehouseItems":  "This table lists warehouse stock items. Use search, filters, and sorting to find positions quickly. Add, edit, delete, and restore actions are available.",
-                 "equipmentWarehouseItemsSecondary":  "Movement actions such as inbound and transfer are initiated from this area.",
-                 "equipmentCabinetItems":  "Cabinet items show equipment stored in cabinets. Use the same list tools: search, filters, sorting, and actions to add, edit, delete, or restore entries.",
-                 "cabinets":  "The cabinets list lets you manage cabinet records. Use add/edit/delete/restore actions and open a cabinet to view its composition.",
-                 "cabinetComposition":  "Cabinet composition is a dedicated view for the cabinet structure and items. It is a focused area for cabinet details and composition-related actions.",
-                 "engineering":  "Engineering includes IO Signals and DCL. These screens manage signals, connections, and related definitions using add/edit/delete/restore actions.",
-                 "engineeringSecondary":  "I/O Signals now includes Data type, Equipment, and Connection point fields. Data types and field equipment are selected from dictionary trees, and Measurement type is no longer used.",
-                 "networkMap":  "Network Topology is a graphical React Flow editor for building and reviewing the network landscape with inventory-backed nodes, custom links, validation, and path tracing.",
-                 "networkMapSecondary":  "The screen supports read-only and edit modes based on role, loads installed network-capable equipment from EQM/IPAM, and stores the topology document on the server.",
-                 "main_equipment":  "The Main equipment dictionary is a hierarchical tree with unlimited depth. Node level is calculated automatically from the selected parent.",
-                 "field_equipments":  "The Field equipment dictionary is a hierarchical tree. It supports creating root and child nodes, editing, soft delete, and restore.",
-                 "data_types":  "The Data types dictionary is a tree. You can create root and child nodes, edit name, parent, and tooltip. Tooltip is shown on hover over the node name and may be empty.",
-                 "dictionaries":  "Dictionaries include Warehouses, Manufacturers, Nomenclature, Locations, Main equipment, and Equipment Categories. Records can be viewed, added, edited, deleted, and restored. Main equipment is stored as a tree.",
-                 "admin":  "Admin contains Users, Sessions, and Audit Logs. Access is limited to the admin role."
-             },
-    "common":  {
-                   "noAccess":  "Not enough permissions.",
-                   "sort":  "Sort",
-                   "showDeleted":  "Show deleted",
-                   "all":  "All",
-                   "yes":  "Yes",
-                   "no":  "No",
-                   "deleted":  "Deleted",
-                   "deletedSuffix":  " (deleted)",
-                   "notImplemented":  "Not implemented",
-                   "loading":  "Loading...",
-                   "dateFrom":  "Date from",
-                   "dateTo":  "Date to",
-                   "createdFrom":  "Created from",
-                   "createdTo":  "Created to",
-                   "status":  {
-                                  "label":  "Status",
-                                  "deleted":  "Deleted",
-                                  "active":  "Active",
-                                  "inactive":  "Inactive"
-                              },
-                   "fields":  {
-                                  "name":  "Name",
-                                  "factoryNumber":  "Factory number",
-                                  "nomenclatureNumber":  "Inventory number",
-                                  "files":  "Files",
-                                  "location":  "Location",
-                                  "manufacturer":  "Manufacturer",
-                                  "equipmentCategory":  "Equipment category",
-                                  "nomenclature":  "Nomenclature",
-                                  "channelForming":  "Channel forming",
-                                  "channelCount":  "Channel count",
-                                  "isNetwork":  "Network",
-                                  "portsInterfaces":  "Network interfaces",
-                                  "photo":  "Photo",
-                                  "datasheet":  "Datasheet",
-                                  "portType":  "Port type",
-                                  "portCount":  "Count",
-                                  "priceRub":  "Price, RUB",
-                                  "login":  "Login",
-                                  "password":  "Password",
-                                  "role":  "Role",
-                                  "country":  "Country",
-                                  "brand":  "Brand",
-                                  "flag":  "Flag",
-                                  "foundedYear":  "Founded year",
-                                  "segment":  "Segment",
-                                  "specialization":  "Specialization",
-                                  "website":  "Website",
-                                  "parent":  "Parent",
-                                  "cabinet":  "Cabinet",
-                                  "assembly":  "Assembly",
-                                  "cabinetAssembly":  "Cabinet/Assembly",
-                                  "equipment":  "Equipment",
-                                  "quantity":  "Quantity",
-                                  "comment":  "Comment",
-                                  "accounting":  "Accounting",
-                                  "warehouse":  "Warehouse",
-                                  "reference":  "Reference",
-                                  "sortOrder":  "Sort order",
-                                  "tooltip":  "Tooltip"
-                              },
-                   "treeSelect":  {
-                                      "groupOnly":  "Only leaf items can be selected"
-                                  },
-                   "liveFilter":  {
-                                      "searchPlaceholder":  "Search by name",
-                                      "noOptions":  "No available options"
-                                  },
-                   "rowsPerPage":  "Rows per page",
-                   "rowsDisplayed":  "{{from}}-{{to}} of {{countLabel}}",
-                   "rowsMore":  "more"
-               },
-    "errors":  {
-                   "load_personnel_failed":  "Failed to load personnel.",
-                   "create_personnel_failed":  "Failed to create personnel.",
-                   "update_personnel_failed":  "Failed to update personnel.",
-                   "delete_personnel_failed":  "Failed to delete personnel.",
-                   "restore_personnel_failed":  "Failed to restore personnel.",
-                   "create_competency_failed":  "Failed to create competency.",
-                   "update_competency_failed":  "Failed to update competency.",
-                   "create_training_failed":  "Failed to create training.",
-                   "update_training_failed":  "Failed to update training.",
-                   "delete_competency_failed":  "Failed to delete competency.",
-                   "restore_competency_failed":  "Failed to restore competency.",
-                   "delete_training_failed":  "Failed to delete training.",
-                   "restore_training_failed":  "Failed to restore training.",
-                   "no_attachment":  "No attachment available.",
-                   "attachment_upload_failed":  "Failed to upload attachment.",
-                   "attachment_download_failed":  "Failed to download attachment.",
-                   "photo_upload_failed":  "Failed to upload photo.",
-                   "fileTooLarge":  "File is too large.",
-                   "invalidFormat":  "Invalid file format.",
-                   "downloadFailed":  "Failed to download.",
-                   "saveFailed":  "Failed to save."
-               },
-    "roles":  {
-                  "admin":  "Admin",
-                  "engineer":  "Engineer",
-                  "viewer":  "Viewer"
-              },
-    "validation":  {
-                       "requiredFields":  "Fill in required fields."
-                   },
-    "pagesUi":  {
-                    "equipmentCategories":  {
-                                                "title":  "Equipment categories",
-                                                "sort":  {
-                                                             "byNameAsc":  "By name (A-Z)",
-                                                             "byNameDesc":  "By name (Z-A)",
-                                                             "byCreatedOldest":  "By created date (oldest first)",
-                                                             "byCreatedNewest":  "By created date (newest first)"
-                                                         },
-                                                "dialogs":  {
-                                                                "editTitle":  "Edit equipment category",
-                                                                "createTitle":  "New equipment category"
-                                                            },
-                                                "actions":  {
-                                                                "addChild":  "Add child",
-                                                                "addRoot":  "Add root"
-                                                            },
-                                                "errors":  {
-                                                               "load":  "Failed to load equipment categories",
-                                                               "create":  "Failed to create record",
-                                                               "update":  "Failed to update record",
-                                                               "delete":  "Failed to delete record",
-                                                               "restore":  "Failed to restore record"
-                                                           }
-                                            },
-                    "equipmentTypes":  {
-                                           "title":  "Nomenclature",
-                                           "sort":  {
-                                                        "byNameAsc":  "By name (A-Z)",
-                                                        "byNameDesc":  "By name (Z-A)",
-                                                        "byNomenclatureAsc":  "By nomenclature (A-Z)",
-                                                        "byNomenclatureDesc":  "By nomenclature (Z-A)",
-                                                        "byCreatedOldest":  "By created date (oldest)",
-                                                        "byCreatedNewest":  "By created date (newest)"
-                                                    },
-                                           "errors":  {
-                                                          "load":  "Failed to load nomenclature",
-                                                          "create":  "Failed to create equipment type",
-                                                          "update":  "Failed to update equipment type",
-                                                          "delete":  "Failed to delete equipment type",
-                                                          "restore":  "Failed to restore equipment type"
-                                                      },
-                                           "fields":  {
-                                                          "article":  "Article",
-                                                          "hasSerialInterfaces":  "Serial interfaces",
-                                                          "currentType":  "Current type",
-                                                          "supplyVoltage":  "Supply voltage",
-                                                          "currentConsumptionA":  "Current consumption, A"
-                                                      },
-                                           "options":  {
-                                                           "currentType":  {
-                                                                               "direct":  "Direct current",
-                                                                               "alternating":  "Alternating current",
-                                                                               "na":  "N/A"
-                                                                           },
-                                                           "supplyVoltage":  {
-                                                                                 "v220":  "220V",
-                                                                                 "v24":  "24V",
-                                                                                 "v220v24":  "220V/24V",
-                                                                                 "v12":  "12V",
-                                                                                 "v9":  "9V",
-                                                                                 "v5":  "5V",
-                                                                                 "v3":  "3V",
-                                                                                 "na":  "N/A"
-                                                                             }
-                                                       },
-                                           "columns":  {
-                                                           "channels":  "Channels",
-                                                           "channelsDetailed":  "AI/DI/AO/DO"
-                                                       },
-                                           "serialPorts":  {
-                                                               "title":  "Serial interfaces",
-                                                               "add":  "Add interface",
-                                                               "portType":  "Port type",
-                                                               "count":  "Count"
-                                                           },
-                                           "validation":  {
-                                                              "networkPortsDisallowSerial":  "RS-485 and RS-232 cannot be added as network ports. Use \"Serial interfaces\".",
-                                                              "currentConsumptionNonNegative":  "Current consumption cannot be negative.",
-                                                              "currentConsumptionInvalid":  "Enter a valid numeric current consumption value."
-                                                          },
-                                           "channelsWithCount":  "Yes ({{count}})",
-                                           "dialogs":  {
-                                                           "editTitle":  "Equipment type",
-                                                           "createTitle":  "New equipment type"
-                                                       },
-                                           "actions":  {
-                                                           "uploadPhoto":  "Upload photo",
-                                                           "uploadDatasheet":  "Upload datasheet"
-                                                       }
-                                       },
-                    "auditLogs":  {
-                                      "sort":  {
-                                                   "byTimeNewest":  "By time (newest)",
-                                                   "byTimeOldest":  "By time (oldest)",
-                                                   "byEntityAsc":  "By entity (A-Z)",
-                                                   "byEntityDesc":  "By entity (Z-A)"
-                                               },
-                                      "fields":  {
-                                                     "actorId":  "Actor ID",
-                                                     "entity":  "Entity",
-                                                     "action":  "Action"
-                                                 },
-                                      "columns":  {
-                                                      "id":  "ID",
-                                                      "actor":  "Actor",
-                                                      "action":  "Action",
-                                                      "entity":  "Entity",
-                                                      "entityId":  "Entity ID",
-                                                      "time":  "Time"
-                                                  },
-                                      "errors":  {
-                                                     "load":  "Failed to load audit logs"
-                                                 }
-                                  },
-                    "sessions":  {
-                                     "sort":  {
-                                                  "byStartNewest":  "By start (newest)",
-                                                  "byStartOldest":  "By start (oldest)",
-                                                  "byEndNewest":  "By end (newest)",
-                                                  "byEndOldest":  "By end (oldest)"
-                                              },
-                                     "fields":  {
-                                                    "userId":  "User ID",
-                                                    "endReason":  "End reason"
-                                                },
-                                     "columns":  {
-                                                     "id":  "ID",
-                                                     "user":  "User",
-                                                     "startedAt":  "Started",
-                                                     "endedAt":  "Ended",
-                                                     "endReason":  "Reason",
-                                                     "ip":  "IP"
-                                                 },
-                                     "errors":  {
-                                                    "load":  "Failed to load sessions"
-                                                }
-                                 },
-                    "users":  {
-                                  "sort":  {
-                                               "byUsernameAsc":  "By login (A-Z)",
-                                               "byUsernameDesc":  "By login (Z-A)",
-                                               "byRoleAsc":  "By role (A-Z)",
-                                               "byRoleDesc":  "By role (Z-A)",
-                                               "byCreatedOldest":  "By created date (oldest)",
-                                               "byCreatedNewest":  "By created date (newest)"
-                                           },
-                                  "errors":  {
-                                                 "load":  "Failed to load users",
-                                                 "create":  "Failed to create user",
-                                                 "update":  "Failed to update user",
-                                                 "delete":  "Failed to delete user",
-                                                 "restore":  "Failed to restore user"
-                                             }
-                              },
-                    "cabinets":  {
-                                     "sort":  {
-                                                  "byNameAsc":  "By name (A-Z)",
-                                                  "byNameDesc":  "By name (Z-A)",
-                                                  "byCreatedOldest":  "By created date (oldest)",
-                                                  "byCreatedNewest":  "By created date (newest)"
-                                              },
-                                     "errors":  {
-                                                    "load":  "Failed to load cabinets",
-                                                    "create":  "Failed to create cabinet",
-                                                    "update":  "Failed to update cabinet",
-                                                    "delete":  "Failed to delete cabinet",
-                                                    "restore":  "Failed to restore cabinet",
-                                                    "filesLoad":  "Failed to load cabinet files",
-                                                    "fileUpload":  "Failed to upload file",
-                                                    "fileDownload":  "Failed to download file",
-                                                    "fileDelete":  "Failed to delete file"
-                                                },
-                                     "hints":  {
-                                                   "saveBeforeUpload":  "Save the cabinet before uploading files."
-                                               },
-                                     "dialogs":  {
-                                                     "editTitle":  "Edit cabinet",
-                                                     "createTitle":  "New cabinet"
-                                                 },
-                                     "actions":  {
-                                                     "openComposition":  "Open composition"
-                                                 }
-                                 },
-                    "assemblies":  {
-                                       "sort":  {
-                                                    "byNameAsc":  "By name (A-Z)",
-                                                    "byNameDesc":  "By name (Z-A)",
-                                                    "byCreatedOldest":  "By created date (oldest)",
-                                                    "byCreatedNewest":  "By created date (newest)"
-                                                },
-                                       "errors":  {
-                                                      "load":  "Failed to load assemblies",
-                                                      "create":  "Failed to create assembly",
-                                                      "update":  "Failed to update assembly",
-                                                      "delete":  "Failed to delete assembly",
-                                                      "restore":  "Failed to restore assembly"
-                                                  },
-                                       "dialogs":  {
-                                                       "editTitle":  "Edit assembly",
-                                                       "createTitle":  "New assembly"
-                                                   }
-                                   },
-                    "warehouses":  {
-                                       "sort":  {
-                                                    "byNameAsc":  "By name (A-Z)",
-                                                    "byNameDesc":  "By name (Z-A)",
-                                                    "byCreatedOldest":  "By created date (oldest)",
-                                                    "byCreatedNewest":  "By created date (newest)"
-                                                },
-                                       "errors":  {
-                                                      "load":  "Failed to load warehouses",
-                                                      "create":  "Failed to create warehouse",
-                                                      "update":  "Failed to update warehouse",
-                                                      "delete":  "Failed to delete warehouse",
-                                                      "restore":  "Failed to restore warehouse"
-                                                  },
-                                       "dialogs":  {
-                                                       "editTitle":  "Warehouse",
-                                                       "createTitle":  "New warehouse"
-                                                   }
-                                   },
-                    "manufacturers":  {
-                                          "title":  "Manufacturers",
-                                          "sort":  {
-                                                       "byNameAsc":  "By name (A-Z)",
-                                                       "byNameDesc":  "By name (Z-A)",
-                                                       "byCreatedOldest":  "By created date (oldest)",
-                                                       "byCreatedNewest":  "By created date (newest)"
-                                                   },
-                                          "actions":  {
-                                                          "template":  "Download template",
-                                                          "exportCsv":  "Export CSV",
-                                                          "exportXlsx":  "Export XLSX",
-                                                          "exportActiveCsv":  "Export active CSV",
-                                                          "exportActiveXlsx":  "Export active XLSX",
-                                                          "exportDeletedCsv":  "Export deleted CSV",
-                                                          "exportDeletedXlsx":  "Export deleted XLSX",
-                                                          "import":  "Import"
-                                                      },
-                                          "import":  {
-                                                         "title":  "Import manufacturers",
-                                                         "dryRun":  "Dry run (no changes)",
-                                                         "submit":  "Start import",
-                                                         "reportTitle":  "Import report",
-                                                         "reportSummary":  "Rows: {{total}}, created: {{created}}, skipped: {{skipped}}",
-                                                         "errors":  "Errors",
-                                                         "warnings":  "Warnings",
-                                                         "issue":  "Row {{row}}, {{field}}: {{message}}",
-                                                         "dryRunSuccess":  "Dry run completed",
-                                                         "success":  "Import completed"
-                                                     },
-                                          "errors":  {
-                                                         "load":  "Failed to load manufacturers",
-                                                         "create":  "Failed to create manufacturer",
-                                                         "update":  "Failed to update manufacturer",
-                                                         "delete":  "Failed to delete manufacturer",
-                                                         "restore":  "Failed to restore manufacturer",
-                                                         "export":  "Failed to export manufacturers",
-                                                         "template":  "Failed to download template",
-                                                         "import":  "Failed to import manufacturers",
-                                                         "importNoFile":  "Select a file to import"
-                                                     },
-                                          "dialogs":  {
-                                                          "editTitle":  "Manufacturer",
-                                                          "createTitle":  "New brand",
-                                                          "createCountryTitle":  "New country"
-                                                      },
-                                          "actions":  {
-                                                          "addChild":  "Add brand",
-                                                          "addRoot":  "Add country",
-                                                          "template":  "Download template",
-                                                          "exportCsv":  "Export CSV",
-                                                          "exportXlsx":  "Export XLSX",
-                                                          "exportActiveCsv":  "Export active CSV",
-                                                          "exportActiveXlsx":  "Export active XLSX",
-                                                          "exportDeletedCsv":  "Export deleted CSV",
-                                                          "exportDeletedXlsx":  "Export deleted XLSX",
-                                                          "import":  "Import"
-                                                      }
-                                      },
-                    "locations":  {
-                                      "title":  "Locations",
-                                      "dialogs":  {
-                                                      "createTitle":  "New location",
-                                                      "editTitle":  "Edit location"
-                                                  },
-                                      "actions":  {
-                                                      "addChild":  "Add child",
-                                                      "addRoot":  "Add root"
-                                                  },
-                                      "errors":  {
-                                                     "load":  "Failed to load locations",
-                                                     "create":  "Failed to create location",
-                                                     "update":  "Failed to update location",
-                                                     "delete":  "Failed to delete location",
-                                                     "restore":  "Failed to restore location"
-                                                 }
-                                  },
-                    "fieldEquipments":  {
-                                            "title":  "Field equipment",
-                                            "dialogs":  {
-                                                            "createTitle":  "New field equipment node",
-                                                            "editTitle":  "Edit field equipment node"
-                                                        },
-                                            "actions":  {
-                                                            "addChild":  "Add child",
-                                                            "addRoot":  "Add root"
-                                                        },
-                                            "errors":  {
-                                                           "load":  "Failed to load field equipment",
-                                                           "create":  "Failed to create record",
-                                                           "update":  "Failed to update record",
-                                                           "delete":  "Failed to delete record",
-                                                           "restore":  "Failed to restore record"
-                                                       }
-                                        },
-                    "mainEquipment":  {
-                                          "title":  "Main equipment",
-                                          "dialogs":  {
-                                                          "createTitle":  "New main equipment",
-                                                          "editTitle":  "Edit main equipment"
-                                                      },
-                                          "fields":  {
-                                                         "shapeKey":  "Graphic symbol"
-                                                     },
-                                          "actions":  {
-                                                          "addChild":  "Add child",
-                                                          "addRoot":  "Add root"
-                                                      },
-                                          "labels":  {
-                                                         "category":  "Category",
-                                                         "equipment":  "Equipment",
-                                                         "subtype":  "Subtype",
-                                                         "preview":  "Symbol preview"
-                                                     },
-                                          "errors":  {
-                                                         "load":  "Failed to load main equipment",
-                                                         "create":  "Failed to create record",
-                                                         "update":  "Failed to update record",
-                                                         "delete":  "Failed to delete record",
-                                                         "restore":  "Failed to restore record",
-                                                         "maxLevel":  "Cannot create a level deeper than 3"
-                                                     }
-                                      },
-                    "cabinetItems":  {
-                                         "sort":  {
-                                                      "byDateNewest":  "By date (newest)",
-                                                      "byDateOldest":  "By date (oldest)",
-                                                      "byQuantityDesc":  "By quantity (desc)",
-                                                      "byQuantityAsc":  "By quantity (asc)",
-                                                      "byEquipmentAsc":  "Equipment (A-Z)",
-                                                      "byEquipmentDesc":  "Equipment (Z-A)",
-                                                      "byManufacturerAsc":  "Manufacturer (A-Z)",
-                                                      "byManufacturerDesc":  "Manufacturer (Z-A)"
-                                                  },
-                                         "errors":  {
-                                                        "load":  "Failed to load cabinet items",
-                                                        "delete":  "Failed to delete cabinet item",
-                                                        "restore":  "Failed to restore cabinet item",
-                                                        "updateQuantity":  "Failed to update quantity"
-                                                    },
-                                         "dialogs":  {
-                                                         "addFinishedTitle":  "Add finished"
-                                                     },
-                                           "actions":  {
-                                                           "addFinished":  "Add finished",
-                                                           "expandAll":  "Expand all",
-                                                           "collapseAll":  "Collapse all"
-                                                       },
-                                         "inline":  {
-                                                        "add":  "Add",
-                                                        "remove":  "Remove",
-                                                        "addTooltip":  "Add equipment",
-                                                        "removeTooltip":  "Remove equipment",
-                                                        "addDialogTitle":  "Add equipment to cabinet {{name}}",
-                                                        "removeDialogTitle":  "Remove equipment from cabinet {{name}}",
-                                                        "availableToRemove":  "Available to remove: {{count}}",
-                                                        "removeUnavailable":  "Cannot remove the selected quantity from this cabinet.",
-                                                        "nothingToRemove":  "There is no equipment to remove from this cabinet yet."
-                                                    },
-                                         "empty":  {
-                                                       "container":  "No equipment yet."
-                                                   },
-                                         "placeholders":  {
-                                                              "quantityLocked":  "Quantity is fixed = 1",
-                                                              "details":  "Details will be added later.",
-                                                              "noPhoto":  "No photo"
-                                                          },
-                                           "sections":  {
-                                                            "fields":  "Fields",
-                                                            "info":  "Information",
-                                                            "properties":  "Properties"
-                                                        },
-                                           "ipam":  {
-                                                        "title":  "IPAM",
-                                                        "eligible":  "Eligible for IPAM",
-                                                        "notEligible":  "Not eligible",
-                                                        "interfaces":  "Network interfaces: {{count}}",
-                                                        "ipCount":  "Linked IPs: {{count}}",
-                                                        "open":  "Open in IPAM"
-                                                    }
-                                       },
-                     "ipam":  {
-                                  "title":  "IPAM / Network Digital Twin",
-                                  "actions":  {
-                                                  "addVlan":  "Add VLAN",
-                                                  "addSubnet":  "Add subnet",
-                                                  "assign":  "Assign",
-                                                  "reserve":  "Reserve",
-                                                  "release":  "Release",
-                                                  "exportCsv":  "Export CSV"
-                                              },
-                                  "filters":  {
-                                                  "searchSubnets":  "Search subnets, IP or hostname",
-                                                  "status":  "Status",
-                                                  "mode":  "Mode"
-                                              },
-                                  "modes":  {
-                                                "grid":  "Grid",
-                                                "list":  "List",
-                                                "heatmap":  "Heatmap"
-                                            },
-                                  "labels":  {
-                                                 "gateway":  "Gateway",
-                                                 "noVlan":  "No VLAN",
-                                                 "records":  "records",
-                                                 "interfacesCount":  "Interfaces: {{count}}"
-                                             },
-                                  "fields":  {
-                                                 "vlanNumber":  "VLAN number",
-                                                 "purpose":  "Purpose",
-                                                 "hostname":  "Hostname",
-                                                 "dnsName":  "DNS name",
-                                                 "macAddress":  "MAC address",
-                                                 "searchEquipment":  "Search eligible equipment",
-                                                 "equipment":  "Equipment",
-                                                 "interface":  "Network interface",
-                                                 "isPrimary":  "Primary IPv4"
-                                             },
-                                  "panels":  {
-                                                 "address":  "IP actions"
-                                             },
-                                  "dialogs":  {
-                                                 "createVlan":  "Create VLAN",
-                                                 "editVlan":  "Edit VLAN",
-                                                 "createSubnet":  "Create subnet",
-                                                 "editSubnet":  "Edit subnet"
-                                             },
-                                  "sections":  {
-                                                  "vlans":  "VLAN directory",
-                                                  "addressList":  "Address list",
-                                                  "heatmap":  "Heatmap by /24"
-                                              },
-                                  "sidebar":  {
-                                                "subnets":  "Subnets",
-                                                "flat":  "All"
-                                            },
-                                  "empty":  {
-                                                "title":  "No subnets yet",
-                                                "description":  "Create a subnet first with the “Add subnet” button, then select it in the left panel.",
-                                                "heatmapHint":  "Heatmap is available only for /16 subnets."
-                                            },
-                                  "status":  {
-                                                 "free":  "Free",
-                                                 "used":  "Used",
-                                                 "reserved":  "Reserved",
-                                                 "gateway":  "Gateway",
-                                                 "broadcast":  "Broadcast",
-                                                 "network":  "Network"
-                                             },
-                                  "placeholders":  {
-                                                       "selectAddress":  "Select an address to review and change.",
-                                                       "noDescription":  "Subnet description is not set.",
-                                                       "noInterface":  "No interface selected",
-                                                       "serviceLocked":  "Service addresses can only be changed in a dedicated flow.",
-                                                       "cidrLocked":  "CIDR cannot be changed after subnet creation."
-                                                   },
-                                  "prompts":  {
-                                                 "deleteVlan":  "Delete VLAN?",
-                                                 "deleteSubnet":  "Delete subnet?"
-                                             },
-                                  "errors":  {
-                                                 "network":  "Could not reach the server. Check backend availability and network connectivity."
-                                             }
-                              },
-                    "warehouseItems":  {
-                                           "sort":  {
-                                                        "byUpdatedNewest":  "By update (newest)",
-                                                        "byUpdatedOldest":  "By update (oldest)",
-                                                        "byQuantityDesc":  "By quantity (desc)",
-                                                        "byQuantityAsc":  "By quantity (asc)",
-                                                        "byEquipmentAsc":  "Equipment (A-Z)",
-                                                        "byEquipmentDesc":  "Equipment (Z-A)",
-                                                        "byEquipmentCategoryAsc":  "Equipment category (A-Z)",
-                                                        "byEquipmentCategoryDesc":  "Equipment category (Z-A)",
-                                                        "byManufacturerAsc":  "Manufacturer (A-Z)",
-                                                        "byManufacturerDesc":  "Manufacturer (Z-A)",
-                                                        "byPriceAsc":  "Price (low-high)",
-                                                        "byPriceDesc":  "Price (high-low)"
-                                                    },
-                                           "errors":  {
-                                                          "load":  "Failed to load warehouse items",
-                                                          "update":  "Failed to update warehouse item",
-                                                          "delete":  "Failed to delete warehouse item",
-                                                          "restore":  "Failed to restore warehouse item",
-                                                          "actionFailed":  "Failed to perform action. Please try again."
-                                                      },
-                                           "fields":  {
-                                                          "priceMin":  "Price min",
-                                                          "priceMax":  "Price max",
-                                                          "fromWarehouse":  "From warehouse",
-                                                          "destinationType":  "Destination",
-                                                          "toCabinet":  "To cabinet/assembly",
-                                                          "toAssembly":  "To assembly"
-                                                      },
-                                           "dialogs":  {
-                                                           "toWarehouseTitle":  "To warehouse",
-                                                           "toCabinetTitle":  "Introduce into operation",
-                                                           "directToCabinetTitle":  "Direct to cabinet/assembly",
-                                                           "editTitle":  "Edit warehouse item"
-                                                       },
-                                           "actions":  {
-                                                           "toWarehouse":  "To warehouse",
-                                                           "toCabinet":  "Introduce into operation",
-                                                           "directToCabinet":  "Direct to cabinet/assembly"
-                                                       },
-                                           "columns":  {
-                                                           "updated":  "Updated"
-                                                       },
-                                           "accounted":  "Accounted",
-                                           "notAccounted":  "Not accounted"
-                                       },
-                    "movements":  {
-                                      "types":  {
-                                                    "toWarehouse":  "To warehouse",
-                                                    "toCabinet":  "From warehouse to cabinet",
-                                                    "directToCabinet":  "Direct to cabinet",
-                                                    "toAssembly":  "From warehouse to assembly",
-                                                    "directToAssembly":  "Direct to assembly"
-                                                },
-                                      "sort":  {
-                                                   "byDateNewest":  "By date (newest)",
-                                                   "byDateOldest":  "By date (oldest)"
-                                               },
-                                      "errors":  {
-                                                     "load":  "Failed to load movements",
-                                                     "create":  "Failed to create movement"
-                                                 },
-                                      "columns":  {
-                                                      "type":  "Type",
-                                                      "from":  "From",
-                                                      "to":  "To",
-                                                      "performedBy":  "Performed by",
-                                                      "createdAt":  "Date"
-                                                  },
-                                      "fields":  {
-                                                     "movementType":  "Movement type",
-                                                     "fromWarehouse":  "From warehouse",
-                                                     "toWarehouse":  "To warehouse",
-                                                     "fromCabinet":  "From cabinet",
-                                                     "toCabinet":  "To cabinet",
-                                                     "toAssembly":  "To assembly"
-                                                 },
-                                      "validation":  {
-                                                         "typeRequired":  "Select a movement type.",
-                                                         "equipmentAndQuantity":  "Provide equipment and quantity.",
-                                                         "toWarehouseRequired":  "Select a destination warehouse.",
-                                                         "fromWarehouseAndCabinet":  "Select a source warehouse and destination cabinet.",
-                                                         "toCabinetRequired":  "Select a destination cabinet.",
-                                                         "fromWarehouseAndAssembly":  "Select a source warehouse and destination assembly.",
-                                                         "toAssemblyRequired":  "Select a destination assembly."
-                                                     },
-                                      "actions":  {
-                                                      "create":  "Create movement"
-                                                  },
-                                      "newTitle":  "New movement",
-                                      "historyTitle":  "Movement history"
-                                  },
-                    "ioSignals":  {
-                                      "errors":  {
-                                                     "loadTree":  "Failed to load I/O tree",
-                                                     "loadSignals":  "Failed to load I/O signals",
-                                                     "update":  "Failed to update signal",
-                                                     "rebuild":  "Failed to sync signals"
-                                                 },
-                                      "labels":  {
-                                                     "locations":  "Locations",
-                                                     "selectEquipment":  "Select channel-forming equipment",
-                                                     "cabinetMetaFallback":  "No numbers",
-                                                     "channelDeviceMetaFallback":  "No metadata",
-                                                     "signalsTotal":  "{{count}} signals"
-                                                 },
-                                      "actions":  {
-                                                      "rebuild":  "Sync"
-                                                  },
-                                      "columns":  {
-                                                      "channelIndex":  "Channel",
-                                                      "dataType":  "Data type",
-                                                      "tag":  "Tag",
-                                                      "signal":  "Signal",
-                                                      "signalType":  "Signal type",
-                                                      "signalKind":  "Signal kind",
-                                                      "fieldEquipment":  "Equipment",
-                                                      "connectionPoint":  "Connection point",
-                                                      "units":  "Units"
-                                                  },
-                                      "fields":  {
-                                                     "channelIndex":  "Channel",
-                                                     "dataType":  "Data type",
-                                                     "tag":  "Tag",
-                                                     "signal":  "Signal",
-                                                     "signalType":  "Signal type",
-                                                     "signalKind":  "Signal kind",
-                                                     "fieldEquipment":  "Equipment",
-                                                     "connectionPoint":  "Connection point",
-                                                     "units":  "Units",
-                                                     "status":  "Status"
-                                                 },
-                                      "dialogs":  {
-                                                      "editTitle":  "I/O signal"
-                                                  },
-                                      "empty":  {
-                                                    "tree":  "No locations yet.",
-                                                    "select":  "Select a device in the tree to see signals.",
-                                                    "noSignals":  "No signals yet. Click Sync to generate."
-                                                }
-                                  },
-                    "personnel":  {
-                                      "sort":  {
-                                                   "byLastNameAsc":  "Last name (A-Z)",
-                                                   "byLastNameDesc":  "Last name (Z-A)",
-                                                   "byHireDateOldest":  "Hire date (oldest)",
-                                                   "byHireDateNewest":  "Hire date (newest)"
-                                               },
-                                      "columns":  {
-                                                      "fullName":  "Full name",
-                                                      "position":  "Position",
-                                                      "personnelNumber":  "Personnel #",
-                                                      "organisation":  "Organisation",
-                                                      "department":  "Department"
-                                                  },
-                                      "fields":  {
-                                                     "firstName":  "First name",
-                                                     "lastName":  "Last name",
-                                                     "middleName":  "Middle name",
-                                                     "position":  "Position",
-                                                     "personnelNumber":  "Personnel #",
-                                                     "department":  "Department",
-                                                     "service":  "Service"
-                                                 },
-                                      "dialogs":  {
-                                                      "editTitle":  "Edit personnel",
-                                                      "createTitle":  "Add personnel"
-                                                  }
-                                  },
-                    "personnelDetails":  {
-                                             "errors":  {
-                                                            "notFound":  "Personnel not found."
-                                                        },
-                                             "tabs":  {
-                                                          "profile":  "Profile",
-                                                          "competencies":  "Competencies",
-                                                          "training":  "Training",
-                                                          "notes":  "Notes"
-                                                      },
-                                             "noPhoto":  "No photo",
-                                             "photoAlt":  "Personnel photo",
-                                             "actions":  {
-                                                             "saveProfile":  "Save profile",
-                                                             "addCompetency":  "Add competency",
-                                                             "addTraining":  "Add training",
-                                                             "saveNotes":  "Save notes",
-                                                             "uploadAttachment":  "Upload attachment",
-                                                             "download":  "Download",
-                                                             "uploadPhoto":  "Upload photo",
-                                                             "attachment":  "Attachment"
-                                                         },
-                                             "fields":  {
-                                                            "birthDate":  "Birth date",
-                                                            "hireDate":  "Hire date",
-                                                            "tenureYears":  "Tenure (years)",
-                                                            "firstName":  "First name",
-                                                            "lastName":  "Last name",
-                                                            "middleName":  "Middle name",
-                                                            "position":  "Position",
-                                                            "personnelNumber":  "Personnel #",
-                                                            "service":  "Service",
-                                                            "shop":  "Shop",
-                                                            "department":  "Department",
-                                                            "division":  "Division",
-                                                            "organisation":  "Organisation",
-                                                            "email":  "Email",
-                                                            "phone":  "Phone",
-                                                            "notes":  "Notes",
-                                                            "name":  "Name",
-                                                            "city":  "City",
-                                                            "completionDate":  "Completion date",
-                                                            "nextDueDate":  "Next due date",
-                                                            "reminderOffsetDays":  "Reminder offset (days)"
-                                                        },
-                                             "columns":  {
-                                                             "name":  "Name",
-                                                             "organisation":  "Organisation",
-                                                             "city":  "City",
-                                                             "completionDate":  "Completion date",
-                                                             "nextDueDate":  "Next due date",
-                                                             "reminderOffset":  "Reminder offset",
-                                                             "age":  "Age",
-                                                             "daysUntilDue":  "Days until due"
-                                                         },
-                                             "dialogs":  {
-                                                             "addCompetencyTitle":  "Add competency",
-                                                             "addTrainingTitle":  "Add training",
-                                                             "editCompetencyTitle":  "Edit competency",
-                                                             "editTrainingTitle":  "Edit training",
-                                                             "competencyAttachmentsTitle":  "Competency attachments",
-                                                             "trainingAttachmentsTitle":  "Training attachments"
-                                                         }
-                                         },
-                    "measurementUnits":  {
-                                             "title":  "Measurement units",
-                                             "dialogs":  {
-                                                             "createTitle":  "New measurement unit",
-                                                             "editTitle":  "Edit measurement unit"
-                                                         },
-                                             "actions":  {
-                                                             "addChild":  "Add unit",
-                                                             "addRoot":  "Add root"
-                                                         },
-                                             "errors":  {
-                                                            "load":  "Failed to load measurement units",
-                                                            "create":  "Failed to create measurement unit",
-                                                            "update":  "Failed to update measurement unit",
-                                                            "delete":  "Failed to delete measurement unit",
-                                                            "restore":  "Failed to restore measurement unit"
-                                                        }
-                                         },
-                    "signalTypes":  {
-                                        "title":  "Signal types",
-                                        "dialogs":  {
-                                                        "createTitle":  "New signal type",
-                                                        "editTitle":  "Edit signal type"
-                                                    },
-                                        "actions":  {
-                                                        "addChild":  "Add type",
-                                                        "addRoot":  "Add root"
-                                                    },
-                                        "errors":  {
-                                                       "load":  "Failed to load signal types",
-                                                       "create":  "Failed to create signal type",
-                                                       "update":  "Failed to update signal type",
-                                                       "delete":  "Failed to delete signal type",
-                                                       "restore":  "Failed to restore signal type"
-                                                   }
-                                    },
-                    "dataTypes":  {
-                                      "title":  "Data types",
-                                      "dialogs":  {
-                                                      "createTitle":  "New data type",
-                                                      "editTitle":  "Edit data type"
-                                                  },
-                                      "actions":  {
-                                                      "addChild":  "Add child",
-                                                      "addRoot":  "Add root"
-                                                  },
-                                      "errors":  {
-                                                     "load":  "Failed to load data types",
-                                                     "create":  "Failed to create data type",
-                                                     "update":  "Failed to update data type",
-                                                     "delete":  "Failed to delete data type",
-                                                     "restore":  "Failed to restore data type"
-                                                 }
-                                  }
-                },
-    "pid":  {
-                "page":  {
-                             "title":  "Technological equipment",
-                             "location":  "Location",
-                             "selectLocation":  "Select location",
-                             "processName":  "Process name",
-                             "createProcess":  "Create process",
-                             "selectProcess":  "Select process"
-                         },
-                "tabs":  {
-                             "diagram":  "P\u0026ID Diagram",
-                             "equipment":  "Equipment list"
-                         },
-                "toolbox":  {
-                                "mode":  "Mode",
-                                "select":  "Select / Drag",
-                                "addEdge":  "Add edge",
-                                "delete":  "Delete",
-                                "edgeType":  "Edge type",
-                                "mainEquipment":  "Equipment",
-                                "instruments":  "ISA Instruments",
-                                "dragHint":  "Drag to canvas or click to select",
-                                "fromOperation":  "From equipment in operation"
-                            },
-                "layout":  {
-                               "floatingPanels":  "Floating panels"
-                           },
-                "properties":  {
-                                   "title":  "Properties",
-                                   "tag":  "Tag",
-                                   "label":  "Name",
-                                   "plc":  "PLC",
-                                   "ranges":  "Ranges",
-                                   "signalType":  "Signal type",
-                                   "params":  "Parameters",
-                                   "edgeLabel":  "Edge label",
-                                   "edgeType":  "Edge type"
-                               },
-                "edges":  {
-                              "process":  "Process",
-                              "signal":  "Signal",
-                              "control":  "Control",
-                              "electric":  "Electric"
-                          },
-                "list":  {
-                             "type":  "Type",
-                             "tag":  "Tag",
-                             "name":  "Name",
-                             "equipment":  "Equipment",
-                             "instrument":  "Instrument"
-                         },
-                "palette":  {
-                                "main":  {
-                                             "bunker":  "Bunker",
-                                             "feeder":  "Feeder",
-                                             "crusher":  "Crusher",
-                                             "conveyor":  "Conveyor",
-                                             "mill":  "Mill",
-                                             "pump":  "Pump",
-                                             "tank":  "Tank",
-                                             "valve":  "Valve",
-                                             "vfd":  "VFD",
-                                             "motor":  "Motor"
-                                         },
-                                "instrument":  {
-                                                   "tt":  "Temperature transmitter",
-                                                   "pt":  "Pressure transmitter",
-                                                   "ft":  "Flow transmitter",
-                                                   "lt":  "Level transmitter",
-                                                   "st":  "Speed transmitter",
-                                                   "vt":  "Vibration transmitter",
-                                                   "wt":  "Weight transmitter",
-                                                   "it":  "Current transmitter",
-                                                   "et":  "Power transmitter",
-                                                   "zt":  "Positioner",
-                                                   "pic":  "Pressure controller",
-                                                   "tic":  "Temperature controller",
-                                                   "fic":  "Flow controller",
-                                                   "lic":  "Level controller"
-                                               }
-                            },
-                "shapes":  {
-                               "crusher_jaw":  "Crusher (jaw)",
-                               "crusher_cone":  "Crusher (cone)",
-                               "screen_vibratory":  "Screen (vibratory)",
-                               "conveyor_belt":  "Conveyor (belt)",
-                               "mill_tumbling":  "Mill",
-                               "pump_centrifugal":  "Pump (centrifugal)",
-                               "tank_vertical":  "Tank (vertical)",
-                               "valve_gate":  "Valve (gate)",
-                               "motor":  "Motor",
-                               "feeder":  "Feeder",
-                               "cyclone":  "Cyclone",
-                               "mixer":  "Mixer",
-                               "generic":  "Generic"
-                           }
-            }
+{
+  "app": {
+    "title": "EQM",
+    "greeting": "Hi, {{name}}"
+  },
+  "nav": {
+    "dashboard": "Overview",
+    "dictionaries": "Dictionaries",
+    "warehouses": "Warehouses",
+    "warehouseItems": "Warehouse Items",
+    "cabinets": "Cabinets",
+    "assemblies": "Assemblies",
+    "cabinetItems": "Equipment in operation",
+    "movements": "Movements",
+    "ioSignals": "I/O Signals"
+  },
+  "admin": {
+    "title": "Admin",
+    "users": "Users",
+    "sessions": "Sessions",
+    "audit": "Audit Logs"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "label": "Theme"
+  },
+  "language": {
+    "label": "Language",
+    "ru": "RU",
+    "en": "EN"
+  },
+  "auth": {
+    "loginTitle": "Sign in to EQM",
+    "loginHint": "Use admin/admin12345 for the first login.",
+    "username": "Username",
+    "password": "Password",
+    "signIn": "Sign in",
+    "invalidCredentials": "Invalid username or password",
+    "promoTitle": "Unified control center for equipment",
+    "promoSubtitle": "Monitor assets, track movements, and keep inventory aligned in one workspace.",
+    "fields": {
+      "login": "Login",
+      "password": "Password"
+    },
+    "actions": {
+      "submit": "Sign in"
+    },
+    "helper": {
+      "accountCreation": "To create an account, contact the administrator via corporate email or TrueConf"
+    },
+    "brandTitle": "EQM Platform",
+    "brandSubtitle": "Manage assets, workflows, and inventory from a single secure workspace."
+  },
+  "actions": {
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "restore": "Restore",
+    "save": "Save",
+    "cancel": "Cancel",
+    "logout": "Sign out",
+    "search": "Search",
+    "filters": "Filters",
+    "actions": "Actions",
+    "notSelected": "Not selected",
+    "close": "Close",
+    "downloadTemplate": "Download template",
+    "upload": "Upload",
+    "download": "Download",
+    "deleteFile": "Delete file",
+    "refresh": "Refresh now",
+    "import": "Import",
+    "exportActiveCsv": "Export active (CSV)",
+    "exportActiveXlsx": "Export active (XLSX)",
+    "exportDeletedCsv": "Export deleted (CSV)",
+    "exportDeletedXlsx": "Export deleted (XLSX)"
+  },
+  "pages": {
+    "dashboard": "Overview",
+    "users": "Users",
+    "dictionaries": "Dictionaries",
+    "warehouses": "Warehouses",
+    "cabinets": "Cabinets",
+    "assemblies": "Assemblies",
+    "warehouseItems": "Warehouse Items",
+    "cabinetItems": "Equipment in operation",
+    "movements": "Movements",
+    "ioSignals": "I/O Signals",
+    "help": "Help",
+    "personnel": "Personnel",
+    "auditLogs": "Audit Logs",
+    "sessions": "Sessions",
+    "adminDiagnostics": "Diagnostics",
+    "personnel_details": "Personnel details",
+    "personnel_schedule": "Yearly planner",
+    "helpTableOfContents": "Table of contents",
+    "networkMap": {
+      "title": "Network topology",
+      "defaultName": "Network topology",
+      "subtitle": "Multi-select, import/export, custom visuals, path tracing, and network-aware editing.",
+      "documents": {
+        "newDocument": "New diagram",
+        "title": "Contours",
+        "subtitle": "Each contour is stored as its own network diagram.",
+        "search": "Search diagrams",
+        "active": "active",
+        "noDescription": "No description",
+        "empty": "No topology documents found."
+      },
+      "toolbar": {
+        "addDevice": "Add Device",
+        "duplicate": "Duplicate",
+        "autoLayout": "Auto-layout",
+        "fitView": "Fit view",
+        "searchPlaceholder": "Search by name, model, IP, VLAN, or zone",
+        "exportJson": "Export JSON",
+        "linkMode": "Link"
+      },
+      "states": {
+        "saving": "Saving...",
+        "saved": "Saved",
+        "error": "Save error",
+        "unsaved": "Unsaved"
+      },
+      "stats": {
+        "devices": "Devices",
+        "links": "Links",
+        "interfaces": "Interfaces",
+        "routes": "Routes",
+        "warnings": "Warnings",
+        "critical": "Critical",
+        "zoom": "Zoom",
+        "selection": "Selection"
+      },
+      "canvas": {
+        "title": "Topology Canvas",
+        "subtitle": "{{visibleNodes}} visible nodes, {{visibleLinks}} visible links",
+        "hints": {
+          "pan": "Pan: wheel, trackpad, or drag the canvas",
+          "select": "Selection: click, Ctrl/Cmd multi-select, or drag a frame"
+        }
+      },
+      "inventory": {
+        "title": "Inventory",
+        "subtitle": "Installed network-capable equipment from EQM/IPAM",
+        "search": "Search inventory",
+        "added": "On canvas",
+        "empty": "No matching inventory items."
+      },
+      "pathTracing": {
+        "title": "Tracing",
+        "subtitle": "Pick two nodes, inspect the route, and create a direct link when needed.",
+        "start": "Select start",
+        "end": "Select destination",
+        "useSelection": "Use selection",
+        "createLink": "Create link",
+        "clear": "Clear",
+        "placeholder": "Select two nodes to highlight the computed path.",
+        "noPath": "No path found between selected nodes.",
+        "hops": "{{count}} hops"
+      },
+      "scheme": {
+        "title": "Diagram properties",
+        "subtitle": "Description and quick metrics for the active contour."
+      },
+      "linkCreation": {
+        "pickFirst": "Link mode is enabled. Pick the first node on the canvas.",
+        "pickSecond": "First node selected. Now click the second node.",
+        "pendingFirst": "Waiting for the first node",
+        "pendingSecond": "Waiting for the second node",
+        "created": "Link created.",
+        "duplicate": "That link already exists.",
+        "sameNode": "You cannot link a node to itself.",
+        "selectTwoNodes": "Select two different nodes."
+      },
+      "properties": {
+        "title": "Properties",
+        "empty": "Select a device or link on the canvas to inspect and edit its parameters.",
+        "multiSelection": "{{count}} nodes selected",
+        "interfaces": "Interfaces",
+        "routes": "Routes"
+      },
+      "policies": {
+        "title": "Routing & Policies",
+        "empty": "No policies have been added yet."
+      },
+      "validation": {
+        "title": "Topology validation",
+        "clear": "No validation issues detected."
+      },
+      "context": {
+        "centerNode": "Center on device",
+        "setPathStart": "Set as path start",
+        "setPathEnd": "Set as path end",
+        "duplicateNode": "Duplicate device",
+        "deleteNode": "Delete device",
+        "toggleEdgeHealth": "Toggle link health",
+        "deleteEdge": "Delete link"
+      },
+      "fields": {
+        "description": "Topology description",
+        "subnet": "Subnet",
+        "address": "Address",
+        "selectSubnetFirst": "Select a subnet first",
+        "ip": "IP address",
+        "vlan": "VLAN / segment",
+        "zone": "Zone",
+        "asn": "ASN",
+        "model": "Model",
+        "os": "OS",
+        "label": "Label",
+        "bandwidth": "Bandwidth",
+        "latency": "Latency",
+        "network": "Network",
+        "type": "Type",
+        "target": "Target",
+        "interfaceName": "Interface name",
+        "prefix": "Prefix",
+        "nextHop": "Next hop",
+        "metric": "Metric"
+      },
+      "health": {
+        "healthy": "healthy",
+        "warning": "warning",
+        "critical": "critical"
+      },
+      "interfaceStatus": {
+        "up": "up",
+        "down": "down",
+        "degraded": "degraded"
+      },
+      "policyState": {
+        "active": "active",
+        "triggered": "triggered",
+        "disabled": "disabled"
+      },
+      "layers": {
+        "core": "core",
+        "distribution": "distribution",
+        "access": "access",
+        "security": "security",
+        "datacenter": "datacenter",
+        "wan": "wan",
+        "edge": "edge"
+      },
+      "edgeStyles": {
+        "ethernet": "Ethernet",
+        "fiber": "Fiber",
+        "vpn": "VPN",
+        "wireless": "Wireless",
+        "mpls": "MPLS",
+        "trunk": "Trunk"
+      },
+      "nodeTypes": {
+        "router": "Router",
+        "core-switch": "Core switch",
+        "switch": "Switch",
+        "firewall": "Firewall",
+        "load-balancer": "Load balancer",
+        "vpn-gateway": "VPN gateway",
+        "wireless-controller": "Wireless controller",
+        "access-point": "Access point",
+        "server": "Server",
+        "vm-host": "VM host",
+        "storage": "Storage",
+        "nas": "NAS",
+        "cloud": "Cloud",
+        "internet": "Internet",
+        "workstation": "Workstation",
+        "printer": "Printer",
+        "camera": "Camera",
+        "iot-gateway": "IoT gateway"
+      }
+    },
+    "serialMap": {
+      "title": "Serial Protocol Map",
+      "toolbar": {
+        "undo": "Undo",
+        "redo": "Redo",
+        "select": "Select",
+        "connect": "Connect",
+        "pan": "Pan",
+        "autoLayout": "Auto layout",
+        "fitView": "Fit view",
+        "resetView": "Reset view",
+        "grid": "Grid",
+        "addressTable": "Address table",
+        "importJson": "Import JSON",
+        "exportJson": "Export JSON",
+        "exportXml": "Export XML",
+        "deleteSelection": "Delete selection"
+      },
+      "status": {
+        "saving": "Saving",
+        "localOnly": "Local only",
+        "documentId": "Document #{{id}}",
+        "newDraft": "New draft"
+      },
+      "sections": {
+        "library": "Contours and library",
+        "minimap": "Mini-map",
+        "properties": "Properties and data",
+        "nodeDataPool": "Node data pool",
+        "gatewayMappings": "Gateway mappings",
+        "diagnostics": "Diagnostics"
+      },
+      "tabs": {
+        "properties": "Properties",
+        "dataPool": "Data pool",
+        "gateway": "Gateway"
+      },
+      "fields": {
+        "document": "Document",
+        "description": "Description",
+        "searchNodes": "Search nodes",
+        "protocol": "Protocol",
+        "address": "Address",
+        "baudRate": "Baud rate",
+        "parity": "Parity",
+        "dataBits": "Data bits",
+        "stopBits": "Stop bits",
+        "segment": "Segment",
+        "comment": "Comment",
+        "supportedRegisters": "Supported registers",
+        "register": "Register",
+        "dataType": "Data type",
+        "bridgeProtocol": "Bridge protocol",
+        "srcRegister": "Source register",
+        "srcAddress": "Source address",
+        "dstRegister": "Target register",
+        "dstAddress": "Target address",
+        "note": "Note"
+      },
+      "actions": {
+        "new": "New",
+        "addScheme": "Add contour",
+        "focusNode": "Focus node",
+        "showConflicts": "Show conflicts",
+        "demo": "Demo",
+        "goTo": "Go to",
+        "open": "Open",
+        "copy": "Copy",
+        "copySuffix": "copy"
+      },
+      "labels": {
+        "scheme": "Contour",
+        "addressShort": "adr"
+      },
+      "stats": {
+        "nodes": "Nodes: {{count}}",
+        "edges": "Edges: {{count}}",
+        "conflicts": "Conflicts: {{count}}"
+      },
+      "storage": {
+        "fallback": "Serial map is currently stored locally as an emergency draft in localStorage: {{keyName}}.",
+        "backend": "The main serial map storage is the backend document; localStorage ({{keyName}}) is used only as a recovery fallback.",
+        "recovered": "A local draft was found. Trying to migrate it to the backend."
+      },
+      "messages": {
+        "duplicateEdge": "That connection already exists.",
+        "rs232Limit": "RS-232 supports only a single connection.",
+        "edgeCreated": "Connection created.",
+        "pickSecondNode": "Pick the second node.",
+        "pickFirstNode": "Pick the first node.",
+        "demoDescription": "Demo setup for validating navigation and links",
+        "diagnosticsClear": "Diagnostics are clean.",
+        "noConflicts": "No conflicts found.",
+        "importOk": "The file was imported without issues.",
+        "importJsonError": "The file could not be parsed as JSON.",
+        "noDescription": "No description",
+        "dropImport": "Drop a JSON project here to import"
+      },
+      "empty": {
+        "selectNodeOrEdge": "Select a node or edge to edit its properties.",
+        "selectNodeForDataPool": "Select a node to edit its data pool.",
+        "selectGateway": "Select a gateway to configure the bridge protocol and mappings."
+      },
+      "dialogs": {
+        "conflicts": "Address conflicts",
+        "addressTable": "Address table",
+        "importResult": "Import result"
+      },
+      "nodeKinds": {
+        "equipment": "Equipment",
+        "master": "Master / PLC",
+        "slave": "RTU slave",
+        "sensor": "Sensor / I/O",
+        "bus": "Bus segment",
+        "repeater": "Repeater / hub",
+        "gateway": "Gateway"
+      }
+    }
+  },
+  "dashboard": {
+    "kpis": {
+      "total_cabinets": "Total cabinets",
+      "total_plc_in_cabinets": "Total PLCs in cabinets",
+      "total_plc_in_warehouses": "Total PLCs in warehouses",
+      "total_channels": "Total channels",
+      "ai": "AI",
+      "di": "DI",
+      "ao": "AO",
+      "do": "DO",
+      "total": "Total",
+      "total_warehouse_value_rub": "Total equipment value"
+    },
+    "titles": {
+      "by_type": "Distribution by type",
+      "by_warehouse_qty": "Stock by warehouse",
+      "accounted_vs_not": "Accounted / Not accounted",
+      "by_warehouse_value": "Value by warehouse",
+      "recent_actions": "Recent actions",
+      "recent_logins": "Recent logins"
+    },
+    "columns": {
+      "action": "Action",
+      "entity": "Entity",
+      "user": "User",
+      "date": "Date",
+      "login": "Login",
+      "logout": "Logout",
+      "reason": "Reason"
+    },
+    "common": {
+      "loading": "Loading",
+      "no_data": "No data",
+      "last_rows": "Showing last {{count}} records"
+    },
+    "errors": {
+      "overview": "Failed to load dashboard overview. Check /api/v1/dashboard/overview.",
+      "actions": "Failed to load actions.",
+      "logins": "Failed to load logins."
+    },
+    "units": "units"
+  },
+  "menu": {
+    "root": "Menu",
+    "overview": "Overview",
+    "equipment": "Equipment",
+    "warehouse_items": "Warehouse Items",
+    "cabinets": "Cabinets",
+    "assemblies": "Assemblies",
+    "movements": "Movements",
+    "cabinets_group": "Cabinets / Assemblies",
+    "cabinet_items": "Equipment in operation",
+    "cabinet_composition": "Cabinet Composition",
+    "engineering": "Engineering",
+    "io_signals": "IO Signals",
+    "dcl": "DCL",
+    "serial_map": "Serial Protocol Map",
+    "network_map": "Network topology",
+    "dictionaries": "Dictionaries",
+    "warehouses": "Warehouses",
+    "manufacturers": "Manufacturers",
+    "nomenclature": "Nomenclature",
+    "locations": "Locations",
+    "equipment_categories": "Equipment Categories",
+    "admin": "Admin",
+    "admin_users": "Users",
+    "admin_sessions": "Sessions",
+    "admin_audit": "Audit Logs",
+    "admin_diagnostics": "Diagnostics",
+    "help": "Help",
+    "personnel": "Personnel",
+    "personnel_list": "Personnel list",
+    "personnel_schedule": "Yearly planner",
+    "chat": "Chatbot",
+    "measurement_units": "Measurement units",
+    "signal_types": "Signal types",
+    "field_equipments": "Field equipment",
+    "main_equipment": "Main equipment",
+    "data_types": "Data types",
+    "technological_equipment": "Technological equipment",
+    "ipam": "IPAM / Network"
+  },
+  "sidebar": {
+    "pin": "Pin sidebar",
+    "unpin": "Unpin sidebar"
+  },
+  "chat": {
+    "title": "Chatbot",
+    "placeholder": "Enter your message…",
+    "send": "Send"
+  },
+  "help": {
+    "personnel_overview": "Personnel is available in the left sidebar. The list supports search, filters, and sorting; admins can add, edit, delete, and restore records.",
+    "personnel_details": "Opening a row shows the Personnel card with profile fields, photo upload, competencies, training with expiry warnings and reminder offsets, and notes.",
+    "personnel_schedule": "The yearly planner is a dedicated Personnel screen with a day matrix, bulk status fill, event overlays, and a right-hand analytics panel.",
+    "overview": "The overview is a read-only dashboard with KPI cards, charts, and summary tables. It provides a snapshot of the system and does not allow editing records directly.",
+    "equipmentWarehouseItems": "This table lists warehouse stock items. Use search, filters, and sorting to find positions quickly. Add, edit, delete, and restore actions are available.",
+    "equipmentWarehouseItemsSecondary": "Movement actions such as inbound and transfer are initiated from this area.",
+    "equipmentCabinetItems": "Cabinet items show equipment stored in cabinets. Use the same list tools: search, filters, sorting, and actions to add, edit, delete, or restore entries.",
+    "cabinets": "The cabinets list lets you manage cabinet records. Use add/edit/delete/restore actions and open a cabinet to view its composition.",
+    "cabinetComposition": "Cabinet composition is a dedicated view for the cabinet structure and items. It is a focused area for cabinet details and composition-related actions.",
+    "engineering": "Engineering includes IO Signals and DCL. These screens manage signals, connections, and related definitions using add/edit/delete/restore actions.",
+    "engineeringSecondary": "I/O Signals now includes Data type, Equipment, and Connection point fields. Data types and field equipment are selected from dictionary trees, and Measurement type is no longer used.",
+    "networkMap": "Network Topology is a graphical React Flow editor for building and reviewing the network landscape with inventory-backed nodes, custom links, validation, and path tracing.",
+    "networkMapSecondary": "The screen supports read-only and edit modes based on role, loads installed network-capable equipment from EQM/IPAM, and stores the topology document on the server.",
+    "main_equipment": "The Main equipment dictionary is a hierarchical tree with unlimited depth. Node level is calculated automatically from the selected parent.",
+    "field_equipments": "The Field equipment dictionary is a hierarchical tree. It supports creating root and child nodes, editing, soft delete, and restore.",
+    "data_types": "The Data types dictionary is a tree. You can create root and child nodes, edit name, parent, and tooltip. Tooltip is shown on hover over the node name and may be empty.",
+    "dictionaries": "Dictionaries include Warehouses, Manufacturers, Nomenclature, Locations, Main equipment, and Equipment Categories. Records can be viewed, added, edited, deleted, and restored. Main equipment is stored as a tree.",
+    "admin": "Admin contains Users, Sessions, and Audit Logs. Access is limited to the admin role."
+  },
+  "common": {
+    "noAccess": "Not enough permissions.",
+    "sort": "Sort",
+    "showDeleted": "Show deleted",
+    "all": "All",
+    "yes": "Yes",
+    "no": "No",
+    "deleted": "Deleted",
+    "deletedSuffix": " (deleted)",
+    "notImplemented": "Not implemented",
+    "loading": "Loading...",
+    "dateFrom": "Date from",
+    "dateTo": "Date to",
+    "createdFrom": "Created from",
+    "createdTo": "Created to",
+    "status": {
+      "label": "Status",
+      "deleted": "Deleted",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "fields": {
+      "name": "Name",
+      "factoryNumber": "Factory number",
+      "nomenclatureNumber": "Inventory number",
+      "files": "Files",
+      "location": "Location",
+      "manufacturer": "Manufacturer",
+      "equipmentCategory": "Equipment category",
+      "nomenclature": "Nomenclature",
+      "channelForming": "Channel forming",
+      "channelCount": "Channel count",
+      "isNetwork": "Network",
+      "portsInterfaces": "Network interfaces",
+      "photo": "Photo",
+      "datasheet": "Datasheet",
+      "portType": "Port type",
+      "portCount": "Count",
+      "priceRub": "Price, RUB",
+      "login": "Login",
+      "password": "Password",
+      "role": "Role",
+      "country": "Country",
+      "brand": "Brand",
+      "flag": "Flag",
+      "foundedYear": "Founded year",
+      "segment": "Segment",
+      "specialization": "Specialization",
+      "website": "Website",
+      "parent": "Parent",
+      "cabinet": "Cabinet",
+      "assembly": "Assembly",
+      "cabinetAssembly": "Cabinet/Assembly",
+      "equipment": "Equipment",
+      "quantity": "Quantity",
+      "comment": "Comment",
+      "accounting": "Accounting",
+      "warehouse": "Warehouse",
+      "reference": "Reference",
+      "sortOrder": "Sort order",
+      "tooltip": "Tooltip"
+    },
+    "treeSelect": {
+      "groupOnly": "Only leaf items can be selected"
+    },
+    "liveFilter": {
+      "searchPlaceholder": "Search by name",
+      "noOptions": "No available options"
+    },
+    "rowsPerPage": "Rows per page",
+    "rowsDisplayed": "{{from}}-{{to}} of {{countLabel}}",
+    "rowsMore": "more"
+  },
+  "errors": {
+    "load_personnel_failed": "Failed to load personnel.",
+    "create_personnel_failed": "Failed to create personnel.",
+    "update_personnel_failed": "Failed to update personnel.",
+    "delete_personnel_failed": "Failed to delete personnel.",
+    "restore_personnel_failed": "Failed to restore personnel.",
+    "create_competency_failed": "Failed to create competency.",
+    "update_competency_failed": "Failed to update competency.",
+    "create_training_failed": "Failed to create training.",
+    "update_training_failed": "Failed to update training.",
+    "delete_competency_failed": "Failed to delete competency.",
+    "restore_competency_failed": "Failed to restore competency.",
+    "delete_training_failed": "Failed to delete training.",
+    "restore_training_failed": "Failed to restore training.",
+    "no_attachment": "No attachment available.",
+    "attachment_upload_failed": "Failed to upload attachment.",
+    "attachment_download_failed": "Failed to download attachment.",
+    "photo_upload_failed": "Failed to upload photo.",
+    "fileTooLarge": "File is too large.",
+    "invalidFormat": "Invalid file format.",
+    "downloadFailed": "Failed to download.",
+    "saveFailed": "Failed to save."
+  },
+  "roles": {
+    "admin": "Admin",
+    "engineer": "Engineer",
+    "viewer": "Viewer"
+  },
+  "validation": {
+    "requiredFields": "Fill in required fields."
+  },
+  "pagesUi": {
+    "equipmentCategories": {
+      "title": "Equipment categories",
+      "sort": {
+        "byNameAsc": "By name (A-Z)",
+        "byNameDesc": "By name (Z-A)",
+        "byCreatedOldest": "By created date (oldest first)",
+        "byCreatedNewest": "By created date (newest first)"
+      },
+      "dialogs": {
+        "editTitle": "Edit equipment category",
+        "createTitle": "New equipment category"
+      },
+      "actions": {
+        "addChild": "Add child",
+        "addRoot": "Add root"
+      },
+      "errors": {
+        "load": "Failed to load equipment categories",
+        "create": "Failed to create record",
+        "update": "Failed to update record",
+        "delete": "Failed to delete record",
+        "restore": "Failed to restore record"
+      }
+    },
+    "equipmentTypes": {
+      "title": "Nomenclature",
+      "sort": {
+        "byNameAsc": "By name (A-Z)",
+        "byNameDesc": "By name (Z-A)",
+        "byNomenclatureAsc": "By nomenclature (A-Z)",
+        "byNomenclatureDesc": "By nomenclature (Z-A)",
+        "byCreatedOldest": "By created date (oldest)",
+        "byCreatedNewest": "By created date (newest)"
+      },
+      "errors": {
+        "load": "Failed to load nomenclature",
+        "create": "Failed to create equipment type",
+        "update": "Failed to update equipment type",
+        "delete": "Failed to delete equipment type",
+        "restore": "Failed to restore equipment type"
+      },
+      "fields": {
+        "article": "Article",
+        "hasSerialInterfaces": "Serial interfaces",
+        "currentType": "Current type",
+        "supplyVoltage": "Supply voltage",
+        "currentConsumptionA": "Current consumption, A"
+      },
+      "options": {
+        "currentType": {
+          "direct": "Direct current",
+          "alternating": "Alternating current",
+          "na": "N/A"
+        },
+        "supplyVoltage": {
+          "v220": "220V",
+          "v24": "24V",
+          "v220v24": "220V/24V",
+          "v12": "12V",
+          "v9": "9V",
+          "v5": "5V",
+          "v3": "3V",
+          "na": "N/A"
+        }
+      },
+      "columns": {
+        "channels": "Channels",
+        "channelsDetailed": "AI/DI/AO/DO"
+      },
+      "serialPorts": {
+        "title": "Serial interfaces",
+        "add": "Add interface",
+        "portType": "Port type",
+        "count": "Count"
+      },
+      "validation": {
+        "networkPortsDisallowSerial": "RS-485 and RS-232 cannot be added as network ports. Use \"Serial interfaces\".",
+        "currentConsumptionNonNegative": "Current consumption cannot be negative.",
+        "currentConsumptionInvalid": "Enter a valid numeric current consumption value."
+      },
+      "channelsWithCount": "Yes ({{count}})",
+      "dialogs": {
+        "editTitle": "Equipment type",
+        "createTitle": "New equipment type"
+      },
+      "actions": {
+        "uploadPhoto": "Upload photo",
+        "uploadDatasheet": "Upload datasheet"
+      }
+    },
+    "auditLogs": {
+      "sort": {
+        "byTimeNewest": "By time (newest)",
+        "byTimeOldest": "By time (oldest)",
+        "byEntityAsc": "By entity (A-Z)",
+        "byEntityDesc": "By entity (Z-A)"
+      },
+      "fields": {
+        "actorId": "Actor ID",
+        "entity": "Entity",
+        "action": "Action"
+      },
+      "columns": {
+        "id": "ID",
+        "actor": "Actor",
+        "action": "Action",
+        "entity": "Entity",
+        "entityId": "Entity ID",
+        "time": "Time"
+      },
+      "errors": {
+        "load": "Failed to load audit logs"
+      }
+    },
+    "sessions": {
+      "sort": {
+        "byStartNewest": "By start (newest)",
+        "byStartOldest": "By start (oldest)",
+        "byEndNewest": "By end (newest)",
+        "byEndOldest": "By end (oldest)"
+      },
+      "fields": {
+        "userId": "User ID",
+        "endReason": "End reason"
+      },
+      "columns": {
+        "id": "ID",
+        "user": "User",
+        "startedAt": "Started",
+        "endedAt": "Ended",
+        "endReason": "Reason",
+        "ip": "IP"
+      },
+      "errors": {
+        "load": "Failed to load sessions"
+      }
+    },
+    "diagnostics": {
+      "subtitle": "Monitoring of the local host, processes, ports, and EQM runtime logs.",
+      "lastCheck": "Last check: {{checkedAt}}",
+      "tabs": {
+        "overview": "Overview",
+        "processes": "Processes & ports",
+        "logs": "Errors & logs"
+      },
+      "overview": {
+        "title": "Service health",
+        "host": "Host: {{host}} • EQM processes: {{processCount}} • warnings: {{warningCount}} • critical: {{errorCount}}",
+        "serviceLine": "Port: {{port}} • PID: {{pid}} • HTTP: {{http}}",
+        "countsLine": "Processes: {{processCount}} • warnings: {{warningCount}} • critical: {{errorCount}}"
+      },
+      "processes": {
+        "title": "Related processes and expected listeners",
+        "portsTitle": "Ports",
+        "processesTitle": "Processes"
+      },
+      "logs": {
+        "title": "Error analysis and log streams",
+        "file": "File: {{file}} • line: {{line}}",
+        "commands": "Commands",
+        "lowSignal": "low-signal",
+        "causes": "Possible causes",
+        "actions": "Suggested actions"
+      },
+      "filters": {
+        "search": "Search",
+        "service": "Service",
+        "problemState": "State",
+        "source": "Source",
+        "severity": "Severity",
+        "dateFrom": "Date from",
+        "dateTo": "Date to",
+        "showLowSignal": "Show low-signal system entries",
+        "all": "All",
+        "onlyProblematic": "Only problematic"
+      },
+      "columns": {
+        "service": "Service",
+        "port": "Port",
+        "pid": "PID",
+        "process": "Process",
+        "detectedService": "Detected service",
+        "issues": "Port issues",
+        "command": "Command line",
+        "parentPid": "Parent PID",
+        "status": "Status",
+        "ports": "Ports",
+        "reasons": "Suspicious reasons",
+        "actions": "Actions"
+      },
+      "actions": {
+        "killProcess": "Kill process",
+        "killUnavailable": "Unavailable",
+        "selectAllPage": "Select all on page",
+        "selectedCount": "Selected: {{count}}",
+        "deleteSelected": "Delete selected",
+        "confirmDelete": "Delete hard delete"
+      },
+      "dialogs": {
+        "deleteTitle": "Confirm log deletion",
+        "deleteBody": "This will hard delete {{count}} entries from the original log files."
+      },
+      "empty": {
+        "noIssues": "No issues found",
+        "logs": "No log entries matched the current filters."
+      },
+      "status": {
+        "healthy": "healthy",
+        "warning": "warning",
+        "critical": "critical",
+        "unknown": "unknown"
+      },
+      "severity": {
+        "info": "info",
+        "warning": "warning",
+        "error": "error",
+        "critical": "critical"
+      },
+      "source": {
+        "server": "server/host",
+        "postgres": "postgres",
+        "backend": "backend",
+        "frontend": "frontend"
+      },
+      "issue": {
+        "listener_missing": "listener missing on expected port",
+        "http_probe_failed": "HTTP probe failed",
+        "duplicate_runtime": "duplicate runtime detected",
+        "orphan_process_detected": "orphan process detected",
+        "foreign_listener": "port owned by another process",
+        "stale_pid": "port owner PID disappeared"
+      },
+      "reason": {
+        "process_without_parent": "process without a live parent",
+        "duplicate_runtime": "duplicate root runtime",
+        "listener_without_healthy_http": "listening port without healthy HTTP"
+      },
+      "errors": {
+        "load": "Failed to load diagnostics",
+        "deleteLogs": "Failed to delete selected log entries",
+        "killProcess": "Failed to terminate the process"
+      }
+    },
+    "users": {
+      "sort": {
+        "byUsernameAsc": "By login (A-Z)",
+        "byUsernameDesc": "By login (Z-A)",
+        "byRoleAsc": "By role (A-Z)",
+        "byRoleDesc": "By role (Z-A)",
+        "byCreatedOldest": "By created date (oldest)",
+        "byCreatedNewest": "By created date (newest)"
+      },
+      "errors": {
+        "load": "Failed to load users",
+        "create": "Failed to create user",
+        "update": "Failed to update user",
+        "delete": "Failed to delete user",
+        "restore": "Failed to restore user"
+      }
+    },
+    "cabinets": {
+      "sort": {
+        "byNameAsc": "By name (A-Z)",
+        "byNameDesc": "By name (Z-A)",
+        "byCreatedOldest": "By created date (oldest)",
+        "byCreatedNewest": "By created date (newest)"
+      },
+      "errors": {
+        "load": "Failed to load cabinets",
+        "create": "Failed to create cabinet",
+        "update": "Failed to update cabinet",
+        "delete": "Failed to delete cabinet",
+        "restore": "Failed to restore cabinet",
+        "filesLoad": "Failed to load cabinet files",
+        "fileUpload": "Failed to upload file",
+        "fileDownload": "Failed to download file",
+        "fileDelete": "Failed to delete file"
+      },
+      "hints": {
+        "saveBeforeUpload": "Save the cabinet before uploading files."
+      },
+      "dialogs": {
+        "editTitle": "Edit cabinet",
+        "createTitle": "New cabinet"
+      },
+      "actions": {
+        "openComposition": "Open composition"
+      }
+    },
+    "assemblies": {
+      "sort": {
+        "byNameAsc": "By name (A-Z)",
+        "byNameDesc": "By name (Z-A)",
+        "byCreatedOldest": "By created date (oldest)",
+        "byCreatedNewest": "By created date (newest)"
+      },
+      "errors": {
+        "load": "Failed to load assemblies",
+        "create": "Failed to create assembly",
+        "update": "Failed to update assembly",
+        "delete": "Failed to delete assembly",
+        "restore": "Failed to restore assembly"
+      },
+      "dialogs": {
+        "editTitle": "Edit assembly",
+        "createTitle": "New assembly"
+      }
+    },
+    "warehouses": {
+      "sort": {
+        "byNameAsc": "By name (A-Z)",
+        "byNameDesc": "By name (Z-A)",
+        "byCreatedOldest": "By created date (oldest)",
+        "byCreatedNewest": "By created date (newest)"
+      },
+      "errors": {
+        "load": "Failed to load warehouses",
+        "create": "Failed to create warehouse",
+        "update": "Failed to update warehouse",
+        "delete": "Failed to delete warehouse",
+        "restore": "Failed to restore warehouse"
+      },
+      "dialogs": {
+        "editTitle": "Warehouse",
+        "createTitle": "New warehouse"
+      }
+    },
+    "manufacturers": {
+      "title": "Manufacturers",
+      "sort": {
+        "byNameAsc": "By name (A-Z)",
+        "byNameDesc": "By name (Z-A)",
+        "byCreatedOldest": "By created date (oldest)",
+        "byCreatedNewest": "By created date (newest)"
+      },
+      "actions": {
+        "addChild": "Add brand",
+        "addRoot": "Add country",
+        "template": "Download template",
+        "exportCsv": "Export CSV",
+        "exportXlsx": "Export XLSX",
+        "exportActiveCsv": "Export active CSV",
+        "exportActiveXlsx": "Export active XLSX",
+        "exportDeletedCsv": "Export deleted CSV",
+        "exportDeletedXlsx": "Export deleted XLSX",
+        "import": "Import"
+      },
+      "import": {
+        "title": "Import manufacturers",
+        "dryRun": "Dry run (no changes)",
+        "submit": "Start import",
+        "reportTitle": "Import report",
+        "reportSummary": "Rows: {{total}}, created: {{created}}, skipped: {{skipped}}",
+        "errors": "Errors",
+        "warnings": "Warnings",
+        "issue": "Row {{row}}, {{field}}: {{message}}",
+        "dryRunSuccess": "Dry run completed",
+        "success": "Import completed"
+      },
+      "errors": {
+        "load": "Failed to load manufacturers",
+        "create": "Failed to create manufacturer",
+        "update": "Failed to update manufacturer",
+        "delete": "Failed to delete manufacturer",
+        "restore": "Failed to restore manufacturer",
+        "export": "Failed to export manufacturers",
+        "template": "Failed to download template",
+        "import": "Failed to import manufacturers",
+        "importNoFile": "Select a file to import"
+      },
+      "dialogs": {
+        "editTitle": "Manufacturer",
+        "createTitle": "New brand",
+        "createCountryTitle": "New country"
+      }
+    },
+    "locations": {
+      "title": "Locations",
+      "dialogs": {
+        "createTitle": "New location",
+        "editTitle": "Edit location"
+      },
+      "actions": {
+        "addChild": "Add child",
+        "addRoot": "Add root"
+      },
+      "errors": {
+        "load": "Failed to load locations",
+        "create": "Failed to create location",
+        "update": "Failed to update location",
+        "delete": "Failed to delete location",
+        "restore": "Failed to restore location"
+      }
+    },
+    "fieldEquipments": {
+      "title": "Field equipment",
+      "dialogs": {
+        "createTitle": "New field equipment node",
+        "editTitle": "Edit field equipment node"
+      },
+      "actions": {
+        "addChild": "Add child",
+        "addRoot": "Add root"
+      },
+      "errors": {
+        "load": "Failed to load field equipment",
+        "create": "Failed to create record",
+        "update": "Failed to update record",
+        "delete": "Failed to delete record",
+        "restore": "Failed to restore record"
+      }
+    },
+    "mainEquipment": {
+      "title": "Main equipment",
+      "dialogs": {
+        "createTitle": "New main equipment",
+        "editTitle": "Edit main equipment"
+      },
+      "fields": {
+        "shapeKey": "Graphic symbol"
+      },
+      "actions": {
+        "addChild": "Add child",
+        "addRoot": "Add root"
+      },
+      "labels": {
+        "category": "Category",
+        "equipment": "Equipment",
+        "subtype": "Subtype",
+        "preview": "Symbol preview"
+      },
+      "errors": {
+        "load": "Failed to load main equipment",
+        "create": "Failed to create record",
+        "update": "Failed to update record",
+        "delete": "Failed to delete record",
+        "restore": "Failed to restore record",
+        "maxLevel": "Cannot create a level deeper than 3"
+      }
+    },
+    "cabinetItems": {
+      "sort": {
+        "byDateNewest": "By date (newest)",
+        "byDateOldest": "By date (oldest)",
+        "byQuantityDesc": "By quantity (desc)",
+        "byQuantityAsc": "By quantity (asc)",
+        "byEquipmentAsc": "Equipment (A-Z)",
+        "byEquipmentDesc": "Equipment (Z-A)",
+        "byManufacturerAsc": "Manufacturer (A-Z)",
+        "byManufacturerDesc": "Manufacturer (Z-A)"
+      },
+      "errors": {
+        "load": "Failed to load cabinet items",
+        "delete": "Failed to delete cabinet item",
+        "restore": "Failed to restore cabinet item",
+        "updateQuantity": "Failed to update quantity"
+      },
+      "dialogs": {
+        "addFinishedTitle": "Add finished"
+      },
+      "actions": {
+        "addFinished": "Add finished",
+        "expandAll": "Expand all",
+        "collapseAll": "Collapse all"
+      },
+      "inline": {
+        "add": "Add",
+        "remove": "Remove",
+        "addTooltip": "Add equipment",
+        "removeTooltip": "Remove equipment",
+        "addDialogTitle": "Add equipment to cabinet {{name}}",
+        "removeDialogTitle": "Remove equipment from cabinet {{name}}",
+        "availableToRemove": "Available to remove: {{count}}",
+        "removeUnavailable": "Cannot remove the selected quantity from this cabinet.",
+        "nothingToRemove": "There is no equipment to remove from this cabinet yet."
+      },
+      "empty": {
+        "container": "No equipment yet."
+      },
+      "placeholders": {
+        "quantityLocked": "Quantity is fixed = 1",
+        "details": "Details will be added later.",
+        "noPhoto": "No photo"
+      },
+      "sections": {
+        "fields": "Fields",
+        "info": "Information",
+        "properties": "Properties"
+      },
+      "ipam": {
+        "title": "IPAM",
+        "eligible": "Eligible for IPAM",
+        "notEligible": "Not eligible",
+        "interfaces": "Network interfaces: {{count}}",
+        "ipCount": "Linked IPs: {{count}}",
+        "open": "Open in IPAM"
+      }
+    },
+    "ipam": {
+      "title": "IPAM / Network Digital Twin",
+      "actions": {
+        "addVlan": "Add VLAN",
+        "addSubnet": "Add subnet",
+        "assign": "Assign",
+        "reserve": "Reserve",
+        "release": "Release",
+        "exportCsv": "Export CSV"
+      },
+      "filters": {
+        "searchSubnets": "Search subnets, IP or hostname",
+        "status": "Status",
+        "mode": "Mode"
+      },
+      "modes": {
+        "grid": "Grid",
+        "list": "List",
+        "heatmap": "Heatmap"
+      },
+      "labels": {
+        "gateway": "Gateway",
+        "noVlan": "No VLAN",
+        "records": "records",
+        "interfacesCount": "Interfaces: {{count}}"
+      },
+      "fields": {
+        "vlanNumber": "VLAN number",
+        "purpose": "Purpose",
+        "hostname": "Hostname",
+        "dnsName": "DNS name",
+        "macAddress": "MAC address",
+        "searchEquipment": "Search eligible equipment",
+        "equipment": "Equipment",
+        "interface": "Network interface",
+        "isPrimary": "Primary IPv4"
+      },
+      "panels": {
+        "address": "IP actions"
+      },
+      "dialogs": {
+        "createVlan": "Create VLAN",
+        "editVlan": "Edit VLAN",
+        "createSubnet": "Create subnet",
+        "editSubnet": "Edit subnet"
+      },
+      "sections": {
+        "vlans": "VLAN directory",
+        "addressList": "Address list",
+        "heatmap": "Heatmap by /24"
+      },
+      "sidebar": {
+        "subnets": "Subnets",
+        "flat": "All"
+      },
+      "empty": {
+        "title": "No subnets yet",
+        "description": "Create a subnet first with the “Add subnet” button, then select it in the left panel.",
+        "heatmapHint": "Heatmap is available only for /16 subnets."
+      },
+      "status": {
+        "free": "Free",
+        "used": "Used",
+        "reserved": "Reserved",
+        "gateway": "Gateway",
+        "broadcast": "Broadcast",
+        "network": "Network"
+      },
+      "placeholders": {
+        "selectAddress": "Select an address to review and change.",
+        "noDescription": "Subnet description is not set.",
+        "noInterface": "No interface selected",
+        "serviceLocked": "Service addresses can only be changed in a dedicated flow.",
+        "cidrLocked": "CIDR cannot be changed after subnet creation."
+      },
+      "prompts": {
+        "deleteVlan": "Delete VLAN?",
+        "deleteSubnet": "Delete subnet?"
+      },
+      "errors": {
+        "network": "Could not reach the server. Check backend availability and network connectivity."
+      }
+    },
+    "warehouseItems": {
+      "sort": {
+        "byUpdatedNewest": "By update (newest)",
+        "byUpdatedOldest": "By update (oldest)",
+        "byQuantityDesc": "By quantity (desc)",
+        "byQuantityAsc": "By quantity (asc)",
+        "byEquipmentAsc": "Equipment (A-Z)",
+        "byEquipmentDesc": "Equipment (Z-A)",
+        "byEquipmentCategoryAsc": "Equipment category (A-Z)",
+        "byEquipmentCategoryDesc": "Equipment category (Z-A)",
+        "byManufacturerAsc": "Manufacturer (A-Z)",
+        "byManufacturerDesc": "Manufacturer (Z-A)",
+        "byPriceAsc": "Price (low-high)",
+        "byPriceDesc": "Price (high-low)"
+      },
+      "errors": {
+        "load": "Failed to load warehouse items",
+        "update": "Failed to update warehouse item",
+        "delete": "Failed to delete warehouse item",
+        "restore": "Failed to restore warehouse item",
+        "actionFailed": "Failed to perform action. Please try again."
+      },
+      "fields": {
+        "priceMin": "Price min",
+        "priceMax": "Price max",
+        "fromWarehouse": "From warehouse",
+        "destinationType": "Destination",
+        "toCabinet": "To cabinet/assembly",
+        "toAssembly": "To assembly"
+      },
+      "dialogs": {
+        "toWarehouseTitle": "To warehouse",
+        "toCabinetTitle": "Introduce into operation",
+        "directToCabinetTitle": "Direct to cabinet/assembly",
+        "editTitle": "Edit warehouse item"
+      },
+      "actions": {
+        "toWarehouse": "To warehouse",
+        "toCabinet": "Introduce into operation",
+        "directToCabinet": "Direct to cabinet/assembly"
+      },
+      "columns": {
+        "updated": "Updated"
+      },
+      "accounted": "Accounted",
+      "notAccounted": "Not accounted"
+    },
+    "movements": {
+      "types": {
+        "toWarehouse": "To warehouse",
+        "toCabinet": "From warehouse to cabinet",
+        "directToCabinet": "Direct to cabinet",
+        "toAssembly": "From warehouse to assembly",
+        "directToAssembly": "Direct to assembly"
+      },
+      "sort": {
+        "byDateNewest": "By date (newest)",
+        "byDateOldest": "By date (oldest)"
+      },
+      "errors": {
+        "load": "Failed to load movements",
+        "create": "Failed to create movement"
+      },
+      "columns": {
+        "type": "Type",
+        "from": "From",
+        "to": "To",
+        "performedBy": "Performed by",
+        "createdAt": "Date"
+      },
+      "fields": {
+        "movementType": "Movement type",
+        "fromWarehouse": "From warehouse",
+        "toWarehouse": "To warehouse",
+        "fromCabinet": "From cabinet",
+        "toCabinet": "To cabinet",
+        "toAssembly": "To assembly"
+      },
+      "validation": {
+        "typeRequired": "Select a movement type.",
+        "equipmentAndQuantity": "Provide equipment and quantity.",
+        "toWarehouseRequired": "Select a destination warehouse.",
+        "fromWarehouseAndCabinet": "Select a source warehouse and destination cabinet.",
+        "toCabinetRequired": "Select a destination cabinet.",
+        "fromWarehouseAndAssembly": "Select a source warehouse and destination assembly.",
+        "toAssemblyRequired": "Select a destination assembly."
+      },
+      "actions": {
+        "create": "Create movement"
+      },
+      "newTitle": "New movement",
+      "historyTitle": "Movement history"
+    },
+    "ioSignals": {
+      "errors": {
+        "loadTree": "Failed to load I/O tree",
+        "loadSignals": "Failed to load I/O signals",
+        "update": "Failed to update signal",
+        "rebuild": "Failed to sync signals"
+      },
+      "labels": {
+        "locations": "Locations",
+        "selectEquipment": "Select channel-forming equipment",
+        "cabinetMetaFallback": "No numbers",
+        "channelDeviceMetaFallback": "No metadata",
+        "signalsTotal": "{{count}} signals"
+      },
+      "actions": {
+        "rebuild": "Sync"
+      },
+      "columns": {
+        "channelIndex": "Channel",
+        "dataType": "Data type",
+        "tag": "Tag",
+        "signal": "Signal",
+        "signalType": "Signal type",
+        "signalKind": "Signal kind",
+        "fieldEquipment": "Equipment",
+        "connectionPoint": "Connection point",
+        "units": "Units"
+      },
+      "fields": {
+        "channelIndex": "Channel",
+        "dataType": "Data type",
+        "tag": "Tag",
+        "signal": "Signal",
+        "signalType": "Signal type",
+        "signalKind": "Signal kind",
+        "fieldEquipment": "Equipment",
+        "connectionPoint": "Connection point",
+        "units": "Units",
+        "status": "Status"
+      },
+      "dialogs": {
+        "editTitle": "I/O signal"
+      },
+      "empty": {
+        "tree": "No locations yet.",
+        "select": "Select a device in the tree to see signals.",
+        "noSignals": "No signals yet. Click Sync to generate."
+      }
+    },
+    "personnel": {
+      "sort": {
+        "byLastNameAsc": "Last name (A-Z)",
+        "byLastNameDesc": "Last name (Z-A)",
+        "byHireDateOldest": "Hire date (oldest)",
+        "byHireDateNewest": "Hire date (newest)"
+      },
+      "columns": {
+        "fullName": "Full name",
+        "position": "Position",
+        "personnelNumber": "Personnel #",
+        "organisation": "Organisation",
+        "department": "Department"
+      },
+      "fields": {
+        "firstName": "First name",
+        "lastName": "Last name",
+        "middleName": "Middle name",
+        "position": "Position",
+        "personnelNumber": "Personnel #",
+        "scheduleTemplate": "Schedule",
+        "department": "Department",
+        "service": "Service"
+      },
+      "dialogs": {
+        "editTitle": "Edit personnel",
+        "createTitle": "Add personnel"
+      }
+    },
+    "personnelDetails": {
+      "errors": {
+        "notFound": "Personnel not found."
+      },
+      "tabs": {
+        "profile": "Profile",
+        "competencies": "Competencies",
+        "training": "Training",
+        "notes": "Notes"
+      },
+      "noPhoto": "No photo",
+      "photoAlt": "Personnel photo",
+      "actions": {
+        "saveProfile": "Save profile",
+        "addCompetency": "Add competency",
+        "addTraining": "Add training",
+        "saveNotes": "Save notes",
+        "uploadAttachment": "Upload attachment",
+        "download": "Download",
+        "uploadPhoto": "Upload photo",
+        "attachment": "Attachment"
+      },
+      "fields": {
+        "birthDate": "Birth date",
+        "hireDate": "Hire date",
+        "tenureYears": "Tenure (years)",
+        "firstName": "First name",
+        "lastName": "Last name",
+        "middleName": "Middle name",
+        "position": "Position",
+        "personnelNumber": "Personnel #",
+        "scheduleTemplate": "Schedule",
+        "service": "Service",
+        "shop": "Shop",
+        "department": "Department",
+        "division": "Division",
+        "organisation": "Organisation",
+        "email": "Email",
+        "phone": "Phone",
+        "notes": "Notes",
+        "name": "Name",
+        "city": "City",
+        "completionDate": "Completion date",
+        "nextDueDate": "Next due date",
+        "reminderOffsetDays": "Reminder offset (days)"
+      },
+      "columns": {
+        "name": "Name",
+        "organisation": "Organisation",
+        "city": "City",
+        "completionDate": "Completion date",
+        "nextDueDate": "Next due date",
+        "reminderOffset": "Reminder offset",
+        "age": "Age",
+        "daysUntilDue": "Days until due"
+      },
+      "dialogs": {
+        "addCompetencyTitle": "Add competency",
+        "addTrainingTitle": "Add training",
+        "editCompetencyTitle": "Edit competency",
+        "editTrainingTitle": "Edit training",
+        "competencyAttachmentsTitle": "Competency attachments",
+        "trainingAttachmentsTitle": "Training attachments"
+      }
+    },
+    "measurementUnits": {
+      "title": "Measurement units",
+      "dialogs": {
+        "createTitle": "New measurement unit",
+        "editTitle": "Edit measurement unit"
+      },
+      "actions": {
+        "addChild": "Add unit",
+        "addRoot": "Add root"
+      },
+      "errors": {
+        "load": "Failed to load measurement units",
+        "create": "Failed to create measurement unit",
+        "update": "Failed to update measurement unit",
+        "delete": "Failed to delete measurement unit",
+        "restore": "Failed to restore measurement unit"
+      }
+    },
+    "signalTypes": {
+      "title": "Signal types",
+      "dialogs": {
+        "createTitle": "New signal type",
+        "editTitle": "Edit signal type"
+      },
+      "actions": {
+        "addChild": "Add type",
+        "addRoot": "Add root"
+      },
+      "errors": {
+        "load": "Failed to load signal types",
+        "create": "Failed to create signal type",
+        "update": "Failed to update signal type",
+        "delete": "Failed to delete signal type",
+        "restore": "Failed to restore signal type"
+      }
+    },
+    "dataTypes": {
+      "title": "Data types",
+      "dialogs": {
+        "createTitle": "New data type",
+        "editTitle": "Edit data type"
+      },
+      "actions": {
+        "addChild": "Add child",
+        "addRoot": "Add root"
+      },
+      "errors": {
+        "load": "Failed to load data types",
+        "create": "Failed to create data type",
+        "update": "Failed to update data type",
+        "delete": "Failed to delete data type",
+        "restore": "Failed to restore data type"
+      }
+    },
+    "digitalTwin": {
+      "titleCabinet": "Cabinet digital twin",
+      "titleAssembly": "Assembly digital twin",
+      "subtitle": "The composition is loaded on demand and keeps manual layout, order, and links.",
+      "actions": {
+        "sync": "Import from table",
+        "addRail": "Add DIN rail",
+        "addManual": "Add manually"
+      },
+      "states": {
+        "loading": "Loading digital twin...",
+        "saving": "Saving...",
+        "saved": "Saved",
+        "error": "Save error",
+        "draft": "Draft"
+      },
+      "errors": {
+        "save": "Failed to save the digital twin.",
+        "sync": "Failed to sync the composition."
+      },
+      "sections": {
+        "domainModel": "1. Domain entities",
+        "mountArea": "2. Mounting area and drag-and-drop",
+        "powerGraph": "3. Power graph and validation",
+        "load": "5. Load calculation",
+        "io": "6. PLC / I/O",
+        "network": "7. Network interfaces"
+      },
+      "unplaced": {
+        "title": "Unplaced",
+        "hint": "New imported items appear here.",
+        "empty": "Empty."
+      },
+      "rails": {
+        "defaultName": "DIN rail {{index}}",
+        "hint": "Length {{length}} mm • occupied {{occupied}} mm • free {{free}} mm",
+        "empty": "The rail is empty."
+      },
+      "freeMount": {
+        "title": "Free mounting",
+        "hint": "Items outside the DIN rail.",
+        "empty": "There are no freely mounted items yet."
+      },
+      "cards": {
+        "moveToStock": "Move back to stock",
+        "edit": "Edit",
+        "delete": "Delete",
+        "inStock": "Stock",
+        "outOfOperation": "Out of operation",
+        "noPower": "No power",
+        "channelUsage": "Channels: used {{used}} • free {{free}} of {{total}}",
+        "channelCapacity": "Channels: total {{total}}"
+      },
+      "dialogs": {
+        "addTitle": "Add equipment manually",
+        "editTitle": "Edit item"
+      },
+      "fields": {
+        "name": "Name",
+        "displayName": "Display name",
+        "displayNameManualHint": "Leave empty to use the main name.",
+        "sourceName": "Source",
+        "mountType": "Mount type",
+        "mountWidth": "Mount width, mm",
+        "currentType": "Current type",
+        "supplyVoltage": "Supply voltage",
+        "currentConsumption": "Current consumption, A",
+        "powerRole": "Power role",
+        "outputVoltage": "Output voltage",
+        "maxOutputCurrent": "Max output current, A",
+        "networkPorts": "RJ-45 port count",
+        "edgeLabel": "Link label",
+        "edgeVoltage": "Voltage",
+        "edgeRole": "Link role"
+      },
+      "validation": {
+        "clear": "No critical power errors detected."
+      },
+      "network": {
+        "total": "Total ports: {{count}}",
+        "empty": "No network devices."
+      },
+      "enums": {
+        "currentType": {
+          "dc": "Direct current",
+          "ac": "Alternating current",
+          "other": "Other"
+        },
+        "mountType": {
+          "dinRail": "DIN rail",
+          "wall": "Panel mount",
+          "other": "Other"
+        },
+        "powerRole": {
+          "consumer": "Consumer",
+          "source": "Source",
+          "converter": "Converter",
+          "passive": "Passive"
+        },
+        "edgeRole": {
+          "feed": "Feed",
+          "reserve": "Reserve",
+          "loop": "Jumper"
+        }
+      }
+    }
+  },
+  "pid": {
+    "page": {
+      "title": "Technological equipment",
+      "location": "Location",
+      "selectLocation": "Select location",
+      "processName": "Process name",
+      "createProcess": "Create process",
+      "selectProcess": "Select process"
+    },
+    "tabs": {
+      "diagram": "P&ID Diagram",
+      "equipment": "Equipment list"
+    },
+    "toolbox": {
+      "mode": "Mode",
+      "select": "Select / Drag",
+      "addEdge": "Add edge",
+      "delete": "Delete",
+      "edgeType": "Edge type",
+      "mainEquipment": "Equipment",
+      "instruments": "ISA Instruments",
+      "dragHint": "Drag to canvas or click to select",
+      "fromOperation": "From equipment in operation"
+    },
+    "layout": {
+      "floatingPanels": "Floating panels"
+    },
+    "properties": {
+      "title": "Properties",
+      "tag": "Tag",
+      "label": "Name",
+      "plc": "PLC",
+      "ranges": "Ranges",
+      "signalType": "Signal type",
+      "params": "Parameters",
+      "edgeLabel": "Edge label",
+      "edgeType": "Edge type"
+    },
+    "edges": {
+      "process": "Process",
+      "signal": "Signal",
+      "control": "Control",
+      "electric": "Electric"
+    },
+    "list": {
+      "type": "Type",
+      "tag": "Tag",
+      "name": "Name",
+      "equipment": "Equipment",
+      "instrument": "Instrument"
+    },
+    "palette": {
+      "main": {
+        "bunker": "Bunker",
+        "feeder": "Feeder",
+        "crusher": "Crusher",
+        "conveyor": "Conveyor",
+        "mill": "Mill",
+        "pump": "Pump",
+        "tank": "Tank",
+        "valve": "Valve",
+        "vfd": "VFD",
+        "motor": "Motor"
+      },
+      "instrument": {
+        "tt": "Temperature transmitter",
+        "pt": "Pressure transmitter",
+        "ft": "Flow transmitter",
+        "lt": "Level transmitter",
+        "st": "Speed transmitter",
+        "vt": "Vibration transmitter",
+        "wt": "Weight transmitter",
+        "it": "Current transmitter",
+        "et": "Power transmitter",
+        "zt": "Positioner",
+        "pic": "Pressure controller",
+        "tic": "Temperature controller",
+        "fic": "Flow controller",
+        "lic": "Level controller"
+      }
+    },
+    "shapes": {
+      "crusher_jaw": "Crusher (jaw)",
+      "crusher_cone": "Crusher (cone)",
+      "screen_vibratory": "Screen (vibratory)",
+      "conveyor_belt": "Conveyor (belt)",
+      "mill_tumbling": "Mill",
+      "pump_centrifugal": "Pump (centrifugal)",
+      "tank_vertical": "Tank (vertical)",
+      "valve_gate": "Valve (gate)",
+      "motor": "Motor",
+      "feeder": "Feeder",
+      "cyclone": "Cyclone",
+      "mixer": "Mixer",
+      "generic": "Generic"
+    }
+  },
+  "yearlySchedule": {
+    "title": "Yearly personnel planner",
+    "subtitle": "A wide calendar matrix with bulk actions and employee analytics in one screen.",
+    "fields": {
+      "year": "Year",
+      "month": "Month",
+      "status": "Status",
+      "fillDays": "Fill days forward",
+      "eventLabel": "Event label",
+      "employee": "Employee"
+    },
+    "actions": {
+      "hidePanel": "Hide right panel",
+      "showPanel": "Show right panel",
+      "openPlanner": "Open planner",
+      "fillSelectedMonth": "Fill entire selected month",
+      "toggleEvent": "Create event",
+      "removeEvent": "Remove event"
+    },
+    "sidebar": {
+      "title": "Selection, analytics and summary",
+      "selectionMode": "Selection mode",
+      "monthMode": "By month",
+      "yearMode": "By year",
+      "employeeSelectionStats": "Selection statistics",
+      "employeeYearStats": "Employee yearly statistics",
+      "quickActions": "Quick actions",
+      "globalSummary": "Total statuses across all employees",
+      "selectedCell": "Selected cell"
+    },
+    "errors": {
+      "loadFailed": "Failed to load yearly schedule.",
+      "eventLabelRequired": "Provide an event label."
+    }
+  }
 }

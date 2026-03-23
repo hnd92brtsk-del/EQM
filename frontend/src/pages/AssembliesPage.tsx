@@ -12,14 +12,17 @@ import {
   Typography
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import AutoFixHighRoundedIcon from "@mui/icons-material/AutoFixHighRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import { ColumnDef } from "@tanstack/react-table";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 
 import { LOOKUP_QUERY_STALE_TIME } from "../api/queryDefaults";
+import { syncDigitalTwinFromOperation } from "../api/digitalTwins";
 import { type ColumnMeta, DataTable, type DataTableFiltersState } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
@@ -45,6 +48,7 @@ const pageSizeOptions = [10, 20, 50, 100];
 
 export default function AssembliesPage() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const canWrite = user?.role === "admin" || user?.role === "engineer";
   const queryClient = useQueryClient();
@@ -57,6 +61,13 @@ export default function AssembliesPage() {
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const debouncedColumnFilters = useDebouncedValue(columnFilters, 250);
+
+  const generateTwinMutation = useMutation({
+    mutationFn: (assemblyId: number) => syncDigitalTwinFromOperation("assembly", assemblyId),
+    onSuccess: (data) => navigate(`/assemblies/${data.source_id}/composition`),
+    onError: (error) =>
+      setErrorMessage(error instanceof Error ? error.message : "Не удалось сгенерировать цифровой двойник")
+  });
 
   const sortOptions = useMemo(
     () => [
@@ -204,6 +215,20 @@ export default function AssembliesPage() {
         header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+            <AppButton size="small" onClick={() => navigate(`/assemblies/${row.original.id}/composition`)}>
+              {t("pagesUi.cabinets.actions.openComposition")}
+            </AppButton>
+            {canWrite ? (
+              <AppButton
+                size="small"
+                variant="outlined"
+                startIcon={<AutoFixHighRoundedIcon />}
+                onClick={() => generateTwinMutation.mutate(row.original.id)}
+                disabled={generateTwinMutation.isPending}
+              >
+                Сгенерировать состав
+              </AppButton>
+            ) : null}
             {canWrite && (
               <>
                 <AppButton

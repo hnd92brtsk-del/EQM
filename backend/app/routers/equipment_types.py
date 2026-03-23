@@ -162,6 +162,9 @@ def create_equipment_type(
         name=payload.name,
         article=payload.article,
         nomenclature_number=payload.nomenclature_number,
+        current_type=payload.current_type,
+        supply_voltage=payload.supply_voltage,
+        current_consumption_a=payload.current_consumption_a,
         manufacturer_id=payload.manufacturer_id,
         equipment_category_id=payload.equipment_category_id,
         is_channel_forming=payload.is_channel_forming,
@@ -174,6 +177,11 @@ def create_equipment_type(
         network_ports=normalize_network_ports(payload) if payload.is_network else None,
         has_serial_interfaces=payload.has_serial_interfaces,
         serial_ports=normalize_serial_ports(payload) if payload.has_serial_interfaces else [],
+        mount_type=payload.mount_type,
+        mount_width_mm=payload.mount_width_mm,
+        power_role=payload.power_role,
+        output_voltage=payload.output_voltage,
+        max_output_current_a=payload.max_output_current_a,
         meta_data=merge_unit_price(payload.meta_data, payload.unit_price_rub, None),
     )
     db.add(equipment)
@@ -298,6 +306,12 @@ def update_equipment_type(
         equipment.name = payload.name
     if "article" in payload.__fields_set__:
         equipment.article = payload.article
+    if "current_type" in payload.__fields_set__:
+        equipment.current_type = payload.current_type
+    if "supply_voltage" in payload.__fields_set__:
+        equipment.supply_voltage = payload.supply_voltage
+    if "current_consumption_a" in payload.__fields_set__:
+        equipment.current_consumption_a = payload.current_consumption_a
     if payload.manufacturer_id is not None:
         manufacturer = db.scalar(
             select(Manufacturer).where(Manufacturer.id == payload.manufacturer_id, Manufacturer.is_deleted == False)
@@ -344,6 +358,16 @@ def update_equipment_type(
             equipment.serial_ports = []
     if payload.serial_ports is not None and payload.has_serial_interfaces is not False:
         equipment.serial_ports = normalize_serial_ports(payload)
+    if "mount_type" in payload.__fields_set__:
+        equipment.mount_type = payload.mount_type
+    if "mount_width_mm" in payload.__fields_set__:
+        equipment.mount_width_mm = payload.mount_width_mm
+    if "power_role" in payload.__fields_set__:
+        equipment.power_role = payload.power_role
+    if "output_voltage" in payload.__fields_set__:
+        equipment.output_voltage = payload.output_voltage
+    if "max_output_current_a" in payload.__fields_set__:
+        equipment.max_output_current_a = payload.max_output_current_a
     if any(
         value is not None
         for value in (payload.ai_count, payload.di_count, payload.ao_count, payload.do_count)

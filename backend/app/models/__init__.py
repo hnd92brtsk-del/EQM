@@ -12,9 +12,12 @@ from app.models.core import (
     EquipmentType,
     Warehouse,
     Cabinet,
+    PersonnelScheduleTemplate,
     Personnel,
     PersonnelCompetency,
     PersonnelTraining,
+    PersonnelYearlyScheduleAssignment,
+    PersonnelYearlyScheduleEvent,
 )
 from app.models.assemblies import Assembly
 from app.models.operations import WarehouseItem, CabinetItem, AssemblyItem
@@ -26,6 +29,8 @@ from app.models.cabinet_files import CabinetFile
 from app.models.pid import PidProcess
 from app.models.ipam import Vlan, Subnet, EquipmentNetworkInterface, IPAddress, IPAddressAuditLog
 from app.models.network_topology import NetworkTopologyDocument
+from app.models.digital_twins import DigitalTwinDocument
+from app.models.serial_map import SerialMapDocument
 
 __all__ = [
     "User",
@@ -46,9 +51,12 @@ __all__ = [
     "WarehouseItem",
     "CabinetItem",
     "AssemblyItem",
+    "PersonnelScheduleTemplate",
     "Personnel",
     "PersonnelCompetency",
     "PersonnelTraining",
+    "PersonnelYearlyScheduleAssignment",
+    "PersonnelYearlyScheduleEvent",
     "IOSignal",
     "SignalType",
     "EquipmentMovement",
@@ -63,4 +71,6 @@ __all__ = [
     "IPAddress",
     "IPAddressAuditLog",
     "NetworkTopologyDocument",
+    "SerialMapDocument",
+    "DigitalTwinDocument",
 ]

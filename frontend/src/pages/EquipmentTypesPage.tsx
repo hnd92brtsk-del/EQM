@@ -45,6 +45,11 @@ type EquipmentType = {
   current_type?: string | null;
   supply_voltage?: string | null;
   current_consumption_a?: number | null;
+  mount_type?: string | null;
+  mount_width_mm?: number | null;
+  power_role?: string | null;
+  output_voltage?: string | null;
+  max_output_current_a?: number | null;
   manufacturer_id: number;
   equipment_category_id?: number | null;
   is_channel_forming: boolean;
@@ -83,6 +88,11 @@ type ElectricalFields = {
   current_type?: string | null;
   supply_voltage?: string | null;
   current_consumption_a?: number | null;
+  mount_type?: string | null;
+  mount_width_mm?: number | null;
+  power_role?: string | null;
+  output_voltage?: string | null;
+  max_output_current_a?: number | null;
 };
 
 async function fetchAllDictionaryOptions<T>(path: string): Promise<T[]> {
@@ -154,6 +164,17 @@ const serialPortOptions = [
   { label: "RS-232", value: "RS-232" },
   { label: "RS-485(DB-9)", value: "RS-485(DB-9)" },
   { label: "COM", value: "COM" }
+];
+const mountTypeOptions = [
+  { label: "DIN-рейка", value: "din-rail" },
+  { label: "Стенка", value: "wall" },
+  { label: "Другое", value: "other" }
+];
+const powerRoleOptions = [
+  { label: "Потребитель", value: "consumer" },
+  { label: "Источник", value: "source" },
+  { label: "Преобразователь", value: "converter" },
+  { label: "Пассивный", value: "passive" }
 ];
 const legacyNetworkPortValues = new Set(["RS-485", "RS-232"]);
 const photoExtensions = [".jpg", ".jpeg", ".png", ".webp"];
@@ -268,7 +289,27 @@ export default function EquipmentTypesPage() {
       current_consumption_a:
         localFields && Object.prototype.hasOwnProperty.call(localFields, "current_consumption_a")
           ? localFields.current_consumption_a
-          : equipment.current_consumption_a ?? null
+          : equipment.current_consumption_a ?? null,
+      mount_type:
+        localFields && Object.prototype.hasOwnProperty.call(localFields, "mount_type")
+          ? localFields.mount_type
+          : equipment.mount_type ?? null,
+      mount_width_mm:
+        localFields && Object.prototype.hasOwnProperty.call(localFields, "mount_width_mm")
+          ? localFields.mount_width_mm
+          : equipment.mount_width_mm ?? null,
+      power_role:
+        localFields && Object.prototype.hasOwnProperty.call(localFields, "power_role")
+          ? localFields.power_role
+          : equipment.power_role ?? null,
+      output_voltage:
+        localFields && Object.prototype.hasOwnProperty.call(localFields, "output_voltage")
+          ? localFields.output_voltage
+          : equipment.output_voltage ?? null,
+      max_output_current_a:
+        localFields && Object.prototype.hasOwnProperty.call(localFields, "max_output_current_a")
+          ? localFields.max_output_current_a
+          : equipment.max_output_current_a ?? null
     };
   };
   const onPickPhoto = (event: ChangeEvent<HTMLInputElement>) => {
@@ -713,6 +754,32 @@ export default function EquipmentTypesPage() {
                       step: "any"
                     },
                     {
+                      name: "mount_type",
+                      label: "Тип монтажа",
+                      type: "select",
+                      options: mountTypeOptions
+                    },
+                    {
+                      name: "mount_width_mm",
+                      label: "Ширина монтажа, мм",
+                      type: "number",
+                      min: 0
+                    },
+                    {
+                      name: "power_role",
+                      label: "Роль питания",
+                      type: "select",
+                      options: powerRoleOptions
+                    },
+                    { name: "output_voltage", label: "Выходное напряжение", type: "text" },
+                    {
+                      name: "max_output_current_a",
+                      label: "Макс. выходной ток, A",
+                      type: "number",
+                      min: 0,
+                      step: "any"
+                    },
+                    {
                       name: "manufacturer_id",
                       label: t("common.fields.manufacturer"),
                       type: "treeSelect",
@@ -840,6 +907,20 @@ export default function EquipmentTypesPage() {
                         name: values.name,
                         nomenclature_number: values.nomenclature_number,
                         article: values.article || null,
+                        current_type: values.current_type ? String(values.current_type) : null,
+                        supply_voltage: values.supply_voltage ? String(values.supply_voltage) : null,
+                        current_consumption_a: currentConsumptionValue,
+                        mount_type: values.mount_type ? String(values.mount_type) : null,
+                        mount_width_mm:
+                          values.mount_width_mm === "" || values.mount_width_mm === undefined
+                            ? null
+                            : Number(values.mount_width_mm),
+                        power_role: values.power_role ? String(values.power_role) : null,
+                        output_voltage: values.output_voltage ? String(values.output_voltage) : null,
+                        max_output_current_a:
+                          values.max_output_current_a === "" || values.max_output_current_a === undefined
+                            ? null
+                            : Number(values.max_output_current_a),
                         manufacturer_id: manufacturerId,
                         equipment_category_id: equipmentCategoryId,
                         is_channel_forming: values.is_channel_forming,
@@ -874,7 +955,18 @@ export default function EquipmentTypesPage() {
                       [result.id]: {
                         current_type: values.current_type ? String(values.current_type) : null,
                         supply_voltage: values.supply_voltage ? String(values.supply_voltage) : null,
-                        current_consumption_a: currentConsumptionValue
+                        current_consumption_a: currentConsumptionValue,
+                        mount_type: values.mount_type ? String(values.mount_type) : null,
+                        mount_width_mm:
+                          values.mount_width_mm === "" || values.mount_width_mm === undefined
+                            ? null
+                            : Number(values.mount_width_mm),
+                        power_role: values.power_role ? String(values.power_role) : null,
+                        output_voltage: values.output_voltage ? String(values.output_voltage) : null,
+                        max_output_current_a:
+                          values.max_output_current_a === "" || values.max_output_current_a === undefined
+                            ? null
+                            : Number(values.max_output_current_a)
                       }
                     }));
                   }
@@ -1026,13 +1118,39 @@ export default function EquipmentTypesPage() {
                         type: "select",
                         options: supplyVoltageOptions
                       },
-                      {
-                        name: "current_consumption_a",
-                        label: t("pagesUi.equipmentTypes.fields.currentConsumptionA"),
-                        type: "number",
-                        min: 0,
-                        step: "any"
-                      },
+                    {
+                      name: "current_consumption_a",
+                      label: t("pagesUi.equipmentTypes.fields.currentConsumptionA"),
+                      type: "number",
+                      min: 0,
+                      step: "any"
+                    },
+                    {
+                      name: "mount_type",
+                      label: "Тип монтажа",
+                      type: "select",
+                      options: mountTypeOptions
+                    },
+                    {
+                      name: "mount_width_mm",
+                      label: "Ширина монтажа, мм",
+                      type: "number",
+                      min: 0
+                    },
+                    {
+                      name: "power_role",
+                      label: "Роль питания",
+                      type: "select",
+                      options: powerRoleOptions
+                    },
+                    { name: "output_voltage", label: "Выходное напряжение", type: "text" },
+                    {
+                      name: "max_output_current_a",
+                      label: "Макс. выходной ток, A",
+                      type: "number",
+                      min: 0,
+                      step: "any"
+                    },
                       {
                         name: "manufacturer_id",
                         label: t("common.fields.manufacturer"),
@@ -1115,6 +1233,11 @@ export default function EquipmentTypesPage() {
                       current_type: "",
                       supply_voltage: "",
                       current_consumption_a: "",
+                      mount_type: "",
+                      mount_width_mm: "",
+                      power_role: "",
+                      output_voltage: "",
+                      max_output_current_a: "",
                       manufacturer_id: "",
                       equipment_category_id: "",
                       is_channel_forming: false,
@@ -1169,6 +1292,20 @@ export default function EquipmentTypesPage() {
                         name: values.name,
                         nomenclature_number: values.nomenclature_number,
                         article: values.article || null,
+                        current_type: values.current_type ? String(values.current_type) : null,
+                        supply_voltage: values.supply_voltage ? String(values.supply_voltage) : null,
+                        current_consumption_a: currentConsumptionValue,
+                        mount_type: values.mount_type ? String(values.mount_type) : null,
+                        mount_width_mm:
+                          values.mount_width_mm === "" || values.mount_width_mm === undefined
+                            ? null
+                            : Number(values.mount_width_mm),
+                        power_role: values.power_role ? String(values.power_role) : null,
+                        output_voltage: values.output_voltage ? String(values.output_voltage) : null,
+                        max_output_current_a:
+                          values.max_output_current_a === "" || values.max_output_current_a === undefined
+                            ? null
+                            : Number(values.max_output_current_a),
                         manufacturer_id: manufacturerId,
                         equipment_category_id: equipmentCategoryId,
                         is_channel_forming: values.is_channel_forming,
@@ -1198,12 +1335,23 @@ export default function EquipmentTypesPage() {
                       });
                       setElectricalFieldsByEquipmentId((prev) => ({
                         ...prev,
-                        [result.id]: {
-                          current_type: values.current_type ? String(values.current_type) : null,
-                          supply_voltage: values.supply_voltage ? String(values.supply_voltage) : null,
-                          current_consumption_a: currentConsumptionValue
-                        }
-                      }));
+                      [result.id]: {
+                        current_type: values.current_type ? String(values.current_type) : null,
+                        supply_voltage: values.supply_voltage ? String(values.supply_voltage) : null,
+                        current_consumption_a: currentConsumptionValue,
+                        mount_type: values.mount_type ? String(values.mount_type) : null,
+                        mount_width_mm:
+                          values.mount_width_mm === "" || values.mount_width_mm === undefined
+                            ? null
+                            : Number(values.mount_width_mm),
+                        power_role: values.power_role ? String(values.power_role) : null,
+                        output_voltage: values.output_voltage ? String(values.output_voltage) : null,
+                        max_output_current_a:
+                          values.max_output_current_a === "" || values.max_output_current_a === undefined
+                            ? null
+                            : Number(values.max_output_current_a)
+                      }
+                    }));
                     }
                   });
                 }}

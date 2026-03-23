@@ -1,50 +1,57 @@
-import { listEntity } from "../../api/entities";
-import type { SerialMapEligibleEquipment } from "./types";
+import { apiFetch } from "../../api/client";
+import { buildQuery, type Pagination } from "../../api/entities";
+import type { SerialMapDocumentRecord, SerialMapEligibleEquipment, SerialMapProjectDraft } from "./types";
 
-type EquipmentInOperationItem = {
-  id: number;
-  source: "cabinet" | "assembly";
-  container_id: number;
-  container_name: string;
-  equipment_type_id: number;
-  equipment_type_name?: string | null;
-  manufacturer_name?: string | null;
-  serial_ports?: { type: string; count: number }[] | null;
-  location_full_path?: string | null;
-  is_deleted: boolean;
-};
+export function listSerialMapDocuments(params: Record<string, string | number | boolean | undefined>) {
+  return apiFetch<Pagination<SerialMapDocumentRecord>>(`/serial-map-documents${buildQuery(params)}`);
+}
 
-export async function listSerialMapEligibleEquipment(): Promise<SerialMapEligibleEquipment[]> {
-  const pageSize = 200;
-  let page = 1;
-  let total = 0;
-  const items: EquipmentInOperationItem[] = [];
+export function getSerialMapDocument(id: number) {
+  return apiFetch<SerialMapDocumentRecord>(`/serial-map-documents/${id}`);
+}
 
-  do {
-    const response = await listEntity<EquipmentInOperationItem>("/equipment-in-operation", {
-      page,
-      page_size: pageSize,
-      is_deleted: false
-    });
-    total = response.total;
-    items.push(...response.items);
-    page += 1;
-  } while (items.length < total);
+export function createSerialMapDocument(payload: {
+  name: string;
+  description?: string | null;
+  scope?: string | null;
+  location_id?: number | null;
+  source_context?: Record<string, unknown> | null;
+  document: SerialMapProjectDraft;
+}) {
+  return apiFetch<SerialMapDocumentRecord>("/serial-map-documents", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
 
-  return items
-    .filter((item) => !item.is_deleted && Array.isArray(item.serial_ports) && item.serial_ports.length > 0)
-    .map((item) => ({
-      key: `${item.source}:${item.id}`,
-      id: item.id,
-      source: item.source,
-      containerId: item.container_id,
-      containerName: item.container_name,
-      equipmentTypeId: item.equipment_type_id,
-      equipmentTypeName: item.equipment_type_name || `#${item.equipment_type_id}`,
-      manufacturerName: item.manufacturer_name || null,
-      displayName: item.equipment_type_name || `Оборудование #${item.id}`,
-      serialPorts: item.serial_ports || [],
-      locationFullPath: item.location_full_path || null
-    }))
-    .sort((a, b) => a.displayName.localeCompare(b.displayName, "ru"));
+export function updateSerialMapDocument(
+  id: number,
+  payload: {
+    name?: string;
+    description?: string | null;
+    scope?: string | null;
+    location_id?: number | null;
+    source_context?: Record<string, unknown> | null;
+    document?: SerialMapProjectDraft;
+  }
+) {
+  return apiFetch<SerialMapDocumentRecord>(`/serial-map-documents/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deleteSerialMapDocument(id: number) {
+  return apiFetch<void>(`/serial-map-documents/${id}`, { method: "DELETE" });
+}
+
+export function duplicateSerialMapDocument(id: number, name?: string) {
+  return apiFetch<SerialMapDocumentRecord>(`/serial-map-documents/${id}/duplicate`, {
+    method: "POST",
+    body: JSON.stringify({ name: name || null })
+  });
+}
+
+export function listSerialMapEligibleEquipment(params: Record<string, string | number | boolean | undefined> = {}) {
+  return apiFetch<SerialMapEligibleEquipment[]>(`/serial-map-documents/eligible-equipment/list${buildQuery(params)}`);
 }

@@ -21,6 +21,17 @@ export type SerialMapDataPoolEntry = {
   sortOrder: number;
 };
 
+export type SerialMapGatewayMapping = {
+  id: string;
+  srcRegisterType: string;
+  srcAddress: string;
+  srcDataType: string;
+  dstRegisterType: string;
+  dstAddress: string;
+  dstDataType: string;
+  note: string;
+};
+
 export type SerialMapEquipmentSource = {
   source: "cabinet" | "assembly";
   equipmentInOperationId: number;
@@ -52,6 +63,8 @@ export type SerialMapNode = {
   dataPool: SerialMapDataPoolEntry[];
   serialPorts: SerialPortDescriptor[];
   sourceRef?: SerialMapEquipmentSource | null;
+  bridgeProtocol?: SerialMapProtocol | null;
+  converterMappings?: SerialMapGatewayMapping[];
 };
 
 export type SerialMapEdge = {
@@ -103,7 +116,7 @@ export type SerialMapConflict = {
 };
 
 export type SerialMapDiagnostic = {
-  level: "warning" | "error";
+  level: "warning" | "error" | "info";
   message: string;
 };
 
@@ -119,4 +132,20 @@ export type SerialMapEligibleEquipment = {
   displayName: string;
   serialPorts: SerialPortDescriptor[];
   locationFullPath: string | null;
+};
+
+export type SerialMapDocumentRecord = {
+  id: number;
+  name: string;
+  description: string | null;
+  scope: string | null;
+  location_id: number | null;
+  source_context: Record<string, unknown> | null;
+  document: SerialMapProjectDraft;
+  created_by_id: number | null;
+  updated_by_id: number | null;
+  created_at: string;
+  updated_at: string;
+  is_deleted: boolean;
+  deleted_at: string | null;
 };

@@ -20,8 +20,47 @@ function Get-EqmPostgresDataDir {
     return $dataDir
 }
 
+function Get-EqmRuntimeLogsRoot {
+    return (Join-Path (Get-EqmRoot) "runtime-logs")
+}
+
+function Get-EqmRuntimeLogDir([string]$Service) {
+    $dir = Join-Path (Get-EqmRuntimeLogsRoot) $Service
+    if (-not (Test-Path $dir)) {
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    }
+    return $dir
+}
+
+function Remove-EqmOldRuntimeLogs([int]$RetentionHours = 24) {
+    $root = Get-EqmRuntimeLogsRoot
+    if (-not (Test-Path $root)) {
+        return
+    }
+
+    $threshold = (Get-Date).AddHours(-$RetentionHours)
+    Get-ChildItem -Path $root -Recurse -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.LastWriteTime -lt $threshold } |
+        ForEach-Object { Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue }
+
+    Get-ChildItem -Path $root -Recurse -File -ErrorAction SilentlyContinue |
+        ForEach-Object {
+            $lines = Get-Content $_.FullName -ErrorAction SilentlyContinue
+            if ($null -ne $lines -and $lines.Count -gt 300) {
+                $lines | Select-Object -Last 300 | Set-Content $_.FullName
+            }
+        }
+}
+
+function Get-EqmRuntimeLogFile([string]$Service, [string]$Stream = "out") {
+    $dir = Get-EqmRuntimeLogDir -Service $Service
+    $dateStamp = Get-Date -Format "yyyy-MM-dd"
+    $suffix = if ($Stream -eq "err") { "-err" } else { "" }
+    return (Join-Path $dir "$Service$suffix-$dateStamp.log")
+}
+
 function Get-EqmPostgresLogFile {
-    return (Join-Path (Get-EqmRoot) ".postgres\postgres.log")
+    return (Get-EqmRuntimeLogFile -Service "postgres")
 }
 
 function Get-RequiredCommand([string]$Name) {
@@ -33,19 +72,41 @@ function Get-RequiredCommand([string]$Name) {
 }
 
 function Test-PortOpen([string]$TargetHost, [int]$Port) {
-    $client = New-Object System.Net.Sockets.TcpClient
+    $candidates = New-Object System.Collections.Generic.List[System.Net.IPAddress]
+
     try {
-        $async = $client.BeginConnect($TargetHost, $Port, $null, $null)
-        if (-not $async.AsyncWaitHandle.WaitOne(800)) {
-            return $false
+        $parsed = $null
+        if ([System.Net.IPAddress]::TryParse($TargetHost, [ref]$parsed)) {
+            $candidates.Add($parsed) | Out-Null
+        } else {
+            foreach ($address in [System.Net.Dns]::GetHostAddresses($TargetHost)) {
+                $candidates.Add($address) | Out-Null
+            }
+            if ($TargetHost -eq "localhost") {
+                $candidates.Add([System.Net.IPAddress]::Loopback) | Out-Null
+                $candidates.Add([System.Net.IPAddress]::IPv6Loopback) | Out-Null
+            }
         }
-        $client.EndConnect($async)
-        return $true
     } catch {
         return $false
-    } finally {
-        $client.Dispose()
     }
+
+    foreach ($address in ($candidates | Select-Object -Unique)) {
+        $client = New-Object System.Net.Sockets.TcpClient($address.AddressFamily)
+        try {
+            $async = $client.BeginConnect($address, $Port, $null, $null)
+            if (-not $async.AsyncWaitHandle.WaitOne(800)) {
+                continue
+            }
+            $client.EndConnect($async)
+            return $true
+        } catch {
+        } finally {
+            $client.Dispose()
+        }
+    }
+
+    return $false
 }
 
 function Get-ListeningConnection([int]$Port) {
@@ -136,6 +197,7 @@ function Stop-ListeningProcessIfMatches([int]$Port, [string[]]$Patterns) {
 }
 
 function Ensure-LocalPostgresStarted {
+    Remove-EqmOldRuntimeLogs
     $pgCtl = Get-RequiredCommand -Name "pg_ctl"
     $dataDir = Get-EqmPostgresDataDir
     $logFile = Get-EqmPostgresLogFile
@@ -180,26 +242,27 @@ function Stop-LocalPostgres {
 }
 
 function Start-EqmBackendProcess {
+    Remove-EqmOldRuntimeLogs
     Ensure-LocalPostgresStarted
     Stop-ProcessesByPatterns -Patterns @("*uvicorn app.main:app*--port 8000*")
     Stop-ListeningProcessIfMatches -Port 8000 -Patterns @("*uvicorn app.main:app*", "*python.exe*uvicorn app.main:app*")
     Start-Sleep -Milliseconds 400
-    if ((Get-ListeningConnection -Port 8000) -and (Test-HttpOk -Url "http://localhost:8000/docs")) {
+    if ((Get-ListeningConnection -Port 8000) -and (Test-HttpOk -Url "http://127.0.0.1:8000/docs")) {
         return [pscustomobject]@{
             Id = "existing"
             Status = "existing"
-            Url = "http://localhost:8000/docs"
+            Url = "http://127.0.0.1:8000/docs"
         }
     }
     Assert-PortFree -Port 8000 -ServiceName "EQM backend"
 
     $python = Get-EqmVenvPython
     $backendDir = Join-Path (Get-EqmRoot) "backend"
-    $stdout = Join-Path (Get-EqmRoot) "backend.log"
-    $stderr = Join-Path (Get-EqmRoot) "backend.err.log"
+    $stdout = Get-EqmRuntimeLogFile -Service "backend" -Stream "out"
+    $stderr = Get-EqmRuntimeLogFile -Service "backend" -Stream "err"
 
     return Start-Process -FilePath $python `
-        -ArgumentList "-m", "uvicorn", "app.main:app", "--reload", "--host", "localhost", "--port", "8000" `
+        -ArgumentList "-m", "uvicorn", "app.main:app", "--reload", "--host", "127.0.0.1", "--port", "8000" `
         -WorkingDirectory $backendDir `
         -RedirectStandardOutput $stdout `
         -RedirectStandardError $stderr `
@@ -207,24 +270,25 @@ function Start-EqmBackendProcess {
 }
 
 function Start-EqmFrontendProcess {
-    Stop-ProcessesByPatterns -Patterns @("*npm*run dev*--port 5173*", "*vite*--host localhost --port 5173*")
+    Remove-EqmOldRuntimeLogs
+    Stop-ProcessesByPatterns -Patterns @("*npm*run dev*--port 5173*", "*vite*--host * --port 5173*")
     Stop-ListeningProcessIfMatches -Port 5173 -Patterns @("*npm*run dev*", "*vite*", "*node.exe*vite*")
     Start-Sleep -Milliseconds 400
-    if ((Get-ListeningConnection -Port 5173) -and (Test-HttpOk -Url "http://localhost:5173")) {
+    if ((Get-ListeningConnection -Port 5173) -and (Test-HttpOk -Url "http://127.0.0.1:5173")) {
         return [pscustomobject]@{
             Id = "existing"
             Status = "existing"
-            Url = "http://localhost:5173"
+            Url = "http://127.0.0.1:5173"
         }
     }
     Assert-PortFree -Port 5173 -ServiceName "EQM frontend"
 
     $frontendDir = Join-Path (Get-EqmRoot) "frontend"
-    $stdout = Join-Path (Get-EqmRoot) "frontend.log"
-    $stderr = Join-Path (Get-EqmRoot) "frontend.err.log"
+    $stdout = Get-EqmRuntimeLogFile -Service "frontend" -Stream "out"
+    $stderr = Get-EqmRuntimeLogFile -Service "frontend" -Stream "err"
 
     return Start-Process -FilePath "npm.cmd" `
-        -ArgumentList "run", "dev", "--", "--host", "localhost", "--port", "5173" `
+        -ArgumentList "run", "dev", "--", "--host", "127.0.0.1", "--port", "5173" `
         -WorkingDirectory $frontendDir `
         -RedirectStandardOutput $stdout `
         -RedirectStandardError $stderr `
@@ -291,6 +355,6 @@ function Stop-EqmBackendProcesses {
 }
 
 function Stop-EqmFrontendProcesses {
-    Stop-ProcessesByPatterns -Patterns @("*npm*run dev*--port 5173*", "*vite*--host localhost --port 5173*")
+    Stop-ProcessesByPatterns -Patterns @("*npm*run dev*--port 5173*", "*vite*--host * --port 5173*")
     Stop-ListeningProcessIfMatches -Port 5173 -Patterns @("*npm*run dev*", "*vite*", "*node.exe*vite*")
 }

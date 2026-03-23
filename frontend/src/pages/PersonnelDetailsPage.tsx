@@ -25,6 +25,7 @@ import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import {
   Personnel,
   PersonnelCompetency,
+  PersonnelScheduleTemplate,
   PersonnelTraining,
   createCompetency,
   createTraining,
@@ -32,6 +33,7 @@ import {
   deleteTraining,
   downloadAttachment,
   getPersonnel,
+  listPersonnelScheduleTemplates,
   listAttachments,
   restoreCompetency,
   restoreTraining,
@@ -43,6 +45,7 @@ import {
 } from "../api/personnel";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
+import { SearchableSelectField } from "../components/SearchableSelectField";
 
 type DialogState = {
   open: boolean;
@@ -88,6 +91,11 @@ export default function PersonnelDetailsPage() {
   const attachmentsQuery = useQuery({
     queryKey: ["personnel-attachments", personId],
     queryFn: () => listAttachments(personId, "personnel")
+  });
+
+  const scheduleTemplatesQuery = useQuery({
+    queryKey: ["personnel-schedule-templates-options"],
+    queryFn: () => listPersonnelScheduleTemplates()
   });
 
   const attachmentListQuery = useQuery({
@@ -410,6 +418,7 @@ export default function PersonnelDetailsPage() {
   ];
 
   const buildProfilePayload = () => ({
+    schedule_template_id: profileState.schedule_template_id || null,
     first_name: profileState.first_name,
     last_name: profileState.last_name,
     middle_name: profileState.middle_name || null,
@@ -426,6 +435,15 @@ export default function PersonnelDetailsPage() {
     phone: profileState.phone || null,
     notes: profileState.notes || null
   });
+
+  const scheduleTemplateOptions = useMemo(
+    () =>
+      (scheduleTemplatesQuery.data || []).map((item: PersonnelScheduleTemplate) => ({
+        label: item.label,
+        value: item.id
+      })),
+    [scheduleTemplatesQuery.data]
+  );
 
   if (personnelQuery.isLoading) {
     return <Typography>{t("common.loading")}</Typography>;
@@ -502,6 +520,18 @@ export default function PersonnelDetailsPage() {
                 )}
               </Box>
               <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+                <SearchableSelectField
+                  label={t("pagesUi.personnelDetails.fields.scheduleTemplate")}
+                  value={profileState.schedule_template_id ?? ""}
+                  options={scheduleTemplateOptions}
+                  onChange={(value) =>
+                    setProfileState((prev) => ({
+                      ...prev,
+                      schedule_template_id: value === "" ? null : Number(value)
+                    }))
+                  }
+                  disabled={!canWrite}
+                />
                 {profileFields.map((field) => (
                   <TextField
                     key={field.key}
