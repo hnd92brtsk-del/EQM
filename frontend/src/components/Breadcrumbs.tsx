@@ -1,9 +1,20 @@
-import { Breadcrumbs as MuiBreadcrumbs, Link, Typography } from "@mui/material";
+import * as React from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { findNavChain, navTree, NavItem } from "../navigation/nav";
 import { useAuth } from "../context/AuthContext";
+import {
+  Breadcrumb,
+  BreadcrumbEllipsis,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "./ui/breadcrumb";
+import { Button } from "./ui/button";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "./ui/menu";
 
 const getLabel = (item: NavItem, t: (key: string) => string) => {
   if (item.labelKey) {
@@ -48,23 +59,68 @@ export function Breadcrumbs() {
     crumbs.push({ id: "personnel-details", label: t("pages.personnel_details"), path: "/personnel/:id" });
   }
 
+  const resolvedCrumbs = crumbs.map((crumb) => ({
+    ...crumb,
+    path: crumb.path?.includes(":") ? location.pathname : crumb.path,
+  }));
+
+  const visibleCrumbs =
+    resolvedCrumbs.length > 4
+      ? [resolvedCrumbs[0], ...resolvedCrumbs.slice(-2)]
+      : resolvedCrumbs;
+  const hiddenCrumbs =
+    resolvedCrumbs.length > 4 ? resolvedCrumbs.slice(1, -2) : [];
+
   return (
-    <MuiBreadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
-      {crumbs.map((crumb) => {
-        const resolvedPath = crumb.path?.includes(":") ? location.pathname : crumb.path;
-        if (!resolvedPath) {
-          return (
-            <Typography color="text.primary" key={crumb.id}>
-              {crumb.label}
-            </Typography>
+    <Breadcrumb>
+      <BreadcrumbList>
+        {visibleCrumbs.map((crumb, index) => {
+          const isLast = index === visibleCrumbs.length - 1;
+          const item = crumb.path && !isLast ? (
+            <BreadcrumbLink render={<NavLink to={crumb.path} />}>{crumb.label}</BreadcrumbLink>
+          ) : (
+            <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
           );
-        }
-        return (
-          <Link component={NavLink} to={resolvedPath} key={crumb.id} underline="hover">
-            {crumb.label}
-          </Link>
-        );
-      })}
-    </MuiBreadcrumbs>
+
+          return (
+            <React.Fragment key={crumb.id}>
+              {index > 0 && <BreadcrumbSeparator />}
+              {index === 1 && hiddenCrumbs.length > 0 ? (
+                <>
+                  <BreadcrumbItem>
+                    <Menu>
+                      <MenuTrigger
+                        render={
+                          <Button
+                            className="-m-1 h-7 w-7 rounded-md p-0 text-slate-500"
+                            size="icon"
+                            type="button"
+                            variant="ghost"
+                          />
+                        }
+                      >
+                        <BreadcrumbEllipsis />
+                      </MenuTrigger>
+                      <MenuPopup align="start">
+                        {hiddenCrumbs.map((hiddenCrumb) => (
+                          <MenuItem
+                            key={hiddenCrumb.id}
+                            render={<NavLink to={hiddenCrumb.path ?? location.pathname} />}
+                          >
+                            {hiddenCrumb.label}
+                          </MenuItem>
+                        ))}
+                      </MenuPopup>
+                    </Menu>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                </>
+              ) : null}
+              <BreadcrumbItem>{item}</BreadcrumbItem>
+            </React.Fragment>
+          );
+        })}
+      </BreadcrumbList>
+    </Breadcrumb>
   );
 }

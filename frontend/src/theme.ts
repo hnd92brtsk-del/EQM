@@ -7,6 +7,12 @@ const getScrollbarStyles = (mode: PaletteMode) => {
   const thumbHover = isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.38)";
 
   return {
+    "*, *::before, *::after": {
+      borderRadius: "0 !important"
+    },
+    ".MuiAvatar-root, .MuiAvatar-root::before, .MuiAvatar-root::after, .MuiBadge-badge, .MuiBadge-badge::before, .MuiBadge-badge::after, .keep-rounded, .keep-rounded::before, .keep-rounded::after, .rounded-full, [class*='rounded-full'], [class*='rounded-full']::before, [class*='rounded-full']::after": {
+      borderRadius: "9999px !important"
+    },
     body: {
       scrollbarWidth: "thin",
       scrollbarColor: `${thumb} transparent`
@@ -58,24 +64,33 @@ export function createAppTheme(mode: PaletteMode) {
       h5: { fontWeight: 700 }
     },
     shape: {
-      borderRadius: 14
+      borderRadius: 0
     },
     components: {
       MuiCssBaseline: {
         styleOverrides: getScrollbarStyles(mode)
       },
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            borderRadius: 0
+          }
+        }
+      },
       MuiDrawer: {
         styleOverrides: {
           paper: {
             backgroundColor: isDark ? "#101720" : "#101720",
-            borderRight: "1px solid rgba(255, 255, 255, 0.06)"
+            borderRight: "1px solid rgba(255, 255, 255, 0.06)",
+            borderRadius: 0
           }
         }
       },
       MuiListItemButton: {
         styleOverrides: {
           root: {
-            color: isDark ? "#e6eef8" : "#e6eef8",
+            color: isDark ? "#e6eef8" : "#f5f7fb",
+            borderRadius: 0,
             "&.Mui-selected": {
               backgroundColor: alpha(isDark ? "#f4a300" : "#f4a300", 0.12)
             },
@@ -97,7 +112,7 @@ export function createAppTheme(mode: PaletteMode) {
         styleOverrides: {
           root: {
             textTransform: "none",
-            borderRadius: 12
+            borderRadius: 0
           },
           containedPrimary: {
             backgroundColor: isDark ? "#f4a300" : "#f4a300",
@@ -123,11 +138,98 @@ export function createAppTheme(mode: PaletteMode) {
           }
         }
       },
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            borderRadius: 0
+          }
+        }
+      },
+      MuiToggleButtonGroup: {
+        styleOverrides: {
+          root: {
+            borderRadius: 0
+          },
+          grouped: {
+            borderRadius: "0 !important"
+          }
+        }
+      },
+      MuiToggleButton: {
+        styleOverrides: {
+          root: {
+            borderRadius: 0
+          }
+        }
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            borderRadius: 0
+          }
+        }
+      },
+      MuiFilledInput: {
+        styleOverrides: {
+          root: {
+            borderRadius: 0
+          }
+        }
+      },
+      MuiInputBase: {
+        styleOverrides: {
+          root: {
+            borderRadius: 0
+          }
+        }
+      },
+      MuiChip: {
+        styleOverrides: {
+          root: {
+            borderRadius: 0
+          }
+        }
+      },
+      MuiBadge: {
+        styleOverrides: {
+          badge: {
+            borderRadius: 9999
+          }
+        }
+      },
+      MuiMenu: {
+        styleOverrides: {
+          paper: {
+            borderRadius: 0
+          }
+        }
+      },
+      MuiPopover: {
+        styleOverrides: {
+          paper: {
+            borderRadius: 0
+          }
+        }
+      },
+      MuiDialog: {
+        styleOverrides: {
+          paper: {
+            borderRadius: 0
+          }
+        }
+      },
+      MuiTooltip: {
+        styleOverrides: {
+          tooltip: {
+            borderRadius: 0
+          }
+        }
+      },
       MuiCard: {
         styleOverrides: {
           root: {
             backgroundColor: isDark ? "#172230" : "#FFFFFF",
-            borderRadius: 16,
+            borderRadius: 0,
             boxShadow: isDark
               ? "0 10px 30px rgba(2, 14, 28, 0.35)"
               : "0 8px 24px rgba(15, 23, 42, 0.08)"
@@ -142,6 +244,20 @@ export function createAppTheme(mode: PaletteMode) {
             fontWeight: 800,
             borderBottom: `1px solid ${alpha(isDark ? "#c9d8ec" : "#24406f", isDark ? 0.2 : 0.14)}`,
             backdropFilter: "blur(8px)"
+          }
+        }
+      },
+      MuiAccordion: {
+        styleOverrides: {
+          root: {
+            borderRadius: "0 !important"
+          }
+        }
+      },
+      MuiFab: {
+        styleOverrides: {
+          root: {
+            borderRadius: 0
           }
         }
       }

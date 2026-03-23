@@ -157,7 +157,10 @@ def trim_log_file(path: Path, max_lines: int = MAX_STORED_LOG_LINES) -> None:
         return
     if len(lines) <= max_lines:
         return
-    path.write_text("".join(lines[-max_lines:]), encoding="utf-8")
+    try:
+        path.write_text("".join(lines[-max_lines:]), encoding="utf-8")
+    except OSError:
+        return
 
 
 def ensure_runtime_log_retention(base_dir: Path = RUNTIME_LOGS_DIR, retention_hours: int = RETENTION_HOURS, now: datetime | None = None) -> None:
@@ -167,8 +170,15 @@ def ensure_runtime_log_retention(base_dir: Path = RUNTIME_LOGS_DIR, retention_ho
     for path in base_dir.rglob("*"):
         if not path.is_file():
             continue
-        if datetime.fromtimestamp(path.stat().st_mtime, UTC) < threshold:
-            path.unlink(missing_ok=True)
+        try:
+            modified_at = datetime.fromtimestamp(path.stat().st_mtime, UTC)
+        except OSError:
+            continue
+        if modified_at < threshold:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                pass
             continue
         trim_log_file(path)
 

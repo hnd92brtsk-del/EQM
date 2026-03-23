@@ -47,7 +47,11 @@ function Remove-EqmOldRuntimeLogs([int]$RetentionHours = 24) {
         ForEach-Object {
             $lines = Get-Content $_.FullName -ErrorAction SilentlyContinue
             if ($null -ne $lines -and $lines.Count -gt 300) {
-                $lines | Select-Object -Last 300 | Set-Content $_.FullName
+                try {
+                    $lines | Select-Object -Last 300 | Set-Content $_.FullName -ErrorAction Stop
+                } catch {
+                    # Skip files locked by other local runtime processes (e.g. PostgreSQL logs).
+                }
             }
         }
 }

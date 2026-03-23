@@ -474,6 +474,7 @@ export default function PersonnelDetailsPage() {
             <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: "160px 1fr" }}>
               <Box sx={{ display: "grid", gap: 1, justifyItems: "center" }}>
                 <Box
+                  className="keep-rounded"
                   sx={{
                     width: 140,
                     height: 140,

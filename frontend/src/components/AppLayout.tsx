@@ -32,7 +32,8 @@ import { CollapsibleSidebar } from "./CollapsibleSidebar";
 
 const drawerWidth = 260;
 const drawerHandleWidth = 12;
-const sidebarPinnedKey = "eqm.sidebar.pinned";
+const sidebarPinnedKey = "eqm.sidebar.pinned.v2";
+const desktopAppBarOffset = 64;
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
@@ -63,9 +64,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }, [sidebarPinned]);
 
   const drawer = (
-    <Box sx={{ p: 2 }}>
+    <Box
+      sx={{
+        p: 2,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+        color: "#f5f7fb"
+      }}
+    >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, flexGrow: 1 }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, flexGrow: 1, color: "inherit" }}>
           {t("app.title")}
         </Typography>
         <Tooltip
@@ -76,17 +86,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             size="small"
             onClick={() => setSidebarPinned((prev) => !prev)}
             aria-pressed={sidebarPinned}
+            sx={{ color: "inherit" }}
           >
             {sidebarPinned ? <PushPinRoundedIcon /> : <PushPinOutlinedIcon />}
           </IconButton>
         </Tooltip>
       </Box>
-      <SidebarNavTree
-        items={navSections}
-        role={user?.role}
-        openGroups={openGroups}
-        setOpenGroups={setOpenGroups}
-      />
+      <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pr: 0.5 }}>
+        <SidebarNavTree
+          items={navSections}
+          role={user?.role}
+          openGroups={openGroups}
+          setOpenGroups={setOpenGroups}
+        />
+      </Box>
     </Box>
   );
 
@@ -139,10 +152,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <ChatDialog open={chatOpen} onClose={() => setChatOpen(false)} />
 
       <Box sx={{ display: "flex", flex: 1 }}>
-        <Box
-          component="nav"
-          sx={{ width: { xs: 0, md: drawerHandleWidth }, flexShrink: { md: 0 } }}
-        >
+        <Box component="nav">
           <Drawer
             variant="temporary"
             open={mobileOpen}
@@ -159,6 +169,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             pinned={sidebarPinned}
             drawerWidth={drawerWidth}
             handleWidth={drawerHandleWidth}
+            topOffset={desktopAppBarOffset}
           >
             {drawer}
           </CollapsibleSidebar>

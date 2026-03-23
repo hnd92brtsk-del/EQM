@@ -64,6 +64,9 @@ export function SidebarNavTree({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const theme = useTheme();
+  const sidebarTextColor = "rgba(245, 247, 251, 0.96)";
+  const sidebarMutedColor = "rgba(245, 247, 251, 0.78)";
+  const sidebarDisabledColor = "rgba(245, 247, 251, 0.88)";
 
   const filteredItems = useMemo(
     () =>
@@ -89,7 +92,9 @@ export function SidebarNavTree({
         const hasChildren = Boolean(item.children && item.children.length > 0);
         const isActive = isActivePath(item, pathname);
         const isOpen = Boolean(openGroups[item.id]);
-        const iconColor = (isActive || isOpen) ? theme.palette.primary.main : theme.palette.text.secondary;
+        const contentId = `sidebar-group-${item.id}`;
+        const iconColor = isActive || isOpen ? theme.palette.primary.main : sidebarMutedColor;
+        const labelColor = isActive || isOpen ? sidebarTextColor : level > 0 ? sidebarDisabledColor : sidebarMutedColor;
         const itemLabel = getItemLabel(item, t);
 
         if (hasChildren) {
@@ -97,17 +102,30 @@ export function SidebarNavTree({
             <Box key={item.id}>
               <ListItemButton
                 onClick={() => handleToggle(item.id)}
+                aria-expanded={isOpen}
+                aria-controls={contentId}
                 sx={{
                   borderRadius: 2,
                   mb: 0.5,
-                  pl: level * 2 + 2
+                  pl: level * 2 + 2,
+                  color: sidebarTextColor,
+                  "&:hover": {
+                    backgroundColor: alpha(theme.palette.common.white, 0.04)
+                  },
+                  "& .MuiListItemText-primary": {
+                    color: sidebarTextColor,
+                    fontWeight: isOpen ? 700 : 600
+                  },
+                  "& .MuiSvgIcon-root": {
+                    color: isOpen ? sidebarTextColor : sidebarMutedColor
+                  }
                 }}
               >
                 <ListItemIcon>{renderIcon(item, DashboardRoundedIcon, iconColor)}</ListItemIcon>
                 <ListItemText primary={itemLabel} />
                 {isOpen ? <ExpandLessRoundedIcon /> : <ExpandMoreRoundedIcon />}
               </ListItemButton>
-              <Collapse in={isOpen} timeout="auto" unmountOnExit>
+              <Collapse id={contentId} in={isOpen} timeout="auto" unmountOnExit>
                 <SidebarNavTree
                   items={item.children || []}
                   role={role}
@@ -134,7 +152,18 @@ export function SidebarNavTree({
               borderRadius: 2,
               mb: 0.5,
               pl: level * 2 + 2,
-              "&.active": { backgroundColor: alpha(theme.palette.primary.main, 0.12) }
+              borderLeft: "3px solid transparent",
+              "&:hover": {
+                backgroundColor: alpha(theme.palette.common.white, 0.04)
+              },
+              "& .MuiListItemText-primary": {
+                fontWeight: isActive ? 600 : 500,
+                color: labelColor
+              },
+              "&.active": {
+                backgroundColor: alpha(theme.palette.primary.main, 0.16),
+                borderLeftColor: theme.palette.primary.main
+              }
             }}
             selected={isActive}
           >

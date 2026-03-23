@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "audit:i18n": "node ./scripts/audit-hardcoded-i18n.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.11.4",

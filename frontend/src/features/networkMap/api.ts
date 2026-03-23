@@ -41,6 +41,19 @@ export function updateNetworkTopology(
   });
 }
 
+export function deleteNetworkTopology(id: number) {
+  return apiFetch<{ status: string }>(`/network-topologies/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export function duplicateNetworkTopology(id: number, payload?: { name?: string }) {
+  return apiFetch<NetworkTopologyDocumentRecord>(`/network-topologies/${id}/duplicate`, {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+  });
+}
+
 export function listNetworkTopologyEligibleEquipment(params: Record<string, string | number | boolean | undefined>) {
   return apiFetch<NetworkTopologyEligibleEquipment[]>(`/network-topologies/eligible-equipment/list${buildQuery(params)}`);
 }

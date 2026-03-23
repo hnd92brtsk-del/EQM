@@ -1,0 +1,174 @@
+﻿import * as React from "react";
+
+import { cn } from "../../lib/utils";
+
+type MenubarContextValue = {
+  activeMenu: string | null;
+  setActiveMenu: React.Dispatch<React.SetStateAction<string | null>>;
+};
+
+const MenubarContext = React.createContext<MenubarContextValue | null>(null);
+const MenubarMenuContext = React.createContext<{ id: string } | null>(null);
+
+function useMenubarContext() {
+  const context = React.useContext(MenubarContext);
+  if (!context) throw new Error("Menubar components must be used within Menubar.");
+  return context;
+}
+
+function useMenubarMenuContext() {
+  const context = React.useContext(MenubarMenuContext);
+  if (!context) throw new Error("Menubar components must be used within MenubarMenu.");
+  return context;
+}
+
+export function Menubar({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  const [activeMenu, setActiveMenu] = React.useState<string | null>(null);
+  const ref = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (!activeMenu) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setActiveMenu(null);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setActiveMenu(null);
+      }
+    };
+
+    window.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [activeMenu]);
+
+  return (
+    <MenubarContext.Provider value={{ activeMenu, setActiveMenu }}>
+      <div
+        ref={ref}
+        className={cn("flex items-center gap-1 rounded-none border border-slate-200 bg-white p-1", className)}
+        {...props}
+      />
+    </MenubarContext.Provider>
+  );
+}
+
+export function MenubarMenu({ children }: { children: React.ReactNode }) {
+  const id = React.useId();
+  return (
+    <MenubarMenuContext.Provider value={{ id }}>
+      <div className="relative">{children}</div>
+    </MenubarMenuContext.Provider>
+  );
+}
+
+export function MenubarTrigger({ className, onClick, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  const { activeMenu, setActiveMenu } = useMenubarContext();
+  const { id } = useMenubarMenuContext();
+  const isOpen = activeMenu === id;
+
+  return (
+    <button
+      type="button"
+      className={cn(
+        "inline-flex h-8 items-center rounded-none px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100",
+        isOpen && "bg-slate-100 text-slate-950",
+        className
+      )}
+      aria-expanded={isOpen}
+      aria-haspopup="menu"
+      onClick={(event) => {
+        onClick?.(event);
+        if (event.defaultPrevented) return;
+        setActiveMenu((current) => (current === id ? null : id));
+      }}
+      {...props}
+    />
+  );
+}
+
+export function MenubarContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  const { activeMenu, setActiveMenu } = useMenubarContext();
+  const { id } = useMenubarMenuContext();
+
+  if (activeMenu !== id) return null;
+
+  return (
+    <div
+      className={cn(
+        "absolute left-0 top-[calc(100%+6px)] z-50 min-w-[220px] rounded-none border border-slate-200 bg-white p-1 shadow-lg",
+        className
+      )}
+      role="menu"
+      onClick={(event) => event.stopPropagation()}
+      {...props}
+    >
+      <div data-menubar-close="" className="hidden" onClick={() => setActiveMenu(null)} />
+      {props.children}
+    </div>
+  );
+}
+
+export function MenubarLabel({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn("px-2 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400", className)} {...props} />;
+}
+
+type MenubarItemProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  inset?: boolean;
+};
+
+export function MenubarItem({ className, inset, onClick, disabled, ...props }: MenubarItemProps) {
+  const { setActiveMenu } = useMenubarContext();
+
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      disabled={disabled}
+      className={cn(
+        "flex w-full items-center justify-between gap-3 rounded-none px-2 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-50",
+        inset && "pl-7",
+        className
+      )}
+      onClick={(event) => {
+        onClick?.(event);
+        if (!event.defaultPrevented) {
+          setActiveMenu(null);
+        }
+      }}
+      {...props}
+    />
+  );
+}
+
+type MenubarCheckboxItemProps = Omit<MenubarItemProps, "children"> & {
+  checked?: boolean;
+  children: React.ReactNode;
+};
+
+export function MenubarCheckboxItem({ checked, className, children, ...props }: MenubarCheckboxItemProps) {
+  return (
+    <MenubarItem className={cn("justify-start gap-2", className)} {...props}>
+      <span className={cn("inline-flex h-4 w-4 items-center justify-center border border-slate-300 text-[10px]", checked ? "bg-slate-900 text-white" : "bg-white text-transparent")}>
+        *
+      </span>
+      <span className="flex-1">{children}</span>
+    </MenubarItem>
+  );
+}
+
+export function MenubarSeparator({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn("my-1 h-px bg-slate-200", className)} {...props} />;
+}
+
+export function MenubarShortcut({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
+  return <span className={cn("ml-auto text-xs text-slate-400", className)} {...props} />;
+}
+
