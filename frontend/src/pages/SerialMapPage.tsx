@@ -4,10 +4,11 @@ import { useTranslation } from "react-i18next";
 import {
   AlertCircle,
   ArrowDownUp,
-  CopyPlus,
   Grip,
+  Hand,
   Layers3,
   Link2,
+  Rows3,
   Maximize2,
   Minimize2,
   PanelLeft,
@@ -19,12 +20,11 @@ import {
   Upload,
 } from "lucide-react";
 
-import { listSerialMapDocuments, getSerialMapDocument, createSerialMapDocument, updateSerialMapDocument, deleteSerialMapDocument, duplicateSerialMapDocument, listSerialMapEligibleEquipment } from "../features/serialMap/api";
+import { listSerialMapDocuments, getSerialMapDocument, createSerialMapDocument, updateSerialMapDocument, deleteSerialMapDocument, listSerialMapEligibleEquipment } from "../features/serialMap/api";
 import {
   autoLayoutDocument,
   computeConflicts,
   computeDiagnostics,
-  createDemoDocument,
   createEmptyDataPoolEntry,
   createEmptyDocument,
   createEmptyGatewayMapping,
@@ -234,6 +234,8 @@ export default function SerialMapPage() {
   const canvasShellRef = useRef<HTMLDivElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const addNodeMenuRef = useRef<HTMLDivElement | null>(null);
+  const searchPanelRef = useRef<HTMLDivElement | null>(null);
   const interactionRef = useRef<Interaction>(null);
   const hydratingRef = useRef(false);
 
@@ -252,9 +254,10 @@ export default function SerialMapPage() {
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("selection");
   const [pendingConnectId, setPendingConnectId] = useState<string | null>(null);
   const [canvasSearch, setCanvasSearch] = useState("");
+  const [isSearchResultsOpen, setIsSearchResultsOpen] = useState(false);
   const [documentSearch, setDocumentSearch] = useState("");
   const [inventorySearch, setInventorySearch] = useState("");
-  const [newNodeKind, setNewNodeKind] = useState<Exclude<SerialMapNodeKind, "equipment">>("master");
+  const [isAddNodeMenuOpen, setIsAddNodeMenuOpen] = useState(false);
   const [showMiniMap, setShowMiniMap] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -355,6 +358,21 @@ export default function SerialMapPage() {
   }, []);
 
   useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (addNodeMenuRef.current && target && !addNodeMenuRef.current.contains(target)) {
+        setIsAddNodeMenuOpen(false);
+      }
+      if (searchPanelRef.current && target && !searchPanelRef.current.contains(target)) {
+        setIsSearchResultsOpen(false);
+      }
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    return () => window.removeEventListener("pointerdown", handlePointerDown);
+  }, []);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (pendingConnectId || toolMode === "connect") {
@@ -375,10 +393,30 @@ export default function SerialMapPage() {
   const selectedNode = selectedNodeIds.length === 1 ? document.nodes.find((node) => node.id === selectedNodeIds[0]) || null : null;
   const selectedEdge = selectedEdgeId ? document.edges.find((edge) => edge.id === selectedEdgeId) || null : null;
   const mapBounds = useMemo(() => boundsOf(document.nodes), [document.nodes]);
-  const visibleNodes = useMemo(() => {
+  const miniMapViewBox = useMemo(() => ({
+    x: mapBounds.x - 30,
+    y: mapBounds.y - 30,
+    width: Math.max(mapBounds.width + 60, 260),
+    height: Math.max(mapBounds.height + 60, 180),
+  }), [mapBounds]);
+  const searchResults = useMemo(() => {
     const q = canvasSearch.trim().toLowerCase();
-    return !q ? document.nodes : document.nodes.filter((node) => [resolveNodeName(node, equipmentMap), String(node.address ?? ""), node.protocol].join(" ").toLowerCase().includes(q));
+    if (!q) return [];
+    return document.nodes.filter((node) =>
+      [
+        resolveNodeName(node, equipmentMap),
+        node.name,
+        node.note,
+        String(node.address ?? ""),
+        node.protocol,
+        node.kind,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(q)
+    );
   }, [canvasSearch, document.nodes, equipmentMap]);
+  const visibleNodes = canvasSearch.trim() ? searchResults : document.nodes;
   const visibleEquipment = useMemo(() => {
     const q = inventorySearch.trim().toLowerCase();
     const items = equipmentQuery.data || [];
@@ -390,6 +428,16 @@ export default function SerialMapPage() {
   const previewDocument = selectedDocument?.document || document;
   const previewUpdatedAt = selectedDocument ? new Date(selectedDocument.updated_at).toLocaleString(i18n.language) : saveStateLabel;
   const previewStats = { nodes: previewDocument.nodes.length, edges: previewDocument.edges.length, warnings: computeDiagnostics(previewDocument).filter((entry) => entry.level !== "info").length };
+  const miniMapViewportRect = useMemo(() => {
+    const bounds = wrapperRef.current?.getBoundingClientRect();
+    if (!bounds) return null;
+    return {
+      x: (-document.viewport.x) / document.viewport.zoom,
+      y: (-document.viewport.y) / document.viewport.zoom,
+      width: bounds.width / document.viewport.zoom,
+      height: bounds.height / document.viewport.zoom,
+    };
+  }, [document.viewport]);
 
   const markDirty = () => {
     if (hydratingRef.current) return;
@@ -504,11 +552,20 @@ export default function SerialMapPage() {
     return next;
   });
 
-  const focusNode = (nodeId: string) => {
+  const focusPoint = (x: number, y: number) => {
     const bounds = wrapperRef.current?.getBoundingClientRect();
+    if (!bounds) return;
+    setViewport({
+      x: bounds.width / 2 - x * document.viewport.zoom,
+      y: bounds.height / 2 - y * document.viewport.zoom,
+      zoom: document.viewport.zoom,
+    });
+  };
+
+  const focusNode = (nodeId: string) => {
     const node = document.nodes.find((item) => item.id === nodeId);
-    if (!bounds || !node) return;
-    setViewport({ x: bounds.width / 2 - (node.position.x + node.width / 2) * document.viewport.zoom, y: bounds.height / 2 - (node.position.y + node.height / 2) * document.viewport.zoom, zoom: document.viewport.zoom });
+    if (!node) return;
+    focusPoint(node.position.x + node.width / 2, node.position.y + node.height / 2);
     setSelectedNodeIds([nodeId]);
     setSelectedEdgeId(null);
     setInspectorTab("selection");
@@ -698,6 +755,20 @@ export default function SerialMapPage() {
     commitUserAction();
   };
 
+  const focusSearchResult = (nodeId: string) => {
+    focusNode(nodeId);
+    setIsSearchResultsOpen(false);
+  };
+
+  const handleMiniMapPointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
+    event.stopPropagation();
+    const bounds = event.currentTarget.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) return;
+    const logicalX = miniMapViewBox.x + ((event.clientX - bounds.left) / bounds.width) * miniMapViewBox.width;
+    const logicalY = miniMapViewBox.y + ((event.clientY - bounds.top) / bounds.height) * miniMapViewBox.height;
+    focusPoint(logicalX, logicalY);
+  };
+
   const copySelection = () => {
     const items = document.nodes.filter((node) => selectedNodeIds.includes(node.id));
     if (!items.length) return;
@@ -869,14 +940,6 @@ export default function SerialMapPage() {
   const handleDeleteSelectedDocument = async () => {
     if (selectedDocumentId === null || readOnly || !selectedDocument) return;
     setPendingDeleteDocument({ id: selectedDocument.id, name: selectedDocument.name });
-  };
-
-  const handleDuplicateSelectedDocument = async () => {
-    if (selectedDocumentId === null || readOnly) return;
-    const cloned = await duplicateSerialMapDocument(selectedDocumentId, `${selectedDocument?.name || "Карта последовательных протоколов"} копия`);
-    queryClient.invalidateQueries({ queryKey: ["serial-map-documents"] });
-    setSelectedDocumentId(cloned.id);
-    setActiveDocumentId(cloned.id);
   };
 
   const exportProject = (format: "json" | "xml" | "csv") => {
@@ -1058,8 +1121,8 @@ export default function SerialMapPage() {
       <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]">
         <div className="hidden xl:block xl:sticky xl:top-4 xl:self-start">{sidebarPanel}</div>
         <Card ref={canvasShellRef} className="overflow-hidden border-slate-200 shadow-none">
-          <div className="border-b border-slate-200 bg-slate-50/70 px-4 py-3"><div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between"><Menubar className="w-fit"><MenubarMenu><MenubarTrigger>Правка</MenubarTrigger><MenubarContent><MenubarLabel>Выделение</MenubarLabel><MenubarItem onClick={copySelection} disabled={selectedNodeIds.length === 0}><span>Копировать</span><MenubarShortcut>Ctrl/Cmd+C</MenubarShortcut></MenubarItem><MenubarItem onClick={pasteSelection} disabled={clipboardNodes.length === 0 || readOnly || !hasOpenCanvas}><span>Вставить</span><MenubarShortcut>Ctrl/Cmd+V</MenubarShortcut></MenubarItem><MenubarSeparator /><MenubarLabel>Изменить</MenubarLabel><MenubarItem onClick={duplicateSelection} disabled={readOnly || selectedNodeIds.length === 0}><span>Дублировать</span><MenubarShortcut>Ctrl/Cmd+D</MenubarShortcut></MenubarItem><MenubarItem onClick={() => { setInspectorTab("selection"); if (!isInspectorDrawerOpen) setIsInspectorDrawerOpen(true); }} disabled={!selectedCount}><span>Редактировать</span></MenubarItem><MenubarItem className="text-red-600 hover:bg-red-50" onClick={() => { void deleteSelection(); }} disabled={readOnly || !selectedCount}><span>Удалить</span><MenubarShortcut>Del</MenubarShortcut></MenubarItem></MenubarContent></MenubarMenu><MenubarMenu><MenubarTrigger>Холст</MenubarTrigger><MenubarContent><MenubarItem onClick={() => addPresetNode(newNodeKind)} disabled={readOnly || !hasOpenCanvas}><span>Добавить узел</span></MenubarItem><MenubarItem onClick={() => setToolMode((value) => value === "connect" ? "select" : "connect")} disabled={readOnly || !hasOpenCanvas}><span>Режим связи</span></MenubarItem><MenubarSeparator /><MenubarItem onClick={() => { mutateCurrentDocument((current) => autoLayoutDocument(current)); commitUserAction(); }} disabled={!hasOpenCanvas}><span>Автораскладка</span></MenubarItem><MenubarItem onClick={fitView} disabled={!hasOpenCanvas}><span>Уместить</span></MenubarItem></MenubarContent></MenubarMenu><MenubarMenu><MenubarTrigger>Вид</MenubarTrigger><MenubarContent><MenubarCheckboxItem checked={showMiniMap} onClick={() => setShowMiniMap((value) => !value)}>Миникарта</MenubarCheckboxItem><MenubarCheckboxItem checked={showGrid} onClick={() => setShowGrid((value) => !value)}>Сетка</MenubarCheckboxItem><MenubarSeparator /><MenubarItem onClick={resetView} disabled={!hasOpenCanvas}><span>Сбросить вид</span><MenubarShortcut>1:1</MenubarShortcut></MenubarItem></MenubarContent></MenubarMenu></Menubar><div className="flex flex-col gap-3 xl:flex-row xl:items-center"><div className="relative min-w-0 xl:w-[240px]"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input className="pl-9" value={canvasSearch} onChange={(event) => setCanvasSearch(event.target.value)} placeholder="Поиск узлов по имени, адресу и протоколу" /></div><select className="h-10 border border-slate-200 bg-white px-3 text-sm xl:w-[180px]" value={newNodeKind} onChange={(event) => setNewNodeKind(event.target.value as Exclude<SerialMapNodeKind, "equipment">)} disabled={readOnly}><option value="master">Master</option><option value="slave">Slave</option><option value="sensor">Sensor</option><option value="bus">Bus</option><option value="repeater">Repeater</option><option value="gateway">Gateway</option></select><div className="flex flex-wrap items-center gap-2"><Badge variant="outline">Выбор: {selectedCount}</Badge><Badge variant="outline">{Math.round(document.viewport.zoom * 100)}%</Badge><Badge variant={saveStatus === "error" ? "destructive" : saveStatus === "saved" ? "success" : "secondary"}>{saveStateLabel}</Badge><Button size="icon" variant="outline" onClick={() => void toggleFullscreen()} disabled={!hasOpenCanvas} title={isFullscreen ? "Свернуть из полноэкранного режима" : "Развернуть на весь экран"}>{isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</Button></div></div></div></div>
-          <CardHeader className="flex-row items-center justify-between space-y-0"><div className="min-w-0"><CardTitle>Холст последовательных протоколов</CardTitle><CardDescription>{visibleNodes.length} видимых узлов, {document.edges.length} видимых связей</CardDescription></div><div className="hidden items-center gap-2 xl:flex"><Button size="sm" variant="outline" onClick={undo} disabled={!document.history.past.length}>Отменить</Button><Button size="sm" variant="outline" onClick={redo} disabled={!document.history.future.length}>Повторить</Button><Button size="sm" variant="outline" onClick={() => void handleDuplicateSelectedDocument()} disabled={selectedDocumentId === null || readOnly}><CopyPlus className="h-4 w-4" />Дублировать документ</Button><Button size="sm" variant="outline" onClick={() => void createNewDocument({ name: "Демо схема", description: "Демонстрационная схема последовательных протоколов", document: createDemoDocument() })} disabled={readOnly}>Демо</Button></div></CardHeader>
+          <div className="border-b border-slate-200 bg-slate-50/70 px-4 py-3"><div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between"><div className="flex flex-wrap items-center gap-2"><Menubar className="w-fit"><MenubarMenu><MenubarTrigger>Правка</MenubarTrigger><MenubarContent><MenubarLabel>Выделение</MenubarLabel><MenubarItem onClick={copySelection} disabled={selectedNodeIds.length === 0}><span>Копировать</span><MenubarShortcut>Ctrl/Cmd+C</MenubarShortcut></MenubarItem><MenubarItem onClick={pasteSelection} disabled={clipboardNodes.length === 0 || readOnly || !hasOpenCanvas}><span>Вставить</span><MenubarShortcut>Ctrl/Cmd+V</MenubarShortcut></MenubarItem><MenubarSeparator /><MenubarLabel>Изменить</MenubarLabel><MenubarItem onClick={duplicateSelection} disabled={readOnly || selectedNodeIds.length === 0}><span>Дублировать</span><MenubarShortcut>Ctrl/Cmd+D</MenubarShortcut></MenubarItem><MenubarItem onClick={() => { setInspectorTab("selection"); if (!isInspectorDrawerOpen) setIsInspectorDrawerOpen(true); }} disabled={!selectedCount}><span>Редактировать</span></MenubarItem><MenubarItem className="text-red-600 hover:bg-red-50" onClick={() => { void deleteSelection(); }} disabled={readOnly || !selectedCount}><span>Удалить</span><MenubarShortcut>Del</MenubarShortcut></MenubarItem></MenubarContent></MenubarMenu><MenubarMenu><MenubarTrigger>Вид</MenubarTrigger><MenubarContent><MenubarCheckboxItem checked={showMiniMap} onClick={() => setShowMiniMap((value) => !value)}>Миникарта</MenubarCheckboxItem><MenubarCheckboxItem checked={showGrid} onClick={() => setShowGrid((value) => !value)}>Сетка</MenubarCheckboxItem><MenubarSeparator /><MenubarItem onClick={resetView} disabled={!hasOpenCanvas}><span>Сбросить вид</span><MenubarShortcut>1:1</MenubarShortcut></MenubarItem></MenubarContent></MenubarMenu></Menubar><div className="flex flex-wrap items-center gap-2"><Button size="icon" variant="outline" onClick={undo} disabled={!document.history.past.length} title="Отменить"><ArrowDownUp className="h-4 w-4 rotate-90" /></Button><Button size="icon" variant="outline" onClick={redo} disabled={!document.history.future.length} title="Повторить"><ArrowDownUp className="h-4 w-4 -rotate-90" /></Button><Button size="icon" variant={toolMode === "pan" ? "default" : "outline"} onClick={() => setToolMode((value) => value === "pan" ? "select" : "pan")} disabled={!hasOpenCanvas} title="Рука"><Hand className="h-4 w-4" /></Button><div ref={addNodeMenuRef} className="relative"><Button size="icon" variant="outline" onClick={() => setIsAddNodeMenuOpen((value) => !value)} disabled={readOnly || !hasOpenCanvas} title="Добавить узел"><Plus className="h-4 w-4" /></Button>{isAddNodeMenuOpen ? <div className="absolute left-0 top-full z-20 mt-2 w-44 border border-slate-200 bg-white p-1 shadow-lg">{(["master", "slave", "sensor", "bus", "repeater", "gateway"] as const).map((kind) => <button key={kind} type="button" className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50" onClick={() => { addPresetNode(kind); setIsAddNodeMenuOpen(false); }}>{kind === "master" ? "Master" : kind === "slave" ? "Slave" : kind === "sensor" ? "Sensor" : kind === "bus" ? "Bus" : kind === "repeater" ? "Repeater" : "Gateway"}</button>)}</div> : null}</div><Button size="icon" variant={toolMode === "connect" ? "default" : "outline"} onClick={() => setToolMode((value) => value === "connect" ? "select" : "connect")} disabled={readOnly || !hasOpenCanvas} title="Режим связи"><Link2 className="h-4 w-4" /></Button><Button size="icon" variant="outline" onClick={() => { mutateCurrentDocument((current) => autoLayoutDocument(current)); commitUserAction(); }} disabled={!hasOpenCanvas} title="Автораскладка"><Rows3 className="h-4 w-4" /></Button><Button size="icon" variant="outline" onClick={fitView} disabled={!hasOpenCanvas} title="Уместить"><Minimize2 className="h-4 w-4" /></Button><Button size="icon" variant="outline" onClick={() => void toggleFullscreen()} disabled={!hasOpenCanvas} title={isFullscreen ? "Свернуть из полноэкранного режима" : "Развернуть на весь экран"}>{isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</Button></div></div><div className="flex flex-col gap-3 xl:items-end"><div ref={searchPanelRef} className="relative min-w-0 xl:w-[280px]"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input className="pl-9" value={canvasSearch} onChange={(event) => { setCanvasSearch(event.target.value); setIsSearchResultsOpen(event.target.value.trim().length > 0); }} onFocus={() => setIsSearchResultsOpen(canvasSearch.trim().length > 0)} placeholder="Поиск узлов по имени, адресу и протоколу" />{canvasSearch.trim() && isSearchResultsOpen ? <div className="absolute left-0 top-full z-20 mt-2 max-h-72 w-full overflow-auto border border-slate-200 bg-white shadow-lg">{searchResults.length ? searchResults.map((node) => <button key={node.id} type="button" className="block w-full border-b border-slate-100 px-3 py-2 text-left hover:bg-slate-50 last:border-b-0" onClick={() => focusSearchResult(node.id)}><div className="truncate text-sm font-semibold text-slate-900">{resolveNodeName(node, equipmentMap)}</div><div className="mt-1 text-xs text-slate-500">{node.kind.toUpperCase()} • {node.protocol}{node.address !== null ? ` • А ${node.address}` : ""}</div></button>) : <div className="px-3 py-3 text-sm text-slate-500">Совпадений не найдено.</div>}</div> : null}</div><div className="flex flex-wrap items-center gap-2"><Badge variant="outline">Выбор: {selectedCount}</Badge><Badge variant="outline">{Math.round(document.viewport.zoom * 100)}%</Badge><Badge variant={saveStatus === "error" ? "destructive" : saveStatus === "saved" ? "success" : "secondary"}>{saveStateLabel}</Badge></div></div></div></div>
+          <CardHeader className="flex-row items-center justify-between space-y-0"><div className="min-w-0"><CardTitle>Холст последовательных протоколов</CardTitle><CardDescription>{visibleNodes.length} видимых узлов, {document.edges.length} видимых связей</CardDescription></div></CardHeader>
           <CardContent className="p-0">
             <div ref={wrapperRef} onWheel={handleWheel} onPointerDown={beginCanvasInteraction} className={cn("relative h-[calc(100vh-260px)] min-h-[680px] overflow-hidden bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.98),rgba(239,246,255,0.95))]", isFullscreen && "h-screen min-h-screen bg-white")}>
               {!hasOpenCanvas ? <EmptyCanvasState title={allDocuments.length > 0 ? "Нет открытой схемы" : "Документы последовательных протоколов не найдены"} description={allDocuments.length > 0 ? "Выберите схему в файловом sidebar и нажмите Открыть." : "Создайте новую схему или импортируйте JSON, чтобы начать."} primaryAction={allDocuments.length > 0 ? <Button size="sm" onClick={openSelectedDocument} disabled={selectedDocumentId === null}>Открыть</Button> : <Button size="sm" onClick={openCreateDialog} disabled={readOnly}><Plus className="h-4 w-4" />Новая схема</Button>} secondaryAction={<Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={readOnly}><Upload className="h-4 w-4" />Импорт</Button>} /> : null}
@@ -1068,11 +1131,11 @@ export default function SerialMapPage() {
                 <rect width="100%" height="100%" fill="url(#serial-grid)" />
                 <g transform={`translate(${document.viewport.x} ${document.viewport.y}) scale(${document.viewport.zoom})`}>
                   {document.edges.map((edge) => <g key={edge.id} onPointerDown={(event) => { event.stopPropagation(); setSelectedEdgeId(edge.id); setSelectedNodeIds([]); setInspectorTab("selection"); }}><path d={edgePath(edge)} fill="none" stroke={selectedEdgeId === edge.id ? "#2563eb" : "#64748b"} strokeWidth={selectedEdgeId === edge.id ? 4 : 3} strokeLinecap="round" /><text x={(centerOf(document.nodes.find((n) => n.id === edge.fromNodeId) || document.nodes[0]).x + centerOf(document.nodes.find((n) => n.id === edge.toNodeId) || document.nodes[0]).x) / 2} y={(centerOf(document.nodes.find((n) => n.id === edge.fromNodeId) || document.nodes[0]).y + centerOf(document.nodes.find((n) => n.id === edge.toNodeId) || document.nodes[0]).y) / 2 - 10} fill="#334155" fontSize="12" fontWeight="700">{edge.label || edge.protocol}</text></g>)}
-                  {document.nodes.map((node) => { const colors = palette[node.kind]; const active = selectedNodeIds.includes(node.id); const protocol = getProtocolMeta(node.protocol); return <g key={node.id} transform={`translate(${node.position.x} ${node.position.y})`} onPointerDown={(event) => beginNodeInteraction(event, node.id)} style={{ cursor: toolMode === "connect" ? "crosshair" : "grab" }}><rect rx="22" width={node.width} height={node.height} fill={colors.fill} stroke={active ? "#2563eb" : colors.stroke} strokeWidth={active ? 4 : 2.2} filter={active ? "drop-shadow(0 12px 18px rgba(37,99,235,0.18))" : "drop-shadow(0 10px 18px rgba(15,23,42,0.10))"} /><rect rx="22" width={node.width} height="28" fill={colors.head} /><text x="16" y="19" fill="#0f172a" fontSize="13" fontWeight="800">{node.kind.toUpperCase()}</text><text x="16" y="50" fill="#0f172a" fontSize="16" fontWeight="800">{resolveNodeName(node, equipmentMap)}</text><text x="16" y="69" fill="#475569" fontSize="12" fontWeight="700">{node.protocol}{node.address !== null ? ` • А ${node.address}` : ""}</text><text x="16" y="84" fill="#64748b" fontSize="11" fontWeight="700">{protocol.baudRates.includes(node.baudRate) ? `${node.baudRate} bit/s` : `${node.baudRate}`}</text>{pendingConnectId === node.id ? <circle cx={node.width - 18} cy={16} r={7} fill="#2563eb" /> : null}</g>; })}
+                  {document.nodes.map((node) => { const colors = palette[node.kind]; const active = selectedNodeIds.includes(node.id); const protocol = getProtocolMeta(node.protocol); return <g key={node.id} transform={`translate(${node.position.x} ${node.position.y})`} onPointerDown={(event) => beginNodeInteraction(event, node.id)} style={{ cursor: toolMode === "connect" ? "crosshair" : "grab" }}><rect width={node.width} height={node.height} fill={colors.fill} stroke={active ? "#2563eb" : colors.stroke} strokeWidth={active ? 4 : 2.2} filter={active ? "drop-shadow(0 12px 18px rgba(37,99,235,0.18))" : "drop-shadow(0 10px 18px rgba(15,23,42,0.10))"} /><rect width={node.width} height="28" fill={colors.head} /><text x="16" y="19" fill="#0f172a" fontSize="13" fontWeight="800">{node.kind.toUpperCase()}</text><text x="16" y="50" fill="#0f172a" fontSize="16" fontWeight="800">{resolveNodeName(node, equipmentMap)}</text><text x="16" y="69" fill="#475569" fontSize="12" fontWeight="700">{node.protocol}{node.address !== null ? ` • А ${node.address}` : ""}</text><text x="16" y="84" fill="#64748b" fontSize="11" fontWeight="700">{protocol.baudRates.includes(node.baudRate) ? `${node.baudRate} bit/s` : `${node.baudRate}`}</text>{pendingConnectId === node.id ? <circle cx={node.width - 18} cy={16} r={7} fill="#2563eb" /> : null}</g>; })}
                   {logicalSelectionRect ? <rect x={logicalSelectionRect.x} y={logicalSelectionRect.y} width={logicalSelectionRect.width} height={logicalSelectionRect.height} fill="rgba(37,99,235,0.12)" stroke="#2563eb" strokeDasharray="8 6" /> : null}
                 </g>
               </svg>
-              {showMiniMap ? <Card className="absolute bottom-4 right-4 w-[190px] rounded-none border-slate-200 bg-white/95 shadow-sm"><CardContent className="p-3"><div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Миникарта</div><svg width="100%" height="120" viewBox={`${mapBounds.x - 30} ${mapBounds.y - 30} ${Math.max(mapBounds.width + 60, 260)} ${Math.max(mapBounds.height + 60, 180)}`}>{document.edges.map((edge) => <path key={edge.id} d={edgePath(edge)} fill="none" stroke="#94a3b8" strokeWidth="8" strokeLinecap="round" />)}{document.nodes.map((node) => <rect key={node.id} x={node.position.x} y={node.position.y} width={node.width} height={node.height} rx="16" fill={selectedNodeIds.includes(node.id) ? "#93c5fd" : "#e2e8f0"} stroke="#64748b" strokeWidth="3" onClick={() => focusNode(node.id)} style={{ cursor: "pointer" }} />)}</svg></CardContent></Card> : null}
+              {showMiniMap ? <Card className="absolute bottom-4 right-4 w-[190px] rounded-none border-slate-200 bg-white/95 shadow-sm"><CardContent className="p-3"><div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Миникарта</div><svg width="100%" height="120" viewBox={`${miniMapViewBox.x} ${miniMapViewBox.y} ${miniMapViewBox.width} ${miniMapViewBox.height}`} onPointerDown={handleMiniMapPointerDown} style={{ cursor: "pointer" }}>{document.edges.map((edge) => <path key={edge.id} d={edgePath(edge)} fill="none" stroke="#94a3b8" strokeWidth="8" strokeLinecap="round" />)}{document.nodes.map((node) => <rect key={node.id} x={node.position.x} y={node.position.y} width={node.width} height={node.height} fill={selectedNodeIds.includes(node.id) ? "#93c5fd" : "#e2e8f0"} stroke="#64748b" strokeWidth="3" onPointerDown={(event) => { event.stopPropagation(); focusNode(node.id); }} style={{ cursor: "pointer" }} />)}{miniMapViewportRect ? <rect x={miniMapViewportRect.x} y={miniMapViewportRect.y} width={miniMapViewportRect.width} height={miniMapViewportRect.height} fill="rgba(37,99,235,0.08)" stroke="#2563eb" strokeWidth="4" pointerEvents="none" /> : null}</svg></CardContent></Card> : null}
               <div className="pointer-events-none absolute bottom-4 left-4 border border-slate-200 bg-white/90 px-3 py-2 text-[11px] text-slate-500 shadow-sm"><div className="flex items-center gap-2"><Grip className="h-3.5 w-3.5" /> Панорама: drag по пустому холсту или wheel</div><div className="mt-1 flex items-center gap-2"><ArrowDownUp className="h-3.5 w-3.5" /> Выбор: клик, Shift-мультивыбор или рамка</div><div className="mt-1 flex items-center gap-2"><Link2 className="h-3.5 w-3.5" /> Связи: режим Connect в menubar</div></div>
             </div>
           </CardContent>
