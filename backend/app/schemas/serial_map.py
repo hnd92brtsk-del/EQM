@@ -10,7 +10,6 @@ SerialMapParity = Literal["None", "Even", "Odd", "Mark", "Space"]
 SerialMapProtocol = Literal["Modbus RTU", "Profibus DP", "CAN Bus", "RS-485", "RS-232", "Custom"]
 SerialMapDataDirection = Literal["rx", "tx"]
 SerialMapAccess = Literal["R", "RW", "W"]
-SerialMapDiagnosticLevel = Literal["warning", "error", "info"]
 
 
 class SerialMapViewport(BaseModel):
@@ -99,7 +98,16 @@ class SerialMapHistory(BaseModel):
     future: list[SerialMapHistorySnapshot] = Field(default_factory=list)
 
 
-class SerialMapScheme(BaseModel):
+class SerialMapDocumentData(BaseModel):
+    version: Literal[2] = 2
+    updatedAt: str = Field(min_length=1, max_length=100)
+    viewport: SerialMapViewport = Field(default_factory=SerialMapViewport)
+    nodes: list[SerialMapNode] = Field(default_factory=list)
+    edges: list[SerialMapEdge] = Field(default_factory=list)
+    history: SerialMapHistory = Field(default_factory=SerialMapHistory)
+
+
+class LegacySerialMapScheme(BaseModel):
     id: str = Field(min_length=1, max_length=100)
     name: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=1000)
@@ -109,12 +117,12 @@ class SerialMapScheme(BaseModel):
     history: SerialMapHistory = Field(default_factory=SerialMapHistory)
 
 
-class SerialMapProjectDocument(BaseModel):
+class LegacySerialMapProjectDocument(BaseModel):
     projectId: str = Field(min_length=1, max_length=100)
     version: Literal[1] = 1
     updatedAt: str = Field(min_length=1, max_length=100)
     activeSchemeId: str = Field(min_length=1, max_length=100)
-    schemes: list[SerialMapScheme] = Field(default_factory=list)
+    schemes: list[LegacySerialMapScheme] = Field(default_factory=list)
 
 
 class SerialMapDocumentBase(BaseModel):
@@ -123,7 +131,7 @@ class SerialMapDocumentBase(BaseModel):
     scope: str | None = Field(default=None, max_length=64)
     location_id: int | None = None
     source_context: dict | None = None
-    document: SerialMapProjectDocument
+    document: SerialMapDocumentData
 
 
 class SerialMapDocumentCreate(SerialMapDocumentBase):
@@ -136,7 +144,7 @@ class SerialMapDocumentUpdate(BaseModel):
     scope: str | None = Field(default=None, max_length=64)
     location_id: int | None = None
     source_context: dict | None = None
-    document: SerialMapProjectDocument | None = None
+    document: SerialMapDocumentData | None = None
 
 
 class SerialMapDocumentOut(EntityBase, SoftDeleteFields):
@@ -145,7 +153,7 @@ class SerialMapDocumentOut(EntityBase, SoftDeleteFields):
     scope: str | None = None
     location_id: int | None = None
     source_context: dict | None = None
-    document: SerialMapProjectDocument
+    document: SerialMapDocumentData
     created_by_id: int | None = None
     updated_by_id: int | None = None
 

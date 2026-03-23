@@ -16,17 +16,51 @@ from app.models.security import User
 from app.models.serial_map import SerialMapDocument
 from app.schemas.common import Pagination
 from app.schemas.serial_map import (
+    LegacySerialMapProjectDocument,
     SerialMapDocumentCreate,
+    SerialMapDocumentData,
     SerialMapDocumentOut,
     SerialMapDocumentUpdate,
     SerialMapDuplicatePayload,
     SerialMapEligibleEquipmentOut,
-    SerialMapProjectDocument,
     SerialPortDescriptor,
 )
 from app.services.ipam import build_location_full_path
 
 router = APIRouter()
+
+
+def _empty_document() -> dict:
+    return {
+        "version": 2,
+        "updatedAt": datetime.utcnow().isoformat(),
+        "viewport": {"x": 0, "y": 0, "zoom": 1},
+        "nodes": [],
+        "edges": [],
+        "history": {"past": [], "future": []},
+    }
+
+
+def _normalize_legacy_scheme(raw_scheme: dict | None) -> dict:
+    if not isinstance(raw_scheme, dict):
+        return _empty_document()
+    return {
+        "version": 2,
+        "updatedAt": datetime.utcnow().isoformat(),
+        "viewport": raw_scheme.get("viewport") or {"x": 0, "y": 0, "zoom": 1},
+        "nodes": raw_scheme.get("nodes") or [],
+        "edges": raw_scheme.get("edges") or [],
+        "history": raw_scheme.get("history") or {"past": [], "future": []},
+    }
+
+
+def _document_from_json(value: dict | None) -> SerialMapDocumentData:
+    raw = value or {}
+    if isinstance(raw, dict) and raw.get("version") == 2 and "nodes" in raw and "edges" in raw:
+        return SerialMapDocumentData.model_validate(raw)
+    legacy = LegacySerialMapProjectDocument.model_validate(raw)
+    active_scheme = next((scheme for scheme in legacy.schemes if scheme.id == legacy.activeSchemeId), legacy.schemes[0] if legacy.schemes else None)
+    return SerialMapDocumentData.model_validate(_normalize_legacy_scheme(active_scheme.model_dump() if active_scheme else None))
 
 
 def _parse_serial_ports(value: list[dict] | None) -> list[SerialPortDescriptor]:
@@ -51,7 +85,7 @@ def _to_out(item: SerialMapDocument) -> SerialMapDocumentOut:
         scope=item.scope,
         location_id=item.location_id,
         source_context=item.source_context,
-        document=SerialMapProjectDocument.model_validate(item.document_json or {}),
+        document=_document_from_json(item.document_json or {}),
         created_by_id=item.created_by_id,
         updated_by_id=item.updated_by_id,
         created_at=item.created_at,
@@ -59,6 +93,54 @@ def _to_out(item: SerialMapDocument) -> SerialMapDocumentOut:
         is_deleted=item.is_deleted,
         deleted_at=item.deleted_at,
     )
+
+
+def _migrate_legacy_document(db, item: SerialMapDocument) -> SerialMapDocument:
+    raw = item.document_json or {}
+    if not isinstance(raw, dict) or "schemes" not in raw:
+        return item
+    legacy = LegacySerialMapProjectDocument.model_validate(raw)
+    schemes = legacy.schemes or []
+    if len(schemes) <= 1:
+        active_scheme = next((scheme for scheme in schemes if scheme.id == legacy.activeSchemeId), schemes[0] if schemes else None)
+        item.document_json = _normalize_legacy_scheme(active_scheme.model_dump() if active_scheme else None)
+        item.source_context = {
+            **(item.source_context or {}),
+            "legacy_project_id": legacy.projectId,
+            "migrated_from_multi_scheme": False,
+        }
+        db.flush()
+        return item
+
+    active_scheme = next((scheme for scheme in schemes if scheme.id == legacy.activeSchemeId), schemes[0])
+    item.document_json = _normalize_legacy_scheme(active_scheme.model_dump())
+    item.source_context = {
+        **(item.source_context or {}),
+        "legacy_project_id": legacy.projectId,
+        "legacy_scheme_id": active_scheme.id,
+        "migrated_from_multi_scheme": True,
+    }
+    for index, scheme in enumerate(schemes):
+        if scheme.id == active_scheme.id:
+            continue
+        clone = SerialMapDocument(
+            name=f"{item.name} / {scheme.name or f'Схема {index + 1}'}",
+            description=scheme.description or item.description,
+            scope=item.scope,
+            location_id=item.location_id,
+            source_context={
+                **(item.source_context or {}),
+                "legacy_project_id": legacy.projectId,
+                "legacy_scheme_id": scheme.id,
+                "migrated_from_document_id": item.id,
+            },
+            document_json=_normalize_legacy_scheme(scheme.model_dump()),
+            created_by_id=item.created_by_id,
+            updated_by_id=item.updated_by_id,
+        )
+        db.add(clone)
+    db.flush()
+    return item
 
 
 def _get_or_404(db, document_id: int) -> SerialMapDocument:
@@ -100,6 +182,14 @@ def list_serial_map_documents(
     else:
         query = query.order_by(SerialMapDocument.updated_at.desc())
     total, items = paginate(query, db, page, page_size)
+    mutated = False
+    for item in items:
+        before = item.document_json
+        _migrate_legacy_document(db, item)
+        if before != item.document_json:
+            mutated = True
+    if mutated:
+        db.commit()
     return Pagination(items=[_to_out(item) for item in items], page=page, page_size=page_size, total=total)
 
 
@@ -242,7 +332,13 @@ def list_serial_map_eligible_equipment(
 
 @router.get("/{document_id}", response_model=SerialMapDocumentOut)
 def get_serial_map_document(document_id: int, db=Depends(get_db), user: User = Depends(require_read_access())):
-    return _to_out(_get_or_404(db, document_id))
+    item = _get_or_404(db, document_id)
+    before = item.document_json
+    item = _migrate_legacy_document(db, item)
+    if before != item.document_json:
+        db.commit()
+        db.refresh(item)
+    return _to_out(item)
 
 
 @router.patch("/{document_id}", response_model=SerialMapDocumentOut)
@@ -253,6 +349,7 @@ def update_serial_map_document(
     current_user: User = Depends(require_write_access()),
 ):
     item = _get_or_404(db, document_id)
+    item = _migrate_legacy_document(db, item)
     before = model_to_dict(item)
     data = payload.model_dump(exclude_unset=True)
     if "document" in data:
@@ -282,6 +379,7 @@ def delete_serial_map_document(
     current_user: User = Depends(require_write_access()),
 ):
     item = _get_or_404(db, document_id)
+    item = _migrate_legacy_document(db, item)
     before = model_to_dict(item)
     item.is_deleted = True
     item.deleted_at = datetime.utcnow()
@@ -307,7 +405,7 @@ def duplicate_serial_map_document(
     db=Depends(get_db),
     current_user: User = Depends(require_write_access()),
 ):
-    source = _get_or_404(db, document_id)
+    source = _migrate_legacy_document(db, _get_or_404(db, document_id))
     clone = SerialMapDocument(
         name=payload.name or f"{source.name} Copy",
         description=source.description,

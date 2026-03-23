@@ -1,4 +1,4 @@
-export type SerialMapSaveStatus = "saved" | "saving" | "error";
+export type SerialMapSaveStatus = "saved" | "saving" | "error" | "idle";
 
 export type SerialMapNodeKind = "equipment" | "master" | "slave" | "sensor" | "bus" | "repeater" | "gateway";
 
@@ -77,10 +77,16 @@ export type SerialMapEdge = {
   meta: Record<string, string | number | boolean | null>;
 };
 
+export type SerialMapViewport = {
+  x: number;
+  y: number;
+  zoom: number;
+};
+
 export type SerialMapSnapshot = {
   nodes: SerialMapNode[];
   edges: SerialMapEdge[];
-  viewport: { x: number; y: number; zoom: number };
+  viewport: SerialMapViewport;
 };
 
 export type SerialMapHistory = {
@@ -88,27 +94,34 @@ export type SerialMapHistory = {
   future: SerialMapSnapshot[];
 };
 
-export type SerialMapScheme = {
-  id: string;
-  name: string;
-  description?: string | null;
-  viewport: { x: number; y: number; zoom: number };
+export type SerialMapDocumentData = {
+  version: 2;
+  updatedAt: string;
+  viewport: SerialMapViewport;
   nodes: SerialMapNode[];
   edges: SerialMapEdge[];
   history: SerialMapHistory;
 };
 
-export type SerialMapProjectDraft = {
+export type LegacySerialMapScheme = {
+  id: string;
+  name: string;
+  description?: string | null;
+  viewport: SerialMapViewport;
+  nodes: SerialMapNode[];
+  edges: SerialMapEdge[];
+  history: SerialMapHistory;
+};
+
+export type LegacySerialMapProjectDraft = {
   projectId: string;
   version: 1;
   updatedAt: string;
   activeSchemeId: string;
-  schemes: SerialMapScheme[];
+  schemes: LegacySerialMapScheme[];
 };
 
 export type SerialMapConflict = {
-  schemeId: string;
-  schemeName: string;
   protocol: SerialMapProtocol;
   address: number;
   nodeIds: string[];
@@ -141,7 +154,7 @@ export type SerialMapDocumentRecord = {
   scope: string | null;
   location_id: number | null;
   source_context: Record<string, unknown> | null;
-  document: SerialMapProjectDraft;
+  document: SerialMapDocumentData;
   created_by_id: number | null;
   updated_by_id: number | null;
   created_at: string;

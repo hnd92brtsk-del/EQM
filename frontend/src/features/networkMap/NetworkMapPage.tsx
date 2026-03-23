@@ -159,9 +159,9 @@ function DocumentPreviewCard({
         </div>
         {active ? <Badge className="bg-white text-slate-900">{t("pages.networkMap.documents.active")}</Badge> : null}
       </div>
-      <div className="mt-3 grid grid-cols-[108px_minmax(0,1fr)] gap-3">
-        <div className={cn("relative h-[74px] overflow-hidden border", active ? "border-white/15 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),rgba(255,255,255,0.04))]" : "border-slate-200 bg-slate-50")}>
-          <div className={cn("absolute inset-x-0 top-0 h-8", active ? "bg-white/5" : "bg-white")} />
+      <div className="mt-3 grid grid-cols-[92px_minmax(0,1fr)] gap-3">
+        <div className={cn("relative h-[66px] overflow-hidden border", active ? "border-white/15 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),rgba(255,255,255,0.04))]" : "border-slate-200 bg-slate-50")}>
+          <div className={cn("absolute inset-x-0 top-0 h-7", active ? "bg-white/5" : "bg-white")} />
           <svg viewBox="0 0 92 68" className="h-full w-full">
             {previewNodes.map((node, index) => (
               <g key={`${node.left}-${node.top}-${index}`}>
@@ -179,9 +179,9 @@ function DocumentPreviewCard({
           </svg>
         </div>
         <div className="grid grid-cols-3 gap-2">
-          <div className={cn("px-2 py-2", active ? "bg-white/8" : "bg-slate-50")}><div className={cn("text-[10px]", active ? "text-slate-300" : "text-slate-500")}>{t("pages.networkMap.stats.devices")}</div><div className="mt-1 text-sm font-semibold">{stats.nodes}</div></div>
-          <div className={cn("px-2 py-2", active ? "bg-white/8" : "bg-slate-50")}><div className={cn("text-[10px]", active ? "text-slate-300" : "text-slate-500")}>{t("pages.networkMap.stats.links")}</div><div className="mt-1 text-sm font-semibold">{stats.edges}</div></div>
-          <div className={cn("px-2 py-2", active ? "bg-white/8" : "bg-slate-50")}><div className={cn("text-[10px]", active ? "text-slate-300" : "text-slate-500")}>{t("pages.networkMap.stats.warnings")}</div><div className="mt-1 text-sm font-semibold">{stats.warnings}</div></div>
+          <div className={cn("px-2 py-1.5", active ? "bg-white/8" : "bg-slate-50")}><div className={cn("text-[10px]", active ? "text-slate-300" : "text-slate-500")}>{t("pages.networkMap.stats.devices")}</div><div className="mt-1 text-sm font-semibold">{stats.nodes}</div></div>
+          <div className={cn("px-2 py-1.5", active ? "bg-white/8" : "bg-slate-50")}><div className={cn("text-[10px]", active ? "text-slate-300" : "text-slate-500")}>{t("pages.networkMap.stats.links")}</div><div className="mt-1 text-sm font-semibold">{stats.edges}</div></div>
+          <div className={cn("px-2 py-1.5", active ? "bg-white/8" : "bg-slate-50")}><div className={cn("text-[10px]", active ? "text-slate-300" : "text-slate-500")}>{t("pages.networkMap.stats.warnings")}</div><div className="mt-1 text-sm font-semibold">{stats.warnings}</div></div>
         </div>
       </div>
       <div className="mt-3 flex items-center justify-between text-[10px] text-slate-400"><span>{updatedAt}</span><span>{stats.nodes + stats.edges > 0 ? `${Math.round((stats.edges / Math.max(stats.nodes, 1)) * 100)}%` : "--"}</span></div>
@@ -190,28 +190,31 @@ function DocumentPreviewCard({
 }
 
 function CompactDocumentRow({ item, selected, active, onClick }: { item: NetworkTopologyDocumentRecord; selected: boolean; active: boolean; onClick: () => void }) {
+  const warningCount =
+    item.document.nodes.filter((node) => node.status !== "healthy").length +
+    item.document.edges.filter((edge) => edge.status !== "healthy").length;
+
   return (
     <button
       type="button"
       className={cn(
-        "flex w-full items-center gap-3 border-l-2 px-3 py-2.5 text-left transition",
+        "grid w-full grid-cols-[minmax(0,1.7fr)_56px_56px_72px] items-center gap-2 border-l-2 px-3 py-2.5 text-left text-[12px] transition",
         selected
           ? "border-l-slate-900 border-y-slate-900 border-r-slate-900 bg-slate-900 text-white"
           : "border-l-slate-300 border-y-slate-200 border-r-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
       )}
       onClick={onClick}
     >
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
           <div className="truncate text-sm font-semibold">{item.name}</div>
           {active ? <Badge variant="secondary" className="shrink-0 px-2 py-0 text-[10px]">LIVE</Badge> : null}
         </div>
-        <div className={cn("mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]", selected ? "text-slate-300" : "text-slate-500")}>
-          <span className="truncate">{item.description || "-"}</span>
-          <span className={selected ? "text-slate-400" : "text-slate-300"}>•</span>
-          <span>{item.document.nodes.length} / {item.document.edges.length} / {item.document.nodes.filter((node) => node.status !== "healthy").length + item.document.edges.filter((edge) => edge.status !== "healthy").length}</span>
-        </div>
+        <div className={cn("mt-1 truncate text-[11px]", selected ? "text-slate-300" : "text-slate-500")}>{item.description || "Без описания"}</div>
       </div>
+      <div className={cn("text-center font-semibold", selected ? "text-white" : "text-slate-700")}>{item.document.nodes.length}</div>
+      <div className={cn("text-center font-semibold", selected ? "text-white" : "text-slate-700")}>{item.document.edges.length}</div>
+      <div className={cn("text-center font-semibold", selected ? "text-white" : warningCount > 0 ? "text-amber-600" : "text-slate-500")}>{warningCount}</div>
     </button>
   );
 }
@@ -468,12 +471,40 @@ export default function NetworkMapPage() {
     setTimeout(() => { hydratingRef.current = false; }, 0);
   };
 
-  const handleStartNewDocument = () => {
-    setSelectedDocumentId(null);
-    setActiveId(null);
-    setIsDraftDocument(true);
-    setIsEditingSelectedDocument(false);
-    resetCanvasState();
+  const handleStartNewDocument = async () => {
+    if (readOnly) return;
+    try {
+      setSaveState("saving");
+      const created = await createNetworkTopology({
+        name: t("pages.networkMap.defaultName"),
+        description: null,
+        scope: "engineering",
+        document: DEFAULT_DOCUMENT,
+      });
+      hydratingRef.current = true;
+      setSelectedDocumentId(created.id);
+      setActiveId(created.id);
+      setIsDraftDocument(false);
+      setIsEditingSelectedDocument(false);
+      setDocumentName(created.name);
+      setDocumentDescription(created.description || "");
+      setTopology(created.document || DEFAULT_DOCUMENT);
+      setSelectedNodeIds([]);
+      setSelectedEdgeId(null);
+      setSelectedSubnetId(null);
+      setSelectedAddressOffset(null);
+      setLinkCreationMode("idle");
+      setPendingLinkStartId(null);
+      setPathStartId("");
+      setPathEndId("");
+      setSaveState("saved");
+      queryClient.setQueryData(["network-topology", created.id], created);
+      queryClient.invalidateQueries({ queryKey: ["network-topologies"] });
+      setTimeout(() => { hydratingRef.current = false; }, 0);
+    } catch {
+      setSaveState("error");
+      setInteractionMessage({ tone: "warning", text: "Не удалось создать схему на сервере." });
+    }
   };
 
   const openSelectedDocument = () => {
@@ -737,7 +768,7 @@ export default function NetworkMapPage() {
 
   const inspectorPanel = <Card className="h-full border-slate-200 shadow-none"><CardHeader className="border-b border-slate-200"><div className="flex items-center justify-between gap-3"><div><CardTitle>{t("pages.networkMap.properties.title")}</CardTitle><CardDescription>{saveStateLabel}</CardDescription></div><Badge variant={saveState === "error" ? "destructive" : saveState === "saved" ? "success" : "secondary"}>{saveStateLabel}</Badge></div><div className="mt-3 grid grid-cols-2 gap-2 xl:grid-cols-4">{([ ["selection", t("pages.networkMap.properties.title")], ["inventory", t("pages.networkMap.inventory.title")], ["path", t("pages.networkMap.pathTracing.title")], ["validation", t("pages.networkMap.validation.title")] ] as const).map(([tab, label]) => <button key={tab} type="button" className={cn("border px-3 py-2 text-sm font-medium", inspectorTab === tab ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-700")} onClick={() => setInspectorTab(tab)}>{label}</button>)}</div></CardHeader><CardContent className="max-h-[calc(100vh-210px)] overflow-auto p-5">{inspectorTab === "selection" ? renderPropertiesPanel() : inspectorTab === "inventory" ? renderInventoryPanel() : inspectorTab === "path" ? renderPathPanel() : renderValidationPanel()}</CardContent></Card>;
 
-  const sidebarPanel = <Card className="h-full border-slate-200 shadow-none"><CardHeader className="border-b border-slate-200"><div className="flex items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2"><Layers3 className="h-4 w-4 text-slate-500" />{t("pages.networkMap.documents.title")}</CardTitle><CardDescription>{t("pages.networkMap.documents.subtitle")}</CardDescription></div>{activeId !== null || isDraftDocument ? <Badge variant="outline">{saveStateLabel}</Badge> : null}</div><div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-2"><Button size="sm" className="h-auto min-h-10 justify-center px-3 py-2 text-center text-[13px] leading-tight whitespace-normal" onClick={handleStartNewDocument} disabled={readOnly}><Plus className="h-4 w-4 shrink-0" />{t("pages.networkMap.documents.newDocument")}</Button><Button size="sm" className="h-auto min-h-10 justify-center px-3 py-2 text-center text-[13px] leading-tight whitespace-normal" variant="outline" onClick={openSelectedDocument} disabled={selectedDocumentId === null && !isDraftDocument}>{t("pages.serialMap.actions.open")}</Button><Button size="sm" className="h-auto min-h-10 justify-center px-3 py-2 text-center text-[13px] leading-tight whitespace-normal" variant="outline" onClick={() => setIsEditingSelectedDocument(true)} disabled={(selectedDocumentId === null && !isDraftDocument) || readOnly}>{t("actions.edit")}</Button><Button size="sm" className="h-auto min-h-10 justify-center px-3 py-2 text-center text-[13px] leading-tight whitespace-normal" variant="destructive" onClick={() => { void handleDeleteSelectedDocument(); }} disabled={selectedDocumentId === null || readOnly}><Trash2 className="h-4 w-4 shrink-0" />{t("actions.delete")}</Button><Button size="sm" className="h-auto min-h-10 justify-center px-3 py-2 text-center text-[13px] leading-tight whitespace-normal" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={readOnly}><Upload className="h-4 w-4 shrink-0" />{t("actions.import")}</Button><Button size="sm" className="h-auto min-h-10 justify-center px-3 py-2 text-center text-[13px] leading-tight whitespace-normal" variant="outline" onClick={() => exportDocument(topology, `${documentName || "network-topology"}.json`)} disabled={activeId === null && !isDraftDocument}><Upload className="h-4 w-4 shrink-0" />{t("pages.networkMap.toolbar.exportJson")}</Button></div></CardHeader><CardContent className="grid gap-4 p-5"><Input value={documentSearch} onChange={(event) => setDocumentSearch(event.target.value)} placeholder={t("pages.networkMap.documents.search")} /><div className="space-y-2"><div className="flex items-center justify-between gap-3"><div className="text-sm font-semibold text-slate-900">Список схем</div><div className="text-xs text-slate-500">{filteredTopologies.length} / {allTopologies.length}</div></div><div className="max-h-[40vh] overflow-auto border border-slate-200 bg-slate-50/30 p-2 pr-1"><div className="space-y-2">{filteredTopologies.map((item) => <CompactDocumentRow key={item.id} item={item} selected={item.id === selectedDocumentId} active={item.id === activeId} onClick={() => { setSelectedDocumentId(item.id); setIsEditingSelectedDocument(false); }} />)}{filteredTopologies.length === 0 ? <div className="border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">{t("pages.networkMap.documents.empty")}</div> : null}</div></div></div><div className="space-y-3 border-t border-slate-200 pt-4"><div className="flex items-center justify-between gap-3"><div><div className="text-sm font-semibold text-slate-900">Preview</div><div className="text-xs text-slate-500">{selectedDocumentId === null && isDraftDocument ? "Draft" : activeId === selectedDocumentId && activeId !== null ? "Opened on canvas" : "Selected in file browser"}</div></div>{selectedDocumentId !== null && activeId === selectedDocumentId ? <Badge variant="success">{t("pages.networkMap.documents.active")}</Badge> : null}</div>{isEditingSelectedDocument ? <div className="space-y-3 border border-slate-200 p-3"><Input value={selectedDocumentName} onChange={(event) => setSelectedDocumentName(event.target.value)} placeholder={t("pages.networkMap.defaultName")} disabled={readOnly} /><Input value={selectedDocumentDescription} onChange={(event) => setSelectedDocumentDescription(event.target.value)} placeholder={t("pages.networkMap.fields.description")} disabled={readOnly} /><div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => { void handleSaveSelectedMetadata(); }} disabled={readOnly}><Save className="h-4 w-4" />{t("actions.save")}</Button><Button size="sm" variant="outline" onClick={() => setIsEditingSelectedDocument(false)}>{t("actions.cancel")}</Button></div></div> : previewDocument && previewStats ? <DocumentPreviewCard active={activeId === selectedDocumentId || (selectedDocumentId === null && isDraftDocument)} title={previewTitle} subtitle={previewDescription} updatedAt={previewUpdatedAt} stats={previewStats} /> : <div className="border border-dashed border-slate-200 p-4 text-sm text-slate-500">{allTopologies.length === 0 ? t("pages.networkMap.documents.empty") : "Select a diagram to preview it."}</div>}</div></CardContent></Card>;
+  const sidebarPanel = <Card className="h-full border-slate-200 shadow-none"><CardHeader className="border-b border-slate-200"><div className="flex items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2"><Layers3 className="h-4 w-4 text-slate-500" />{t("pages.networkMap.documents.title")}</CardTitle><CardDescription>{t("pages.networkMap.documents.subtitle")}</CardDescription></div>{activeId !== null || isDraftDocument ? <Badge variant="outline">{saveStateLabel}</Badge> : null}</div><div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-2"><Button size="sm" className="h-auto min-h-10 justify-center px-3 py-2 text-center text-[13px] leading-tight whitespace-normal" onClick={handleStartNewDocument} disabled={readOnly}><Plus className="h-4 w-4 shrink-0" />{t("pages.networkMap.documents.newDocument")}</Button><Button size="sm" className="h-auto min-h-10 justify-center px-3 py-2 text-center text-[13px] leading-tight whitespace-normal" variant="outline" onClick={openSelectedDocument} disabled={selectedDocumentId === null && !isDraftDocument}>{t("pages.serialMap.actions.open")}</Button><Button size="sm" className="h-auto min-h-10 justify-center px-3 py-2 text-center text-[13px] leading-tight whitespace-normal" variant="outline" onClick={() => setIsEditingSelectedDocument(true)} disabled={(selectedDocumentId === null && !isDraftDocument) || readOnly}>{t("actions.edit")}</Button><Button size="sm" className="h-auto min-h-10 justify-center px-3 py-2 text-center text-[13px] leading-tight whitespace-normal" variant="destructive" onClick={() => { void handleDeleteSelectedDocument(); }} disabled={selectedDocumentId === null || readOnly}><Trash2 className="h-4 w-4 shrink-0" />{t("actions.delete")}</Button><Button size="sm" className="h-auto min-h-10 justify-center px-3 py-2 text-center text-[13px] leading-tight whitespace-normal" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={readOnly}><Upload className="h-4 w-4 shrink-0" />{t("actions.import")}</Button><Button size="sm" className="h-auto min-h-10 justify-center px-3 py-2 text-center text-[13px] leading-tight whitespace-normal" variant="outline" onClick={() => exportDocument(topology, `${documentName || "network-topology"}.json`)} disabled={activeId === null && !isDraftDocument}><Upload className="h-4 w-4 shrink-0" />{t("pages.networkMap.toolbar.exportJson")}</Button></div></CardHeader><CardContent className="grid gap-4 p-5"><Input value={documentSearch} onChange={(event) => setDocumentSearch(event.target.value)} placeholder={t("pages.networkMap.documents.search")} /><div className="space-y-2"><div className="flex items-center justify-between gap-3"><div className="text-sm font-semibold text-slate-900">Список схем</div><div className="text-xs text-slate-500">{filteredTopologies.length} / {allTopologies.length}</div></div><div className="grid grid-cols-[minmax(0,1.7fr)_56px_56px_72px] items-center gap-2 border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500"><div>Схема</div><div className="text-center">Узлы</div><div className="text-center">Связи</div><div className="text-center">Предупр.</div></div><div className="max-h-[46vh] overflow-auto border-x border-b border-slate-200 bg-slate-50/30 pr-1"><div className="space-y-px bg-slate-200">{filteredTopologies.map((item) => <CompactDocumentRow key={item.id} item={item} selected={item.id === selectedDocumentId} active={item.id === activeId} onClick={() => { setSelectedDocumentId(item.id); setIsEditingSelectedDocument(false); }} />)}{filteredTopologies.length === 0 ? <div className="border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">{t("pages.networkMap.documents.empty")}</div> : null}</div></div></div><div className="space-y-3 border-t border-slate-200 pt-4"><div className="flex items-center justify-between gap-3"><div><div className="text-sm font-semibold text-slate-900">Предпросмотр</div><div className="text-xs text-slate-500">{selectedDocumentId === null && isDraftDocument ? "Черновик" : activeId === selectedDocumentId && activeId !== null ? "Открыто на холсте" : "Выбрано в списке схем"}</div></div>{selectedDocumentId !== null && activeId === selectedDocumentId ? <Badge variant="success">{t("pages.networkMap.documents.active")}</Badge> : null}</div>{isEditingSelectedDocument ? <div className="space-y-3 border border-slate-200 p-3"><Input value={selectedDocumentName} onChange={(event) => setSelectedDocumentName(event.target.value)} placeholder={t("pages.networkMap.defaultName")} disabled={readOnly} /><Input value={selectedDocumentDescription} onChange={(event) => setSelectedDocumentDescription(event.target.value)} placeholder={t("pages.networkMap.fields.description")} disabled={readOnly} /><div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => { void handleSaveSelectedMetadata(); }} disabled={readOnly}><Save className="h-4 w-4" />{t("actions.save")}</Button><Button size="sm" variant="outline" onClick={() => setIsEditingSelectedDocument(false)}>{t("actions.cancel")}</Button></div></div> : previewDocument && previewStats ? <DocumentPreviewCard active={activeId === selectedDocumentId || (selectedDocumentId === null && isDraftDocument)} title={previewTitle} subtitle={previewDescription} updatedAt={previewUpdatedAt} stats={previewStats} /> : <div className="border border-dashed border-slate-200 p-4 text-sm text-slate-500">{allTopologies.length === 0 ? t("pages.networkMap.documents.empty") : "Выберите схему, чтобы увидеть предпросмотр."}</div>}</div></CardContent></Card>;
 
   const hasOpenCanvas = activeId !== null || isDraftDocument;
 

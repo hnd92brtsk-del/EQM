@@ -1,6 +1,6 @@
 import { apiFetch } from "../../api/client";
 import { buildQuery, type Pagination } from "../../api/entities";
-import type { SerialMapDocumentRecord, SerialMapEligibleEquipment, SerialMapProjectDraft } from "./types";
+import type { SerialMapDocumentData, SerialMapDocumentRecord, SerialMapEligibleEquipment } from "./types";
 
 export function listSerialMapDocuments(params: Record<string, string | number | boolean | undefined>) {
   return apiFetch<Pagination<SerialMapDocumentRecord>>(`/serial-map-documents${buildQuery(params)}`);
@@ -16,7 +16,7 @@ export function createSerialMapDocument(payload: {
   scope?: string | null;
   location_id?: number | null;
   source_context?: Record<string, unknown> | null;
-  document: SerialMapProjectDraft;
+  document: SerialMapDocumentData;
 }) {
   return apiFetch<SerialMapDocumentRecord>("/serial-map-documents", {
     method: "POST",
@@ -32,7 +32,7 @@ export function updateSerialMapDocument(
     scope?: string | null;
     location_id?: number | null;
     source_context?: Record<string, unknown> | null;
-    document?: SerialMapProjectDraft;
+    document?: SerialMapDocumentData;
   }
 ) {
   return apiFetch<SerialMapDocumentRecord>(`/serial-map-documents/${id}`, {
