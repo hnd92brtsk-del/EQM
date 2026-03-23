@@ -4,6 +4,9 @@ import { useTranslation } from "react-i18next";
 import {
   AlertCircle,
   ArrowDownUp,
+  ClipboardPaste,
+  Copy,
+  CopyPlus,
   Grip,
   Hand,
   Layers3,
@@ -11,6 +14,7 @@ import {
   Rows3,
   Maximize2,
   Minimize2,
+  MousePointer2,
   PanelLeft,
   PanelRight,
   Plus,
@@ -450,11 +454,9 @@ export default function SerialMapPage() {
   };
 
   const mutateCurrentDocument = (mutate: (current: SerialMapDocumentData) => SerialMapDocumentData, options?: { recordHistory?: boolean }) => {
-    setDocument((current) => {
-      const next = mutateDocument(current, mutate, options);
-      documentRef.current = next;
-      return next;
-    });
+    const next = mutateDocument(documentRef.current, mutate, options);
+    documentRef.current = next;
+    setDocument(next);
     markDirty();
   };
 
@@ -1011,6 +1013,10 @@ export default function SerialMapPage() {
   const selectedCount = selectedNodeIds.length + (selectedEdgeId ? 1 : 0);
   const activeProtocolMeta = selectedNode ? getProtocolMeta(selectedNode.protocol) : null;
   const hasOpenCanvas = activeDocumentId !== null;
+  const canCopySelection = selectedNodeIds.length > 0;
+  const canPasteSelection = clipboardNodes.length > 0 && !readOnly && hasOpenCanvas;
+  const canDuplicateSelection = !readOnly && selectedNodeIds.length > 0;
+  const canDeleteSelection = !readOnly && selectedCount > 0;
 
   const renderSelectionPanel = () => {
     if (selectedNode) {
@@ -1121,7 +1127,130 @@ export default function SerialMapPage() {
       <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]">
         <div className="hidden xl:block xl:sticky xl:top-4 xl:self-start">{sidebarPanel}</div>
         <Card ref={canvasShellRef} className="overflow-hidden border-slate-200 shadow-none">
-          <div className="border-b border-slate-200 bg-slate-50/70 px-4 py-3"><div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between"><div className="flex flex-wrap items-center gap-2"><Menubar className="w-fit"><MenubarMenu><MenubarTrigger>Правка</MenubarTrigger><MenubarContent><MenubarLabel>Выделение</MenubarLabel><MenubarItem onClick={copySelection} disabled={selectedNodeIds.length === 0}><span>Копировать</span><MenubarShortcut>Ctrl/Cmd+C</MenubarShortcut></MenubarItem><MenubarItem onClick={pasteSelection} disabled={clipboardNodes.length === 0 || readOnly || !hasOpenCanvas}><span>Вставить</span><MenubarShortcut>Ctrl/Cmd+V</MenubarShortcut></MenubarItem><MenubarSeparator /><MenubarLabel>Изменить</MenubarLabel><MenubarItem onClick={duplicateSelection} disabled={readOnly || selectedNodeIds.length === 0}><span>Дублировать</span><MenubarShortcut>Ctrl/Cmd+D</MenubarShortcut></MenubarItem><MenubarItem onClick={() => { setInspectorTab("selection"); if (!isInspectorDrawerOpen) setIsInspectorDrawerOpen(true); }} disabled={!selectedCount}><span>Редактировать</span></MenubarItem><MenubarItem className="text-red-600 hover:bg-red-50" onClick={() => { void deleteSelection(); }} disabled={readOnly || !selectedCount}><span>Удалить</span><MenubarShortcut>Del</MenubarShortcut></MenubarItem></MenubarContent></MenubarMenu><MenubarMenu><MenubarTrigger>Вид</MenubarTrigger><MenubarContent><MenubarCheckboxItem checked={showMiniMap} onClick={() => setShowMiniMap((value) => !value)}>Миникарта</MenubarCheckboxItem><MenubarCheckboxItem checked={showGrid} onClick={() => setShowGrid((value) => !value)}>Сетка</MenubarCheckboxItem><MenubarSeparator /><MenubarItem onClick={resetView} disabled={!hasOpenCanvas}><span>Сбросить вид</span><MenubarShortcut>1:1</MenubarShortcut></MenubarItem></MenubarContent></MenubarMenu></Menubar><div className="flex flex-wrap items-center gap-2"><Button size="icon" variant="outline" onClick={undo} disabled={!document.history.past.length} title="Отменить"><ArrowDownUp className="h-4 w-4 rotate-90" /></Button><Button size="icon" variant="outline" onClick={redo} disabled={!document.history.future.length} title="Повторить"><ArrowDownUp className="h-4 w-4 -rotate-90" /></Button><Button size="icon" variant={toolMode === "pan" ? "default" : "outline"} onClick={() => setToolMode((value) => value === "pan" ? "select" : "pan")} disabled={!hasOpenCanvas} title="Рука"><Hand className="h-4 w-4" /></Button><div ref={addNodeMenuRef} className="relative"><Button size="icon" variant="outline" onClick={() => setIsAddNodeMenuOpen((value) => !value)} disabled={readOnly || !hasOpenCanvas} title="Добавить узел"><Plus className="h-4 w-4" /></Button>{isAddNodeMenuOpen ? <div className="absolute left-0 top-full z-20 mt-2 w-44 border border-slate-200 bg-white p-1 shadow-lg">{(["master", "slave", "sensor", "bus", "repeater", "gateway"] as const).map((kind) => <button key={kind} type="button" className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50" onClick={() => { addPresetNode(kind); setIsAddNodeMenuOpen(false); }}>{kind === "master" ? "Master" : kind === "slave" ? "Slave" : kind === "sensor" ? "Sensor" : kind === "bus" ? "Bus" : kind === "repeater" ? "Repeater" : "Gateway"}</button>)}</div> : null}</div><Button size="icon" variant={toolMode === "connect" ? "default" : "outline"} onClick={() => setToolMode((value) => value === "connect" ? "select" : "connect")} disabled={readOnly || !hasOpenCanvas} title="Режим связи"><Link2 className="h-4 w-4" /></Button><Button size="icon" variant="outline" onClick={() => { mutateCurrentDocument((current) => autoLayoutDocument(current)); commitUserAction(); }} disabled={!hasOpenCanvas} title="Автораскладка"><Rows3 className="h-4 w-4" /></Button><Button size="icon" variant="outline" onClick={fitView} disabled={!hasOpenCanvas} title="Уместить"><Minimize2 className="h-4 w-4" /></Button><Button size="icon" variant="outline" onClick={() => void toggleFullscreen()} disabled={!hasOpenCanvas} title={isFullscreen ? "Свернуть из полноэкранного режима" : "Развернуть на весь экран"}>{isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</Button></div></div><div className="flex flex-col gap-3 xl:items-end"><div ref={searchPanelRef} className="relative min-w-0 xl:w-[280px]"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input className="pl-9" value={canvasSearch} onChange={(event) => { setCanvasSearch(event.target.value); setIsSearchResultsOpen(event.target.value.trim().length > 0); }} onFocus={() => setIsSearchResultsOpen(canvasSearch.trim().length > 0)} placeholder="Поиск узлов по имени, адресу и протоколу" />{canvasSearch.trim() && isSearchResultsOpen ? <div className="absolute left-0 top-full z-20 mt-2 max-h-72 w-full overflow-auto border border-slate-200 bg-white shadow-lg">{searchResults.length ? searchResults.map((node) => <button key={node.id} type="button" className="block w-full border-b border-slate-100 px-3 py-2 text-left hover:bg-slate-50 last:border-b-0" onClick={() => focusSearchResult(node.id)}><div className="truncate text-sm font-semibold text-slate-900">{resolveNodeName(node, equipmentMap)}</div><div className="mt-1 text-xs text-slate-500">{node.kind.toUpperCase()} • {node.protocol}{node.address !== null ? ` • А ${node.address}` : ""}</div></button>) : <div className="px-3 py-3 text-sm text-slate-500">Совпадений не найдено.</div>}</div> : null}</div><div className="flex flex-wrap items-center gap-2"><Badge variant="outline">Выбор: {selectedCount}</Badge><Badge variant="outline">{Math.round(document.viewport.zoom * 100)}%</Badge><Badge variant={saveStatus === "error" ? "destructive" : saveStatus === "saved" ? "success" : "secondary"}>{saveStateLabel}</Badge></div></div></div></div>
+          <div className="border-b border-slate-200 bg-slate-50/70 px-4 py-3">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                <Menubar className="w-fit">
+                  <MenubarMenu>
+                    <MenubarTrigger>Правка</MenubarTrigger>
+                    <MenubarContent>
+                      <MenubarLabel>Выделение</MenubarLabel>
+                      <MenubarItem onClick={copySelection} disabled={!canCopySelection}>
+                        <span>Копировать</span>
+                        <MenubarShortcut>Ctrl/Cmd+C</MenubarShortcut>
+                      </MenubarItem>
+                      <MenubarItem onClick={pasteSelection} disabled={!canPasteSelection}>
+                        <span>Вставить</span>
+                        <MenubarShortcut>Ctrl/Cmd+V</MenubarShortcut>
+                      </MenubarItem>
+                      <MenubarSeparator />
+                      <MenubarLabel>Изменить</MenubarLabel>
+                      <MenubarItem onClick={duplicateSelection} disabled={!canDuplicateSelection}>
+                        <span>Дублировать</span>
+                        <MenubarShortcut>Ctrl/Cmd+D</MenubarShortcut>
+                      </MenubarItem>
+                      <MenubarItem onClick={() => { setInspectorTab("selection"); if (!isInspectorDrawerOpen) setIsInspectorDrawerOpen(true); }} disabled={!selectedCount}>
+                        <span>Редактировать</span>
+                      </MenubarItem>
+                      <MenubarItem className="text-red-600 hover:bg-red-50" onClick={() => { void deleteSelection(); }} disabled={!canDeleteSelection}>
+                        <span>Удалить</span>
+                        <MenubarShortcut>Del</MenubarShortcut>
+                      </MenubarItem>
+                    </MenubarContent>
+                  </MenubarMenu>
+                  <MenubarMenu>
+                    <MenubarTrigger>Вид</MenubarTrigger>
+                    <MenubarContent>
+                      <MenubarCheckboxItem checked={showMiniMap} onClick={() => setShowMiniMap((value) => !value)}>Миникарта</MenubarCheckboxItem>
+                      <MenubarCheckboxItem checked={showGrid} onClick={() => setShowGrid((value) => !value)}>Сетка</MenubarCheckboxItem>
+                      <MenubarSeparator />
+                      <MenubarItem onClick={resetView} disabled={!hasOpenCanvas}>
+                        <span>Сбросить вид</span>
+                        <MenubarShortcut>1:1</MenubarShortcut>
+                      </MenubarItem>
+                    </MenubarContent>
+                  </MenubarMenu>
+                </Menubar>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button size="icon" variant="outline" onClick={undo} disabled={!document.history.past.length} title="Отменить">
+                    <ArrowDownUp className="h-4 w-4 rotate-90" />
+                  </Button>
+                  <Button size="icon" variant="outline" onClick={redo} disabled={!document.history.future.length} title="Повторить">
+                    <ArrowDownUp className="h-4 w-4 -rotate-90" />
+                  </Button>
+                  <div className="mx-1 hidden h-6 w-px bg-slate-200 xl:block" />
+                  <Button
+                    size="icon"
+                    variant={toolMode === "select" ? "default" : "outline"}
+                    onClick={() => { setPendingConnectId(null); setToolMode("select"); }}
+                    disabled={!hasOpenCanvas}
+                    title="Курсор"
+                  >
+                    <MousePointer2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant={toolMode === "pan" ? "default" : "outline"}
+                    onClick={() => { setPendingConnectId(null); setToolMode((value) => value === "pan" ? "select" : "pan"); }}
+                    disabled={!hasOpenCanvas}
+                    title="Рука"
+                  >
+                    <Hand className="h-4 w-4" />
+                  </Button>
+                  <div className="mx-1 hidden h-6 w-px bg-slate-200 xl:block" />
+                  <Button size="icon" variant="outline" onClick={copySelection} disabled={!canCopySelection} title="Копировать">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="outline" onClick={pasteSelection} disabled={!canPasteSelection} title="Вставить">
+                    <ClipboardPaste className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="outline" onClick={duplicateSelection} disabled={!canDuplicateSelection} title="Дублировать">
+                    <CopyPlus className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="outline" onClick={() => { void deleteSelection(); }} disabled={!canDeleteSelection} title="Удалить">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  <div className="mx-1 hidden h-6 w-px bg-slate-200 xl:block" />
+                  <div ref={addNodeMenuRef} className="relative">
+                    <Button size="icon" variant="outline" onClick={() => setIsAddNodeMenuOpen((value) => !value)} disabled={readOnly || !hasOpenCanvas} title="Добавить узел">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                    {isAddNodeMenuOpen ? <div className="absolute left-0 top-full z-20 mt-2 w-44 border border-slate-200 bg-white p-1 shadow-lg">{(["master", "slave", "sensor", "bus", "repeater", "gateway"] as const).map((kind) => <button key={kind} type="button" className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50" onClick={() => { addPresetNode(kind); setIsAddNodeMenuOpen(false); }}>{kind === "master" ? "Master" : kind === "slave" ? "Slave" : kind === "sensor" ? "Sensor" : kind === "bus" ? "Bus" : kind === "repeater" ? "Repeater" : "Gateway"}</button>)}</div> : null}
+                  </div>
+                  <Button
+                    size="icon"
+                    variant={toolMode === "connect" ? "default" : "outline"}
+                    onClick={() => setToolMode((value) => value === "connect" ? "select" : "connect")}
+                    disabled={readOnly || !hasOpenCanvas}
+                    title="Режим связи"
+                  >
+                    <Link2 className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="outline" onClick={() => { mutateCurrentDocument((current) => autoLayoutDocument(current)); commitUserAction(); }} disabled={!hasOpenCanvas} title="Автораскладка">
+                    <Rows3 className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="outline" onClick={fitView} disabled={!hasOpenCanvas} title="Уместить">
+                    <Minimize2 className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="outline" onClick={() => void toggleFullscreen()} disabled={!hasOpenCanvas} title={isFullscreen ? "Свернуть из полноэкранного режима" : "Развернуть на весь экран"}>
+                    {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-col gap-3 xl:items-end">
+                <div ref={searchPanelRef} className="relative min-w-0 xl:w-[280px]">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input className="pl-9" value={canvasSearch} onChange={(event) => { setCanvasSearch(event.target.value); setIsSearchResultsOpen(event.target.value.trim().length > 0); }} onFocus={() => setIsSearchResultsOpen(canvasSearch.trim().length > 0)} placeholder="Поиск узлов по имени, адресу и протоколу" />
+                  {canvasSearch.trim() && isSearchResultsOpen ? <div className="absolute left-0 top-full z-20 mt-2 max-h-72 w-full overflow-auto border border-slate-200 bg-white shadow-lg">{searchResults.length ? searchResults.map((node) => <button key={node.id} type="button" className="block w-full border-b border-slate-100 px-3 py-2 text-left hover:bg-slate-50 last:border-b-0" onClick={() => focusSearchResult(node.id)}><div className="truncate text-sm font-semibold text-slate-900">{resolveNodeName(node, equipmentMap)}</div><div className="mt-1 text-xs text-slate-500">{node.kind.toUpperCase()} • {node.protocol}{node.address !== null ? ` • А ${node.address}` : ""}</div></button>) : <div className="px-3 py-3 text-sm text-slate-500">Совпадений не найдено.</div>}</div> : null}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline">Выбор: {selectedCount}</Badge>
+                  <Badge variant="outline">{Math.round(document.viewport.zoom * 100)}%</Badge>
+                  <Badge variant={saveStatus === "error" ? "destructive" : saveStatus === "saved" ? "success" : "secondary"}>{saveStateLabel}</Badge>
+                </div>
+              </div>
+            </div>
+          </div>
           <CardHeader className="flex-row items-center justify-between space-y-0"><div className="min-w-0"><CardTitle>Холст последовательных протоколов</CardTitle><CardDescription>{visibleNodes.length} видимых узлов, {document.edges.length} видимых связей</CardDescription></div></CardHeader>
           <CardContent className="p-0">
             <div ref={wrapperRef} onWheel={handleWheel} onPointerDown={beginCanvasInteraction} className={cn("relative h-[calc(100vh-260px)] min-h-[680px] overflow-hidden bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.98),rgba(239,246,255,0.95))]", isFullscreen && "h-screen min-h-screen bg-white")}>
@@ -1135,12 +1264,13 @@ export default function SerialMapPage() {
                   {logicalSelectionRect ? <rect x={logicalSelectionRect.x} y={logicalSelectionRect.y} width={logicalSelectionRect.width} height={logicalSelectionRect.height} fill="rgba(37,99,235,0.12)" stroke="#2563eb" strokeDasharray="8 6" /> : null}
                 </g>
               </svg>
+              {isFullscreen ? <div className="absolute right-4 top-4 z-20 w-[min(360px,calc(100vw-32px))]" onPointerDown={(event) => event.stopPropagation()}>{inspectorPanel}</div> : null}
               {showMiniMap ? <Card className="absolute bottom-4 right-4 w-[190px] rounded-none border-slate-200 bg-white/95 shadow-sm"><CardContent className="p-3"><div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Миникарта</div><svg width="100%" height="120" viewBox={`${miniMapViewBox.x} ${miniMapViewBox.y} ${miniMapViewBox.width} ${miniMapViewBox.height}`} onPointerDown={handleMiniMapPointerDown} style={{ cursor: "pointer" }}>{document.edges.map((edge) => <path key={edge.id} d={edgePath(edge)} fill="none" stroke="#94a3b8" strokeWidth="8" strokeLinecap="round" />)}{document.nodes.map((node) => <rect key={node.id} x={node.position.x} y={node.position.y} width={node.width} height={node.height} fill={selectedNodeIds.includes(node.id) ? "#93c5fd" : "#e2e8f0"} stroke="#64748b" strokeWidth="3" onPointerDown={(event) => { event.stopPropagation(); focusNode(node.id); }} style={{ cursor: "pointer" }} />)}{miniMapViewportRect ? <rect x={miniMapViewportRect.x} y={miniMapViewportRect.y} width={miniMapViewportRect.width} height={miniMapViewportRect.height} fill="rgba(37,99,235,0.08)" stroke="#2563eb" strokeWidth="4" pointerEvents="none" /> : null}</svg></CardContent></Card> : null}
               <div className="pointer-events-none absolute bottom-4 left-4 border border-slate-200 bg-white/90 px-3 py-2 text-[11px] text-slate-500 shadow-sm"><div className="flex items-center gap-2"><Grip className="h-3.5 w-3.5" /> Панорама: drag по пустому холсту или wheel</div><div className="mt-1 flex items-center gap-2"><ArrowDownUp className="h-3.5 w-3.5" /> Выбор: клик, Shift-мультивыбор или рамка</div><div className="mt-1 flex items-center gap-2"><Link2 className="h-3.5 w-3.5" /> Связи: режим Connect в menubar</div></div>
             </div>
           </CardContent>
         </Card>
-        <div className="hidden xl:block xl:sticky xl:top-4 xl:self-start xl:max-h-[calc(100vh-24px)]">{inspectorPanel}</div>
+        {!isFullscreen ? <div className="hidden xl:block xl:sticky xl:top-4 xl:self-start xl:max-h-[calc(100vh-24px)]">{inspectorPanel}</div> : null}
       </div>
       {isCreateDialogOpen ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/35 p-4" onClick={() => setIsCreateDialogOpen(false)}><div className="w-full max-w-md border border-slate-200 bg-white p-5 shadow-xl" onClick={(event) => event.stopPropagation()}><div className="text-lg font-semibold text-slate-900">Новая схема</div><div className="mt-1 text-sm text-slate-500">Укажите имя новой карты последовательных протоколов перед созданием серверного документа.</div><div className="mt-4 space-y-3"><div className="space-y-1.5"><div className="text-sm font-medium text-slate-900">Название</div><Input value={createNameDraft} onChange={(event) => setCreateNameDraft(event.target.value)} placeholder="Название схемы" autoFocus /></div><div className="space-y-1.5"><div className="text-sm font-medium text-slate-900">Описание</div><Input value={createDescriptionDraft} onChange={(event) => setCreateDescriptionDraft(event.target.value)} placeholder="Описание (необязательно)" /></div></div><div className="mt-5 flex flex-wrap justify-end gap-2"><Button size="sm" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Отмена</Button><Button size="sm" onClick={() => { void handleCreateDocumentConfirm(); }} disabled={!createNameDraft.trim() || readOnly}><Plus className="h-4 w-4" />Создать</Button></div></div></div> : null}
       {pendingDeleteDocument ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/35 p-4" onClick={() => setPendingDeleteDocument(null)}><div className="w-full max-w-md border border-slate-200 bg-white p-5 shadow-xl" onClick={(event) => event.stopPropagation()}><div className="text-lg font-semibold text-slate-900">Удалить схему?</div><div className="mt-2 text-sm text-slate-500">Схема <span className="font-semibold text-slate-900">"{pendingDeleteDocument.name}"</span> будет удалена с сервера. Это действие нельзя отменить.</div><div className="mt-5 flex flex-wrap justify-end gap-2"><Button size="sm" variant="outline" onClick={() => setPendingDeleteDocument(null)}>Отмена</Button><Button size="sm" variant="destructive" onClick={() => { void handleDeleteDocument(pendingDeleteDocument.id); }} disabled={readOnly}><Trash2 className="h-4 w-4" />Удалить</Button></div></div></div> : null}

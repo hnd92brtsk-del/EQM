@@ -203,7 +203,6 @@ export function computeConflicts(document: SerialMapDocumentData): SerialMapConf
   document.nodes.forEach((node) => {
     if (node.address === null) return;
     if (node.kind === "bus" || node.kind === "repeater") return;
-    if (node.kind === "master" && node.address === 0) return;
     const key = `${node.protocol}:${node.address}`;
     const list = grouped.get(key) || [];
     list.push(node);
@@ -224,6 +223,15 @@ export function computeConflicts(document: SerialMapDocumentData): SerialMapConf
 
 export function computeDiagnostics(document: SerialMapDocumentData): SerialMapDiagnostic[] {
   const diagnostics: SerialMapDiagnostic[] = [];
+  const conflicts = computeConflicts(document);
+
+  conflicts.forEach((conflict) => {
+    diagnostics.push({
+      level: "warning",
+      message: `Конфликт адреса ${conflict.protocol} / A${conflict.address}: ${conflict.nodes.map((node) => node.name).join(", ")}.`,
+    });
+  });
+
   document.edges.forEach((edge) => {
     const fromNode = document.nodes.find((item) => item.id === edge.fromNodeId);
     const toNode = document.nodes.find((item) => item.id === edge.toNodeId);
