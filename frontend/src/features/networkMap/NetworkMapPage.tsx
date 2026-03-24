@@ -1,24 +1,24 @@
-﻿
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import ReactFlow, {
-  Background,
-  MiniMap,
-  type Connection,
-  type NodeChange,
-  type OnMoveEnd,
-  type ReactFlowInstance,
-} from "reactflow";
-import "reactflow/dist/style.css";
+import { useTranslation } from "react-i18next";
 import {
   AlertCircle,
   ArrowDownUp,
+  ClipboardPaste,
+  Copy,
+  CopyPlus,
   Grip,
+  Hand,
   Layers3,
   Link2,
+  Maximize2,
+  Minimize2,
+  MousePointer2,
+  PanelLeft,
+  PanelRight,
   Plus,
   Route,
+  Rows3,
   Save,
   Search,
   Trash2,
@@ -51,12 +51,13 @@ import {
   listNetworkTopologyEligibleEquipment,
   updateNetworkTopology,
 } from "./api";
-import { NetworkMapEdge } from "./NetworkMapEdge";
-import { NetworkMapNode } from "./NetworkMapNode";
 import type {
   NetworkEdge,
   NetworkNode,
   NetworkTopologyDocumentRecord,
+  NetworkTopologyEligibleEquipment,
+  NodeInterface,
+  RouteEntry,
   SaveState,
   TopologyDocument,
   TopologyPolicy,
@@ -66,32 +67,45 @@ import {
   NETWORK_EDGE_STYLES,
   NETWORK_LAYERS,
   NETWORK_NODE_TYPES,
-  addEdgeFromConnection,
-  applyNodePositionChanges,
+  ROUTE_PROTOCOLS,
   autoLayout,
   computeShortestPath,
   computeTopologyValidation,
+  createEmptyNodeInterface,
   createEmptyPolicy,
+  createEmptyRouteEntry,
   createId,
   createManualNode,
   createNodeFromEquipment,
-  deleteEdge,
-  deleteNodes,
-  duplicateNodes,
   exportDocument,
+  getStatusPalette,
   importDocumentFromFile,
   isEquipmentAlreadyOnCanvas,
-  toFlowEdge,
-  toFlowNode,
   updateEdge,
   updateNode,
 } from "./utils";
 
-const nodeTypes = { networkNode: NetworkMapNode };
-const edgeTypes = { networkEdge: NetworkMapEdge };
+type ToolMode = "select" | "connect" | "pan";
+type InspectorTab = "selection" | "data" | "gateway" | "diagnostics";
+type NetworkTopologySnapshot = {
+  nodes: NetworkNode[];
+  edges: NetworkEdge[];
+  policies: TopologyPolicy[];
+  viewport: { x: number; y: number };
+  zoom: number;
+};
+type HistoryState = { past: NetworkTopologySnapshot[]; future: NetworkTopologySnapshot[] };
+type Interaction =
+  | { type: "pan"; startX: number; startY: number; viewport: { x: number; y: number }; moved: boolean }
+  | { type: "drag"; startX: number; startY: number; nodeIds: string[]; positions: Record<string, { x: number; y: number }>; snapshot: NetworkTopologySnapshot; moved: boolean }
+  | { type: "select"; startX: number; startY: number; endX: number; endY: number }
+  | null;
 
-type LinkCreationMode = "idle" | "picking";
-type InspectorTab = "selection" | "inventory" | "path" | "validation";
+const defaultViewport = { x: 0, y: 0 };
+const defaultZoom = 1;
+const nodeWidth = 188;
+const nodeHeight = 104;
+const sidebarActionButtonClass = "h-auto min-h-11 justify-center px-2.5 py-2 text-center text-[12px] leading-snug whitespace-normal [word-break:break-word]";
 
 function parseIpv4(ip: string) {
   const parts = ip.trim().split(".");
@@ -124,6 +138,96 @@ function getSubnetIpPrefix(subnet: { network_address: string; prefix: number }) 
   return `${octets.slice(0, octetCount).join(".")}.`;
 }
 
+function normalizeDocument(document: TopologyDocument | null | undefined): TopologyDocument {
+  return {
+    nodes: document?.nodes || [],
+    edges: document?.edges || [],
+    policies: document?.policies || [],
+    viewport: document?.viewport || defaultViewport,
+    zoom: document?.zoom ?? defaultZoom,
+  };
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function rectOf(a: { x: number; y: number }, b: { x: number; y: number }) {
+  return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(b.x - a.x), height: Math.abs(b.y - a.y) };
+}
+
+function intersects(node: NetworkNode, rect: { x: number; y: number; width: number; height: number }) {
+  return !(node.x + nodeWidth < rect.x || node.x > rect.x + rect.width || node.y + nodeHeight < rect.y || node.y > rect.y + rect.height);
+}
+
+function boundsOf(nodes: NetworkNode[]) {
+  if (!nodes.length) return { x: 0, y: 0, width: 800, height: 520 };
+  const minX = Math.min(...nodes.map((node) => node.x));
+  const minY = Math.min(...nodes.map((node) => node.y));
+  const maxX = Math.max(...nodes.map((node) => node.x + nodeWidth));
+  const maxY = Math.max(...nodes.map((node) => node.y + nodeHeight));
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+function centerOf(node: NetworkNode) {
+  return { x: node.x + nodeWidth / 2, y: node.y + nodeHeight / 2 };
+}
+
+function snapshotOfTopology(document: TopologyDocument): NetworkTopologySnapshot {
+  return {
+    nodes: structuredClone(document.nodes),
+    edges: structuredClone(document.edges),
+    policies: structuredClone(document.policies),
+    viewport: structuredClone(document.viewport || defaultViewport),
+    zoom: document.zoom ?? defaultZoom,
+  };
+}
+
+function warningCountOfDocument(document: TopologyDocument) {
+  return computeTopologyValidation(document).length;
+}
+
+function getNodeTypeLabel(type: NetworkNode["type"]) {
+  switch (type) {
+    case "core-switch":
+      return "Core switch";
+    case "load-balancer":
+      return "Load balancer";
+    case "vpn-gateway":
+      return "VPN gateway";
+    case "wireless-controller":
+      return "Wireless ctrl";
+    case "access-point":
+      return "Access point";
+    case "vm-host":
+      return "VM host";
+    case "iot-gateway":
+      return "IoT gateway";
+    default:
+      return type.replace(/-/g, " ");
+  }
+}
+
+function getEdgeStroke(edge: NetworkEdge, selected: boolean, traced: boolean) {
+  if (selected) return { color: "#2563eb", width: 4, dash: undefined as string | undefined };
+  if (traced) return { color: "#2563eb", width: 3.6, dash: undefined as string | undefined };
+  const color = getStatusPalette(edge.status).stroke;
+  switch (edge.style) {
+    case "fiber":
+      return { color, width: 3.4, dash: undefined };
+    case "vpn":
+      return { color, width: 3, dash: "10 6" };
+    case "wireless":
+      return { color, width: 3, dash: "5 5" };
+    case "mpls":
+      return { color, width: 3.2, dash: "14 6 4 6" };
+    case "trunk":
+      return { color, width: 4.4, dash: undefined };
+    default:
+      return { color, width: 3, dash: undefined };
+  }
+}
+
 function DocumentPreviewCard({
   active,
   title,
@@ -137,41 +241,27 @@ function DocumentPreviewCard({
   updatedAt: string;
   stats: { nodes: number; edges: number; warnings: number };
 }) {
-  const { t } = useTranslation();
   const previewNodes = Array.from({ length: Math.min(stats.nodes, 5) }, (_, index) => ({
     left: 16 + (index % 3) * 18 + (index > 2 ? 10 : 0),
     top: index < 3 ? 14 : 34,
   }));
 
   return (
-    <div
-      className={cn(
-        "w-full border p-3.5 text-left transition",
-        active
-          ? "border-slate-900 bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] text-white shadow-[0_18px_45px_rgba(15,23,42,0.22)]"
-          : "border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)]"
-      )}
-    >
+    <div className={cn("w-full border p-3.5 text-left transition", active ? "border-slate-900 bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] text-white shadow-[0_18px_45px_rgba(15,23,42,0.22)]" : "border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)]")}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold">{title}</div>
           <div className={cn("mt-1 line-clamp-2 text-[11px]", active ? "text-slate-300" : "text-slate-500")}>{subtitle}</div>
         </div>
-        {active ? <Badge className="bg-white text-slate-900">{t("pages.networkMap.documents.active")}</Badge> : null}
+        {active ? <Badge className="bg-white text-slate-900">Активен</Badge> : null}
       </div>
-      <div className="mt-3 grid grid-cols-[92px_minmax(0,1fr)] gap-3">
+      <div className="mt-3 grid gap-3 sm:grid-cols-[92px_minmax(0,1fr)]">
         <div className={cn("relative h-[66px] overflow-hidden border", active ? "border-white/15 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),rgba(255,255,255,0.04))]" : "border-slate-200 bg-slate-50")}>
           <div className={cn("absolute inset-x-0 top-0 h-7", active ? "bg-white/5" : "bg-white")} />
           <svg viewBox="0 0 92 68" className="h-full w-full">
             {previewNodes.map((node, index) => (
               <g key={`${node.left}-${node.top}-${index}`}>
-                {index > 0 ? (
-                  <path
-                    d={`M${previewNodes[index - 1].left + 6} ${previewNodes[index - 1].top + 6} L${node.left + 6} ${node.top + 6}`}
-                    stroke={active ? "rgba(255,255,255,0.38)" : "#94a3b8"}
-                    strokeWidth="1.35"
-                  />
-                ) : null}
+                {index > 0 ? <path d={`M${previewNodes[index - 1].left + 6} ${previewNodes[index - 1].top + 6} L${node.left + 6} ${node.top + 6}`} stroke={active ? "rgba(255,255,255,0.38)" : "#94a3b8"} strokeWidth="1.35" /> : null}
                 <circle cx={node.left + 6} cy={node.top + 6} r="5" fill={active ? "rgba(255,255,255,0.1)" : "#e2e8f0"} />
                 <circle cx={node.left + 6} cy={node.top + 6} r="3.2" fill={active ? "#ffffff" : "#64748b"} />
               </g>
@@ -179,9 +269,9 @@ function DocumentPreviewCard({
           </svg>
         </div>
         <div className="grid grid-cols-3 gap-2">
-          <div className={cn("px-2 py-1.5", active ? "bg-white/8" : "bg-slate-50")}><div className={cn("text-[10px]", active ? "text-slate-300" : "text-slate-500")}>{t("pages.networkMap.stats.devices")}</div><div className="mt-1 text-sm font-semibold">{stats.nodes}</div></div>
-          <div className={cn("px-2 py-1.5", active ? "bg-white/8" : "bg-slate-50")}><div className={cn("text-[10px]", active ? "text-slate-300" : "text-slate-500")}>{t("pages.networkMap.stats.links")}</div><div className="mt-1 text-sm font-semibold">{stats.edges}</div></div>
-          <div className={cn("px-2 py-1.5", active ? "bg-white/8" : "bg-slate-50")}><div className={cn("text-[10px]", active ? "text-slate-300" : "text-slate-500")}>{t("pages.networkMap.stats.warnings")}</div><div className="mt-1 text-sm font-semibold">{stats.warnings}</div></div>
+          <div className={cn("min-w-0 px-2 py-1.5", active ? "bg-white/8" : "bg-slate-50")}><div className={cn("text-[10px]", active ? "text-slate-300" : "text-slate-500")}>Узлы</div><div className="mt-1 text-sm font-semibold">{stats.nodes}</div></div>
+          <div className={cn("min-w-0 px-2 py-1.5", active ? "bg-white/8" : "bg-slate-50")}><div className={cn("text-[10px]", active ? "text-slate-300" : "text-slate-500")}>Связи</div><div className="mt-1 text-sm font-semibold">{stats.edges}</div></div>
+          <div className={cn("min-w-0 px-2 py-1.5", active ? "bg-white/8" : "bg-slate-50")}><div className={cn("text-[10px]", active ? "text-slate-300" : "text-slate-500")}>Предупр.</div><div className="mt-1 text-sm font-semibold">{stats.warnings}</div></div>
         </div>
       </div>
       <div className="mt-3 flex items-center justify-between text-[10px] text-slate-400"><span>{updatedAt}</span><span>{stats.nodes + stats.edges > 0 ? `${Math.round((stats.edges / Math.max(stats.nodes, 1)) * 100)}%` : "--"}</span></div>
@@ -189,32 +279,48 @@ function DocumentPreviewCard({
   );
 }
 
-function CompactDocumentRow({ item, selected, active, onClick }: { item: NetworkTopologyDocumentRecord; selected: boolean; active: boolean; onClick: () => void }) {
-  const warningCount =
-    item.document.nodes.filter((node) => node.status !== "healthy").length +
-    item.document.edges.filter((edge) => edge.status !== "healthy").length;
-
+function CompactDocumentRow({
+  item,
+  selected,
+  active,
+  onClick,
+  onDelete,
+}: {
+  item: NetworkTopologyDocumentRecord;
+  selected: boolean;
+  active: boolean;
+  onClick: () => void;
+  onDelete: () => void;
+}) {
+  const warningCount = warningCountOfDocument(normalizeDocument(item.document));
   return (
     <button
       type="button"
-      className={cn(
-        "grid w-full grid-cols-[minmax(0,1.7fr)_56px_56px_72px] items-center gap-2 border-l-2 px-3 py-2.5 text-left text-[12px] transition",
-        selected
-          ? "border-l-slate-900 border-y-slate-900 border-r-slate-900 bg-slate-900 text-white"
-          : "border-l-slate-300 border-y-slate-200 border-r-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
-      )}
+      className={cn("grid w-full min-w-0 grid-cols-[minmax(0,1fr)_36px_36px_48px_32px] items-center gap-1.5 border-l-2 px-2.5 py-2.5 text-left text-[12px] transition", selected ? "border-l-slate-900 border-y-slate-900 border-r-slate-900 bg-slate-900 text-white" : "border-l-slate-300 border-y-slate-200 border-r-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50")}
       onClick={onClick}
+      title={item.name}
     >
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <div className="truncate text-sm font-semibold">{item.name}</div>
-          {active ? <Badge variant="secondary" className="shrink-0 px-2 py-0 text-[10px]">LIVE</Badge> : null}
+          <div className="truncate text-sm font-semibold" title={item.name}>{item.name}</div>
+          {active ? <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[9px]">LIVE</Badge> : null}
         </div>
-        <div className={cn("mt-1 truncate text-[11px]", selected ? "text-slate-300" : "text-slate-500")}>{item.description || "Без описания"}</div>
+        <div className={cn("mt-1 truncate text-[10px]", selected ? "text-slate-300" : "text-slate-500")}>{item.description || "Без описания"}</div>
       </div>
       <div className={cn("text-center font-semibold", selected ? "text-white" : "text-slate-700")}>{item.document.nodes.length}</div>
       <div className={cn("text-center font-semibold", selected ? "text-white" : "text-slate-700")}>{item.document.edges.length}</div>
       <div className={cn("text-center font-semibold", selected ? "text-white" : warningCount > 0 ? "text-amber-600" : "text-slate-500")}>{warningCount}</div>
+      <button
+        type="button"
+        className={cn("inline-flex h-7 w-7 items-center justify-center border text-slate-500 transition hover:text-red-600", selected ? "border-white/20 hover:bg-white/10" : "border-slate-200 hover:bg-red-50")}
+        onClick={(event) => {
+          event.stopPropagation();
+          onDelete();
+        }}
+        title={`Удалить схему "${item.name}"`}
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
     </button>
   );
 }
@@ -237,44 +343,62 @@ export default function NetworkMapPage() {
   const queryClient = useQueryClient();
   const canWrite = user?.role === "admin" || user?.role === "engineer";
   const readOnly = !canWrite;
+
+  const canvasShellRef = useRef<HTMLDivElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const flowRef = useRef<ReactFlowInstance | null>(null);
+  const addNodeMenuRef = useRef<HTMLDivElement | null>(null);
+  const searchPanelRef = useRef<HTMLDivElement | null>(null);
+  const interactionRef = useRef<Interaction>(null);
   const hydratingRef = useRef(false);
 
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
-  const [documentName, setDocumentName] = useState("");
+  const [documentName, setDocumentName] = useState(t("pages.networkMap.defaultName"));
   const [documentDescription, setDocumentDescription] = useState("");
-  const [topology, setTopology] = useState<TopologyDocument>(DEFAULT_DOCUMENT);
-  const [isDraftDocument, setIsDraftDocument] = useState(false);
-  const [isEditingSelectedDocument, setIsEditingSelectedDocument] = useState(false);
   const [selectedDocumentName, setSelectedDocumentName] = useState("");
   const [selectedDocumentDescription, setSelectedDocumentDescription] = useState("");
+  const [topology, setTopology] = useState<TopologyDocument>(normalizeDocument(DEFAULT_DOCUMENT));
+  const [history, setHistory] = useState<HistoryState>({ past: [], future: [] });
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  const [dirtyVersion, setDirtyVersion] = useState(0);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-  const [inventorySearch, setInventorySearch] = useState("");
-  const [canvasSearch, setCanvasSearch] = useState("");
-  const [documentSearch, setDocumentSearch] = useState("");
-  const [newNodeType, setNewNodeType] = useState<NetworkNode["type"]>("router");
-  const [newEdgeStyle, setNewEdgeStyle] = useState<NetworkEdge["style"]>("ethernet");
+  const [toolMode, setToolMode] = useState<ToolMode>("select");
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>("selection");
+  const [pendingConnectId, setPendingConnectId] = useState<string | null>(null);
   const [pathStartId, setPathStartId] = useState("");
   const [pathEndId, setPathEndId] = useState("");
   const [selectedSubnetId, setSelectedSubnetId] = useState<number | null>(null);
   const [selectedAddressOffset, setSelectedAddressOffset] = useState<number | null>(null);
-  const [linkCreationMode, setLinkCreationMode] = useState<LinkCreationMode>("idle");
-  const [pendingLinkStartId, setPendingLinkStartId] = useState<string | null>(null);
-  const [interactionMessage, setInteractionMessage] = useState<{ tone: "info" | "warning"; text: string } | null>(null);
-  const [inspectorTab, setInspectorTab] = useState<InspectorTab>("selection");
   const [showMiniMap, setShowMiniMap] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSidebarDrawerOpen, setIsSidebarDrawerOpen] = useState(false);
   const [isInspectorDrawerOpen, setIsInspectorDrawerOpen] = useState(false);
+  const [isEditingSelectedDocument, setIsEditingSelectedDocument] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [createNameDraft, setCreateNameDraft] = useState(t("pages.networkMap.defaultName"));
+  const [createDescriptionDraft, setCreateDescriptionDraft] = useState("");
+  const [pendingDeleteDocument, setPendingDeleteDocument] = useState<{ id: number; name: string } | null>(null);
+  const [message, setMessage] = useState<{ tone: "info" | "warning"; text: string } | null>(null);
   const [clipboardNodes, setClipboardNodes] = useState<NetworkNode[]>([]);
+  const [canvasSearch, setCanvasSearch] = useState("");
+  const [documentSearch, setDocumentSearch] = useState("");
+  const [inventorySearch, setInventorySearch] = useState("");
+  const [isSearchResultsOpen, setIsSearchResultsOpen] = useState(false);
+  const [isAddNodeMenuOpen, setIsAddNodeMenuOpen] = useState(false);
 
-  const topologiesQuery = useQuery({ queryKey: ["network-topologies"], queryFn: () => listNetworkTopologies({ page: 1, page_size: 100 }) });
+  const activeIdRef = useRef<number | null>(null);
+  const topologyRef = useRef<TopologyDocument>(normalizeDocument(DEFAULT_DOCUMENT));
+  const documentNameRef = useRef(documentName);
+  const documentDescriptionRef = useRef(documentDescription);
+  const readOnlyRef = useRef(readOnly);
+  const saveInFlightRef = useRef(false);
+  const needsSaveAfterCurrentRef = useRef(false);
+  const hasUnsavedChangesRef = useRef(false);
+
+  const topologiesQuery = useQuery({ queryKey: ["network-topologies"], queryFn: () => listNetworkTopologies({ page: 1, page_size: 100, scope: "engineering" }) });
   const detailQuery = useQuery({ queryKey: ["network-topology", activeId], queryFn: () => getNetworkTopology(activeId as number), enabled: activeId !== null });
   const inventoryQuery = useQuery({ queryKey: ["network-topology-eligible-equipment"], queryFn: () => listNetworkTopologyEligibleEquipment({}) });
   const subnetsQuery = useQuery({ queryKey: ["network-map-subnets"], queryFn: () => listSubnets({ page: 1, page_size: 200, sort: "network_address" }) });
@@ -286,144 +410,144 @@ export default function NetworkMapPage() {
 
   const allTopologies = topologiesQuery.data?.items || [];
   const selectedDocument = allTopologies.find((item) => item.id === selectedDocumentId) || null;
+  const availableSubnets = subnetsQuery.data?.items || [];
 
   useEffect(() => {
     if (allTopologies.length === 0) {
-      if (!isDraftDocument) {
-        hydratingRef.current = true;
-        setSelectedDocumentId(null);
-        setDocumentName(t("pages.networkMap.defaultName"));
-        setDocumentDescription("");
-        setTopology(DEFAULT_DOCUMENT);
-        setSelectedNodeIds([]);
-        setSelectedEdgeId(null);
-        setSaveState("idle");
-        setTimeout(() => { hydratingRef.current = false; }, 0);
-      }
+      if (selectedDocumentId !== null) setSelectedDocumentId(null);
+      if (activeId !== null) setActiveId(null);
       return;
     }
-    if (selectedDocumentId === null && !isDraftDocument) setSelectedDocumentId(allTopologies[0].id);
+    if (selectedDocumentId === null) setSelectedDocumentId(allTopologies[0].id);
     if (selectedDocumentId !== null && !allTopologies.some((item) => item.id === selectedDocumentId)) setSelectedDocumentId(allTopologies[0]?.id ?? null);
     if (activeId !== null && !allTopologies.some((item) => item.id === activeId)) setActiveId(null);
-  }, [activeId, allTopologies, isDraftDocument, selectedDocumentId, t]);
+  }, [activeId, allTopologies, selectedDocumentId]);
+
+  useEffect(() => {
+    if (!detailQuery.data) return;
+    const normalized = normalizeDocument(detailQuery.data.document);
+    hydratingRef.current = true;
+    setDocumentName(detailQuery.data.name);
+    setDocumentDescription(detailQuery.data.description || "");
+    topologyRef.current = normalized;
+    setTopology(normalized);
+    setHistory({ past: [], future: [] });
+    setSelectedDocumentId(detailQuery.data.id);
+    setSelectedNodeIds([]);
+    setSelectedEdgeId(null);
+    setPendingConnectId(null);
+    setToolMode("select");
+    setPathStartId("");
+    setPathEndId("");
+    setSelectedSubnetId(null);
+    setSelectedAddressOffset(null);
+    hasUnsavedChangesRef.current = false;
+    setHasUnsavedChanges(false);
+    setSaveState("saved");
+    setTimeout(() => { hydratingRef.current = false; }, 0);
+  }, [detailQuery.data]);
 
   useEffect(() => {
     if (selectedDocument) {
       setSelectedDocumentName(selectedDocument.name);
       setSelectedDocumentDescription(selectedDocument.description || "");
-    } else if (isDraftDocument) {
+    } else {
       setSelectedDocumentName(documentName);
       setSelectedDocumentDescription(documentDescription);
-    } else {
-      setSelectedDocumentName("");
-      setSelectedDocumentDescription("");
     }
-  }, [documentDescription, documentName, isDraftDocument, selectedDocument]);
+  }, [documentDescription, documentName, selectedDocument]);
 
   useEffect(() => {
-    if (!detailQuery.data) return;
-    hydratingRef.current = true;
-    setIsDraftDocument(false);
-    setSelectedDocumentId(detailQuery.data.id);
-    setDocumentName(detailQuery.data.name);
-    setDocumentDescription(detailQuery.data.description || "");
-    setTopology(detailQuery.data.document || DEFAULT_DOCUMENT);
-    setSelectedNodeIds([]);
-    setSelectedEdgeId(null);
-    setSelectedSubnetId(null);
-    setSelectedAddressOffset(null);
-    setSaveState("saved");
-    setTimeout(() => { hydratingRef.current = false; }, 0);
-  }, [detailQuery.data]);
-
-  const mutateTopology = (updater: TopologyDocument | ((current: TopologyDocument) => TopologyDocument)) => {
-    let changed = false;
-    setTopology((current) => {
-      const next = typeof updater === "function" ? updater(current) : updater;
-      changed = next !== current;
-      return next;
-    });
-    if (!hydratingRef.current && changed) {
-      setSaveState("idle");
-      setDirtyVersion((value) => value + 1);
-    }
-  };
+    activeIdRef.current = activeId;
+    topologyRef.current = topology;
+    documentNameRef.current = documentName;
+    documentDescriptionRef.current = documentDescription;
+    readOnlyRef.current = readOnly;
+  }, [activeId, topology, documentDescription, documentName, readOnly]);
 
   useEffect(() => {
-    if (dirtyVersion === 0 || readOnly || (!isDraftDocument && activeId === null)) return;
-    const timer = window.setTimeout(async () => {
-      try {
-        setSaveState("saving");
-        if (activeId === null) {
-          const created = await createNetworkTopology({ name: documentName || t("pages.networkMap.defaultName"), description: documentDescription || null, scope: "engineering", document: topology });
-          setIsDraftDocument(false);
-          setActiveId(created.id);
-          setSelectedDocumentId(created.id);
-          queryClient.invalidateQueries({ queryKey: ["network-topologies"] });
-          queryClient.setQueryData(["network-topology", created.id], created);
-        } else {
-          const updated = await updateNetworkTopology(activeId, { name: documentName || t("pages.networkMap.defaultName"), description: documentDescription || null, scope: "engineering", document: topology });
-          queryClient.setQueryData(["network-topology", activeId], updated);
-          queryClient.invalidateQueries({ queryKey: ["network-topologies"] });
-        }
-        setSaveState("saved");
-      } catch {
-        setSaveState("error");
-      }
-    }, 1200);
+    if (!message) return;
+    const timer = window.setTimeout(() => setMessage(null), 2800);
     return () => window.clearTimeout(timer);
-  }, [activeId, dirtyVersion, documentDescription, documentName, isDraftDocument, queryClient, readOnly, t, topology]);
+  }, [message]);
 
-  const tracedPath = useMemo(() => computeShortestPath(topology, pathStartId, pathEndId), [pathEndId, pathStartId, topology]);
-  const validation = useMemo(() => computeTopologyValidation(topology), [topology]);
-  const rfNodes = useMemo(() => topology.nodes.map((node) => ({ ...toFlowNode(node), data: { node, traced: tracedPath.nodeIds.includes(node.id) } })), [topology.nodes, tracedPath.nodeIds]);
-  const rfEdges = useMemo(() => topology.edges.map((edge) => ({ ...toFlowEdge(edge), data: { edge, traced: tracedPath.edgeIds.includes(edge.id) } })), [topology.edges, tracedPath.edgeIds]);
+  useEffect(() => {
+    const handleFullscreenChange = () => setIsFullscreen(globalThis.document.fullscreenElement === canvasShellRef.current);
+    globalThis.document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => globalThis.document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
 
-  const selectedNode = selectedNodeIds.length === 1 ? topology.nodes.find((node) => node.id === selectedNodeIds[0]) || null : null;
-  const selectedEdge = selectedEdgeId ? topology.edges.find((edge) => edge.id === selectedEdgeId) || null : null;
-  const inventoryItems = useMemo(() => {
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (addNodeMenuRef.current && target && !addNodeMenuRef.current.contains(target)) setIsAddNodeMenuOpen(false);
+      if (searchPanelRef.current && target && !searchPanelRef.current.contains(target)) setIsSearchResultsOpen(false);
+    };
+    window.addEventListener("pointerdown", handlePointerDown);
+    return () => window.removeEventListener("pointerdown", handlePointerDown);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (pendingConnectId || toolMode === "connect") {
+        setPendingConnectId(null);
+        setToolMode("select");
+        setMessage({ tone: "info", text: "Режим связи отменён." });
+      }
+      setIsAddNodeMenuOpen(false);
+      setIsSearchResultsOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [pendingConnectId, toolMode]);
+
+  const equipmentItems = useMemo(() => {
     const q = inventorySearch.trim().toLowerCase();
     const items = inventoryQuery.data || [];
-    if (!q) return items;
-    return items.filter((item) => [item.display_name, item.equipment_type_name, item.manufacturer_name || "", item.location || "", item.primary_ip || ""].join(" ").toLowerCase().includes(q));
+    return !q ? items : items.filter((item) => [item.display_name, item.equipment_type_name, item.manufacturer_name || "", item.location || "", item.primary_ip || ""].join(" ").toLowerCase().includes(q));
   }, [inventoryQuery.data, inventorySearch]);
-  const inventoryPresence = useMemo(() => new Map(inventoryItems.map((item) => [`${item.equipment_source}:${item.equipment_item_id}`, isEquipmentAlreadyOnCanvas(topology, item)])), [inventoryItems, topology]);
+  const equipmentPresence = useMemo(() => new Map(equipmentItems.map((item) => [`${item.equipment_source}:${item.equipment_item_id}`, isEquipmentAlreadyOnCanvas(topology, item)])), [equipmentItems, topology]);
   const filteredTopologies = useMemo(() => {
     const q = documentSearch.trim().toLowerCase();
     if (!q) return allTopologies;
     return allTopologies.filter((item) => [item.name, item.description || ""].join(" ").toLowerCase().includes(q));
   }, [allTopologies, documentSearch]);
-  const visibleNodeCount = useMemo(() => {
-    const q = canvasSearch.trim().toLowerCase();
-    if (!q) return topology.nodes.length;
-    return topology.nodes.filter((node) => [node.name, node.model, node.ip, node.vlan, node.zone].join(" ").toLowerCase().includes(q)).length;
-  }, [canvasSearch, topology.nodes]);
-
+  const validation = useMemo(() => computeTopologyValidation(topology), [topology]);
+  const selectedNode = selectedNodeIds.length === 1 ? topology.nodes.find((node) => node.id === selectedNodeIds[0]) || null : null;
+  const selectedEdge = selectedEdgeId ? topology.edges.find((edge) => edge.id === selectedEdgeId) || null : null;
+  const selectedCount = selectedNodeIds.length + (selectedEdgeId ? 1 : 0);
+  const tracedPath = useMemo(() => computeShortestPath(topology, pathStartId, pathEndId), [pathEndId, pathStartId, topology]);
   const nodeWarnings = validation.filter((item) => item.severity === "warning").length;
   const nodeCritical = validation.filter((item) => item.severity === "critical").length;
   const totalInterfaces = topology.nodes.reduce((sum, node) => sum + node.interfaces.length, 0);
   const totalRoutes = topology.nodes.reduce((sum, node) => sum + node.routes.length, 0);
-  const selectedCount = selectedNodeIds.length + (selectedEdgeId ? 1 : 0);
-  const availableSubnets = subnetsQuery.data?.items || [];
+  const totalPolicies = topology.policies.length;
+  const visibleNodes = useMemo(() => {
+    const q = canvasSearch.trim().toLowerCase();
+    if (!q) return topology.nodes;
+    return topology.nodes.filter((node) => [node.name, node.model, node.ip, node.vlan, node.zone, node.type, node.layer].join(" ").toLowerCase().includes(q));
+  }, [canvasSearch, topology.nodes]);
+  const visibleNodeIds = useMemo(() => new Set(visibleNodes.map((node) => node.id)), [visibleNodes]);
+  const searchResults = visibleNodes;
+  const mapBounds = useMemo(() => boundsOf(topology.nodes), [topology.nodes]);
+  const miniMapViewBox = useMemo(() => ({
+    x: mapBounds.x - 30,
+    y: mapBounds.y - 30,
+    width: Math.max(mapBounds.width + 60, 260),
+    height: Math.max(mapBounds.height + 60, 180),
+  }), [mapBounds]);
+  const previewDocument = selectedDocument?.document ? normalizeDocument(selectedDocument.document) : topology;
+  const previewTitle = selectedDocument?.name || documentName;
+  const previewDescription = selectedDocument?.description || documentDescription || t("pages.networkMap.documents.noDescription");
+  const previewUpdatedAt = selectedDocument ? new Date(selectedDocument.updated_at).toLocaleString(i18n.language) : saveState === "saved" ? t("pages.networkMap.states.saved") : saveState === "saving" ? t("pages.networkMap.states.saving") : saveState === "error" ? t("pages.networkMap.states.error") : "Есть изменения";
+  const previewStats = { nodes: previewDocument.nodes.length, edges: previewDocument.edges.length, warnings: warningCountOfDocument(previewDocument) };
   const selectedSubnet = availableSubnets.find((item) => item.id === selectedSubnetId) || null;
   const selectableAddresses = useMemo(() => {
     const items = subnetAddressesQuery.data?.items || [];
     return items.filter((item) => item.status === "free" || (selectedNode?.ip && item.ip_address === selectedNode.ip));
   }, [selectedNode?.ip, subnetAddressesQuery.data?.items]);
   const selectedAddress = selectableAddresses.find((item) => item.ip_offset === selectedAddressOffset) || null;
-
-  const saveStateLabel = saveState === "saving" ? t("pages.networkMap.states.saving") : saveState === "error" ? t("pages.networkMap.states.error") : saveState === "saved" ? t("pages.networkMap.states.saved") : t("pages.networkMap.states.unsaved");
-  const previewTitle = isDraftDocument && selectedDocumentId === null ? documentName || t("pages.networkMap.defaultName") : selectedDocument?.name || "";
-  const previewDescription = isDraftDocument && selectedDocumentId === null ? documentDescription || t("pages.networkMap.documents.noDescription") : selectedDocument?.description || t("pages.networkMap.documents.noDescription");
-  const previewDocument = isDraftDocument && selectedDocumentId === null ? topology : selectedDocument?.document || null;
-  const previewUpdatedAt = isDraftDocument && selectedDocumentId === null ? saveStateLabel : selectedDocument ? new Date(selectedDocument.updated_at).toLocaleString(i18n.language) : "";
-  const previewStats = previewDocument ? { nodes: previewDocument.nodes.length, edges: previewDocument.edges.length, warnings: previewDocument.nodes.filter((node) => node.status !== "healthy").length + previewDocument.edges.filter((edge) => edge.status !== "healthy").length } : null;
-
-  useEffect(() => {
-    if (!interactionMessage) return;
-    const timer = window.setTimeout(() => setInteractionMessage(null), 2600);
-    return () => window.clearTimeout(timer);
-  }, [interactionMessage]);
 
   useEffect(() => {
     if (!selectedNode) {
@@ -446,65 +570,510 @@ export default function NetworkMapPage() {
     setSelectedAddressOffset(currentAddress?.ip_offset || null);
   }, [selectedNode, selectedSubnetId, subnetAddressesQuery.data?.items]);
 
-  const placeAtCanvasCenter = () => {
-    const instance = flowRef.current;
-    const wrapper = wrapperRef.current;
-    if (!instance || !wrapper) return { x: 240, y: 180 };
-    const bounds = wrapper.getBoundingClientRect();
-    return instance.screenToFlowPosition({ x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 });
+  const saveStateLabel = saveState === "saving" ? t("pages.networkMap.states.saving") : saveState === "saved" ? t("pages.networkMap.states.saved") : saveState === "error" ? t("pages.networkMap.states.error") : hasUnsavedChanges ? "Есть изменения" : t("pages.networkMap.states.unsaved");
+  const hasOpenCanvas = activeId !== null;
+
+  const markDirty = () => {
+    if (hydratingRef.current) return;
+    hasUnsavedChangesRef.current = true;
+    setHasUnsavedChanges(true);
+    if (saveInFlightRef.current) needsSaveAfterCurrentRef.current = true;
+    setSaveState("idle");
   };
 
-  const resetCanvasState = () => {
-    hydratingRef.current = true;
-    setDocumentName(t("pages.networkMap.defaultName"));
-    setDocumentDescription("");
-    setTopology(DEFAULT_DOCUMENT);
+  const pushSnapshot = (snapshot: NetworkTopologySnapshot) => {
+    setHistory((current) => ({ past: [...current.past, snapshot].slice(-100), future: [] }));
+  };
+
+  const mutateCurrentTopology = (mutate: (current: TopologyDocument) => TopologyDocument, options?: { recordHistory?: boolean }) => {
+    const current = topologyRef.current;
+    const next = normalizeDocument(mutate(current));
+    if (next === current) return;
+    if ((options?.recordHistory ?? true) === true) pushSnapshot(snapshotOfTopology(current));
+    topologyRef.current = next;
+    setTopology(next);
+    markDirty();
+  };
+
+  const flushSave = async () => {
+    if (readOnlyRef.current || activeIdRef.current === null || !hasUnsavedChangesRef.current) return;
+    if (saveInFlightRef.current) {
+      needsSaveAfterCurrentRef.current = true;
+      return;
+    }
+
+    saveInFlightRef.current = true;
+    while (hasUnsavedChangesRef.current && activeIdRef.current !== null && !readOnlyRef.current) {
+      needsSaveAfterCurrentRef.current = false;
+      try {
+        setSaveState("saving");
+        const updated = await updateNetworkTopology(activeIdRef.current, {
+          name: documentNameRef.current || t("pages.networkMap.defaultName"),
+          description: documentDescriptionRef.current || null,
+          scope: "engineering",
+          document: topologyRef.current,
+        });
+        await queryClient.invalidateQueries({ queryKey: ["network-topologies"] });
+        queryClient.setQueryData(["network-topology", activeIdRef.current], updated);
+        hasUnsavedChangesRef.current = false;
+        setHasUnsavedChanges(false);
+        setSaveState("saved");
+      } catch {
+        setSaveState("error");
+        saveInFlightRef.current = false;
+        return;
+      }
+
+      if (!needsSaveAfterCurrentRef.current) break;
+    }
+    saveInFlightRef.current = false;
+  };
+
+  const commitUserAction = () => {
+    void flushSave();
+  };
+
+  const handleFieldCommit = () => {
+    commitUserAction();
+  };
+
+  const handleFieldKeyDown = (event: ReactKeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      handleFieldCommit();
+      event.currentTarget.blur();
+    }
+  };
+
+  const handleSelectCommit = () => {
+    commitUserAction();
+  };
+
+  const handleMetadataDraftCommit = async () => {
+    if (!isEditingSelectedDocument || selectedDocumentId === null || readOnly) return;
+    const trimmedName = selectedDocumentName.trim();
+    const trimmedDescription = selectedDocumentDescription.trim();
+    const currentName = selectedDocument?.name || "";
+    const currentDescription = selectedDocument?.description || "";
+    if ((trimmedName || t("pages.networkMap.defaultName")) === currentName && trimmedDescription === currentDescription) {
+      setIsEditingSelectedDocument(false);
+      return;
+    }
+    await handleSaveSelectedMetadata();
+  };
+
+  const handleMetadataDraftKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      void handleMetadataDraftCommit();
+      event.currentTarget.blur();
+    }
+  };
+
+  const toLogical = (clientX: number, clientY: number) => {
+    const bounds = wrapperRef.current?.getBoundingClientRect();
+    const zoom = topologyRef.current.zoom ?? defaultZoom;
+    const viewport = topologyRef.current.viewport || defaultViewport;
+    return !bounds ? { x: 0, y: 0 } : { x: (clientX - bounds.left - viewport.x) / zoom, y: (clientY - bounds.top - viewport.y) / zoom };
+  };
+
+  const setViewport = (viewport: { x: number; y: number }, zoom = topologyRef.current.zoom ?? defaultZoom) => {
+    topologyRef.current = { ...topologyRef.current, viewport, zoom };
+    setTopology(topologyRef.current);
+  };
+
+  const focusPoint = (x: number, y: number) => {
+    const bounds = wrapperRef.current?.getBoundingClientRect();
+    const zoom = topologyRef.current.zoom ?? defaultZoom;
+    if (!bounds) return;
+    setViewport({ x: bounds.width / 2 - x * zoom, y: bounds.height / 2 - y * zoom }, zoom);
+  };
+
+  const focusNode = (nodeId: string) => {
+    const node = topologyRef.current.nodes.find((item) => item.id === nodeId);
+    if (!node) return;
+    focusPoint(node.x + nodeWidth / 2, node.y + nodeHeight / 2);
+    setSelectedNodeIds([nodeId]);
+    setSelectedEdgeId(null);
+    setInspectorTab("selection");
+  };
+
+  const fitView = () => {
+    const bounds = wrapperRef.current?.getBoundingClientRect();
+    if (!bounds || !topologyRef.current.nodes.length) {
+      setViewport(defaultViewport, defaultZoom);
+      return;
+    }
+    const b = boundsOf(topologyRef.current.nodes);
+    const zoom = clamp(Math.min(bounds.width / (b.width + 120), bounds.height / (b.height + 120)), 0.25, 2.2);
+    setViewport({ x: bounds.width / 2 - (b.x + b.width / 2) * zoom, y: bounds.height / 2 - (b.y + b.height / 2) * zoom }, zoom);
+  };
+
+  const resetView = () => setViewport(defaultViewport, defaultZoom);
+
+  const toggleFullscreen = async () => {
+    const target = canvasShellRef.current;
+    if (!target) return;
+    try {
+      if (globalThis.document.fullscreenElement === target) {
+        await globalThis.document.exitFullscreen();
+      } else {
+        await target.requestFullscreen();
+      }
+    } catch {
+      setMessage({ tone: "warning", text: "Не удалось переключить полноэкранный режим." });
+    }
+  };
+
+  const createEdge = (fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    const current = topologyRef.current;
+    const from = current.nodes.find((node) => node.id === fromId);
+    const to = current.nodes.find((node) => node.id === toId);
+    if (!from || !to) return;
+    const duplicate = current.edges.some((edge) => (edge.from === fromId && edge.to === toId) || (edge.from === toId && edge.to === fromId));
+    if (duplicate) {
+      setMessage({ tone: "warning", text: "Такая связь уже существует." });
+      return;
+    }
+    const edgeId = createId("edge");
+    mutateCurrentTopology((document) => ({
+      ...document,
+      edges: [...document.edges, { id: edgeId, from: fromId, to: toId, label: "", style: "ethernet", bandwidth: "", latency: "", status: "healthy", network: "" }],
+    }));
+    setSelectedNodeIds([]);
+    setSelectedEdgeId(edgeId);
+    setToolMode("select");
+    setPendingConnectId(null);
+    commitUserAction();
+    setMessage({ tone: "info", text: "Связь создана." });
+  };
+
+  const beginNodeInteraction = (event: ReactPointerEvent, nodeId: string) => {
+    event.stopPropagation();
+    if (toolMode === "connect") {
+      if (pendingConnectId && pendingConnectId !== nodeId) createEdge(pendingConnectId, nodeId);
+      else {
+        setPendingConnectId(nodeId);
+        const nodeName = topologyRef.current.nodes.find((node) => node.id === nodeId)?.name || "узел";
+        setMessage({ tone: "info", text: pendingConnectId === nodeId ? "Выберите другой узел для создания связи." : `Источник связи выбран: ${nodeName}. Теперь выберите второй узел.` });
+      }
+      return;
+    }
+    if (toolMode === "pan" || event.button !== 0) {
+      interactionRef.current = { type: "pan", startX: event.clientX, startY: event.clientY, viewport: topologyRef.current.viewport || defaultViewport, moved: false };
+      return;
+    }
+    const selection = event.shiftKey ? (selectedNodeIds.includes(nodeId) ? selectedNodeIds.filter((id) => id !== nodeId) : [...selectedNodeIds, nodeId]) : (selectedNodeIds.includes(nodeId) ? selectedNodeIds : [nodeId]);
+    setSelectedNodeIds(selection);
+    setSelectedEdgeId(null);
+    setInspectorTab("selection");
+    if (readOnly) return;
+    const nodeIds = selection.length ? selection : [nodeId];
+    interactionRef.current = {
+      type: "drag",
+      startX: event.clientX,
+      startY: event.clientY,
+      nodeIds,
+      snapshot: snapshotOfTopology(topologyRef.current),
+      moved: false,
+      positions: Object.fromEntries(topologyRef.current.nodes.filter((node) => nodeIds.includes(node.id)).map((node) => [node.id, { x: node.x, y: node.y }])),
+    };
+  };
+
+  const beginCanvasInteraction = (event: ReactPointerEvent) => {
+    if (toolMode === "pan" || event.button === 1) {
+      interactionRef.current = { type: "pan", startX: event.clientX, startY: event.clientY, viewport: topologyRef.current.viewport || defaultViewport, moved: false };
+      return;
+    }
+    if (toolMode === "connect") {
+      setPendingConnectId(null);
+      setToolMode("select");
+      setMessage({ tone: "info", text: "Режим связи отменён." });
+      return;
+    }
+    interactionRef.current = { type: "select", startX: event.clientX, startY: event.clientY, endX: event.clientX, endY: event.clientY };
+    if (!event.shiftKey) setSelectedNodeIds([]);
+    setSelectedEdgeId(null);
+  };
+
+  useEffect(() => {
+    const onMove = (event: PointerEvent) => {
+      const interaction = interactionRef.current;
+      if (!interaction) return;
+      if (interaction.type === "pan") {
+        const dx = event.clientX - interaction.startX;
+        const dy = event.clientY - interaction.startY;
+        if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) interaction.moved = true;
+        const next = { ...topologyRef.current, viewport: { x: interaction.viewport.x + dx, y: interaction.viewport.y + dy }, zoom: topologyRef.current.zoom ?? defaultZoom };
+        topologyRef.current = next;
+        setTopology(next);
+      } else if (interaction.type === "drag") {
+        const zoom = topologyRef.current.zoom ?? defaultZoom;
+        const dx = (event.clientX - interaction.startX) / zoom;
+        const dy = (event.clientY - interaction.startY) / zoom;
+        if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) interaction.moved = true;
+        const next = { ...topologyRef.current, nodes: topologyRef.current.nodes.map((node) => !interaction.nodeIds.includes(node.id) ? node : ({ ...node, x: interaction.positions[node.id].x + dx, y: interaction.positions[node.id].y + dy })) };
+        topologyRef.current = next;
+        setTopology(next);
+      } else {
+        interactionRef.current = { ...interaction, endX: event.clientX, endY: event.clientY };
+      }
+    };
+
+    const onUp = () => {
+      const interaction = interactionRef.current;
+      if (!interaction) return;
+      if (interaction.type === "drag" && interaction.moved) {
+        pushSnapshot(interaction.snapshot);
+        markDirty();
+        commitUserAction();
+      }
+      if (interaction.type === "pan" && interaction.moved) {
+        markDirty();
+        commitUserAction();
+      }
+      if (interaction.type === "select") {
+        const rect = rectOf(toLogical(interaction.startX, interaction.startY), toLogical(interaction.endX, interaction.endY));
+        const ids = topologyRef.current.nodes.filter((node) => intersects(node, rect)).map((node) => node.id);
+        setSelectedNodeIds(ids);
+      }
+      interactionRef.current = null;
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [selectedNodeIds]);
+
+  const handleWheel = (event: React.WheelEvent) => {
+    event.preventDefault();
+    const bounds = wrapperRef.current?.getBoundingClientRect();
+    const zoomCurrent = topologyRef.current.zoom ?? defaultZoom;
+    const viewport = topologyRef.current.viewport || defaultViewport;
+    if (!bounds) return;
+    const mx = event.clientX - bounds.left;
+    const my = event.clientY - bounds.top;
+    const zoom = clamp(zoomCurrent * (event.deltaY > 0 ? 0.88 : 1.14), 0.25, 2.4);
+    const next = { x: mx - ((mx - viewport.x) / zoomCurrent) * zoom, y: my - ((my - viewport.y) / zoomCurrent) * zoom };
+    setViewport(next, zoom);
+  };
+
+  const edgePath = (edge: NetworkEdge) => {
+    const from = topology.nodes.find((item) => item.id === edge.from);
+    const to = topology.nodes.find((item) => item.id === edge.to);
+    if (!from || !to) return "";
+    const a = centerOf(from);
+    const b = centerOf(to);
+    const dx = Math.abs(b.x - a.x) * 0.42;
+    return `M ${a.x} ${a.y} C ${a.x + dx} ${a.y}, ${b.x - dx} ${b.y}, ${b.x} ${b.y}`;
+  };
+
+  const updateSelectedNode = (patch: Partial<NetworkNode>) => {
+    if (!selectedNode || readOnly) return;
+    mutateCurrentTopology((document) => updateNode(document, selectedNode.id, patch));
+  };
+
+  const updateSelectedEdge = (patch: Partial<NetworkEdge>) => {
+    if (!selectedEdge || readOnly) return;
+    mutateCurrentTopology((document) => updateEdge(document, selectedEdge.id, patch));
+  };
+
+  const updateNodeInterface = (index: number, patch: Partial<NodeInterface>) => {
+    if (!selectedNode || readOnly) return;
+    mutateCurrentTopology((document) => updateNode(document, selectedNode.id, { interfaces: selectedNode.interfaces.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) }));
+  };
+
+  const addNodeInterface = () => {
+    if (!selectedNode || readOnly) return;
+    mutateCurrentTopology((document) => updateNode(document, selectedNode.id, { interfaces: [...selectedNode.interfaces, createEmptyNodeInterface()] }));
+    commitUserAction();
+  };
+
+  const removeNodeInterface = (index: number) => {
+    if (!selectedNode || readOnly) return;
+    mutateCurrentTopology((document) => updateNode(document, selectedNode.id, { interfaces: selectedNode.interfaces.filter((_, itemIndex) => itemIndex !== index) }));
+    commitUserAction();
+  };
+
+  const updateRoute = (index: number, patch: Partial<RouteEntry>) => {
+    if (!selectedNode || readOnly) return;
+    mutateCurrentTopology((document) => updateNode(document, selectedNode.id, { routes: selectedNode.routes.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) }));
+  };
+
+  const addRoute = () => {
+    if (!selectedNode || readOnly) return;
+    mutateCurrentTopology((document) => updateNode(document, selectedNode.id, { routes: [...selectedNode.routes, createEmptyRouteEntry()] }));
+    commitUserAction();
+  };
+
+  const removeRoute = (index: number) => {
+    if (!selectedNode || readOnly) return;
+    mutateCurrentTopology((document) => updateNode(document, selectedNode.id, { routes: selectedNode.routes.filter((_, itemIndex) => itemIndex !== index) }));
+    commitUserAction();
+  };
+
+  const addPolicy = () => {
+    if (readOnly) return;
+    mutateCurrentTopology((document) => ({ ...document, policies: [...document.policies, createEmptyPolicy()] }));
+    commitUserAction();
+  };
+
+  const updatePolicy = (policyId: string, patch: Partial<TopologyPolicy>) => {
+    if (readOnly) return;
+    mutateCurrentTopology((document) => ({ ...document, policies: document.policies.map((item) => item.id === policyId ? { ...item, ...patch } : item) }));
+  };
+
+  const removePolicy = (policyId: string) => {
+    if (readOnly) return;
+    mutateCurrentTopology((document) => ({ ...document, policies: document.policies.filter((item) => item.id !== policyId) }));
+    commitUserAction();
+  };
+
+  const addManualNode = (type: NetworkNode["type"]) => {
+    if (readOnly || activeId === null) return;
+    mutateCurrentTopology((document) => ({ ...document, nodes: [...document.nodes, createManualNode(type, { x: mapBounds.x + 80 + document.nodes.length * 24, y: mapBounds.y + 80 + document.nodes.length * 16 })] }));
+    commitUserAction();
+  };
+
+  const addInventoryNode = (item: NetworkTopologyEligibleEquipment) => {
+    if (readOnly || activeId === null) return;
+    mutateCurrentTopology((document) => ({
+      ...document,
+      nodes: [...document.nodes, createNodeFromEquipment(item, { x: mapBounds.x + 80 + document.nodes.length * 28, y: mapBounds.y + 90 + document.nodes.length * 18 })],
+    }));
+    commitUserAction();
+  };
+
+  const focusSearchResult = (nodeId: string) => {
+    focusNode(nodeId);
+    setIsSearchResultsOpen(false);
+  };
+
+  const handleMiniMapPointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
+    event.stopPropagation();
+    const bounds = event.currentTarget.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) return;
+    const logicalX = miniMapViewBox.x + ((event.clientX - bounds.left) / bounds.width) * miniMapViewBox.width;
+    const logicalY = miniMapViewBox.y + ((event.clientY - bounds.top) / bounds.height) * miniMapViewBox.height;
+    focusPoint(logicalX, logicalY);
+  };
+
+  const copySelection = () => {
+    const items = topology.nodes.filter((node) => selectedNodeIds.includes(node.id));
+    if (!items.length) return;
+    setClipboardNodes(structuredClone(items));
+    setMessage({ tone: "info", text: `Скопировано узлов: ${items.length}.` });
+  };
+
+  const pasteSelection = () => {
+    if (!clipboardNodes.length || readOnly || activeId === null) return;
+    const clones = clipboardNodes.map((node, index) => ({ ...structuredClone(node), id: createId("node"), name: `${node.name} копия`, x: node.x + 48 + index * 12, y: node.y + 48 + index * 12 }));
+    mutateCurrentTopology((document) => ({ ...document, nodes: [...document.nodes, ...clones] }));
+    setSelectedNodeIds(clones.map((node) => node.id));
+    setSelectedEdgeId(null);
+    setInspectorTab("selection");
+    commitUserAction();
+  };
+
+  const duplicateSelection = () => {
+    if (!selectedNodeIds.length || readOnly) return;
+    copySelection();
+    pasteSelection();
+  };
+
+  const handleDeleteSelection = async () => {
+    if (readOnly || (!selectedNodeIds.length && !selectedEdgeId)) return;
+    if (!window.confirm("Удалить выделение?")) return;
+    mutateCurrentTopology((document) => ({
+      ...document,
+      nodes: document.nodes.filter((node) => !selectedNodeIds.includes(node.id)),
+      edges: document.edges.filter((edge) => edge.id !== selectedEdgeId && !selectedNodeIds.includes(edge.from) && !selectedNodeIds.includes(edge.to)),
+    }));
     setSelectedNodeIds([]);
     setSelectedEdgeId(null);
-    setSelectedSubnetId(null);
-    setSelectedAddressOffset(null);
-    setLinkCreationMode("idle");
-    setPendingLinkStartId(null);
-    setPathStartId("");
-    setPathEndId("");
-    setSaveState("idle");
-    setTimeout(() => { hydratingRef.current = false; }, 0);
+    setPendingConnectId(null);
+    commitUserAction();
   };
 
-  const handleStartNewDocument = async () => {
+  const undo = () => {
+    if (!history.past.length) return;
+    const previous = history.past[history.past.length - 1];
+    const currentSnapshot = snapshotOfTopology(topologyRef.current);
+    const nextDocument = normalizeDocument({ nodes: structuredClone(previous.nodes), edges: structuredClone(previous.edges), policies: structuredClone(previous.policies), viewport: structuredClone(previous.viewport), zoom: previous.zoom });
+    topologyRef.current = nextDocument;
+    setTopology(nextDocument);
+    setHistory((current) => ({ past: current.past.slice(0, -1), future: [currentSnapshot, ...current.future].slice(0, 100) }));
+    markDirty();
+    commitUserAction();
+  };
+
+  const redo = () => {
+    if (!history.future.length) return;
+    const next = history.future[0];
+    const currentSnapshot = snapshotOfTopology(topologyRef.current);
+    const nextDocument = normalizeDocument({ nodes: structuredClone(next.nodes), edges: structuredClone(next.edges), policies: structuredClone(next.policies), viewport: structuredClone(next.viewport), zoom: next.zoom });
+    topologyRef.current = nextDocument;
+    setTopology(nextDocument);
+    setHistory((current) => ({ past: [...current.past, currentSnapshot].slice(-100), future: current.future.slice(1) }));
+    markDirty();
+    commitUserAction();
+  };
+
+  const openCreateDialog = () => {
+    setCreateNameDraft(t("pages.networkMap.defaultName"));
+    setCreateDescriptionDraft("");
+    setIsCreateDialogOpen(true);
+  };
+
+  const createNewDocument = async (payload?: { name?: string; description?: string | null; document?: TopologyDocument }) => {
     if (readOnly) return;
     try {
       setSaveState("saving");
       const created = await createNetworkTopology({
-        name: t("pages.networkMap.defaultName"),
-        description: null,
+        name: payload?.name || t("pages.networkMap.defaultName"),
+        description: payload?.description || null,
         scope: "engineering",
-        document: DEFAULT_DOCUMENT,
+        document: normalizeDocument(payload?.document || DEFAULT_DOCUMENT),
       });
+      const normalized = normalizeDocument(created.document);
       hydratingRef.current = true;
       setSelectedDocumentId(created.id);
       setActiveId(created.id);
-      setIsDraftDocument(false);
-      setIsEditingSelectedDocument(false);
       setDocumentName(created.name);
       setDocumentDescription(created.description || "");
-      setTopology(created.document || DEFAULT_DOCUMENT);
+      topologyRef.current = normalized;
+      setTopology(normalized);
+      setHistory({ past: [], future: [] });
       setSelectedNodeIds([]);
       setSelectedEdgeId(null);
-      setSelectedSubnetId(null);
-      setSelectedAddressOffset(null);
-      setLinkCreationMode("idle");
-      setPendingLinkStartId(null);
+      setPendingConnectId(null);
+      setToolMode("select");
       setPathStartId("");
       setPathEndId("");
+      setSelectedSubnetId(null);
+      setSelectedAddressOffset(null);
+      hasUnsavedChangesRef.current = false;
+      setHasUnsavedChanges(false);
       setSaveState("saved");
-      queryClient.setQueryData(["network-topology", created.id], created);
       queryClient.invalidateQueries({ queryKey: ["network-topologies"] });
+      queryClient.setQueryData(["network-topology", created.id], created);
       setTimeout(() => { hydratingRef.current = false; }, 0);
+      setIsCreateDialogOpen(false);
+      setIsSidebarDrawerOpen(false);
     } catch {
       setSaveState("error");
-      setInteractionMessage({ tone: "warning", text: "Не удалось создать схему на сервере." });
+      setMessage({ tone: "warning", text: "Не удалось создать схему на сервере." });
     }
+  };
+
+  const handleCreateDocumentConfirm = async () => {
+    const name = createNameDraft.trim();
+    if (!name) return;
+    await createNewDocument({ name, description: createDescriptionDraft.trim() || null });
   };
 
   const openSelectedDocument = () => {
@@ -514,188 +1083,94 @@ export default function NetworkMapPage() {
     setIsSidebarDrawerOpen(false);
   };
 
-  const handleImportDocument = async (file: File) => {
-    const imported = await importDocumentFromFile(file);
-    hydratingRef.current = true;
-    setSelectedDocumentId(null);
-    setActiveId(null);
-    setIsDraftDocument(true);
-    setIsEditingSelectedDocument(false);
-    setDocumentName(t("pages.networkMap.defaultName"));
-    setDocumentDescription("");
-    setTopology(imported);
-    setSelectedNodeIds([]);
-    setSelectedEdgeId(null);
-    setSelectedSubnetId(null);
-    setSelectedAddressOffset(null);
-    setLinkCreationMode("idle");
-    setPendingLinkStartId(null);
-    setSaveState("idle");
-    setTimeout(() => { hydratingRef.current = false; }, 0);
-  };
-
   const handleSaveSelectedMetadata = async () => {
-    if (selectedDocumentId === null) {
-      setDocumentName(selectedDocumentName || t("pages.networkMap.defaultName"));
-      setDocumentDescription(selectedDocumentDescription);
+    if (selectedDocumentId === null || readOnly) return;
+    try {
+      const updated = await updateNetworkTopology(selectedDocumentId, {
+        name: selectedDocumentName.trim() || t("pages.networkMap.defaultName"),
+        description: selectedDocumentDescription.trim() || null,
+      });
+      queryClient.setQueryData(["network-topology", selectedDocumentId], updated);
+      queryClient.invalidateQueries({ queryKey: ["network-topologies"] });
+      if (activeId === selectedDocumentId) {
+        hydratingRef.current = true;
+        setDocumentName(updated.name);
+        setDocumentDescription(updated.description || "");
+        setTimeout(() => { hydratingRef.current = false; }, 0);
+      }
       setIsEditingSelectedDocument(false);
-      return;
+    } catch {
+      setMessage({ tone: "warning", text: "Не удалось сохранить название и описание схемы." });
     }
-    const updated = await updateNetworkTopology(selectedDocumentId, { name: selectedDocumentName || t("pages.networkMap.defaultName"), description: selectedDocumentDescription || null });
-    queryClient.setQueryData(["network-topology", selectedDocumentId], updated);
-    queryClient.invalidateQueries({ queryKey: ["network-topologies"] });
-    if (activeId === selectedDocumentId) {
-      hydratingRef.current = true;
-      setDocumentName(updated.name);
-      setDocumentDescription(updated.description || "");
-      setTimeout(() => { hydratingRef.current = false; }, 0);
-    }
-    setIsEditingSelectedDocument(false);
   };
 
-  const handleDeleteSelectedDocument = async () => {
-    if (selectedDocumentId === null || readOnly) return;
-    if (!window.confirm(`${t("actions.delete")}: ${selectedDocument?.name || "#"}`)) return;
-    const remaining = allTopologies.filter((item) => item.id !== selectedDocumentId);
-    await deleteNetworkTopology(selectedDocumentId);
+  const handleDeleteDocument = async (documentId: number) => {
+    if (readOnly) return;
+    const remaining = allTopologies.filter((item) => item.id !== documentId);
+    await deleteNetworkTopology(documentId);
     queryClient.invalidateQueries({ queryKey: ["network-topologies"] });
-    if (activeId === selectedDocumentId) {
+    if (activeId === documentId) {
       setActiveId(null);
-      if (remaining.length === 0) {
-        handleStartNewDocument();
-        return;
-      }
-      resetCanvasState();
-      setIsDraftDocument(false);
+      const emptyDocument = normalizeDocument(DEFAULT_DOCUMENT);
+      topologyRef.current = emptyDocument;
+      setTopology(emptyDocument);
+      setHistory({ past: [], future: [] });
+      setDocumentName(t("pages.networkMap.defaultName"));
+      setDocumentDescription("");
+      hasUnsavedChangesRef.current = false;
+      setHasUnsavedChanges(false);
     }
     setSelectedDocumentId(remaining[0]?.id ?? null);
     setIsEditingSelectedDocument(false);
+    setPendingDeleteDocument(null);
   };
 
-  const updateSelectedNode = (patch: Partial<NetworkNode>) => {
-    if (!selectedNode || readOnly) return;
-    mutateTopology((current) => updateNode(current, selectedNode.id, patch));
-  };
-  const updateSelectedEdge = (patch: Partial<NetworkEdge>) => {
-    if (!selectedEdge || readOnly) return;
-    mutateTopology((current) => updateEdge(current, selectedEdge.id, patch));
+  const handleDeleteSelectedDocument = async () => {
+    if (selectedDocumentId === null || readOnly || !selectedDocument) return;
+    setPendingDeleteDocument({ id: selectedDocument.id, name: selectedDocument.name });
   };
 
-  const handleCreateManualNode = () => {
-    if (readOnly || (activeId === null && !isDraftDocument)) return;
-    const node = createManualNode(newNodeType, placeAtCanvasCenter());
-    mutateTopology((current) => ({ ...current, nodes: [...current.nodes, node] }));
-    setSelectedNodeIds([node.id]);
-    setSelectedEdgeId(null);
-    setInspectorTab("selection");
-  };
-
-  const handleAddInventoryNode = (index: number) => {
-    if (readOnly || (activeId === null && !isDraftDocument)) return;
-    const item = inventoryItems[index];
-    if (!item || isEquipmentAlreadyOnCanvas(topology, item)) return;
-    const center = placeAtCanvasCenter();
-    const node = createNodeFromEquipment(item, { x: center.x + (index % 3) * 28, y: center.y + (index % 2) * 24 });
-    mutateTopology((current) => ({ ...current, nodes: [...current.nodes, node] }));
-    setSelectedNodeIds([node.id]);
-    setSelectedEdgeId(null);
-    setInspectorTab("selection");
-  };
-
-  const handleNodesChange = (changes: NodeChange[]) => mutateTopology((current) => applyNodePositionChanges(current, changes));
-  const handleConnect = (connection: Connection) => {
-    if (readOnly || (activeId === null && !isDraftDocument)) return;
-    mutateTopology((current) => addEdgeFromConnection(current, connection, newEdgeStyle));
-  };
-
-  const createLinkBetweenNodes = (sourceId: string, targetId: string) => {
-    if (readOnly || (activeId === null && !isDraftDocument)) return false;
-    if (!sourceId || !targetId) {
-      setInteractionMessage({ tone: "warning", text: t("pages.networkMap.linkCreation.selectTwoNodes") });
-      return false;
-    }
-    if (sourceId === targetId) {
-      setInteractionMessage({ tone: "warning", text: t("pages.networkMap.linkCreation.sameNode") });
-      return false;
-    }
-    const exists = topology.edges.some((edge) => (edge.from === sourceId && edge.to === targetId) || (edge.from === targetId && edge.to === sourceId));
-    if (exists) {
-      setInteractionMessage({ tone: "warning", text: t("pages.networkMap.linkCreation.duplicate") });
-      return false;
-    }
-    let createdEdgeId: string | null = null;
-    mutateTopology((current) => {
-      const next = addEdgeFromConnection(current, { source: sourceId, target: targetId, sourceHandle: null, targetHandle: null }, newEdgeStyle);
-      if (next !== current) createdEdgeId = next.edges[next.edges.length - 1]?.id || null;
-      return next;
-    });
-    setSelectedNodeIds([]);
-    setSelectedEdgeId(createdEdgeId);
-    setInspectorTab("selection");
-    setInteractionMessage({ tone: "info", text: t("pages.networkMap.linkCreation.created") });
-    return true;
-  };
-
-  const handleNodeLinkPick = (nodeId: string) => {
-    if (readOnly || linkCreationMode !== "picking") return false;
-    if (!pendingLinkStartId) {
-      setPendingLinkStartId(nodeId);
-      setSelectedNodeIds([nodeId]);
-      setSelectedEdgeId(null);
-      setInspectorTab("selection");
-      setInteractionMessage({ tone: "info", text: t("pages.networkMap.linkCreation.pickSecond") });
-      return true;
-    }
-    const created = createLinkBetweenNodes(pendingLinkStartId, nodeId);
-    setPendingLinkStartId(null);
-    if (created) setLinkCreationMode("idle");
-    return true;
-  };
-
-  const toggleLinkCreationMode = () => {
+  const handleImportDocuments = async (items: Array<{ name: string; description: string | null; document: TopologyDocument }>) => {
     if (readOnly) return;
-    setLinkCreationMode((current) => {
-      const next = current === "picking" ? "idle" : "picking";
-      if (next === "idle") setPendingLinkStartId(null); else setInteractionMessage({ tone: "info", text: t("pages.networkMap.linkCreation.pickFirst") });
-      return next;
-    });
-  };
-
-  const handleMoveEnd: OnMoveEnd = (_event, viewport) => mutateTopology((current) => ({ ...current, viewport: { x: viewport.x, y: viewport.y }, zoom: viewport.zoom }));
-  const duplicateSelection = () => {
-    if (readOnly || selectedNodeIds.length === 0) return;
-    const result = duplicateNodes(topology, selectedNodeIds);
-    mutateTopology(result.document);
-    setSelectedNodeIds(result.newIds);
-    setSelectedEdgeId(null);
-  };
-  const copySelection = () => {
-    if (selectedNodeIds.length === 0) return;
-    setClipboardNodes(topology.nodes.filter((node) => selectedNodeIds.includes(node.id)).map((node) => structuredClone(node)));
-  };
-  const pasteSelection = () => {
-    if (clipboardNodes.length === 0 || readOnly || (activeId === null && !isDraftDocument)) return;
-    const center = placeAtCanvasCenter();
-    const nextNodes = clipboardNodes.map((node, index) => ({ ...structuredClone(node), id: createId("node"), x: center.x + (index % 4) * 36, y: center.y + Math.floor(index / 4) * 36, name: `${node.name} ${t("pages.serialMap.actions.copySuffix")}` }));
-    mutateTopology((current) => ({ ...current, nodes: [...current.nodes, ...nextNodes] }));
-    setSelectedNodeIds(nextNodes.map((node) => node.id));
-    setSelectedEdgeId(null);
-    setInspectorTab("selection");
-  };
-  const handleDeleteSelection = async () => {
-    if (readOnly || (!selectedNodeIds.length && !selectedEdgeId)) return;
-    if (!window.confirm(t("pages.networkMap.validation.title"))) return;
-    if (selectedNodeIds.length) {
-      mutateTopology((current) => deleteNodes(current, selectedNodeIds));
-      setSelectedNodeIds([]);
-    } else if (selectedEdgeId) {
-      mutateTopology((current) => deleteEdge(current, selectedEdgeId));
-      setSelectedEdgeId(null);
+    let firstCreatedId: number | null = null;
+    for (const item of items) {
+      const created = await createNetworkTopology({ name: item.name, description: item.description, scope: "engineering", document: normalizeDocument(item.document) });
+      if (firstCreatedId === null) firstCreatedId = created.id;
+      queryClient.setQueryData(["network-topology", created.id], created);
+    }
+    await queryClient.invalidateQueries({ queryKey: ["network-topologies"] });
+    if (firstCreatedId !== null) {
+      setSelectedDocumentId(firstCreatedId);
+      setActiveId(firstCreatedId);
     }
   };
-  const resetViewport = () => {
-    flowRef.current?.setViewport({ x: 0, y: 0, zoom: 1 }, { duration: 220 });
-    mutateTopology((current) => ({ ...current, viewport: { x: 0, y: 0 }, zoom: 1 }));
+
+  const onImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const document = await importDocumentFromFile(file);
+      const baseName = file.name.replace(/\.[^.]+$/, "") || t("pages.networkMap.defaultName");
+      await handleImportDocuments([{ name: baseName, description: null, document }]);
+      setMessage({ tone: "info", text: "Схема импортирована на сервер." });
+    } catch {
+      setMessage({ tone: "warning", text: "Не удалось импортировать JSON." });
+    }
+    event.target.value = "";
+  };
+
+  const handleDropImport = async (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0];
+    if (!file) return;
+    try {
+      const document = await importDocumentFromFile(file);
+      const baseName = file.name.replace(/\.[^.]+$/, "") || t("pages.networkMap.defaultName");
+      await handleImportDocuments([{ name: baseName, description: null, document }]);
+      setMessage({ tone: "info", text: "Схема импортирована на сервер." });
+    } catch {
+      setMessage({ tone: "warning", text: "Не удалось импортировать JSON." });
+    }
   };
 
   useEffect(() => {
@@ -721,73 +1196,427 @@ export default function NetworkMapPage() {
     return () => window.removeEventListener("keydown", listener);
   }, [clipboardNodes.length, selectedEdgeId, selectedNodeIds]);
 
-  const renderPropertiesPanel = () => {
-    if (selectedNodeIds.length > 1) return <div className="border border-slate-200 p-4 text-sm text-slate-600">{t("pages.networkMap.properties.multiSelection", { count: selectedNodeIds.length })}</div>;
-    if (!selectedNode && !selectedEdge) {
-      return <div className="space-y-4"><div className="border border-dashed border-slate-200 p-4 text-sm text-slate-500">{t("pages.networkMap.properties.empty")}</div><div className="grid grid-cols-2 gap-3"><div className="border border-slate-200 bg-slate-50/70 px-3 py-3"><div className="text-[11px] uppercase tracking-[0.12em] text-slate-400">{t("pages.networkMap.stats.interfaces")}</div><div className="mt-1 text-lg font-semibold">{totalInterfaces}</div></div><div className="border border-slate-200 bg-slate-50/70 px-3 py-3"><div className="text-[11px] uppercase tracking-[0.12em] text-slate-400">{t("pages.networkMap.stats.routes")}</div><div className="mt-1 text-lg font-semibold">{totalRoutes}</div></div><div className="border border-slate-200 bg-slate-50/70 px-3 py-3"><div className="text-[11px] uppercase tracking-[0.12em] text-slate-400">{t("pages.networkMap.stats.warnings")}</div><div className="mt-1 text-lg font-semibold">{nodeWarnings}</div></div><div className="border border-slate-200 bg-slate-50/70 px-3 py-3"><div className="text-[11px] uppercase tracking-[0.12em] text-slate-400">{t("pages.networkMap.stats.selection")}</div><div className="mt-1 text-lg font-semibold">{selectedCount}</div></div></div></div>;
+  const activeInteraction = interactionRef.current;
+  const logicalSelectionRect = activeInteraction?.type === "select" ? rectOf(toLogical(activeInteraction.startX, activeInteraction.startY), toLogical(activeInteraction.endX, activeInteraction.endY)) : null;
+  const canCopySelection = selectedNodeIds.length > 0;
+  const canPasteSelection = clipboardNodes.length > 0 && !readOnly && hasOpenCanvas;
+  const canDuplicateSelection = !readOnly && selectedNodeIds.length > 0;
+  const canDeleteSelection = !readOnly && selectedCount > 0;
+  const miniMapViewportRect = useMemo(() => {
+    const bounds = wrapperRef.current?.getBoundingClientRect();
+    const zoom = topology.zoom ?? defaultZoom;
+    const viewport = topology.viewport || defaultViewport;
+    if (!bounds) return null;
+    return {
+      x: (-viewport.x) / zoom,
+      y: (-viewport.y) / zoom,
+      width: bounds.width / zoom,
+      height: bounds.height / zoom,
+    };
+  }, [topology]);
+
+  const renderSelectionPanel = () => {
+    if (selectedNodeIds.length > 1) {
+      return <div className="border border-slate-200 p-4 text-sm text-slate-600">{t("pages.networkMap.properties.multiSelection", { count: selectedNodeIds.length })}</div>;
     }
     if (selectedNode) {
       return (
-        <>
-          <Input value={selectedNode.name} onChange={(event) => updateSelectedNode({ name: event.target.value })} disabled={readOnly} />
-          <div className="grid grid-cols-2 gap-3"><select className="h-10 border border-slate-200 bg-white px-3 text-sm" value={selectedNode.type} onChange={(event) => updateSelectedNode({ type: event.target.value as NetworkNode["type"] })} disabled={readOnly}>{NETWORK_NODE_TYPES.map((type) => <option key={type} value={type}>{t(`pages.networkMap.nodeTypes.${type}`)}</option>)}</select><select className="h-10 border border-slate-200 bg-white px-3 text-sm" value={selectedNode.layer} onChange={(event) => updateSelectedNode({ layer: event.target.value as NetworkNode["layer"] })} disabled={readOnly}>{NETWORK_LAYERS.map((layer) => <option key={layer} value={layer}>{t(`pages.networkMap.layers.${layer}`)}</option>)}</select></div>
-          <div className="grid grid-cols-2 gap-3"><select className="h-10 border border-slate-200 bg-white px-3 text-sm" value={selectedSubnetId ?? ""} onChange={(event) => { const nextSubnetId = event.target.value ? Number(event.target.value) : null; setSelectedSubnetId(nextSubnetId); setSelectedAddressOffset(null); if (!nextSubnetId) { updateSelectedNode({ ip: "", vlan: "", interfaces: selectedNode.interfaces.map((item) => ({ ...item, ip: "", vlan: "" })) }); return; } const nextSubnet = availableSubnets.find((subnet) => subnet.id === nextSubnetId) || null; const ipPrefix = nextSubnet ? getSubnetIpPrefix(nextSubnet) : ""; updateSelectedNode({ ip: ipPrefix, vlan: nextSubnet?.vlan_number ? String(nextSubnet.vlan_number) : "", interfaces: selectedNode.interfaces.map((item, index) => index === 0 ? { ...item, ip: ipPrefix, vlan: nextSubnet?.vlan_number ? String(nextSubnet.vlan_number) : item.vlan } : item) }); }} disabled={readOnly}><option value="">{t("pages.networkMap.fields.subnet")}</option>{availableSubnets.map((subnet) => <option key={subnet.id} value={subnet.id}>{subnet.name || subnet.cidr}</option>)}</select><select className="h-10 border border-slate-200 bg-white px-3 text-sm" value={selectedAddressOffset ?? ""} onChange={(event) => { const offset = event.target.value ? Number(event.target.value) : null; setSelectedAddressOffset(offset); const address = selectableAddresses.find((item) => item.ip_offset === offset) || null; if (!address) return; updateSelectedNode({ ip: address.ip_address, vlan: selectedSubnet?.vlan_number ? String(selectedSubnet.vlan_number) : "", interfaces: selectedNode.interfaces.map((item, index) => index === 0 ? { ...item, ip: address.ip_address, vlan: selectedSubnet?.vlan_number ? String(selectedSubnet.vlan_number) : item.vlan } : item) }); }} disabled={readOnly || !selectedSubnetId}><option value="">{selectedSubnetId ? t("pages.networkMap.fields.address") : t("pages.networkMap.fields.selectSubnetFirst")}</option>{selectableAddresses.map((address) => <option key={`${address.subnet_id}-${address.ip_offset}`} value={address.ip_offset}>{address.ip_address}</option>)}</select></div>
-          <div className="grid grid-cols-2 gap-3"><Input value={selectedNode.ip} onChange={(event) => updateSelectedNode({ ip: event.target.value })} placeholder={t("pages.networkMap.fields.ip")} disabled={readOnly} /><Input value={selectedNode.vlan} onChange={(event) => updateSelectedNode({ vlan: event.target.value })} placeholder={t("pages.networkMap.fields.vlan")} disabled={readOnly} /></div>
-          <div className="grid grid-cols-2 gap-3"><Input value={selectedNode.zone} onChange={(event) => updateSelectedNode({ zone: event.target.value })} placeholder={t("pages.networkMap.fields.zone")} disabled={readOnly} /><Input value={selectedNode.asn} onChange={(event) => updateSelectedNode({ asn: event.target.value })} placeholder={t("pages.networkMap.fields.asn")} disabled={readOnly} /></div>
+        <div className="space-y-3">
+          <Input value={selectedNode.name} onChange={(event) => updateSelectedNode({ name: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} disabled={readOnly} />
+          <div className="grid grid-cols-2 gap-3">
+            <select className="h-10 border border-slate-200 bg-white px-3 text-sm" value={selectedNode.type} onChange={(event) => updateSelectedNode({ type: event.target.value as NetworkNode["type"] })} onBlur={handleSelectCommit} disabled={readOnly}>{NETWORK_NODE_TYPES.map((type) => <option key={type} value={type}>{getNodeTypeLabel(type)}</option>)}</select>
+            <select className="h-10 border border-slate-200 bg-white px-3 text-sm" value={selectedNode.layer} onChange={(event) => updateSelectedNode({ layer: event.target.value as NetworkNode["layer"] })} onBlur={handleSelectCommit} disabled={readOnly}>{NETWORK_LAYERS.map((layer) => <option key={layer} value={layer}>{layer}</option>)}</select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <select
+              className="h-10 border border-slate-200 bg-white px-3 text-sm"
+              value={selectedSubnetId ?? ""}
+              onChange={(event) => {
+                const nextSubnetId = event.target.value ? Number(event.target.value) : null;
+                setSelectedSubnetId(nextSubnetId);
+                setSelectedAddressOffset(null);
+                if (!nextSubnetId) {
+                  updateSelectedNode({ ip: "", vlan: "", interfaces: selectedNode.interfaces.map((item) => ({ ...item, ip: "", vlan: "" })) });
+                  return;
+                }
+                const nextSubnet = availableSubnets.find((subnet) => subnet.id === nextSubnetId) || null;
+                const ipPrefix = nextSubnet ? getSubnetIpPrefix(nextSubnet) : "";
+                updateSelectedNode({
+                  ip: ipPrefix,
+                  vlan: nextSubnet?.vlan_number ? String(nextSubnet.vlan_number) : "",
+                  interfaces: selectedNode.interfaces.map((item, index) => index === 0 ? { ...item, ip: ipPrefix, vlan: nextSubnet?.vlan_number ? String(nextSubnet.vlan_number) : item.vlan } : item),
+                });
+              }}
+              onBlur={handleSelectCommit}
+              disabled={readOnly}
+            >
+              <option value="">{t("pages.networkMap.fields.subnet")}</option>
+              {availableSubnets.map((subnet) => <option key={subnet.id} value={subnet.id}>{subnet.name || subnet.cidr}</option>)}
+            </select>
+            <select
+              className="h-10 border border-slate-200 bg-white px-3 text-sm"
+              value={selectedAddressOffset ?? ""}
+              onChange={(event) => {
+                const offset = event.target.value ? Number(event.target.value) : null;
+                setSelectedAddressOffset(offset);
+                const address = selectableAddresses.find((item) => item.ip_offset === offset) || null;
+                if (!address) return;
+                updateSelectedNode({
+                  ip: address.ip_address,
+                  vlan: selectedSubnet?.vlan_number ? String(selectedSubnet.vlan_number) : "",
+                  interfaces: selectedNode.interfaces.map((item, index) => index === 0 ? { ...item, ip: address.ip_address, vlan: selectedSubnet?.vlan_number ? String(selectedSubnet.vlan_number) : item.vlan } : item),
+                });
+              }}
+              onBlur={handleSelectCommit}
+              disabled={readOnly || !selectedSubnetId}
+            >
+              <option value="">{selectedSubnetId ? t("pages.networkMap.fields.address") : t("pages.networkMap.fields.selectSubnetFirst")}</option>
+              {selectableAddresses.map((address) => <option key={`${address.subnet_id}-${address.ip_offset}`} value={address.ip_offset}>{address.ip_address}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input value={selectedNode.ip} onChange={(event) => updateSelectedNode({ ip: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder={t("pages.networkMap.fields.ip")} disabled={readOnly} />
+            <Input value={selectedNode.vlan} onChange={(event) => updateSelectedNode({ vlan: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder={t("pages.networkMap.fields.vlan")} disabled={readOnly} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input value={selectedNode.zone} onChange={(event) => updateSelectedNode({ zone: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder={t("pages.networkMap.fields.zone")} disabled={readOnly} />
+            <Input value={selectedNode.asn} onChange={(event) => updateSelectedNode({ asn: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder={t("pages.networkMap.fields.asn")} disabled={readOnly} />
+          </div>
           {selectedSubnet ? <div className="border border-slate-200 bg-slate-50/70 px-3 py-3 text-xs text-slate-600"><div className="font-medium text-slate-900">{selectedSubnet.name || selectedSubnet.cidr}</div><div className="mt-1">{selectedSubnet.network_address}</div><div className="mt-1">{selectedSubnet.vlan_number ? `VLAN ${selectedSubnet.vlan_number}` : "VLAN -"}{selectedAddress ? ` · ${selectedAddress.ip_address}` : selectedNode.ip ? ` · ${selectedNode.ip}` : ""}</div></div> : null}
-          <div className="grid grid-cols-2 gap-3"><Input value={selectedNode.model} onChange={(event) => updateSelectedNode({ model: event.target.value })} placeholder={t("pages.networkMap.fields.model")} disabled={readOnly} /><Input value={selectedNode.os} onChange={(event) => updateSelectedNode({ os: event.target.value })} placeholder={t("pages.networkMap.fields.os")} disabled={readOnly} /></div>
-          <select className="h-10 border border-slate-200 bg-white px-3 text-sm" value={selectedNode.status} onChange={(event) => updateSelectedNode({ status: event.target.value as NetworkNode["status"] })} disabled={readOnly}><option value="healthy">{t("pages.networkMap.health.healthy")}</option><option value="warning">{t("pages.networkMap.health.warning")}</option><option value="critical">{t("pages.networkMap.health.critical")}</option></select>
-        </>
+          <div className="grid grid-cols-2 gap-3">
+            <Input value={selectedNode.model} onChange={(event) => updateSelectedNode({ model: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder={t("pages.networkMap.fields.model")} disabled={readOnly} />
+            <Input value={selectedNode.os} onChange={(event) => updateSelectedNode({ os: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder={t("pages.networkMap.fields.os")} disabled={readOnly} />
+          </div>
+          <select className="h-10 border border-slate-200 bg-white px-3 text-sm" value={selectedNode.status} onChange={(event) => updateSelectedNode({ status: event.target.value as NetworkNode["status"] })} onBlur={handleSelectCommit} disabled={readOnly}>
+            <option value="healthy">{t("pages.networkMap.health.healthy")}</option>
+            <option value="warning">{t("pages.networkMap.health.warning")}</option>
+            <option value="critical">{t("pages.networkMap.health.critical")}</option>
+          </select>
+        </div>
       );
     }
-    return <><Input value={selectedEdge!.label} onChange={(event) => updateSelectedEdge({ label: event.target.value })} placeholder={t("pages.networkMap.fields.label")} disabled={readOnly} /><div className="grid grid-cols-2 gap-3"><select className="h-10 border border-slate-200 bg-white px-3 text-sm" value={selectedEdge!.style} onChange={(event) => updateSelectedEdge({ style: event.target.value as NetworkEdge["style"] })} disabled={readOnly}>{NETWORK_EDGE_STYLES.map((style) => <option key={style} value={style}>{t(`pages.networkMap.edgeStyles.${style}`)}</option>)}</select><select className="h-10 border border-slate-200 bg-white px-3 text-sm" value={selectedEdge!.status} onChange={(event) => updateSelectedEdge({ status: event.target.value as NetworkEdge["status"] })} disabled={readOnly}><option value="healthy">{t("pages.networkMap.health.healthy")}</option><option value="warning">{t("pages.networkMap.health.warning")}</option><option value="critical">{t("pages.networkMap.health.critical")}</option></select></div><div className="grid grid-cols-2 gap-3"><Input value={selectedEdge!.bandwidth} onChange={(event) => updateSelectedEdge({ bandwidth: event.target.value })} placeholder={t("pages.networkMap.fields.bandwidth")} disabled={readOnly} /><Input value={selectedEdge!.latency} onChange={(event) => updateSelectedEdge({ latency: event.target.value })} placeholder={t("pages.networkMap.fields.latency")} disabled={readOnly} /></div><Input value={selectedEdge!.network} onChange={(event) => updateSelectedEdge({ network: event.target.value })} placeholder={t("pages.networkMap.fields.network")} disabled={readOnly} /></>;
+
+    if (selectedEdge) {
+      return (
+        <div className="space-y-3">
+          <Input value={selectedEdge.label} onChange={(event) => updateSelectedEdge({ label: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder={t("pages.networkMap.fields.label")} disabled={readOnly} />
+          <div className="grid grid-cols-2 gap-3">
+            <select className="h-10 border border-slate-200 bg-white px-3 text-sm" value={selectedEdge.style} onChange={(event) => updateSelectedEdge({ style: event.target.value as NetworkEdge["style"] })} onBlur={handleSelectCommit} disabled={readOnly}>{NETWORK_EDGE_STYLES.map((style) => <option key={style} value={style}>{style}</option>)}</select>
+            <select className="h-10 border border-slate-200 bg-white px-3 text-sm" value={selectedEdge.status} onChange={(event) => updateSelectedEdge({ status: event.target.value as NetworkEdge["status"] })} onBlur={handleSelectCommit} disabled={readOnly}>
+              <option value="healthy">{t("pages.networkMap.health.healthy")}</option>
+              <option value="warning">{t("pages.networkMap.health.warning")}</option>
+              <option value="critical">{t("pages.networkMap.health.critical")}</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input value={selectedEdge.bandwidth} onChange={(event) => updateSelectedEdge({ bandwidth: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder={t("pages.networkMap.fields.bandwidth")} disabled={readOnly} />
+            <Input value={selectedEdge.latency} onChange={(event) => updateSelectedEdge({ latency: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder={t("pages.networkMap.fields.latency")} disabled={readOnly} />
+          </div>
+          <Input value={selectedEdge.network} onChange={(event) => updateSelectedEdge({ network: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder={t("pages.networkMap.fields.network")} disabled={readOnly} />
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        <div className="border border-dashed border-slate-200 p-4 text-sm text-slate-500">Выберите узел или связь на холсте для редактирования.</div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="min-w-0 border border-slate-200 bg-slate-50/70 px-3 py-3"><div className="text-[11px] uppercase tracking-[0.12em] text-slate-400">Узлы</div><div className="mt-1 text-lg font-semibold">{topology.nodes.length}</div></div>
+          <div className="min-w-0 border border-slate-200 bg-slate-50/70 px-3 py-3"><div className="text-[11px] uppercase tracking-[0.12em] text-slate-400">Связи</div><div className="mt-1 text-lg font-semibold">{topology.edges.length}</div></div>
+          <div className="min-w-0 border border-slate-200 bg-slate-50/70 px-3 py-3"><div className="text-[11px] uppercase tracking-[0.12em] text-slate-400">Предупреждения</div><div className="mt-1 text-lg font-semibold">{validation.length}</div></div>
+          <div className="min-w-0 border border-slate-200 bg-slate-50/70 px-3 py-3"><div className="text-[11px] uppercase tracking-[0.12em] text-slate-400">Выбор</div><div className="mt-1 text-lg font-semibold">{selectedCount}</div></div>
+        </div>
+        <div className="space-y-3 border-t border-slate-200 pt-4">
+          <div className="text-sm font-semibold text-slate-900">Добавить оборудование</div>
+          <Input value={inventorySearch} onChange={(event) => setInventorySearch(event.target.value)} placeholder="Поиск оборудования" />
+          <div className="max-h-[260px] space-y-2 overflow-auto pr-1">
+            {equipmentItems.slice(0, 12).map((item) => {
+              const alreadyAdded = equipmentPresence.get(`${item.equipment_source}:${item.equipment_item_id}`) === true;
+              return (
+                <div key={`${item.equipment_source}:${item.equipment_item_id}`} className="min-w-0 border border-slate-200 p-3">
+                  <div className="truncate font-semibold text-slate-900">{item.display_name}</div>
+                  <div className="mt-1 text-xs text-slate-500">{item.primary_ip || item.equipment_type_name}</div>
+                  <div className="mt-1 truncate text-xs text-slate-400">{item.location || item.manufacturer_name || "EQM"}</div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => addInventoryNode(item)} disabled={readOnly || !hasOpenCanvas || alreadyAdded}>Добавить</Button>
+                    {alreadyAdded ? <Badge variant="secondary">На холсте</Badge> : null}
+                  </div>
+                </div>
+              );
+            })}
+            {equipmentItems.length === 0 ? <div className="border border-dashed border-slate-200 p-4 text-sm text-slate-500">Подходящее оборудование не найдено.</div> : null}
+          </div>
+        </div>
+      </div>
+    );
   };
 
-  const renderInventoryPanel = () => (
+  const renderDataPanel = () => selectedNode ? (
+    <div className="space-y-5">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between"><div className="text-sm font-semibold text-slate-900">Интерфейсы</div><Button size="sm" onClick={addNodeInterface} disabled={readOnly}><Plus className="h-4 w-4" />Добавить</Button></div>
+        {selectedNode.interfaces.map((item, index) => (
+          <div key={`${selectedNode.id}-if-${index}`} className="space-y-2 border border-slate-200 p-3">
+            <div className="grid grid-cols-2 gap-2">
+              <Input value={item.name} onChange={(event) => updateNodeInterface(index, { name: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder="Интерфейс" disabled={readOnly} />
+              <select className="h-10 border border-slate-200 bg-white px-3 text-sm" value={item.status} onChange={(event) => updateNodeInterface(index, { status: event.target.value as NodeInterface["status"] })} onBlur={handleSelectCommit} disabled={readOnly}>
+                <option value="up">up</option>
+                <option value="down">down</option>
+                <option value="degraded">degraded</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Input value={item.ip} onChange={(event) => updateNodeInterface(index, { ip: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder="IP" disabled={readOnly} />
+              <Input value={item.vlan} onChange={(event) => updateNodeInterface(index, { vlan: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder="VLAN" disabled={readOnly} />
+            </div>
+            <Button size="sm" variant="destructive" onClick={() => removeNodeInterface(index)} disabled={readOnly}><Trash2 className="h-4 w-4" />Удалить</Button>
+          </div>
+        ))}
+        {selectedNode.interfaces.length === 0 ? <div className="border border-dashed border-slate-200 p-4 text-sm text-slate-500">Интерфейсы пока не добавлены.</div> : null}
+      </div>
+      <div className="space-y-3 border-t border-slate-200 pt-4">
+        <div className="flex items-center justify-between"><div className="text-sm font-semibold text-slate-900">Маршруты</div><Button size="sm" onClick={addRoute} disabled={readOnly}><Plus className="h-4 w-4" />Добавить</Button></div>
+        {selectedNode.routes.map((route, index) => (
+          <div key={`${selectedNode.id}-route-${index}`} className="space-y-2 border border-slate-200 p-3">
+            <div className="grid grid-cols-2 gap-2">
+              <Input value={route.prefix} onChange={(event) => updateRoute(index, { prefix: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder="Prefix" disabled={readOnly} />
+              <Input value={route.nextHop} onChange={(event) => updateRoute(index, { nextHop: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder="Next hop" disabled={readOnly} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <select className="h-10 border border-slate-200 bg-white px-3 text-sm" value={route.protocol} onChange={(event) => updateRoute(index, { protocol: event.target.value })} onBlur={handleSelectCommit} disabled={readOnly}>{ROUTE_PROTOCOLS.map((protocol) => <option key={protocol} value={protocol}>{protocol}</option>)}</select>
+              <Input value={String(route.metric)} onChange={(event) => updateRoute(index, { metric: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder="Metric" disabled={readOnly} />
+            </div>
+            <Button size="sm" variant="destructive" onClick={() => removeRoute(index)} disabled={readOnly}><Trash2 className="h-4 w-4" />Удалить</Button>
+          </div>
+        ))}
+        {selectedNode.routes.length === 0 ? <div className="border border-dashed border-slate-200 p-4 text-sm text-slate-500">Маршруты пока не добавлены.</div> : null}
+      </div>
+
+      <div className="space-y-3 border-t border-slate-200 pt-4">
+        <div className="text-sm font-semibold text-slate-900">Сервисы</div>
+        <textarea
+          className="min-h-[104px] w-full border border-slate-200 px-3 py-2 text-sm"
+          value={selectedNode.services.join(", ")}
+          onChange={(event) => updateSelectedNode({ services: event.target.value.split(/[,\n]/).map((item) => item.trim()).filter(Boolean) })}
+          onBlur={handleFieldCommit}
+          onKeyDown={handleFieldKeyDown}
+          placeholder="dhcp, dns, nat"
+          disabled={readOnly}
+        />
+      </div>
+    </div>
+  ) : <div className="border border-dashed border-slate-200 p-4 text-sm text-slate-500">Выберите узел, чтобы редактировать интерфейсы, маршруты и сервисы.</div>;
+
+  const renderGatewayPanel = () => (
+    <div className="space-y-5">
+      <div className="space-y-3">
+        <div className="text-sm font-semibold text-slate-900">Трассировка пути</div>
+        <div className="grid grid-cols-2 gap-2">
+          <select className="h-10 w-full border border-slate-200 bg-white px-3 text-sm" value={pathStartId} onChange={(event) => setPathStartId(event.target.value)}>
+            <option value="">{t("pages.networkMap.pathTracing.start")}</option>
+            {topology.nodes.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}
+          </select>
+          <select className="h-10 w-full border border-slate-200 bg-white px-3 text-sm" value={pathEndId} onChange={(event) => setPathEndId(event.target.value)}>
+            <option value="">{t("pages.networkMap.pathTracing.end")}</option>
+            {topology.nodes.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}
+          </select>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => selectedNode && setPathStartId(selectedNode.id)} disabled={!selectedNode}>Источник = выбор</Button>
+          <Button variant="outline" size="sm" onClick={() => selectedNode && setPathEndId(selectedNode.id)} disabled={!selectedNode}>Назначение = выбор</Button>
+          <Button variant="outline" size="sm" onClick={() => { setPathStartId(""); setPathEndId(""); }}>Очистить</Button>
+        </div>
+        <div className="border border-slate-200 bg-slate-50/70 p-3 text-sm text-slate-600">
+          {tracedPath.nodeIds.length > 0 ? `Путь найден: ${tracedPath.nodeIds.length} узл., ${tracedPath.edgeIds.length} связ.` : "Выберите начальный и конечный узлы, чтобы подсветить маршрут на холсте."}
+        </div>
+      </div>
+
+      <div className="space-y-3 border-t border-slate-200 pt-4">
+        <div className="flex items-center justify-between"><div className="text-sm font-semibold text-slate-900">Политики</div><Button size="sm" onClick={addPolicy} disabled={readOnly}><Plus className="h-4 w-4" />Добавить</Button></div>
+        {topology.policies.map((policy) => (
+          <div key={policy.id} className="space-y-2 border border-slate-200 p-3">
+            <Input value={policy.name} onChange={(event) => updatePolicy(policy.id, { name: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder={t("pages.networkMap.fields.name")} disabled={readOnly} />
+            <div className="grid grid-cols-2 gap-2">
+              <Input value={policy.type} onChange={(event) => updatePolicy(policy.id, { type: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder={t("pages.networkMap.fields.type")} disabled={readOnly} />
+              <select className="h-10 border border-slate-200 bg-white px-3 text-sm" value={policy.state} onChange={(event) => updatePolicy(policy.id, { state: event.target.value as TopologyPolicy["state"] })} onBlur={handleSelectCommit} disabled={readOnly}>
+                <option value="active">{t("pages.networkMap.policyState.active")}</option>
+                <option value="triggered">{t("pages.networkMap.policyState.triggered")}</option>
+                <option value="disabled">{t("pages.networkMap.policyState.disabled")}</option>
+              </select>
+            </div>
+            <Input value={policy.target} onChange={(event) => updatePolicy(policy.id, { target: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder={t("pages.networkMap.fields.target")} disabled={readOnly} />
+            <Button size="sm" variant="destructive" onClick={() => removePolicy(policy.id)} disabled={readOnly}><Trash2 className="h-4 w-4" />Удалить</Button>
+          </div>
+        ))}
+        {topology.policies.length === 0 ? <div className="border border-dashed border-slate-200 p-4 text-sm text-slate-500">{t("pages.networkMap.policies.empty")}</div> : null}
+      </div>
+    </div>
+  );
+
+  const renderDiagnosticsPanel = () => (
     <div className="space-y-3">
-      <Input value={inventorySearch} onChange={(event) => setInventorySearch(event.target.value)} placeholder={t("pages.networkMap.inventory.search")} />
-      <div className="max-h-[52vh] space-y-2 overflow-auto pr-1">{inventoryItems.map((item, index) => { const alreadyAdded = inventoryPresence.get(`${item.equipment_source}:${item.equipment_item_id}`) === true; return <button key={`${item.equipment_source}:${item.equipment_item_id}`} type="button" className={cn("flex w-full items-center justify-between border px-3 py-3 text-left transition", alreadyAdded ? "cursor-not-allowed border-slate-100 bg-slate-50 opacity-70" : "border-slate-200 hover:border-slate-300 hover:bg-slate-50")} onClick={() => handleAddInventoryNode(index)} disabled={readOnly || alreadyAdded}><div><div className="text-sm font-semibold text-slate-900">{item.display_name}</div><div className="text-[11px] text-slate-500">{item.primary_ip || item.location || item.equipment_type_name}</div></div>{alreadyAdded ? <Badge variant="secondary">{t("pages.networkMap.inventory.added")}</Badge> : <Badge variant="secondary">{item.network_interfaces.length}</Badge>}</button>; })}{inventoryItems.length === 0 ? <div className="border border-dashed border-slate-200 px-3 py-5 text-sm text-slate-500">{t("pages.networkMap.inventory.empty")}</div> : null}</div>
+      {validation.length === 0 ? <div className="border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">{t("pages.networkMap.validation.clear")}</div> : null}
+      {validation.map((item) => <div key={item.id} className={cn("border p-3", item.severity === "critical" ? "border-red-200 bg-red-50/40" : "border-amber-200 bg-amber-50/40")}><div className="text-sm font-semibold">{item.title}</div><div className="mt-1 text-xs text-slate-500">{item.detail}</div></div>)}
     </div>
   );
 
-  const renderPathPanel = () => (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2"><select className="h-10 w-full border border-slate-200 bg-white px-3 text-sm" value={pathStartId} onChange={(event) => setPathStartId(event.target.value)}><option value="">{t("pages.networkMap.pathTracing.start")}</option>{topology.nodes.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}</select><select className="h-10 w-full border border-slate-200 bg-white px-3 text-sm" value={pathEndId} onChange={(event) => setPathEndId(event.target.value)}><option value="">{t("pages.networkMap.pathTracing.end")}</option>{topology.nodes.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}</select></div>
-      <div className="flex flex-wrap gap-2"><Button variant="outline" className="flex-1" onClick={() => { setPathStartId(selectedNodeIds[0] || ""); setPathEndId(selectedNodeIds[1] || ""); }} disabled={selectedNodeIds.length < 2}><Route className="h-4 w-4" />{t("pages.networkMap.pathTracing.useSelection")}</Button><Button variant="default" className="flex-1" onClick={() => createLinkBetweenNodes(pathStartId, pathEndId)} disabled={readOnly || !pathStartId || !pathEndId}><Link2 className="h-4 w-4" />{t("pages.networkMap.pathTracing.createLink")}</Button><Button variant="outline" onClick={() => { setPathStartId(""); setPathEndId(""); setPendingLinkStartId(null); }}>{t("pages.networkMap.pathTracing.clear")}</Button></div>
-      <div className="border border-slate-200 bg-slate-50/70 p-3 text-sm text-slate-600">{pathStartId && pathEndId ? tracedPath.nodeIds.length ? <><div className="font-semibold text-slate-900">{t("pages.networkMap.pathTracing.hops", { count: tracedPath.edgeIds.length })}</div><div className="mt-1 text-xs text-slate-500">{tracedPath.nodeIds.map((id) => topology.nodes.find((node) => node.id === id)?.name || id).join(" -> ")}</div></> : <div>{t("pages.networkMap.pathTracing.noPath")}</div> : <div>{t("pages.networkMap.pathTracing.placeholder")}</div>}</div>
-    </div>
-  );
+  const inspectorPanel = <Card className="h-full min-w-0 overflow-hidden border-slate-200 shadow-none"><CardHeader className="border-b border-slate-200"><div className="flex items-center justify-between gap-3"><div className="min-w-0"><CardTitle>Свойства</CardTitle><CardDescription>{saveStateLabel}</CardDescription></div><Badge variant={saveState === "error" ? "destructive" : saveState === "saved" ? "success" : "secondary"}>{saveStateLabel}</Badge></div><div className="mt-3 grid grid-cols-2 gap-2">{([["selection", "Свойства"], ["data", "Данные"], ["gateway", "Шлюз"], ["diagnostics", "Диагностика"]] as const).map(([tab, label]) => <button key={tab} type="button" className={cn("min-h-11 min-w-0 border px-2 py-2 text-xs font-medium leading-tight whitespace-normal [word-break:break-word]", inspectorTab === tab ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-700")} onClick={() => setInspectorTab(tab)}>{label}</button>)}</div></CardHeader><CardContent className="max-h-[calc(100vh-210px)] overflow-auto p-5">{inspectorTab === "selection" ? renderSelectionPanel() : inspectorTab === "data" ? renderDataPanel() : inspectorTab === "gateway" ? renderGatewayPanel() : renderDiagnosticsPanel()}</CardContent></Card>;
 
-  const renderValidationPanel = () => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between"><div><div className="text-sm font-semibold text-slate-900">{t("pages.networkMap.policies.title")}</div><div className="text-xs text-slate-500">{t("pages.networkMap.validation.title")}</div></div><Button size="sm" variant="outline" disabled={readOnly} onClick={() => mutateTopology((current) => ({ ...current, policies: [...current.policies, createEmptyPolicy()] }))}><Plus className="h-3.5 w-3.5" />{t("actions.add")}</Button></div>
-      <div className="space-y-3">{topology.policies.map((policy) => <div key={policy.id} className="space-y-2 border border-slate-200 p-3"><Input value={policy.name} onChange={(event) => mutateTopology((current) => ({ ...current, policies: current.policies.map((item) => item.id === policy.id ? { ...item, name: event.target.value } : item) }))} disabled={readOnly} /><div className="grid grid-cols-2 gap-2"><Input value={policy.type} onChange={(event) => mutateTopology((current) => ({ ...current, policies: current.policies.map((item) => item.id === policy.id ? { ...item, type: event.target.value } : item) }))} placeholder={t("pages.networkMap.fields.type")} disabled={readOnly} /><select className="h-10 border border-slate-200 bg-white px-3 text-sm" value={policy.state} onChange={(event) => mutateTopology((current) => ({ ...current, policies: current.policies.map((item) => item.id === policy.id ? { ...item, state: event.target.value as TopologyPolicy["state"] } : item) }))} disabled={readOnly}><option value="active">{t("pages.networkMap.policyState.active")}</option><option value="triggered">{t("pages.networkMap.policyState.triggered")}</option><option value="disabled">{t("pages.networkMap.policyState.disabled")}</option></select></div><Input value={policy.target} onChange={(event) => mutateTopology((current) => ({ ...current, policies: current.policies.map((item) => item.id === policy.id ? { ...item, target: event.target.value } : item) }))} placeholder={t("pages.networkMap.fields.target")} disabled={readOnly} /></div>)}{topology.policies.length === 0 ? <div className="border border-dashed border-slate-200 p-4 text-sm text-slate-500">{t("pages.networkMap.policies.empty")}</div> : null}</div>
-      <div className="space-y-3">{validation.length === 0 ? <div className="border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">{t("pages.networkMap.validation.clear")}</div> : null}{validation.map((item) => <div key={item.id} className={cn("border p-3", item.severity === "critical" ? "border-red-200 bg-red-50/40" : "border-amber-200 bg-amber-50/40")}><div className="text-sm font-semibold">{item.title}</div><div className="mt-1 text-xs text-slate-500">{item.detail}</div></div>)}</div>
-    </div>
-  );
-
-  const inspectorPanel = <Card className="h-full border-slate-200 shadow-none"><CardHeader className="border-b border-slate-200"><div className="flex items-center justify-between gap-3"><div><CardTitle>{t("pages.networkMap.properties.title")}</CardTitle><CardDescription>{saveStateLabel}</CardDescription></div><Badge variant={saveState === "error" ? "destructive" : saveState === "saved" ? "success" : "secondary"}>{saveStateLabel}</Badge></div><div className="mt-3 grid grid-cols-2 gap-2 xl:grid-cols-4">{([ ["selection", t("pages.networkMap.properties.title")], ["inventory", t("pages.networkMap.inventory.title")], ["path", t("pages.networkMap.pathTracing.title")], ["validation", t("pages.networkMap.validation.title")] ] as const).map(([tab, label]) => <button key={tab} type="button" className={cn("border px-3 py-2 text-sm font-medium", inspectorTab === tab ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-700")} onClick={() => setInspectorTab(tab)}>{label}</button>)}</div></CardHeader><CardContent className="max-h-[calc(100vh-210px)] overflow-auto p-5">{inspectorTab === "selection" ? renderPropertiesPanel() : inspectorTab === "inventory" ? renderInventoryPanel() : inspectorTab === "path" ? renderPathPanel() : renderValidationPanel()}</CardContent></Card>;
-
-  const sidebarPanel = <Card className="h-full border-slate-200 shadow-none"><CardHeader className="border-b border-slate-200"><div className="flex items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2"><Layers3 className="h-4 w-4 text-slate-500" />{t("pages.networkMap.documents.title")}</CardTitle><CardDescription>{t("pages.networkMap.documents.subtitle")}</CardDescription></div>{activeId !== null || isDraftDocument ? <Badge variant="outline">{saveStateLabel}</Badge> : null}</div><div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-2"><Button size="sm" className="h-auto min-h-10 justify-center px-3 py-2 text-center text-[13px] leading-tight whitespace-normal" onClick={handleStartNewDocument} disabled={readOnly}><Plus className="h-4 w-4 shrink-0" />{t("pages.networkMap.documents.newDocument")}</Button><Button size="sm" className="h-auto min-h-10 justify-center px-3 py-2 text-center text-[13px] leading-tight whitespace-normal" variant="outline" onClick={openSelectedDocument} disabled={selectedDocumentId === null && !isDraftDocument}>{t("pages.serialMap.actions.open")}</Button><Button size="sm" className="h-auto min-h-10 justify-center px-3 py-2 text-center text-[13px] leading-tight whitespace-normal" variant="outline" onClick={() => setIsEditingSelectedDocument(true)} disabled={(selectedDocumentId === null && !isDraftDocument) || readOnly}>{t("actions.edit")}</Button><Button size="sm" className="h-auto min-h-10 justify-center px-3 py-2 text-center text-[13px] leading-tight whitespace-normal" variant="destructive" onClick={() => { void handleDeleteSelectedDocument(); }} disabled={selectedDocumentId === null || readOnly}><Trash2 className="h-4 w-4 shrink-0" />{t("actions.delete")}</Button><Button size="sm" className="h-auto min-h-10 justify-center px-3 py-2 text-center text-[13px] leading-tight whitespace-normal" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={readOnly}><Upload className="h-4 w-4 shrink-0" />{t("actions.import")}</Button><Button size="sm" className="h-auto min-h-10 justify-center px-3 py-2 text-center text-[13px] leading-tight whitespace-normal" variant="outline" onClick={() => exportDocument(topology, `${documentName || "network-topology"}.json`)} disabled={activeId === null && !isDraftDocument}><Upload className="h-4 w-4 shrink-0" />{t("pages.networkMap.toolbar.exportJson")}</Button></div></CardHeader><CardContent className="grid gap-4 p-5"><Input value={documentSearch} onChange={(event) => setDocumentSearch(event.target.value)} placeholder={t("pages.networkMap.documents.search")} /><div className="space-y-2"><div className="flex items-center justify-between gap-3"><div className="text-sm font-semibold text-slate-900">Список схем</div><div className="text-xs text-slate-500">{filteredTopologies.length} / {allTopologies.length}</div></div><div className="grid grid-cols-[minmax(0,1.7fr)_56px_56px_72px] items-center gap-2 border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500"><div>Схема</div><div className="text-center">Узлы</div><div className="text-center">Связи</div><div className="text-center">Предупр.</div></div><div className="max-h-[46vh] overflow-auto border-x border-b border-slate-200 bg-slate-50/30 pr-1"><div className="space-y-px bg-slate-200">{filteredTopologies.map((item) => <CompactDocumentRow key={item.id} item={item} selected={item.id === selectedDocumentId} active={item.id === activeId} onClick={() => { setSelectedDocumentId(item.id); setIsEditingSelectedDocument(false); }} />)}{filteredTopologies.length === 0 ? <div className="border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">{t("pages.networkMap.documents.empty")}</div> : null}</div></div></div><div className="space-y-3 border-t border-slate-200 pt-4"><div className="flex items-center justify-between gap-3"><div><div className="text-sm font-semibold text-slate-900">Предпросмотр</div><div className="text-xs text-slate-500">{selectedDocumentId === null && isDraftDocument ? "Черновик" : activeId === selectedDocumentId && activeId !== null ? "Открыто на холсте" : "Выбрано в списке схем"}</div></div>{selectedDocumentId !== null && activeId === selectedDocumentId ? <Badge variant="success">{t("pages.networkMap.documents.active")}</Badge> : null}</div>{isEditingSelectedDocument ? <div className="space-y-3 border border-slate-200 p-3"><Input value={selectedDocumentName} onChange={(event) => setSelectedDocumentName(event.target.value)} placeholder={t("pages.networkMap.defaultName")} disabled={readOnly} /><Input value={selectedDocumentDescription} onChange={(event) => setSelectedDocumentDescription(event.target.value)} placeholder={t("pages.networkMap.fields.description")} disabled={readOnly} /><div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => { void handleSaveSelectedMetadata(); }} disabled={readOnly}><Save className="h-4 w-4" />{t("actions.save")}</Button><Button size="sm" variant="outline" onClick={() => setIsEditingSelectedDocument(false)}>{t("actions.cancel")}</Button></div></div> : previewDocument && previewStats ? <DocumentPreviewCard active={activeId === selectedDocumentId || (selectedDocumentId === null && isDraftDocument)} title={previewTitle} subtitle={previewDescription} updatedAt={previewUpdatedAt} stats={previewStats} /> : <div className="border border-dashed border-slate-200 p-4 text-sm text-slate-500">{allTopologies.length === 0 ? t("pages.networkMap.documents.empty") : "Выберите схему, чтобы увидеть предпросмотр."}</div>}</div></CardContent></Card>;
-
-  const hasOpenCanvas = activeId !== null || isDraftDocument;
+  const sidebarPanel = <Card className="h-full min-w-0 overflow-hidden border-slate-200 shadow-none"><CardHeader className="border-b border-slate-200"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><CardTitle className="flex items-center gap-2"><Layers3 className="h-4 w-4 text-slate-500" />Контуры</CardTitle><CardDescription>Каждая схема хранится как отдельный серверный документ.</CardDescription></div>{activeId !== null ? <Badge variant="outline">{saveStateLabel}</Badge> : null}</div><div className="mt-3 grid grid-cols-2 gap-2"><Button size="sm" className={sidebarActionButtonClass} onClick={openCreateDialog} disabled={readOnly}><Plus className="h-4 w-4 shrink-0" />Новая схема</Button><Button size="sm" className={sidebarActionButtonClass} variant="outline" onClick={openSelectedDocument} disabled={selectedDocumentId === null}>Открыть</Button><Button size="sm" className={sidebarActionButtonClass} variant="outline" onClick={() => setIsEditingSelectedDocument(true)} disabled={selectedDocumentId === null || readOnly}>Редактировать</Button><Button size="sm" className={sidebarActionButtonClass} variant="destructive" onClick={() => { void handleDeleteSelectedDocument(); }} disabled={selectedDocumentId === null || readOnly}><Trash2 className="h-4 w-4 shrink-0" />Удалить</Button><Button size="sm" className={sidebarActionButtonClass} variant="outline" onClick={() => fileInputRef.current?.click()} disabled={readOnly}><Upload className="h-4 w-4 shrink-0" />Импорт</Button><Button size="sm" className={sidebarActionButtonClass} variant="outline" onClick={() => exportDocument(topology, `${documentName || "network-topology"}.json`)} disabled={!hasOpenCanvas}><Upload className="h-4 w-4 shrink-0" />Экспорт JSON</Button></div></CardHeader><CardContent className="grid gap-4 p-5"><Input value={documentSearch} onChange={(event) => setDocumentSearch(event.target.value)} placeholder="Поиск по схемам" /><div className="space-y-2 min-w-0"><div className="flex items-center justify-between gap-3"><div className="text-sm font-semibold text-slate-900">Список схем</div><div className="text-xs text-slate-500">{filteredTopologies.length} / {allTopologies.length}</div></div><div className="grid min-w-0 grid-cols-[minmax(0,1fr)_36px_36px_48px_32px] items-center gap-1.5 border border-slate-200 bg-slate-50 px-2.5 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500"><div>Схема</div><div className="text-center">Узлы</div><div className="text-center">Связи</div><div className="text-center">Предупр.</div><div className="text-center">X</div></div><div className="max-h-[42vh] overflow-auto border-x border-b border-slate-200 bg-slate-50/30 pr-1"><div className="space-y-px bg-slate-200">{filteredTopologies.map((item) => <CompactDocumentRow key={item.id} item={item} selected={item.id === selectedDocumentId} active={item.id === activeId} onClick={() => { setSelectedDocumentId(item.id); setIsEditingSelectedDocument(false); }} onDelete={() => setPendingDeleteDocument({ id: item.id, name: item.name })} />)}{filteredTopologies.length === 0 ? <div className="border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">Сетевые схемы не найдены.</div> : null}</div></div></div><div className="space-y-3 border-t border-slate-200 pt-4"><div className="flex items-center justify-between gap-3"><div><div className="text-sm font-semibold text-slate-900">Предпросмотр</div><div className="text-xs text-slate-500">{selectedDocumentId !== null && activeId === selectedDocumentId ? "Открыто на холсте" : "Выбрано в списке схем"}</div></div>{selectedDocumentId !== null && activeId === selectedDocumentId ? <Badge variant="success">Активен</Badge> : null}</div>{isEditingSelectedDocument ? <div className="space-y-3 border border-slate-200 p-3"><Input value={selectedDocumentName} onChange={(event) => setSelectedDocumentName(event.target.value)} onBlur={() => { void handleMetadataDraftCommit(); }} onKeyDown={handleMetadataDraftKeyDown} placeholder="Название схемы" disabled={readOnly} /><Input value={selectedDocumentDescription} onChange={(event) => setSelectedDocumentDescription(event.target.value)} onBlur={() => { void handleMetadataDraftCommit(); }} onKeyDown={handleMetadataDraftKeyDown} placeholder="Описание" disabled={readOnly} /><div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => { void handleSaveSelectedMetadata(); }} disabled={readOnly}><Save className="h-4 w-4" />Сохранить</Button><Button size="sm" variant="outline" onClick={() => setIsEditingSelectedDocument(false)}>Отмена</Button></div></div> : <DocumentPreviewCard active={activeId === selectedDocumentId} title={previewTitle} subtitle={previewDescription} updatedAt={previewUpdatedAt} stats={previewStats} />}</div></CardContent></Card>;
 
   return (
     <div className="space-y-4 text-slate-900">
-      <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; void handleImportDocument(file).finally(() => { if (fileInputRef.current) fileInputRef.current.value = ""; }); }} />
-      <Card className="border-slate-200 shadow-none"><CardHeader className="pb-4"><div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between"><div><CardTitle className="text-xl">{t("pages.networkMap.title")}</CardTitle><CardDescription>{t("pages.networkMap.subtitle")}</CardDescription></div><div className="flex flex-wrap items-center gap-2"><Badge variant="outline">{t("pages.networkMap.stats.devices")}: {topology.nodes.length}</Badge><Badge variant="outline">{t("pages.networkMap.stats.links")}: {topology.edges.length}</Badge><Badge variant="outline">{t("pages.networkMap.stats.warnings")}: {nodeWarnings}</Badge><Badge variant="outline">{t("pages.networkMap.stats.critical")}: {nodeCritical}</Badge><Badge variant={saveState === "error" ? "destructive" : saveState === "saved" ? "success" : "secondary"}>{saveStateLabel}</Badge></div></div><div className="flex flex-wrap gap-2 xl:hidden"><Button size="sm" variant="outline" onClick={() => setIsSidebarDrawerOpen(true)}>{t("pages.networkMap.documents.title")}</Button><Button size="sm" variant="outline" onClick={() => setIsInspectorDrawerOpen(true)}>{t("pages.networkMap.properties.title")}</Button></div></CardHeader></Card>
-      {(interactionMessage || linkCreationMode === "picking") ? <div className={cn("flex flex-wrap items-center justify-between gap-3 border px-4 py-3 text-sm", interactionMessage?.tone === "warning" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-blue-200 bg-blue-50 text-blue-800")}><div className="flex items-center gap-2"><AlertCircle className="h-4 w-4" /><span>{interactionMessage?.text || t("pages.networkMap.linkCreation.pickFirst")}</span></div>{linkCreationMode === "picking" ? <div className="flex items-center gap-2 text-xs font-medium"><span>{pendingLinkStartId ? t("pages.networkMap.linkCreation.pendingSecond") : t("pages.networkMap.linkCreation.pendingFirst")}</span><Button size="sm" variant="outline" onClick={toggleLinkCreationMode}>{t("pages.networkMap.pathTracing.clear")}</Button></div> : null}</div> : null}
-      <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)_360px]">
-        <div className="hidden xl:block xl:sticky xl:top-4 xl:self-start">{sidebarPanel}</div>
+      <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={onImportFile} />
+      <Card className="border-slate-200 shadow-none">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <CardTitle className="text-xl">{t("pages.networkMap.title")}</CardTitle>
+              <CardDescription>{t("pages.networkMap.subtitle")}</CardDescription>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">Узлы: {topology.nodes.length}</Badge>
+              <Badge variant="outline">Связи: {topology.edges.length}</Badge>
+              <Badge variant="outline">Предупр.: {nodeWarnings}</Badge>
+              <Badge variant="outline">Критич.: {nodeCritical}</Badge>
+              <Badge variant="outline">Интерф.: {totalInterfaces}</Badge>
+              <Badge variant="outline">Маршр.: {totalRoutes}</Badge>
+              <Badge variant={saveState === "error" ? "destructive" : saveState === "saved" ? "success" : "secondary"}>{saveStateLabel}</Badge>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 xl:hidden">
+            <Button size="sm" variant="outline" onClick={() => setIsSidebarDrawerOpen(true)}><PanelLeft className="h-4 w-4" />Контуры</Button>
+            <Button size="sm" variant="outline" onClick={() => setIsInspectorDrawerOpen(true)}><PanelRight className="h-4 w-4" />Свойства</Button>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {message ? <div className={cn("flex flex-wrap items-center justify-between gap-3 border px-4 py-3 text-sm", message.tone === "warning" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-blue-200 bg-blue-50 text-blue-800")}><div className="flex items-center gap-2"><AlertCircle className="h-4 w-4" /><span>{message.text}</span></div></div> : null}
+
+      <div ref={canvasShellRef} className={cn("grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)_360px]", isFullscreen && "grid-cols-[minmax(0,1fr)] bg-white p-4")}>
+        {!isFullscreen ? <div className="hidden xl:block xl:sticky xl:top-4 xl:self-start">{sidebarPanel}</div> : null}
         <Card className="overflow-hidden border-slate-200 shadow-none">
-          <div className="border-b border-slate-200 bg-slate-50/70 px-4 py-3"><div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between"><Menubar className="w-fit"><MenubarMenu><MenubarTrigger>Edit</MenubarTrigger><MenubarContent><MenubarLabel>Selection</MenubarLabel><MenubarItem onClick={copySelection} disabled={selectedNodeIds.length === 0}><span>Copy</span><MenubarShortcut>Ctrl/Cmd+C</MenubarShortcut></MenubarItem><MenubarItem onClick={pasteSelection} disabled={clipboardNodes.length === 0 || readOnly || !hasOpenCanvas}><span>Paste</span><MenubarShortcut>Ctrl/Cmd+V</MenubarShortcut></MenubarItem><MenubarSeparator /><MenubarLabel>Modify</MenubarLabel><MenubarItem onClick={duplicateSelection} disabled={readOnly || selectedNodeIds.length === 0}><span>{t("pages.networkMap.toolbar.duplicate")}</span><MenubarShortcut>Ctrl/Cmd+D</MenubarShortcut></MenubarItem><MenubarItem onClick={() => setInspectorTab("selection")} disabled={!selectedCount}><span>{t("actions.edit")}</span></MenubarItem><MenubarItem className="text-red-600 hover:bg-red-50" onClick={() => { void handleDeleteSelection(); }} disabled={readOnly || !selectedCount}><span>{t("actions.delete")}</span><MenubarShortcut>Del</MenubarShortcut></MenubarItem></MenubarContent></MenubarMenu><MenubarMenu><MenubarTrigger>Canvas</MenubarTrigger><MenubarContent><MenubarItem onClick={handleCreateManualNode} disabled={readOnly || !hasOpenCanvas}><span>{t("pages.networkMap.toolbar.addDevice")}</span></MenubarItem><MenubarItem onClick={toggleLinkCreationMode} disabled={readOnly || !hasOpenCanvas}><span>{t("pages.networkMap.toolbar.linkMode")}</span></MenubarItem><MenubarSeparator /><MenubarItem onClick={() => mutateTopology((current) => autoLayout(current))} disabled={!hasOpenCanvas}><span>{t("pages.networkMap.toolbar.autoLayout")}</span></MenubarItem><MenubarItem onClick={() => flowRef.current?.fitView({ duration: 250, padding: 0.18 })} disabled={!hasOpenCanvas}><span>{t("pages.networkMap.toolbar.fitView")}</span></MenubarItem></MenubarContent></MenubarMenu><MenubarMenu><MenubarTrigger>View</MenubarTrigger><MenubarContent><MenubarCheckboxItem checked={showMiniMap} onClick={() => setShowMiniMap((value) => !value)}>MiniMap</MenubarCheckboxItem><MenubarCheckboxItem checked={showGrid} onClick={() => setShowGrid((value) => !value)}>Grid</MenubarCheckboxItem><MenubarSeparator /><MenubarItem onClick={resetViewport} disabled={!hasOpenCanvas}><span>Reset view</span><MenubarShortcut>1:1</MenubarShortcut></MenubarItem></MenubarContent></MenubarMenu></Menubar><div className="flex flex-col gap-3 xl:flex-row xl:items-center"><div className="relative min-w-0 xl:w-[320px]"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input className="pl-9" value={canvasSearch} onChange={(event) => setCanvasSearch(event.target.value)} placeholder={t("pages.networkMap.toolbar.searchPlaceholder")} /></div><div className="flex flex-wrap gap-2"><Badge variant="outline">{t("pages.networkMap.stats.selection")}: {selectedCount}</Badge><Badge variant="outline">{Math.round((topology.zoom || 1) * 100)}%</Badge><Badge variant={saveState === "error" ? "destructive" : saveState === "saved" ? "success" : "secondary"}>{saveStateLabel}</Badge></div></div></div></div>
-          <CardHeader className="flex-row items-center justify-between space-y-0"><div><CardTitle>{t("pages.networkMap.canvas.title")}</CardTitle><CardDescription>{t("pages.networkMap.canvas.subtitle", { visibleNodes: visibleNodeCount, visibleLinks: topology.edges.length })}</CardDescription></div><div className="hidden items-center gap-2 xl:flex"><select className="h-10 border border-slate-200 bg-white px-3 text-sm" value={newEdgeStyle} onChange={(event) => setNewEdgeStyle(event.target.value as NetworkEdge["style"])} disabled={readOnly}>{NETWORK_EDGE_STYLES.map((style) => <option key={style} value={style}>{t(`pages.networkMap.edgeStyles.${style}`)}</option>)}</select><select className="h-10 border border-slate-200 bg-white px-3 text-sm" value={newNodeType} onChange={(event) => setNewNodeType(event.target.value as NetworkNode["type"])} disabled={readOnly}>{NETWORK_NODE_TYPES.map((type) => <option key={type} value={type}>{t(`pages.networkMap.nodeTypes.${type}`)}</option>)}</select></div></CardHeader>
-          <CardContent className="p-0"><div ref={wrapperRef} className="relative h-[calc(100vh-260px)] min-h-[680px] bg-white">{!hasOpenCanvas ? <EmptyCanvasState title={allTopologies.length > 0 ? "No diagram opened" : t("pages.networkMap.documents.empty")} description={allTopologies.length > 0 ? "Select a diagram in the file browser and click Open to load it on the canvas." : "Create a new diagram or import JSON to begin."} primaryAction={allTopologies.length > 0 ? <Button size="sm" onClick={openSelectedDocument} disabled={selectedDocumentId === null}>{t("pages.serialMap.actions.open")}</Button> : <Button size="sm" onClick={handleStartNewDocument} disabled={readOnly}><Plus className="h-4 w-4" />{t("pages.networkMap.documents.newDocument")}</Button>} secondaryAction={<Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={readOnly}><Upload className="h-4 w-4" />{t("actions.import")}</Button>} /> : null}<ReactFlow nodes={rfNodes} edges={rfEdges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} defaultViewport={{ x: topology.viewport?.x || 0, y: topology.viewport?.y || 0, zoom: topology.zoom || 1 }} onInit={(instance) => { flowRef.current = instance; if (topology.viewport) instance.setViewport({ x: topology.viewport.x, y: topology.viewport.y, zoom: topology.zoom || 1 }); }} onNodesChange={handleNodesChange} onConnect={handleConnect} onSelectionChange={({ nodes, edges }) => { setSelectedNodeIds(nodes.map((node) => node.id)); setSelectedEdgeId(edges[0]?.id || null); }} onNodeClick={(_, node) => { if (handleNodeLinkPick(node.id)) return; setSelectedNodeIds([node.id]); setSelectedEdgeId(null); setInspectorTab("selection"); }} onEdgeClick={(_, edge) => { setSelectedNodeIds([]); setSelectedEdgeId(edge.id); setInspectorTab("selection"); }} onPaneClick={() => { setSelectedNodeIds([]); setSelectedEdgeId(null); if (linkCreationMode === "picking") setPendingLinkStartId(null); }} onEdgesDelete={(edges) => { if (readOnly) return; mutateTopology((current) => ({ ...current, edges: current.edges.filter((edge) => !edges.some((removed) => removed.id === edge.id)) })); }} onNodesDelete={(nodes) => { if (readOnly) return; mutateTopology((current) => deleteNodes(current, nodes.map((node) => node.id))); }} onMoveEnd={handleMoveEnd} fitView selectionOnDrag multiSelectionKeyCode={["Meta", "Control"]} deleteKeyCode={readOnly ? null : ["Backspace", "Delete"]} nodesDraggable={!readOnly && hasOpenCanvas} nodesConnectable={!readOnly && hasOpenCanvas} panOnScroll minZoom={0.35} maxZoom={1.8} proOptions={{ hideAttribution: true }}>{showGrid ? <Background color="rgba(148, 163, 184, 0.18)" gap={24} /> : null}{showMiniMap ? <MiniMap pannable zoomable className="!bottom-6 !right-6 !h-[120px] !w-[170px] !border !border-slate-200 !bg-white" /> : null}</ReactFlow><div className="pointer-events-none absolute bottom-4 left-4 border border-slate-200 bg-white/90 px-3 py-2 text-[11px] text-slate-500 shadow-sm"><div className="flex items-center gap-2"><Grip className="h-3.5 w-3.5" /> {t("pages.networkMap.canvas.hints.pan")}</div><div className="mt-1 flex items-center gap-2"><ArrowDownUp className="h-3.5 w-3.5" /> {t("pages.networkMap.canvas.hints.select")}</div></div></div></CardContent>
+          <div className="border-b border-slate-200 bg-slate-50/70 px-4 py-3">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                <Menubar className="w-fit">
+                  <MenubarMenu>
+                    <MenubarTrigger>Правка</MenubarTrigger>
+                    <MenubarContent>
+                      <MenubarLabel>Выделение</MenubarLabel>
+                      <MenubarItem onClick={copySelection} disabled={!canCopySelection}><span>Копировать</span><MenubarShortcut>Ctrl/Cmd+C</MenubarShortcut></MenubarItem>
+                      <MenubarItem onClick={pasteSelection} disabled={!canPasteSelection}><span>Вставить</span><MenubarShortcut>Ctrl/Cmd+V</MenubarShortcut></MenubarItem>
+                      <MenubarSeparator />
+                      <MenubarLabel>Изменить</MenubarLabel>
+                      <MenubarItem onClick={duplicateSelection} disabled={!canDuplicateSelection}><span>Дублировать</span><MenubarShortcut>Ctrl/Cmd+D</MenubarShortcut></MenubarItem>
+                      <MenubarItem onClick={() => { setInspectorTab("selection"); if (!isInspectorDrawerOpen) setIsInspectorDrawerOpen(true); }} disabled={!selectedCount}><span>Редактировать</span></MenubarItem>
+                      <MenubarItem className="text-red-600 hover:bg-red-50" onClick={() => { void handleDeleteSelection(); }} disabled={!canDeleteSelection}><span>Удалить</span><MenubarShortcut>Del</MenubarShortcut></MenubarItem>
+                    </MenubarContent>
+                  </MenubarMenu>
+                  <MenubarMenu>
+                    <MenubarTrigger>Вид</MenubarTrigger>
+                    <MenubarContent>
+                      <MenubarCheckboxItem checked={showMiniMap} onClick={() => setShowMiniMap((value) => !value)}>Миникарта</MenubarCheckboxItem>
+                      <MenubarCheckboxItem checked={showGrid} onClick={() => setShowGrid((value) => !value)}>Сетка</MenubarCheckboxItem>
+                      <MenubarSeparator />
+                      <MenubarItem onClick={resetView} disabled={!hasOpenCanvas}><span>Сбросить вид</span><MenubarShortcut>1:1</MenubarShortcut></MenubarItem>
+                    </MenubarContent>
+                  </MenubarMenu>
+                </Menubar>
+                <Button size="icon" variant="outline" onClick={undo} disabled={!history.past.length} title="Отменить"><ArrowDownUp className="h-4 w-4 rotate-90" /></Button>
+                <Button size="icon" variant="outline" onClick={redo} disabled={!history.future.length} title="Повторить"><ArrowDownUp className="h-4 w-4 -rotate-90" /></Button>
+                <div className="mx-1 hidden h-6 w-px bg-slate-200 xl:block" />
+                <Button size="icon" variant={toolMode === "select" ? "default" : "outline"} onClick={() => { setPendingConnectId(null); setToolMode("select"); }} disabled={!hasOpenCanvas} title="Курсор"><MousePointer2 className="h-4 w-4" /></Button>
+                <Button size="icon" variant={toolMode === "pan" ? "default" : "outline"} onClick={() => { setPendingConnectId(null); setToolMode((value) => value === "pan" ? "select" : "pan"); }} disabled={!hasOpenCanvas} title="Рука"><Hand className="h-4 w-4" /></Button>
+                <div className="mx-1 hidden h-6 w-px bg-slate-200 xl:block" />
+                <Button size="icon" variant="outline" onClick={copySelection} disabled={!canCopySelection} title="Копировать"><Copy className="h-4 w-4" /></Button>
+                <Button size="icon" variant="outline" onClick={pasteSelection} disabled={!canPasteSelection} title="Вставить"><ClipboardPaste className="h-4 w-4" /></Button>
+                <Button size="icon" variant="outline" onClick={duplicateSelection} disabled={!canDuplicateSelection} title="Дублировать"><CopyPlus className="h-4 w-4" /></Button>
+                <Button size="icon" variant="outline" onClick={() => { void handleDeleteSelection(); }} disabled={!canDeleteSelection} title="Удалить"><Trash2 className="h-4 w-4" /></Button>
+                <div className="mx-1 hidden h-6 w-px bg-slate-200 xl:block" />
+                <div ref={addNodeMenuRef} className="relative">
+                  <Button size="icon" variant="outline" onClick={() => setIsAddNodeMenuOpen((value) => !value)} disabled={readOnly || !hasOpenCanvas} title="Добавить узел"><Plus className="h-4 w-4" /></Button>
+                  {isAddNodeMenuOpen ? <div className="absolute left-0 top-full z-20 mt-2 max-h-72 w-48 overflow-auto border border-slate-200 bg-white p-1 shadow-lg">{NETWORK_NODE_TYPES.map((type) => <button key={type} type="button" className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50" onClick={() => { addManualNode(type); setIsAddNodeMenuOpen(false); }}>{getNodeTypeLabel(type)}</button>)}</div> : null}
+                </div>
+                <Button size="icon" variant={toolMode === "connect" ? "default" : "outline"} onClick={() => setToolMode((value) => value === "connect" ? "select" : "connect")} disabled={readOnly || !hasOpenCanvas} title="Режим связи"><Link2 className="h-4 w-4" /></Button>
+                <Button size="icon" variant="outline" onClick={() => { mutateCurrentTopology((document) => autoLayout(document)); commitUserAction(); }} disabled={!hasOpenCanvas} title="Автораскладка"><Rows3 className="h-4 w-4" /></Button>
+                <Button size="icon" variant="outline" onClick={fitView} disabled={!hasOpenCanvas} title="Уместить"><Minimize2 className="h-4 w-4" /></Button>
+                <Button size="icon" variant="outline" onClick={() => void toggleFullscreen()} disabled={!hasOpenCanvas} title={isFullscreen ? "Свернуть из полноэкранного режима" : "Развернуть на весь экран"}>{isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</Button>
+              </div>
+
+              <div className="flex flex-col gap-3 xl:items-end">
+                <div ref={searchPanelRef} className="relative min-w-0 xl:w-[280px]">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input className="pl-9" value={canvasSearch} onChange={(event) => { setCanvasSearch(event.target.value); setIsSearchResultsOpen(event.target.value.trim().length > 0); }} onFocus={() => setIsSearchResultsOpen(canvasSearch.trim().length > 0)} placeholder="Поиск узлов по имени, IP, VLAN и зоне" />
+                  {canvasSearch.trim() && isSearchResultsOpen ? <div className="absolute left-0 top-full z-20 mt-2 max-h-72 w-full overflow-auto border border-slate-200 bg-white shadow-lg">{searchResults.length ? searchResults.map((node) => <button key={node.id} type="button" className="block w-full border-b border-slate-100 px-3 py-2 text-left hover:bg-slate-50 last:border-b-0" onClick={() => focusSearchResult(node.id)}><div className="truncate text-sm font-semibold text-slate-900">{node.name}</div><div className="mt-1 text-xs text-slate-500">{getNodeTypeLabel(node.type)} · {node.ip || "IP не задан"}{node.vlan ? ` · VLAN ${node.vlan}` : ""}</div></button>) : <div className="px-3 py-3 text-sm text-slate-500">Совпадений не найдено.</div>}</div> : null}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline">Выбор: {selectedCount}</Badge>
+                  <Badge variant="outline">{Math.round((topology.zoom ?? defaultZoom) * 100)}%</Badge>
+                  <Badge variant="outline">Политики: {totalPolicies}</Badge>
+                  <Badge variant={saveState === "error" ? "destructive" : saveState === "saved" ? "success" : "secondary"}>{saveStateLabel}</Badge>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <div className="min-w-0">
+              <CardTitle>Холст сетевой топологии</CardTitle>
+              <CardDescription>{visibleNodes.length} видимых узлов, {topology.edges.length} видимых связей</CardDescription>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-0">
+            <div
+              ref={wrapperRef}
+              onWheel={handleWheel}
+              onPointerDown={beginCanvasInteraction}
+              onDrop={(event) => { void handleDropImport(event); }}
+              onDragOver={(event) => event.preventDefault()}
+              className={cn("relative h-[calc(100vh-260px)] min-h-[680px] overflow-hidden bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.98),rgba(239,246,255,0.95))]", isFullscreen && "h-screen min-h-screen bg-white")}
+            >
+              {!hasOpenCanvas ? <EmptyCanvasState title={allTopologies.length > 0 ? "Нет открытой схемы" : "Сетевые схемы не найдены"} description={allTopologies.length > 0 ? "Выберите схему в файловом sidebar и нажмите Открыть." : "Создайте новую схему или импортируйте JSON, чтобы начать."} primaryAction={allTopologies.length > 0 ? <Button size="sm" onClick={openSelectedDocument} disabled={selectedDocumentId === null}>Открыть</Button> : <Button size="sm" onClick={openCreateDialog} disabled={readOnly}><Plus className="h-4 w-4" />Новая схема</Button>} secondaryAction={<Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={readOnly}><Upload className="h-4 w-4" />Импорт</Button>} /> : null}
+              <svg width="100%" height="100%" style={{ display: "block" }}>
+                <defs><pattern id="network-grid" width={showGrid ? 32 : 99999} height={showGrid ? 32 : 99999} patternUnits="userSpaceOnUse"><path d={`M ${showGrid ? 32 : 99999} 0 L 0 0 0 ${showGrid ? 32 : 99999}`} fill="none" stroke="#cbd5e1" strokeWidth="1" opacity="0.75" /></pattern></defs>
+                <rect width="100%" height="100%" fill="url(#network-grid)" />
+                <g transform={`translate(${topology.viewport?.x || 0} ${topology.viewport?.y || 0}) scale(${topology.zoom ?? defaultZoom})`}>
+                  {topology.edges.map((edge) => {
+                    const from = topology.nodes.find((node) => node.id === edge.from);
+                    const to = topology.nodes.find((node) => node.id === edge.to);
+                    if (!from || !to) return null;
+                    const a = centerOf(from);
+                    const b = centerOf(to);
+                    const traced = tracedPath.edgeIds.includes(edge.id);
+                    const selected = selectedEdgeId === edge.id;
+                    const stroke = getEdgeStroke(edge, selected, traced);
+                    return <g key={edge.id} onPointerDown={(event) => { event.stopPropagation(); setSelectedEdgeId(edge.id); setSelectedNodeIds([]); setInspectorTab("selection"); }}><path d={edgePath(edge)} fill="none" stroke={selected ? "rgba(37,99,235,0.18)" : "rgba(15,23,42,0.08)"} strokeWidth={stroke.width + 5} strokeLinecap="round" /><path d={edgePath(edge)} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeDasharray={stroke.dash} strokeLinecap="round" /><text x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - 10} fill={selected ? "#2563eb" : "#334155"} fontSize="11" fontWeight="700" textAnchor="middle">{edge.label || edge.network || edge.style}</text></g>;
+                  })}
+                  {topology.nodes.map((node) => {
+                    const palette = getStatusPalette(node.status);
+                    const selected = selectedNodeIds.includes(node.id);
+                    const traced = tracedPath.nodeIds.includes(node.id);
+                    const visible = visibleNodeIds.has(node.id);
+                    const headerFill = traced ? "#dbeafe" : palette.soft;
+                    const stroke = selected ? "#2563eb" : traced ? "#60a5fa" : palette.stroke;
+                    return <g key={node.id} transform={`translate(${node.x} ${node.y})`} onPointerDown={(event) => beginNodeInteraction(event, node.id)} style={{ cursor: toolMode === "connect" ? "crosshair" : "grab", opacity: visible ? 1 : 0.35 }}><rect width={nodeWidth} height={nodeHeight} rx="4" fill="#ffffff" stroke={stroke} strokeWidth={selected ? 4 : 2.2} filter={selected ? "drop-shadow(0 12px 18px rgba(37,99,235,0.18))" : "drop-shadow(0 10px 18px rgba(15,23,42,0.10))"} /><rect width={nodeWidth} height="28" fill={headerFill} /><text x="14" y="19" fill="#0f172a" fontSize="12" fontWeight="800">{getNodeTypeLabel(node.type).toUpperCase()}</text><text x="14" y="50" fill="#0f172a" fontSize="16" fontWeight="800">{node.name}</text><text x="14" y="68" fill="#475569" fontSize="12" fontWeight="700">{node.ip || "IP не задан"}{node.vlan ? ` · VLAN ${node.vlan}` : ""}</text><text x="14" y="84" fill="#64748b" fontSize="11" fontWeight="700">{node.model || node.layer}</text><text x="14" y="98" fill="#94a3b8" fontSize="10" fontWeight="700">{node.zone || node.os || "Без зоны"}</text>{pendingConnectId === node.id ? <circle cx={nodeWidth - 18} cy={16} r={7} fill="#2563eb" /> : null}</g>;
+                  })}
+                  {logicalSelectionRect ? <rect x={logicalSelectionRect.x} y={logicalSelectionRect.y} width={logicalSelectionRect.width} height={logicalSelectionRect.height} fill="rgba(37,99,235,0.12)" stroke="#2563eb" strokeDasharray="8 6" /> : null}
+                </g>
+              </svg>
+              {isFullscreen ? <div className="absolute right-4 top-4 z-20 w-[min(360px,calc(100vw-32px))]" onPointerDown={(event) => event.stopPropagation()}>{inspectorPanel}</div> : null}
+              {showMiniMap ? <Card className="absolute bottom-4 right-4 w-[190px] rounded-none border-slate-200 bg-white/95 shadow-sm"><CardContent className="p-3"><div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Миникарта</div><svg width="100%" height="120" viewBox={`${miniMapViewBox.x} ${miniMapViewBox.y} ${miniMapViewBox.width} ${miniMapViewBox.height}`} onPointerDown={handleMiniMapPointerDown} style={{ cursor: "pointer" }}>{topology.edges.map((edge) => <path key={edge.id} d={edgePath(edge)} fill="none" stroke="#94a3b8" strokeWidth="8" strokeLinecap="round" />)}{topology.nodes.map((node) => <rect key={node.id} x={node.x} y={node.y} width={nodeWidth} height={nodeHeight} fill={selectedNodeIds.includes(node.id) ? "#93c5fd" : "#e2e8f0"} stroke="#64748b" strokeWidth="3" onPointerDown={(event) => { event.stopPropagation(); focusNode(node.id); }} style={{ cursor: "pointer" }} />)}{miniMapViewportRect ? <rect x={miniMapViewportRect.x} y={miniMapViewportRect.y} width={miniMapViewportRect.width} height={miniMapViewportRect.height} fill="rgba(37,99,235,0.08)" stroke="#2563eb" strokeWidth="4" pointerEvents="none" /> : null}</svg></CardContent></Card> : null}
+              <div className="pointer-events-none absolute bottom-4 left-4 border border-slate-200 bg-white/90 px-3 py-2 text-[11px] text-slate-500 shadow-sm"><div className="flex items-center gap-2"><Grip className="h-3.5 w-3.5" /> Панорама: drag по пустому холсту или wheel</div><div className="mt-1 flex items-center gap-2"><ArrowDownUp className="h-3.5 w-3.5" /> Выбор: клик, Shift-мультивыбор или рамка</div><div className="mt-1 flex items-center gap-2"><Route className="h-3.5 w-3.5" /> Маршрут и диагностика управляются справа</div></div>
+            </div>
+          </CardContent>
         </Card>
-        <div className="hidden xl:block xl:sticky xl:top-4 xl:self-start xl:max-h-[calc(100vh-24px)]">{inspectorPanel}</div>
+        {!isFullscreen ? <div className="hidden xl:block xl:sticky xl:top-4 xl:self-start xl:max-h-[calc(100vh-24px)]">{inspectorPanel}</div> : null}
       </div>
-      {isSidebarDrawerOpen ? <div className="fixed inset-0 z-50 bg-slate-900/35 xl:hidden" onClick={() => setIsSidebarDrawerOpen(false)}><div className="h-full w-[min(92vw,360px)] bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}><div className="mb-3 flex items-center justify-between"><div className="text-sm font-semibold text-slate-900">{t("pages.networkMap.documents.title")}</div><Button size="sm" variant="outline" onClick={() => setIsSidebarDrawerOpen(false)}>{t("actions.close")}</Button></div>{sidebarPanel}</div></div> : null}
-      {isInspectorDrawerOpen ? <div className="fixed inset-0 z-50 bg-slate-900/35 xl:hidden" onClick={() => setIsInspectorDrawerOpen(false)}><div className="ml-auto h-full w-[min(94vw,420px)] bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}><div className="mb-3 flex items-center justify-between"><div className="text-sm font-semibold text-slate-900">{t("pages.networkMap.properties.title")}</div><Button size="sm" variant="outline" onClick={() => setIsInspectorDrawerOpen(false)}>{t("actions.close")}</Button></div>{inspectorPanel}</div></div> : null}
+
+      {isCreateDialogOpen ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/35 p-4" onClick={() => setIsCreateDialogOpen(false)}><div className="w-full max-w-md border border-slate-200 bg-white p-5 shadow-xl" onClick={(event) => event.stopPropagation()}><div className="text-lg font-semibold text-slate-900">Новая схема</div><div className="mt-1 text-sm text-slate-500">Укажите имя новой сетевой схемы перед созданием серверного документа.</div><div className="mt-4 space-y-3"><div className="space-y-1.5"><div className="text-sm font-medium text-slate-900">Название</div><Input value={createNameDraft} onChange={(event) => setCreateNameDraft(event.target.value)} placeholder="Название схемы" autoFocus /></div><div className="space-y-1.5"><div className="text-sm font-medium text-slate-900">Описание</div><Input value={createDescriptionDraft} onChange={(event) => setCreateDescriptionDraft(event.target.value)} placeholder="Описание (необязательно)" /></div></div><div className="mt-5 flex flex-wrap justify-end gap-2"><Button size="sm" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Отмена</Button><Button size="sm" onClick={() => { void handleCreateDocumentConfirm(); }} disabled={!createNameDraft.trim() || readOnly}><Plus className="h-4 w-4" />Создать</Button></div></div></div> : null}
+      {pendingDeleteDocument ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/35 p-4" onClick={() => setPendingDeleteDocument(null)}><div className="w-full max-w-md border border-slate-200 bg-white p-5 shadow-xl" onClick={(event) => event.stopPropagation()}><div className="text-lg font-semibold text-slate-900">Удалить схему?</div><div className="mt-2 text-sm text-slate-500">Схема <span className="font-semibold text-slate-900">"{pendingDeleteDocument.name}"</span> будет удалена с сервера. Это действие нельзя отменить.</div><div className="mt-5 flex flex-wrap justify-end gap-2"><Button size="sm" variant="outline" onClick={() => setPendingDeleteDocument(null)}>Отмена</Button><Button size="sm" variant="destructive" onClick={() => { void handleDeleteDocument(pendingDeleteDocument.id); }} disabled={readOnly}><Trash2 className="h-4 w-4" />Удалить</Button></div></div></div> : null}
+      {isSidebarDrawerOpen ? <div className="fixed inset-0 z-50 bg-slate-900/35 xl:hidden" onClick={() => setIsSidebarDrawerOpen(false)}><div className="h-full w-[min(92vw,360px)] bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}><div className="mb-3 flex items-center justify-between"><div className="text-sm font-semibold text-slate-900">Контуры</div><Button size="sm" variant="outline" onClick={() => setIsSidebarDrawerOpen(false)}>Закрыть</Button></div>{sidebarPanel}</div></div> : null}
+      {isInspectorDrawerOpen ? <div className="fixed inset-0 z-50 bg-slate-900/35 xl:hidden" onClick={() => setIsInspectorDrawerOpen(false)}><div className="ml-auto h-full w-[min(94vw,420px)] bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}><div className="mb-3 flex items-center justify-between"><div className="text-sm font-semibold text-slate-900">Свойства</div><Button size="sm" variant="outline" onClick={() => setIsInspectorDrawerOpen(false)}>Закрыть</Button></div>{inspectorPanel}</div></div> : null}
     </div>
   );
 }

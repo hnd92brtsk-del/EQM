@@ -95,6 +95,11 @@
     "personnel_details": "Карточка сотрудника",
     "personnel_schedule": "Годовой планировщик",
     "helpTableOfContents": "Содержание",
+    "helpSearchLabel": "Поиск по помощи",
+    "helpSearchPlaceholder": "Ищите по теме, команде, ошибке, сервису или термину",
+    "helpSearchResultsTitle": "Найдено: {{count}}",
+    "helpSearchEmpty": "По текущему запросу подходящих разделов помощи не найдено.",
+    "helpSectionMatches": "Подходящие подразделы:",
     "networkMap": {
       "title": "Карта сети",
       "defaultName": "Карта сети",

@@ -2,9 +2,11 @@ import { apiFetch } from "./client";
 import { buildQuery, type Pagination } from "./entities";
 
 export type DiagnosticsStatus = "healthy" | "warning" | "critical" | "unknown";
-export type DiagnosticsSeverity = "info" | "warning" | "error" | "critical";
+export type DiagnosticsSeverity = "warning" | "critical";
 export type DiagnosticsSource = "server" | "postgres" | "backend" | "frontend";
 export type DiagnosticsEnvironment = "local" | "nginx" | "docker";
+export type DiagnosticsEnvironmentMode = "local" | "docker" | "nginx" | "mixed" | "unknown";
+export type DiagnosticsSourceKind = "local_process" | "docker_container" | "proxy" | "config" | "unknown";
 
 export type DiagnosticsCommandGroup = {
   environment: DiagnosticsEnvironment;
@@ -22,6 +24,11 @@ export type DiagnosticsPort = {
   command_line: string | null;
   service: string | null;
   detected_service: string | null;
+  port_role: string | null;
+  owner_role: string | null;
+  source_kind: DiagnosticsSourceKind;
+  is_primary_listener: boolean;
+  explanation: string | null;
   issues: string[];
 };
 
@@ -36,6 +43,12 @@ export type DiagnosticsProcess = {
   started_at: string | null;
   uptime_seconds: number | null;
   ports: number[];
+  role: string | null;
+  source_kind: DiagnosticsSourceKind;
+  runtime_root_pid: number | null;
+  is_primary_runtime: boolean;
+  is_auxiliary_runtime: boolean;
+  explanation: string | null;
   suspicious_reasons: string[];
   can_kill: boolean;
 };
@@ -49,18 +62,77 @@ export type DiagnosticsService = {
   listener_pid: number | null;
   http_ok: boolean | null;
   process_count: number;
+  process_count_total: number;
+  process_count_primary: number;
+  process_count_auxiliary: number;
   warning_count: number;
   error_count: number;
   issues: string[];
   checked_at: string;
 };
 
+export type DiagnosticsDatabaseTable = {
+  table_name: string;
+  row_count: number;
+  table_bytes: number;
+  index_bytes: number;
+  total_bytes: number;
+};
+
+export type DiagnosticsDatabaseOverview = {
+  database_name: string;
+  host: string;
+  port: number;
+  user: string;
+  database_bytes: number;
+  table_count: number;
+  total_rows: number;
+  tables: DiagnosticsDatabaseTable[];
+  issues: string[];
+};
+
+export type DiagnosticsRuntimeTopology = {
+  environment_mode: DiagnosticsEnvironmentMode;
+  public_entrypoint: string | null;
+  frontend_url: string;
+  frontend_api_base: string;
+  backend_base_url: string;
+  backend_http_url: string | null;
+  backend_listener_pid: number | null;
+  backend_listener_port: number | null;
+  backend_http_ok: boolean | null;
+  database_dsn: string;
+  database_host: string;
+  database_port: number;
+  database_name: string;
+  database_user: string;
+  is_frontend_backend_match: boolean;
+  is_backend_database_local: boolean;
+  status: DiagnosticsStatus;
+  nodes: DiagnosticsRuntimeNode[];
+  issues: string[];
+};
+
+export type DiagnosticsRuntimeNode = {
+  key: string;
+  label: string;
+  source_kind: DiagnosticsSourceKind;
+  endpoint: string | null;
+  target?: string | null;
+  status: DiagnosticsStatus;
+  details: string[];
+};
+
 export type DiagnosticsSummary = {
   checked_at: string;
   host: string;
   refresh_seconds: number;
+  environment_mode: DiagnosticsEnvironmentMode;
+  public_entrypoint: string | null;
   services: DiagnosticsService[];
   ports: DiagnosticsPort[];
+  database_overview: DiagnosticsDatabaseOverview;
+  runtime_topology: DiagnosticsRuntimeTopology;
   process_count: number;
   warning_count: number;
   error_count: number;

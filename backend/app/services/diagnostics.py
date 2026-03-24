@@ -1,28 +1,36 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import socket
+import subprocess
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Iterable
-from urllib.error import URLError
+from urllib.parse import urlparse
 from urllib.parse import quote, unquote
 from urllib.request import urlopen
 
 import psutil
 from fastapi import HTTPException, status
+from sqlalchemy import text
 
-from app.core.config import BASE_DIR
+from app.core.config import BASE_DIR, get_settings
+from app.db.session import engine
 from app.schemas.diagnostics import (
     DiagnosticsCommandGroupOut,
+    DiagnosticsDatabaseOverviewOut,
+    DiagnosticsDatabaseTableOut,
     DiagnosticsDeleteLogsOut,
     DiagnosticsLogEntryOut,
     DiagnosticsLogsPageOut,
     DiagnosticsPortOut,
     DiagnosticsProcessKillOut,
     DiagnosticsProcessOut,
+    DiagnosticsRuntimeNodeOut,
+    DiagnosticsRuntimeTopologyOut,
     DiagnosticsServiceOut,
     DiagnosticsSummaryOut,
 )
@@ -34,6 +42,7 @@ RETENTION_HOURS = 24
 REFRESH_SECONDS = 3600
 MAX_STORED_LOG_LINES = 300
 MAX_LINES_PER_FILE = 1200
+settings = get_settings()
 
 SERVICE_DEFINITIONS = {
     "postgres": {
@@ -142,6 +151,23 @@ KNOWN_ERROR_RULES = (
 )
 
 CRITICAL_SERVICE_ISSUES = {"listener_missing", "http_probe_failed", "foreign_listener"}
+PRIMARY_PROCESS_ROLES = {"uvicorn_worker", "vite_node", "postmaster"}
+BENIGN_AUXILIARY_ROLES = {
+    "reload_watcher",
+    "shell_wrapper",
+    "backend_connection",
+    "bgworker",
+    "checkpointer",
+    "walwriter",
+    "autovacuum_launcher",
+    "logical_replication_launcher",
+    "forkaux",
+    "forkbackend",
+}
+PUBLIC_URL_ENV_KEYS = ("EQM_PUBLIC_URL", "PUBLIC_BASE_URL", "NGINX_PUBLIC_URL")
+BACKEND_URL_ENV_KEYS = ("EQM_BACKEND_PUBLIC_URL", "BACKEND_PUBLIC_URL", "API_PUBLIC_URL")
+FRONTEND_URL_ENV_KEYS = ("EQM_FRONTEND_URL", "FRONTEND_PUBLIC_URL")
+FRONTEND_API_ENV_KEYS = ("VITE_API_URL", "EQM_FRONTEND_API_URL")
 
 
 def utc_now() -> datetime:
@@ -204,6 +230,385 @@ def classify_service(command_line: str, name: str, executable: str | None = None
     return None
 
 
+def infer_process_role(service: str | None, name: str, command_line: str | None, ports: list[int]) -> str | None:
+    if not service:
+        return None
+    normalized = " ".join(filter(None, [name, command_line or ""])).lower()
+    if service == "backend":
+        if 8000 in ports:
+            return "uvicorn_worker"
+        if "uvicorn" in normalized:
+            return "reload_watcher"
+        if name.lower() in {"cmd.exe", "powershell.exe", "pwsh.exe"}:
+            return "shell_wrapper"
+        return "backend_aux"
+    if service == "frontend":
+        if 5173 in ports:
+            return "vite_node"
+        if name.lower() in {"cmd.exe", "powershell.exe", "pwsh.exe"} or " vite" in normalized:
+            return "shell_wrapper"
+        return "frontend_aux"
+    if service == "postgres":
+        if 5432 in ports:
+            return "postmaster"
+        if "-forkbackend" in normalized:
+            return "backend_connection"
+        if "-forkbgworker" in normalized:
+            return "bgworker"
+        if "checkpointer" in normalized:
+            return "checkpointer"
+        if "walwriter" in normalized:
+            return "walwriter"
+        if "autovacuum launcher" in normalized:
+            return "autovacuum_launcher"
+        if "logical replication launcher" in normalized:
+            return "logical_replication_launcher"
+        if "-forkaux" in normalized:
+            return "forkaux"
+        if name.lower() in {"cmd.exe", "powershell.exe", "pwsh.exe"}:
+            return "shell_wrapper"
+        return "forkbackend"
+    return None
+
+
+def explain_process_role(service: str | None, role: str | None) -> str | None:
+    if not service or not role:
+        return None
+    explanations = {
+        "uvicorn_worker": "Основной HTTP-процесс backend.",
+        "reload_watcher": "Служебный reload-процесс backend, который перезапускает рабочий процесс при изменении кода.",
+        "vite_node": "Основной Node/Vite процесс frontend, который слушает dev-порт.",
+        "shell_wrapper": "Shell-обёртка, через которую запускался сервис.",
+        "postmaster": "Основной listener PostgreSQL.",
+        "backend_connection": "Внутренний дочерний процесс PostgreSQL для обслуживания backend-соединения.",
+        "bgworker": "Фоновый worker PostgreSQL.",
+        "checkpointer": "Служебный процесс PostgreSQL для checkpoint.",
+        "walwriter": "Служебный процесс PostgreSQL для записи WAL.",
+        "autovacuum_launcher": "Служебный launcher autovacuum PostgreSQL.",
+        "logical_replication_launcher": "Служебный launcher logical replication PostgreSQL.",
+        "forkaux": "Внутренний вспомогательный процесс PostgreSQL.",
+        "forkbackend": "Внутренний дочерний процесс PostgreSQL.",
+        "backend_aux": "Вспомогательный процесс backend.",
+        "frontend_aux": "Вспомогательный процесс frontend.",
+    }
+    return explanations.get(role, f"Вспомогательный процесс сервиса {service}.")
+
+
+def explain_port(service: str | None, port_role: str | None) -> str | None:
+    if not service or not port_role:
+        return None
+    explanations = {
+        "frontend_primary": "Основной порт frontend dev-сервера.",
+        "backend_primary": "Основной порт backend API.",
+        "postgres_primary": "Основной порт PostgreSQL.",
+    }
+    return explanations.get(port_role, f"Слушающий порт сервиса {service}.")
+
+
+def classify_port_role(service: str | None, port: int, owner_role: str | None) -> str | None:
+    if service == "frontend" and port == 5173:
+        return "frontend_primary"
+    if service == "backend" and port == 8000:
+        return "backend_primary"
+    if service == "postgres" and port == 5432 and owner_role == "postmaster":
+        return "postgres_primary"
+    return None
+
+
+def derive_runtime_root_pid(process: DiagnosticsProcessOut, processes_by_pid: dict[int, DiagnosticsProcessOut]) -> int:
+    current = process
+    visited: set[int] = set()
+    while current.parent_pid and current.parent_pid not in visited:
+        visited.add(current.pid)
+        parent = processes_by_pid.get(current.parent_pid)
+        if parent is None or parent.service != process.service:
+            break
+        current = parent
+    return current.pid
+
+
+def get_first_env(keys: Iterable[str]) -> str | None:
+    for key in keys:
+        value = os.getenv(key)
+        if value and value.strip():
+            return value.strip()
+    return None
+
+
+def run_command(command: list[str]) -> str | None:
+    try:
+        completed = subprocess.run(command, capture_output=True, text=True, timeout=2, check=False)  # noqa: S603
+    except Exception:  # noqa: BLE001
+        return None
+    if completed.returncode != 0:
+        return None
+    output = completed.stdout.strip()
+    return output or None
+
+
+def detect_docker_runtime() -> tuple[bool, list[str], dict[str, bool]]:
+    details: list[str] = []
+    services = {"frontend": False, "backend": False, "postgres": False}
+    docker_present = False
+
+    if os.getenv("RUNNING_IN_DOCKER") or os.getenv("DOTNET_RUNNING_IN_CONTAINER") or Path("/.dockerenv").exists():
+        docker_present = True
+        details.append("Обнаружены маркеры контейнерного окружения.")
+
+    docker_ps = run_command(["docker", "ps", "--format", "{{.Names}}|{{.Image}}|{{.Ports}}"])
+    if docker_ps:
+        docker_present = True
+        for raw_line in docker_ps.splitlines():
+            line = raw_line.lower()
+            if "front" in line or "vite" in line or "nginx" in line:
+                services["frontend"] = True
+            if "back" in line or "uvicorn" in line or "fastapi" in line:
+                services["backend"] = True
+            if "postgres" in line or "postgis" in line:
+                services["postgres"] = True
+        details.append("Docker CLI вернул список активных контейнеров.")
+
+    return docker_present, details, services
+
+
+def detect_nginx_runtime() -> tuple[bool, str | None, list[str]]:
+    details: list[str] = []
+    public_entrypoint = get_first_env(PUBLIC_URL_ENV_KEYS)
+    nginx_present = False
+
+    if public_entrypoint:
+        nginx_present = True
+        details.append("Публичный URL задан через переменные окружения.")
+
+    try:
+        for proc in psutil.process_iter(["name", "cmdline"]):
+            name = (proc.info.get("name") or "").lower()
+            cmdline = " ".join(proc.info.get("cmdline") or []).lower()
+            if "nginx" in name or "nginx" in cmdline:
+                nginx_present = True
+                details.append("Найден локальный nginx-процесс.")
+                break
+    except (psutil.Error, OSError):
+        pass
+
+    try:
+        for connection in psutil.net_connections(kind="inet"):
+            if connection.status != psutil.CONN_LISTEN or not connection.laddr:
+                continue
+            if connection.laddr.port in {80, 443}:
+                nginx_present = True
+                details.append(f"Обнаружен proxy/listener на порту {connection.laddr.port}.")
+                break
+    except (psutil.Error, OSError):
+        pass
+
+    return nginx_present, public_entrypoint, details
+
+
+def parse_frontend_api_base() -> str:
+    env_value = get_first_env(FRONTEND_API_ENV_KEYS)
+    if env_value:
+        return env_value
+    client_path = PROJECT_ROOT / "frontend" / "src" / "api" / "client.ts"
+    default_value = "http://localhost:8000/api/v1"
+    if not client_path.exists():
+        return default_value
+    try:
+        content = client_path.read_text(encoding="utf-8")
+    except OSError:
+        return default_value
+    match = re.search(r'VITE_API_URL\s*\|\|\s*"([^"]+)"', content)
+    return match.group(1) if match else default_value
+
+
+def build_database_dsn() -> str:
+    return f"postgresql://{settings.db_user}@{settings.db_host}:{settings.db_port}/{settings.db_name}"
+
+
+def collect_database_overview() -> DiagnosticsDatabaseOverviewOut:
+    issues: list[str] = []
+    tables: list[DiagnosticsDatabaseTableOut] = []
+    database_bytes = 0
+    try:
+        with engine.connect() as connection:
+            database_bytes = int(connection.execute(text("SELECT pg_database_size(current_database())")).scalar_one())
+            table_rows = connection.execute(
+                text(
+                    """
+                    SELECT c.relname AS table_name,
+                           pg_relation_size(c.oid) AS table_bytes,
+                           pg_indexes_size(c.oid) AS index_bytes,
+                           pg_total_relation_size(c.oid) AS total_bytes
+                    FROM pg_class c
+                    JOIN pg_namespace n ON n.oid = c.relnamespace
+                    WHERE n.nspname = 'public'
+                      AND c.relkind = 'r'
+                      AND c.relname <> 'alembic_version'
+                    ORDER BY pg_total_relation_size(c.oid) DESC, c.relname
+                    """
+                )
+            ).mappings().all()
+            for row in table_rows:
+                table_name = str(row["table_name"])
+                quoted_table = table_name.replace('"', '""')
+                row_count = int(connection.execute(text(f'SELECT COUNT(*) FROM public."{quoted_table}"')).scalar_one())
+                tables.append(
+                    DiagnosticsDatabaseTableOut(
+                        table_name=table_name,
+                        row_count=row_count,
+                        table_bytes=int(row["table_bytes"] or 0),
+                        index_bytes=int(row["index_bytes"] or 0),
+                        total_bytes=int(row["total_bytes"] or 0),
+                    )
+                )
+    except Exception as exc:  # noqa: BLE001
+        issues.append(f"Не удалось собрать обзор БД: {exc}")
+    tables.sort(key=lambda item: (item.total_bytes, item.row_count, item.table_name), reverse=True)
+    return DiagnosticsDatabaseOverviewOut(
+        database_name=settings.db_name,
+        host=settings.db_host,
+        port=settings.db_port,
+        user=settings.db_user,
+        database_bytes=database_bytes,
+        table_count=len(tables),
+        total_rows=sum(item.row_count for item in tables),
+        tables=tables,
+        issues=issues,
+    )
+
+
+def build_runtime_topology(services: list[DiagnosticsServiceOut], processes: list[DiagnosticsProcessOut] | None = None) -> DiagnosticsRuntimeTopologyOut:
+    frontend_service = next((item for item in services if item.service == "frontend"), None)
+    backend_service = next((item for item in services if item.service == "backend"), None)
+    postgres_service = next((item for item in services if item.service == "postgres"), None)
+
+    frontend_api_base = parse_frontend_api_base()
+    backend_base_url = get_first_env(BACKEND_URL_ENV_KEYS) or str(SERVICE_DEFINITIONS["backend"]["http_url"]).removesuffix("/docs")
+    backend_http_url = f"{backend_base_url.rstrip('/')}/docs"
+
+    docker_present, docker_details, docker_services = detect_docker_runtime()
+    nginx_present, public_entrypoint, nginx_details = detect_nginx_runtime()
+
+    frontend_url = get_first_env(FRONTEND_URL_ENV_KEYS)
+    if not frontend_url:
+        frontend_url = public_entrypoint if nginx_present and public_entrypoint else str(SERVICE_DEFINITIONS["frontend"]["http_url"])
+
+    mode_markers = {
+        "docker": docker_present,
+        "nginx": nginx_present,
+        "local": any(service.listener_pid for service in services),
+    }
+    enabled_modes = [key for key, enabled in mode_markers.items() if enabled]
+    if len(enabled_modes) > 1:
+        environment_mode = "mixed"
+    elif enabled_modes:
+        environment_mode = enabled_modes[0]
+    else:
+        environment_mode = "unknown"
+
+    issues: list[str] = []
+    expected_api_base = f"{backend_base_url.rstrip('/')}/api/v1"
+    is_frontend_backend_match = frontend_api_base.rstrip("/") == expected_api_base.rstrip("/")
+    if not is_frontend_backend_match:
+        issues.append("Frontend настроен на другой backend API.")
+
+    is_backend_database_local = settings.db_host in {"localhost", "127.0.0.1"} and settings.db_port == 5432
+    if not is_backend_database_local:
+        issues.append("Backend подключён не к локальной PostgreSQL БД по умолчанию.")
+
+    backend_http_ok = backend_service.http_ok if backend_service else safe_http_ok(backend_http_url)
+    if backend_http_ok is False:
+        issues.append("Backend HTTP probe не проходит.")
+
+    if not nginx_present and environment_mode != "local":
+        issues.append("Конфигурация reverse proxy не обнаружена, показан runtime fallback.")
+
+    status_value = "healthy"
+    if backend_http_ok is False:
+        status_value = "critical"
+    elif issues:
+        status_value = "warning"
+
+    resolved_public_entrypoint = public_entrypoint or frontend_url or backend_base_url
+    nodes = [
+        DiagnosticsRuntimeNodeOut(
+            key="frontend",
+            label="Frontend",
+            source_kind="proxy" if nginx_present else ("docker_container" if docker_services["frontend"] and not frontend_service else "local_process" if frontend_service else "config"),
+            endpoint=frontend_url,
+            target=frontend_api_base,
+            status=frontend_service.status if frontend_service else ("healthy" if frontend_url else "unknown"),
+            details=[
+                "Frontend dev server." if environment_mode == "local" and frontend_service else "Frontend served via configured endpoint.",
+                *([f"PID {frontend_service.listener_pid}, порт {frontend_service.port}"] if frontend_service and frontend_service.listener_pid else []),
+            ],
+        )
+    ]
+    if nginx_present:
+        nodes.append(
+            DiagnosticsRuntimeNodeOut(
+                key="nginx",
+                label="Nginx",
+                source_kind="proxy",
+                endpoint=resolved_public_entrypoint,
+                target=backend_base_url,
+                status="healthy" if public_entrypoint else "warning",
+                details=nginx_details or ["Reverse proxy detected."],
+            )
+        )
+    nodes.append(
+        DiagnosticsRuntimeNodeOut(
+            key="backend",
+            label="Backend",
+            source_kind="docker_container" if docker_services["backend"] and not backend_service else "local_process" if backend_service else "config",
+            endpoint=backend_http_url,
+            target=build_database_dsn(),
+            status=backend_service.status if backend_service else ("healthy" if backend_http_ok else "warning"),
+            details=[
+                f"Listener PID {backend_service.listener_pid}, порт {backend_service.port}" if backend_service and backend_service.listener_pid else "Runtime endpoint resolved from config.",
+                *docker_details[:1],
+            ],
+        )
+    )
+    nodes.append(
+        DiagnosticsRuntimeNodeOut(
+            key="database",
+            label="Database",
+            source_kind="docker_container" if docker_services["postgres"] and not postgres_service else "local_process" if postgres_service else "config",
+            endpoint=build_database_dsn(),
+            status=postgres_service.status if postgres_service else ("healthy" if settings.db_host else "unknown"),
+            details=[
+                f"Host {settings.db_host}:{settings.db_port}",
+                f"Database {settings.db_name}",
+                f"User {settings.db_user}",
+                *docker_details[:1],
+            ],
+        )
+    )
+
+    return DiagnosticsRuntimeTopologyOut(
+        environment_mode=environment_mode,
+        public_entrypoint=resolved_public_entrypoint,
+        frontend_url=frontend_url,
+        frontend_api_base=frontend_api_base,
+        backend_base_url=backend_base_url,
+        backend_http_url=backend_http_url,
+        backend_listener_pid=backend_service.listener_pid if backend_service else None,
+        backend_listener_port=backend_service.port if backend_service else None,
+        backend_http_ok=backend_http_ok,
+        database_dsn=build_database_dsn(),
+        database_host=settings.db_host,
+        database_port=settings.db_port,
+        database_name=settings.db_name,
+        database_user=settings.db_user,
+        is_frontend_backend_match=is_frontend_backend_match,
+        is_backend_database_local=is_backend_database_local,
+        status=status_value,
+        nodes=nodes,
+        issues=issues,
+    )
+
+
 def parse_observed_at(message: str, fallback: datetime | None) -> datetime | None:
     for pattern in TIMESTAMP_PATTERNS:
         match = pattern.search(message)
@@ -238,6 +643,8 @@ def get_server_log_file(now: datetime | None = None) -> Path:
 
 
 def append_server_event(signature: str, severity: str, message: str) -> None:
+    if severity not in {"warning", "critical"}:
+        return
     log_file = get_server_log_file()
     with log_file.open("a", encoding="utf-8") as handle:
         handle.write(f"{utc_now().isoformat()} | {severity.upper()} | {signature} | {message}\n")
@@ -278,7 +685,7 @@ def analyze_log_message(source: str, message: str) -> dict[str, object]:
         if rule["source"] == source and rule["pattern"].search(normalized_raw):
             return {
                 "signature": rule["signature"],
-                "severity": "info",
+                "severity": "warning",
                 "category": "housekeeping",
                 "summary": rule["summary"],
                 "normalized_message": rule["normalized_message"],
@@ -291,7 +698,7 @@ def analyze_log_message(source: str, message: str) -> dict[str, object]:
         if rule["pattern"].search(normalized_raw):
             return {
                 "signature": rule["signature"],
-                "severity": rule["severity"],
+                "severity": "critical" if str(rule["severity"]) in {"error", "critical"} else "warning",
                 "category": rule["category"],
                 "summary": rule["summary"],
                 "normalized_message": rule["summary"],
@@ -301,15 +708,15 @@ def analyze_log_message(source: str, message: str) -> dict[str, object]:
                 "is_low_signal": False,
             }
     return {
-        "signature": "info",
-        "severity": "info",
+        "signature": "ignored_info",
+        "severity": "warning",
         "category": "runtime",
         "summary": "Информационная запись.",
         "normalized_message": normalized_raw,
         "possible_causes": [],
         "suggested_actions": [],
         "suggested_commands": [],
-        "is_low_signal": False,
+        "is_low_signal": True,
     }
 
 
@@ -332,6 +739,8 @@ def normalize_process(proc: psutil.Process, ports_by_pid: dict[int, list[int]]) 
         if not service:
             return None
         created_at = proc.create_time()
+        ports = sorted(set(ports_by_pid.get(proc.pid, [])))
+        role = infer_process_role(service, proc.name(), command_line, ports)
         return DiagnosticsProcessOut(
             pid=proc.pid,
             parent_pid=proc.ppid() or None,
@@ -342,57 +751,18 @@ def normalize_process(proc: psutil.Process, ports_by_pid: dict[int, list[int]]) 
             executable=executable,
             started_at=datetime.fromtimestamp(created_at, UTC) if created_at else None,
             uptime_seconds=max(0, int(utc_now().timestamp() - created_at)) if created_at else None,
-            ports=sorted(ports_by_pid.get(proc.pid, [])),
+            ports=ports,
+            role=role,
+            source_kind="local_process",
+            runtime_root_pid=None,
+            is_primary_runtime=role in PRIMARY_PROCESS_ROLES,
+            is_auxiliary_runtime=role not in PRIMARY_PROCESS_ROLES,
+            explanation=explain_process_role(service, role),
             suspicious_reasons=[],
             can_kill=False,
         )
     except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
         return None
-
-
-def collect_listening_ports() -> list[DiagnosticsPortOut]:
-    expected_by_port = {config["port"]: service for service, config in SERVICE_DEFINITIONS.items()}
-    results: list[DiagnosticsPortOut] = []
-    try:
-        connections = psutil.net_connections(kind="inet")
-    except (psutil.Error, OSError):
-        return results
-
-    for connection in connections:
-        if connection.status != psutil.CONN_LISTEN or not connection.laddr:
-            continue
-        expected_service = expected_by_port.get(connection.laddr.port)
-        if not expected_service:
-            continue
-        pid = connection.pid
-        process_name = None
-        command_line = None
-        detected_service = None
-        issues: list[str] = []
-        if pid:
-            try:
-                process = psutil.Process(pid)
-                process_name = process.name()
-                command_line = " ".join(process.cmdline()) or None
-                detected_service = classify_service(command_line or "", process_name, process.exe() if process.exe() else None)
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                issues.append("stale_pid")
-        if pid and detected_service != expected_service:
-            issues.append("foreign_listener")
-        results.append(
-            DiagnosticsPortOut(
-                port=connection.laddr.port,
-                host=connection.laddr.ip,
-                state=connection.status,
-                pid=pid,
-                process_name=process_name,
-                command_line=command_line,
-                service=expected_service,
-                detected_service=detected_service,
-                issues=issues,
-            )
-        )
-    return sorted(results, key=lambda item: item.port)
 
 
 def collect_processes() -> list[DiagnosticsProcessOut]:
@@ -415,25 +785,91 @@ def collect_processes() -> list[DiagnosticsProcessOut]:
     http_states = {service: safe_http_ok(config["http_url"]) if config["http_url"] else None for service, config in SERVICE_DEFINITIONS.items()}
 
     for process in processes:
+        process.runtime_root_pid = derive_runtime_root_pid(process, pid_to_process)
         parent = pid_to_process.get(process.parent_pid or -1)
-        if process.parent_pid and parent is None:
+        if process.parent_pid and parent is None and process.role not in BENIGN_AUXILIARY_ROLES and not process.is_primary_runtime:
             process.suspicious_reasons.append("process_without_parent")
-        if not parent or parent.service != process.service:
-            root_counts[process.service or "unknown"] += 1
+        if process.is_primary_runtime and process.service:
+            root_counts[process.service] += 1
 
     for process in processes:
-        if process.service and root_counts.get(process.service, 0) > 1:
+        if process.service and process.is_primary_runtime and root_counts.get(process.service, 0) > 1:
             process.suspicious_reasons.append("duplicate_runtime")
-        if process.service in {"backend", "frontend"} and process.ports and http_states.get(process.service) is False:
+        if process.service in {"backend", "frontend"} and process.ports and http_states.get(process.service) is False and process.is_primary_runtime:
             process.suspicious_reasons.append("listener_without_healthy_http")
         process.can_kill = "process_without_parent" in process.suspicious_reasons
 
-    return sorted(processes, key=lambda item: (item.service or "", item.pid))
+    return sorted(processes, key=lambda item: (item.service or "", 0 if item.is_primary_runtime else 1, item.pid))
+
+
+def collect_listening_ports(processes: list[DiagnosticsProcessOut] | None = None) -> list[DiagnosticsPortOut]:
+    expected_by_port = {config["port"]: service for service, config in SERVICE_DEFINITIONS.items()}
+    processes_by_pid = {item.pid: item for item in (processes or [])}
+    results: list[DiagnosticsPortOut] = []
+    seen: set[tuple[str | None, int, int | None]] = set()
+    try:
+        connections = psutil.net_connections(kind="inet")
+    except (psutil.Error, OSError):
+        return results
+
+    for connection in connections:
+        if connection.status != psutil.CONN_LISTEN or not connection.laddr:
+            continue
+        expected_service = expected_by_port.get(connection.laddr.port)
+        if not expected_service:
+            continue
+        pid = connection.pid
+        process_name = None
+        command_line = None
+        detected_service = None
+        owner_role = None
+        issues: list[str] = []
+        process_info = processes_by_pid.get(pid or -1) if pid else None
+        if process_info:
+            process_name = process_info.name
+            command_line = process_info.command_line
+            detected_service = process_info.service
+            owner_role = process_info.role
+        elif pid:
+            try:
+                process = psutil.Process(pid)
+                process_name = process.name()
+                command_line = " ".join(process.cmdline()) or None
+                detected_service = classify_service(command_line or "", process_name, process.exe() if process.exe() else None)
+                owner_role = infer_process_role(detected_service, process_name, command_line, [connection.laddr.port])
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                issues.append("stale_pid")
+        if pid and detected_service != expected_service:
+            issues.append("foreign_listener")
+        key = (expected_service, connection.laddr.port, pid)
+        if key in seen:
+            continue
+        seen.add(key)
+        port_role = classify_port_role(expected_service, connection.laddr.port, owner_role)
+        results.append(
+            DiagnosticsPortOut(
+                port=connection.laddr.port,
+                host=connection.laddr.ip,
+                state=connection.status,
+                pid=pid,
+                process_name=process_name,
+                command_line=command_line,
+                service=expected_service,
+                detected_service=detected_service,
+                port_role=port_role,
+                owner_role=owner_role,
+                source_kind="local_process",
+                is_primary_listener=port_role is not None,
+                explanation=explain_port(expected_service, port_role),
+                issues=issues,
+            )
+        )
+    return sorted(results, key=lambda item: (item.port, item.pid or 0))
 
 
 def collect_services(ports: list[DiagnosticsPortOut], processes: list[DiagnosticsProcessOut]) -> list[DiagnosticsServiceOut]:
     checked_at = utc_now()
-    listener_by_service = {item.service: item for item in ports if item.service}
+    listener_by_service = {item.service: item for item in ports if item.service and item.is_primary_listener}
     processes_by_service: dict[str, list[DiagnosticsProcessOut]] = defaultdict(list)
     for process in processes:
         if process.service:
@@ -462,6 +898,8 @@ def collect_services(ports: list[DiagnosticsPortOut], processes: list[Diagnostic
             status_value = "critical"
         elif issues:
             status_value = "warning"
+        primary_count = sum(1 for item in service_processes if item.is_primary_runtime)
+        auxiliary_count = sum(1 for item in service_processes if item.is_auxiliary_runtime)
         services.append(
             DiagnosticsServiceOut(
                 service=service,
@@ -472,6 +910,9 @@ def collect_services(ports: list[DiagnosticsPortOut], processes: list[Diagnostic
                 listener_pid=listener.pid if listener else None,
                 http_ok=http_ok,
                 process_count=len(service_processes),
+                process_count_total=len(service_processes),
+                process_count_primary=primary_count,
+                process_count_auxiliary=auxiliary_count,
                 warning_count=sum(1 for item in service_processes if item.suspicious_reasons),
                 error_count=sum(1 for issue in issues if issue in CRITICAL_SERVICE_ISSUES),
                 issues=issues,
@@ -622,8 +1063,8 @@ def build_host_log_entries(services: Iterable[DiagnosticsServiceOut], ports: Ite
 
 
 def collect_all_log_entries(include_low_signal: bool = False) -> list[DiagnosticsLogEntryOut]:
-    ports = collect_listening_ports()
     processes = collect_processes()
+    ports = collect_listening_ports(processes)
     services = collect_services(ports, processes)
     entries = build_host_log_entries(services, ports, processes)
     for source in ("server", "postgres", "backend", "frontend"):
@@ -631,21 +1072,28 @@ def collect_all_log_entries(include_low_signal: bool = False) -> list[Diagnostic
             entries.extend(load_log_entries_from_file(source, path))
     if not include_low_signal:
         entries = [entry for entry in entries if not entry.is_low_signal]
+    entries = [entry for entry in entries if entry.severity in {"warning", "critical"}]
     entries.sort(key=lambda item: item.observed_at or datetime.fromtimestamp(0, UTC), reverse=True)
     return entries
 
 
 def get_diagnostics_summary() -> DiagnosticsSummaryOut:
     ensure_runtime_log_retention()
-    ports = collect_listening_ports()
     processes = collect_processes()
+    ports = collect_listening_ports(processes)
     services = collect_services(ports, processes)
+    database_overview = collect_database_overview()
+    runtime_topology = build_runtime_topology(services, processes)
     return DiagnosticsSummaryOut(
         checked_at=utc_now(),
         host=socket.gethostname(),
         refresh_seconds=REFRESH_SECONDS,
+        environment_mode=runtime_topology.environment_mode,
+        public_entrypoint=runtime_topology.public_entrypoint,
         services=services,
         ports=ports,
+        database_overview=database_overview,
+        runtime_topology=runtime_topology,
         process_count=len(processes),
         warning_count=sum(1 for service in services if service.status == "warning"),
         error_count=sum(1 for service in services if service.status == "critical"),
@@ -654,7 +1102,8 @@ def get_diagnostics_summary() -> DiagnosticsSummaryOut:
 
 def get_diagnostics_ports() -> list[DiagnosticsPortOut]:
     ensure_runtime_log_retention()
-    return collect_listening_ports()
+    processes = collect_processes()
+    return collect_listening_ports(processes)
 
 
 def get_diagnostics_processes() -> list[DiagnosticsProcessOut]:

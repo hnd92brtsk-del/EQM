@@ -8,7 +8,13 @@ from fastapi.testclient import TestClient
 from app.core.dependencies import get_current_user
 from app.models.security import UserRole
 from app.routers import diagnostics as diagnostics_router
-from app.schemas.diagnostics import DiagnosticsProcessOut, DiagnosticsServiceOut, DiagnosticsSummaryOut
+from app.schemas.diagnostics import (
+    DiagnosticsDatabaseOverviewOut,
+    DiagnosticsProcessOut,
+    DiagnosticsRuntimeTopologyOut,
+    DiagnosticsServiceOut,
+    DiagnosticsSummaryOut,
+)
 from app.services import diagnostics as diagnostics_service
 
 
@@ -24,6 +30,8 @@ def test_diagnostics_summary_requires_admin(monkeypatch):
         checked_at=datetime(2026, 3, 21, 10, 0, tzinfo=UTC),
         host="eqm-dev",
         refresh_seconds=3600,
+        environment_mode="local",
+        public_entrypoint="http://localhost:5173",
         services=[
             DiagnosticsServiceOut(
                 service="backend",
@@ -34,6 +42,9 @@ def test_diagnostics_summary_requires_admin(monkeypatch):
                 listener_pid=1234,
                 http_ok=True,
                 process_count=1,
+                process_count_total=1,
+                process_count_primary=1,
+                process_count_auxiliary=0,
                 warning_count=0,
                 error_count=0,
                 issues=[],
@@ -41,6 +52,38 @@ def test_diagnostics_summary_requires_admin(monkeypatch):
             )
         ],
         ports=[],
+        database_overview=DiagnosticsDatabaseOverviewOut(
+            database_name="equipment_crm",
+            host="localhost",
+            port=5432,
+            user="equipment_user",
+            database_bytes=1024,
+            table_count=1,
+            total_rows=10,
+            tables=[],
+            issues=[],
+        ),
+        runtime_topology=DiagnosticsRuntimeTopologyOut(
+            environment_mode="local",
+            public_entrypoint="http://localhost:5173",
+            frontend_url="http://localhost:5173",
+            frontend_api_base="http://localhost:8000/api/v1",
+            backend_base_url="http://localhost:8000",
+            backend_http_url="http://localhost:8000/docs",
+            backend_listener_pid=1234,
+            backend_listener_port=8000,
+            backend_http_ok=True,
+            database_dsn="postgresql://equipment_user@localhost:5432/equipment_crm",
+            database_host="localhost",
+            database_port=5432,
+            database_name="equipment_crm",
+            database_user="equipment_user",
+            is_frontend_backend_match=True,
+            is_backend_database_local=True,
+            status="healthy",
+            nodes=[],
+            issues=[],
+        ),
         process_count=1,
         warning_count=0,
         error_count=0,
@@ -130,6 +173,12 @@ def test_kill_diagnostics_process_rejects_non_orphan(monkeypatch):
                 started_at=datetime(2026, 3, 21, 11, 0, tzinfo=UTC),
                 uptime_seconds=60,
                 ports=[8000],
+                role="uvicorn_worker",
+                source_kind="local_process",
+                runtime_root_pid=555,
+                is_primary_runtime=True,
+                is_auxiliary_runtime=False,
+                explanation="Backend worker",
                 suspicious_reasons=[],
                 can_kill=False,
             )

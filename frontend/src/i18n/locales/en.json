@@ -95,6 +95,11 @@
     "personnel_details": "Personnel details",
     "personnel_schedule": "Yearly planner",
     "helpTableOfContents": "Table of contents",
+    "helpSearchLabel": "Help search",
+    "helpSearchPlaceholder": "Search by topic, command, error, service, or term",
+    "helpSearchResultsTitle": "Results: {{count}}",
+    "helpSearchEmpty": "No matching help sections were found for the current query.",
+    "helpSectionMatches": "Matched subsections:",
     "networkMap": {
       "title": "Network topology",
       "defaultName": "Network topology",
