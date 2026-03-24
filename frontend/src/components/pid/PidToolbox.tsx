@@ -18,7 +18,7 @@ import { ISA_INSTRUMENTS, inferMainEquipmentShapeKey } from "../../constants/pid
 import type { MainEquipmentTreeNode } from "../../utils/mainEquipment";
 import { annotateLiveTree, type LiveTreeAnnotation } from "../../utils/liveFilter";
 
-export type PidEditorMode = "select" | "delete" | "add-node" | "add-edge";
+export type PidEditorMode = "select" | "pan" | "delete" | "add-node" | "add-edge";
 
 export type PidNodeInsertPreset = {
   symbolKey: string;
@@ -40,6 +40,8 @@ type Props = {
   onEdgeTypeChange: (value: "process" | "signal" | "control" | "electric") => void;
   onPresetPick: (preset: PidNodeInsertPreset) => void;
   mainEquipmentTree: MainEquipmentTreeNode[];
+  showModeControls?: boolean;
+  showEdgeTypeControls?: boolean;
 };
 
 type ToolboxTreeNode = {
@@ -71,6 +73,8 @@ export function PidToolbox({
   onEdgeTypeChange,
   onPresetPick,
   mainEquipmentTree,
+  showModeControls = true,
+  showEdgeTypeControls = true,
 }: Props) {
   const { t } = useTranslation();
   const [search, setSearch] = useState("");
@@ -172,35 +176,46 @@ export function PidToolbox({
 
   return (
     <Box sx={{ width: "100%", height: "100%", overflowY: "auto", overflowX: "hidden", color: "text.primary" }}>
-      <Box sx={{ p: 1.5, display: "grid", gap: 1 }}>
-        <Typography variant="subtitle2" sx={{ color: "text.primary", fontWeight: 700 }}>
-          {t("pid.toolbox.mode")}
-        </Typography>
-        <List dense disablePadding>
-          <ListItemButton selected={mode === "select"} onClick={() => onModeChange("select")}>
-            <ListItemText primary={t("pid.toolbox.select")} primaryTypographyProps={{ color: "text.primary" }} />
-          </ListItemButton>
-          <ListItemButton selected={mode === "add-edge"} onClick={() => onModeChange("add-edge")}>
-            <ListItemText primary={t("pid.toolbox.addEdge")} primaryTypographyProps={{ color: "text.primary" }} />
-          </ListItemButton>
-          <ListItemButton selected={mode === "delete"} onClick={() => onModeChange("delete")}>
-            <ListItemText primary={t("pid.toolbox.delete")} primaryTypographyProps={{ color: "text.primary" }} />
-          </ListItemButton>
-        </List>
+      {showModeControls || showEdgeTypeControls ? (
+        <>
+          <Box sx={{ p: 1.5, display: "grid", gap: 1 }}>
+            {showModeControls ? (
+              <>
+                <Typography variant="subtitle2" sx={{ color: "text.primary", fontWeight: 700 }}>
+                  {t("pid.toolbox.mode")}
+                </Typography>
+                <List dense disablePadding>
+                  <ListItemButton selected={mode === "select"} onClick={() => onModeChange("select")}>
+                    <ListItemText primary={t("pid.toolbox.select")} primaryTypographyProps={{ color: "text.primary" }} />
+                  </ListItemButton>
+                  <ListItemButton selected={mode === "add-edge"} onClick={() => onModeChange("add-edge")}>
+                    <ListItemText primary={t("pid.toolbox.addEdge")} primaryTypographyProps={{ color: "text.primary" }} />
+                  </ListItemButton>
+                  <ListItemButton selected={mode === "delete"} onClick={() => onModeChange("delete")}>
+                    <ListItemText primary={t("pid.toolbox.delete")} primaryTypographyProps={{ color: "text.primary" }} />
+                  </ListItemButton>
+                </List>
+              </>
+            ) : null}
 
-        <Typography variant="subtitle2" sx={{ color: "text.primary", fontWeight: 700 }}>
-          {t("pid.toolbox.edgeType")}
-        </Typography>
-        <List dense disablePadding>
-          {(["process", "signal", "control", "electric"] as const).map((item) => (
-            <ListItemButton key={item} selected={edgeType === item} onClick={() => onEdgeTypeChange(item)}>
-              <ListItemText primary={t(`pid.edges.${item}`)} primaryTypographyProps={{ color: "text.primary" }} />
-            </ListItemButton>
-          ))}
-        </List>
-      </Box>
-
-      <Divider />
+            {showEdgeTypeControls ? (
+              <>
+                <Typography variant="subtitle2" sx={{ color: "text.primary", fontWeight: 700 }}>
+                  {t("pid.toolbox.edgeType")}
+                </Typography>
+                <List dense disablePadding>
+                  {(["process", "signal", "control", "electric"] as const).map((item) => (
+                    <ListItemButton key={item} selected={edgeType === item} onClick={() => onEdgeTypeChange(item)}>
+                      <ListItemText primary={t(`pid.edges.${item}`)} primaryTypographyProps={{ color: "text.primary" }} />
+                    </ListItemButton>
+                  ))}
+                </List>
+              </>
+            ) : null}
+          </Box>
+          <Divider />
+        </>
+      ) : null}
       <Box sx={{ p: 1.5, display: "grid", gap: 1 }}>
         <Typography variant="subtitle2" sx={{ color: "text.primary", fontWeight: 700 }}>
           {t("pid.toolbox.mainEquipment")}

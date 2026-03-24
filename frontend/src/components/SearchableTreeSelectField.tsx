@@ -7,7 +7,8 @@ import {
   ListItemText,
   Popover,
   TextField,
-  Typography
+  Typography,
+  useTheme
 } from "@mui/material";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
@@ -56,6 +57,7 @@ export function SearchableTreeSelectField({
   hideEmptyOption = false
 }: Props) {
   const { t } = useTranslation();
+  const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [query, setQuery] = useState("");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -99,6 +101,8 @@ export function SearchableTreeSelectField({
 
   const normalizedQuery = query.trim();
   const resolvedEmptyLabel = emptyOptionLabel || t("actions.notSelected");
+  const primaryTextColor = theme.palette.mode === "light" ? "#000000" : theme.palette.text.primary;
+  const secondaryTextColor = theme.palette.mode === "light" ? "#334155" : theme.palette.text.secondary;
   const displayValue =
     value === "" || value === null || value === undefined
       ? ""
@@ -181,13 +185,21 @@ export function SearchableTreeSelectField({
             sx={{
               borderRadius: 1,
               py: 0.5,
-              px: 1
+              px: 1,
+              color: primaryTextColor
             }}
           >
             <ListItemText
               primary={option.label}
-              primaryTypographyProps={{ sx: { whiteSpace: "normal", wordBreak: "break-word" } }}
+              primaryTypographyProps={{
+                sx: {
+                  whiteSpace: "normal",
+                  wordBreak: "break-word",
+                  color: primaryTextColor,
+                }
+              }}
               secondary={hasNestedOptions && leafOnly ? groupOnlyLabel || t("common.treeSelect.groupOnly") : undefined}
+              secondaryTypographyProps={{ sx: { color: secondaryTextColor } }}
             />
           </ListItemButton>
         </Box>
@@ -265,19 +277,19 @@ export function SearchableTreeSelectField({
                   setAnchorEl(null);
                 }}
                 disabled={disabled}
-                sx={{ borderRadius: 1, mb: 0.5 }}
+                sx={{ borderRadius: 1, mb: 0.5, color: primaryTextColor }}
               >
-                <ListItemText primary={resolvedEmptyLabel} />
+                <ListItemText primary={resolvedEmptyLabel} primaryTypographyProps={{ sx: { color: primaryTextColor } }} />
               </ListItemButton>
             ) : null}
             {options == null ? (
-              <Typography variant="body2" color="text.secondary" sx={{ px: 1, py: 0.5 }}>
+              <Typography variant="body2" sx={{ px: 1, py: 0.5, color: secondaryTextColor }}>
                 {loadingLabel || t("common.loading")}
               </Typography>
             ) : annotations.length ? (
               annotations.map((node) => renderNode(node, 0))
             ) : (
-              <Typography variant="body2" color="text.secondary" sx={{ px: 1, py: 0.5 }}>
+              <Typography variant="body2" sx={{ px: 1, py: 0.5, color: secondaryTextColor }}>
                 {noOptionsLabel || t("common.liveFilter.noOptions")}
               </Typography>
             )}
