@@ -1,5 +1,7 @@
+from typing import Any, Dict, Literal, Optional
+
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any, Literal
+
 from app.schemas.common import EntityBase, SoftDeleteFields
 
 
@@ -17,6 +19,7 @@ NetworkPortTypeOut = Literal[
     "RS-232",
 ]
 SerialPortType = Literal["RS-485", "RS-232", "RS-485(DB-9)", "COM"]
+PowerRoleType = Literal["source", "consumer", "converter", "passive"]
 
 
 class NetworkPortOut(BaseModel):
@@ -34,13 +37,31 @@ class SerialPort(BaseModel):
     count: int = Field(default=0, ge=0)
 
 
+class EquipmentTypePowerAttributes(BaseModel):
+    role_in_power_chain: PowerRoleType | None = None
+    current_type: str | None = None
+    supply_voltage: str | None = None
+    top_current_type: str | None = None
+    top_supply_voltage: str | None = None
+    bottom_current_type: str | None = None
+    bottom_supply_voltage: str | None = None
+    current_value_a: float | None = Field(default=None, ge=0)
+
+
 class EquipmentTypeOut(EntityBase, SoftDeleteFields):
     name: str
     article: str | None = None
     nomenclature_number: str
+    role_in_power_chain: PowerRoleType | None = None
+    power_attributes: EquipmentTypePowerAttributes
     current_type: str | None = None
     supply_voltage: str | None = None
     current_consumption_a: float | None = None
+    top_current_type: str | None = None
+    top_supply_voltage: str | None = None
+    bottom_current_type: str | None = None
+    bottom_supply_voltage: str | None = None
+    current_value_a: float | None = None
     manufacturer_id: int
     equipment_category_id: int | None = None
     is_channel_forming: bool
@@ -69,9 +90,16 @@ class EquipmentTypeCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     article: str | None = None
     nomenclature_number: str = Field(min_length=1, max_length=100)
+    role_in_power_chain: PowerRoleType | None = None
+    power_attributes: EquipmentTypePowerAttributes | None = None
     current_type: str | None = Field(default=None, max_length=32)
     supply_voltage: str | None = Field(default=None, max_length=32)
     current_consumption_a: float | None = Field(default=None, ge=0)
+    top_current_type: str | None = Field(default=None, max_length=32)
+    top_supply_voltage: str | None = Field(default=None, max_length=32)
+    bottom_current_type: str | None = Field(default=None, max_length=32)
+    bottom_supply_voltage: str | None = Field(default=None, max_length=32)
+    current_value_a: float | None = Field(default=None, ge=0)
     manufacturer_id: int
     equipment_category_id: int | None = None
     is_channel_forming: bool = False
@@ -96,9 +124,16 @@ class EquipmentTypeCreate(BaseModel):
 class EquipmentTypeUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     article: str | None = None
+    role_in_power_chain: PowerRoleType | None = None
+    power_attributes: EquipmentTypePowerAttributes | None = None
     current_type: str | None = Field(default=None, max_length=32)
     supply_voltage: str | None = Field(default=None, max_length=32)
     current_consumption_a: float | None = Field(default=None, ge=0)
+    top_current_type: str | None = Field(default=None, max_length=32)
+    top_supply_voltage: str | None = Field(default=None, max_length=32)
+    bottom_current_type: str | None = Field(default=None, max_length=32)
+    bottom_supply_voltage: str | None = Field(default=None, max_length=32)
+    current_value_a: float | None = Field(default=None, ge=0)
     manufacturer_id: int | None = None
     equipment_category_id: int | None = None
     is_channel_forming: bool | None = None

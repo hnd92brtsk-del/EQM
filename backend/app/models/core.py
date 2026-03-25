@@ -284,9 +284,15 @@ class EquipmentType(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     network_ports: Mapped[list[dict] | None] = mapped_column(JSONB)
     has_serial_interfaces: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
     serial_ports: Mapped[list[dict]] = mapped_column(JSONB, server_default="[]", nullable=False)
+    role_in_power_chain: Mapped[str | None] = mapped_column(String(32))
     current_type: Mapped[str | None] = mapped_column(String(32))
     supply_voltage: Mapped[str | None] = mapped_column(String(32))
     current_consumption_a: Mapped[float | None] = mapped_column(nullable=True)
+    top_current_type: Mapped[str | None] = mapped_column(String(32))
+    top_supply_voltage: Mapped[str | None] = mapped_column(String(32))
+    bottom_current_type: Mapped[str | None] = mapped_column(String(32))
+    bottom_supply_voltage: Mapped[str | None] = mapped_column(String(32))
+    current_value_a: Mapped[float | None] = mapped_column(nullable=True)
     mount_type: Mapped[str | None] = mapped_column(String(32))
     mount_width_mm: Mapped[int | None] = mapped_column(Integer)
     power_role: Mapped[str | None] = mapped_column(String(32))
@@ -331,6 +337,19 @@ class EquipmentType(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     @property
     def datasheet_name(self) -> str | None:
         return self.datasheet_original_name
+
+    @property
+    def power_attributes(self) -> dict[str, str | float | None]:
+        return {
+            "role_in_power_chain": self.role_in_power_chain,
+            "current_type": self.current_type,
+            "supply_voltage": self.supply_voltage,
+            "top_current_type": self.top_current_type,
+            "top_supply_voltage": self.top_supply_voltage,
+            "bottom_current_type": self.bottom_current_type,
+            "bottom_supply_voltage": self.bottom_supply_voltage,
+            "current_value_a": self.current_value_a,
+        }
 
 
 Index(

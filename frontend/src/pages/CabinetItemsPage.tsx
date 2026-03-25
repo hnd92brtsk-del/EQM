@@ -160,6 +160,17 @@ type EquipmentInOperationLocationNode = {
 
 type Cabinet = { id: number; name: string };
 type Assembly = { id: number; name: string };
+type PowerRole = "source" | "consumer" | "converter" | "passive";
+type PowerAttributes = {
+  role_in_power_chain?: PowerRole | null;
+  current_type?: string | null;
+  supply_voltage?: string | null;
+  top_current_type?: string | null;
+  top_supply_voltage?: string | null;
+  bottom_current_type?: string | null;
+  bottom_supply_voltage?: string | null;
+  current_value_a?: number | null;
+};
 
 type EquipmentType = {
   id: number;
@@ -167,6 +178,8 @@ type EquipmentType = {
   is_channel_forming: boolean;
   is_network: boolean;
   has_serial_interfaces: boolean;
+  role_in_power_chain?: PowerRole | null;
+  power_attributes?: PowerAttributes | null;
   channel_count?: number | null;
   ai_count?: number | null;
   di_count?: number | null;
@@ -215,6 +228,39 @@ type ExpandedGroupKeysByContainer = Record<string, string[]>;
 
 const getContainerKey = (container: Pick<EquipmentInOperationContainer, "source" | "container_id">) =>
   `${container.source}:${container.container_id}`;
+
+const powerRoleLabels: Record<PowerRole, string> = {
+  source: "Источник",
+  consumer: "Потребитель",
+  converter: "Преобразователь",
+  passive: "Пассивный"
+};
+
+function formatEquipmentPowerSummary(equipment?: EquipmentType | null): string {
+  const role = equipment?.power_attributes?.role_in_power_chain || equipment?.role_in_power_chain;
+  if (!role) {
+    return "Питание: не задано";
+  }
+  if (role === "passive") {
+    return `Питание: ${powerRoleLabels[role]}`;
+  }
+  if (role === "converter") {
+    const attrs = equipment?.power_attributes;
+    return [
+      `Питание: ${powerRoleLabels[role]}`,
+      `верх ${attrs?.top_current_type || "-"} ${attrs?.top_supply_voltage || "-"}`,
+      `низ ${attrs?.bottom_current_type || "-"} ${attrs?.bottom_supply_voltage || "-"}`,
+      `ток ${attrs?.current_value_a ?? "-"} А`
+    ].join(" | ");
+  }
+  const attrs = equipment?.power_attributes;
+  return [
+    `Питание: ${powerRoleLabels[role]}`,
+    attrs?.current_type || "-",
+    attrs?.supply_voltage || "-",
+    `${attrs?.current_value_a ?? "-"} А`
+  ].join(" | ");
+}
 
 function collectLocationIds(nodes: EquipmentInOperationLocationNode[]): number[] {
   return nodes.flatMap((node) => [node.location_id, ...collectLocationIds(node.children)]);
@@ -964,6 +1010,11 @@ function ContainerAccordion({
                 fullWidth
                 size="small"
               />
+              {selectedEquipment ? (
+                <Typography variant="body2" color="text.secondary">
+                  {formatEquipmentPowerSummary(selectedEquipment)}
+                </Typography>
+              ) : null}
               <TextField
                 label={t("common.fields.quantity")}
                 type="number"
@@ -1337,7 +1388,7 @@ export default function CabinetItemsPage() {
     () =>
       equipmentTypesQuery.data?.items.map((item) => ({
         value: item.id,
-        label: item.name
+        label: `${item.name} — ${formatEquipmentPowerSummary(item)}`
       })) || [],
     [equipmentTypesQuery.data?.items]
   );

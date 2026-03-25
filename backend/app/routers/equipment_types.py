@@ -20,6 +20,28 @@ from app.schemas.equipment_types import (
 )
 
 router = APIRouter()
+POWER_ROLES = {"source", "consumer", "converter", "passive"}
+POWER_ATTRIBUTE_FIELDS = {
+    "role_in_power_chain",
+    "current_type",
+    "supply_voltage",
+    "current_consumption_a",
+    "top_current_type",
+    "top_supply_voltage",
+    "bottom_current_type",
+    "bottom_supply_voltage",
+    "current_value_a",
+    "power_role",
+    "output_voltage",
+    "max_output_current_a",
+    "power_attributes",
+}
+
+
+def get_fields_set(payload: EquipmentTypeCreate | EquipmentTypeUpdate) -> set[str]:
+    if hasattr(payload, "model_fields_set"):
+        return set(payload.model_fields_set)
+    return set(payload.__fields_set__)
 
 def derive_channel_total(payload: EquipmentTypeCreate | EquipmentTypeUpdate) -> int:
     return (
@@ -75,6 +97,121 @@ def merge_unit_price(meta_data: dict | None, unit_price_rub: float | None, field
         else:
             result["unit_price_rub"] = unit_price_rub
     return result or None
+
+
+def normalize_power_payload(
+    payload: EquipmentTypeCreate | EquipmentTypeUpdate,
+    equipment: EquipmentType | None = None,
+    *,
+    require_on_create: bool,
+) -> dict[str, str | float | None] | None:
+    fields_set = get_fields_set(payload)
+    if not require_on_create and not (fields_set & POWER_ATTRIBUTE_FIELDS):
+        return None
+
+    incoming = payload.power_attributes.model_dump(exclude_unset=True) if payload.power_attributes else {}
+    role = (
+        incoming.get("role_in_power_chain")
+        or payload.role_in_power_chain
+        or payload.power_role
+        or (equipment.role_in_power_chain if equipment else None)
+        or (equipment.power_role if equipment else None)
+        or ("passive" if require_on_create else None)
+    )
+
+    if role not in POWER_ROLES:
+        raise HTTPException(status_code=400, detail="Unsupported role_in_power_chain value")
+
+    resolved = {
+        "role_in_power_chain": role,
+        "current_type": incoming.get("current_type", payload.current_type),
+        "supply_voltage": incoming.get("supply_voltage", payload.supply_voltage),
+        "top_current_type": incoming.get("top_current_type", payload.top_current_type),
+        "top_supply_voltage": incoming.get("top_supply_voltage", payload.top_supply_voltage),
+        "bottom_current_type": incoming.get("bottom_current_type", payload.bottom_current_type),
+        "bottom_supply_voltage": incoming.get("bottom_supply_voltage", payload.bottom_supply_voltage),
+        "current_value_a": incoming.get("current_value_a", payload.current_value_a),
+    }
+
+    if equipment:
+        for key in (
+            "current_type",
+            "supply_voltage",
+            "top_current_type",
+            "top_supply_voltage",
+            "bottom_current_type",
+            "bottom_supply_voltage",
+            "current_value_a",
+        ):
+            if resolved[key] is None:
+                resolved[key] = getattr(equipment, key)
+
+    if resolved["current_value_a"] is None:
+        if payload.current_consumption_a is not None:
+            resolved["current_value_a"] = payload.current_consumption_a
+        elif payload.max_output_current_a is not None:
+            resolved["current_value_a"] = payload.max_output_current_a
+        elif equipment and equipment.current_value_a is None:
+            resolved["current_value_a"] = equipment.current_consumption_a or equipment.max_output_current_a
+
+    if role == "passive":
+        for key in resolved:
+            if key != "role_in_power_chain":
+                resolved[key] = None
+        return resolved
+
+    if role in {"source", "consumer"}:
+        missing = [key for key in ("current_type", "supply_voltage", "current_value_a") if resolved[key] in (None, "")]
+        if missing:
+            raise HTTPException(status_code=400, detail=f"Missing power attributes for {role}: {', '.join(missing)}")
+        resolved["top_current_type"] = None
+        resolved["top_supply_voltage"] = None
+        resolved["bottom_current_type"] = None
+        resolved["bottom_supply_voltage"] = None
+        return resolved
+
+    missing = [
+        key
+        for key in (
+            "top_current_type",
+            "top_supply_voltage",
+            "bottom_current_type",
+            "bottom_supply_voltage",
+            "current_value_a",
+        )
+        if resolved[key] in (None, "")
+    ]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Missing power attributes for converter: {', '.join(missing)}")
+    resolved["current_type"] = None
+    resolved["supply_voltage"] = None
+    return resolved
+
+
+def apply_power_payload(equipment: EquipmentType, power_payload: dict[str, str | float | None]) -> None:
+    role = power_payload["role_in_power_chain"]
+    equipment.role_in_power_chain = role
+    equipment.power_role = role
+    equipment.current_type = power_payload["current_type"]
+    equipment.supply_voltage = power_payload["supply_voltage"]
+    equipment.top_current_type = power_payload["top_current_type"]
+    equipment.top_supply_voltage = power_payload["top_supply_voltage"]
+    equipment.bottom_current_type = power_payload["bottom_current_type"]
+    equipment.bottom_supply_voltage = power_payload["bottom_supply_voltage"]
+    equipment.current_value_a = power_payload["current_value_a"]
+
+    if role == "converter":
+        equipment.current_consumption_a = power_payload["current_value_a"]
+        equipment.output_voltage = power_payload["bottom_supply_voltage"]
+        equipment.max_output_current_a = power_payload["current_value_a"]
+    elif role in {"source", "consumer"}:
+        equipment.current_consumption_a = power_payload["current_value_a"]
+        equipment.output_voltage = None
+        equipment.max_output_current_a = power_payload["current_value_a"] if role == "source" else None
+    else:
+        equipment.current_consumption_a = None
+        equipment.output_voltage = None
+        equipment.max_output_current_a = None
 
 
 @router.get("/", response_model=Pagination[EquipmentTypeOut])
@@ -133,6 +270,7 @@ def create_equipment_type(
     current_user: User = Depends(require_write_access()),
 ):
     validate_network_ports(payload)
+    power_payload = normalize_power_payload(payload, require_on_create=True)
     manufacturer = db.scalar(
         select(Manufacturer).where(Manufacturer.id == payload.manufacturer_id, Manufacturer.is_deleted == False)
     )
@@ -162,9 +300,6 @@ def create_equipment_type(
         name=payload.name,
         article=payload.article,
         nomenclature_number=payload.nomenclature_number,
-        current_type=payload.current_type,
-        supply_voltage=payload.supply_voltage,
-        current_consumption_a=payload.current_consumption_a,
         manufacturer_id=payload.manufacturer_id,
         equipment_category_id=payload.equipment_category_id,
         is_channel_forming=payload.is_channel_forming,
@@ -179,11 +314,9 @@ def create_equipment_type(
         serial_ports=normalize_serial_ports(payload) if payload.has_serial_interfaces else [],
         mount_type=payload.mount_type,
         mount_width_mm=payload.mount_width_mm,
-        power_role=payload.power_role,
-        output_voltage=payload.output_voltage,
-        max_output_current_a=payload.max_output_current_a,
         meta_data=merge_unit_price(payload.meta_data, payload.unit_price_rub, None),
     )
+    apply_power_payload(equipment, power_payload)
     db.add(equipment)
     db.flush()
 
@@ -296,6 +429,7 @@ def update_equipment_type(
     current_user: User = Depends(require_write_access()),
 ):
     validate_network_ports(payload)
+    fields_set = get_fields_set(payload)
     equipment = db.scalar(select(EquipmentType).where(EquipmentType.id == equipment_type_id))
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment type not found")
@@ -304,14 +438,8 @@ def update_equipment_type(
 
     if payload.name is not None:
         equipment.name = payload.name
-    if "article" in payload.__fields_set__:
+    if "article" in fields_set:
         equipment.article = payload.article
-    if "current_type" in payload.__fields_set__:
-        equipment.current_type = payload.current_type
-    if "supply_voltage" in payload.__fields_set__:
-        equipment.supply_voltage = payload.supply_voltage
-    if "current_consumption_a" in payload.__fields_set__:
-        equipment.current_consumption_a = payload.current_consumption_a
     if payload.manufacturer_id is not None:
         manufacturer = db.scalar(
             select(Manufacturer).where(Manufacturer.id == payload.manufacturer_id, Manufacturer.is_deleted == False)
@@ -319,7 +447,7 @@ def update_equipment_type(
         if not manufacturer:
             raise HTTPException(status_code=404, detail="Manufacturer not found")
         equipment.manufacturer_id = payload.manufacturer_id
-    if "equipment_category_id" in payload.__fields_set__:
+    if "equipment_category_id" in fields_set:
         if payload.equipment_category_id is None:
             equipment.equipment_category_id = None
         else:
@@ -358,26 +486,23 @@ def update_equipment_type(
             equipment.serial_ports = []
     if payload.serial_ports is not None and payload.has_serial_interfaces is not False:
         equipment.serial_ports = normalize_serial_ports(payload)
-    if "mount_type" in payload.__fields_set__:
+    if "mount_type" in fields_set:
         equipment.mount_type = payload.mount_type
-    if "mount_width_mm" in payload.__fields_set__:
+    if "mount_width_mm" in fields_set:
         equipment.mount_width_mm = payload.mount_width_mm
-    if "power_role" in payload.__fields_set__:
-        equipment.power_role = payload.power_role
-    if "output_voltage" in payload.__fields_set__:
-        equipment.output_voltage = payload.output_voltage
-    if "max_output_current_a" in payload.__fields_set__:
-        equipment.max_output_current_a = payload.max_output_current_a
+    power_payload = normalize_power_payload(payload, equipment, require_on_create=False)
+    if power_payload is not None:
+        apply_power_payload(equipment, power_payload)
     if any(
         value is not None
         for value in (payload.ai_count, payload.di_count, payload.ao_count, payload.do_count)
     ):
         equipment.channel_count = derive_channel_total_update(payload, equipment)
-    meta_data_provided = "meta_data" in payload.__fields_set__
-    unit_price_provided = "unit_price_rub" in payload.__fields_set__
+    meta_data_provided = "meta_data" in fields_set
+    unit_price_provided = "unit_price_rub" in fields_set
     if meta_data_provided or unit_price_provided:
         base_meta = payload.meta_data if meta_data_provided else equipment.meta_data
-        equipment.meta_data = merge_unit_price(base_meta, payload.unit_price_rub, payload.__fields_set__)
+        equipment.meta_data = merge_unit_price(base_meta, payload.unit_price_rub, fields_set)
 
     add_audit_log(
         db,

@@ -11,12 +11,14 @@ import {
   Switch,
   TablePagination,
   TextField,
+  Tooltip,
   Typography
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import PictureAsPdfRoundedIcon from "@mui/icons-material/PictureAsPdfRounded";
 import TableChartRoundedIcon from "@mui/icons-material/TableChartRounded";
 import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
@@ -26,7 +28,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
-import { EntityDialog, DialogState, type TreeFieldOption } from "../components/EntityDialog";
+import { EntityDialog, DialogState, type FieldConfig, type TreeFieldOption } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { uploadEquipmentTypeDatasheet, uploadEquipmentTypePhoto } from "../api/equipmentTypeMedia";
@@ -42,9 +44,16 @@ type EquipmentType = {
   name: string;
   article?: string | null;
   nomenclature_number: string;
+  role_in_power_chain?: PowerRole | null;
+  power_attributes?: PowerAttributes | null;
   current_type?: string | null;
   supply_voltage?: string | null;
   current_consumption_a?: number | null;
+  top_current_type?: string | null;
+  top_supply_voltage?: string | null;
+  bottom_current_type?: string | null;
+  bottom_supply_voltage?: string | null;
+  current_value_a?: number | null;
   mount_type?: string | null;
   mount_width_mm?: number | null;
   power_role?: string | null;
@@ -84,15 +93,28 @@ type EquipmentCategory = {
 };
 type NetworkPort = { type: string; count: number };
 type SerialPort = { type: string; count: number };
-type ElectricalFields = {
+type PowerRole = "source" | "consumer" | "converter" | "passive";
+type PowerAttributes = {
+  role_in_power_chain?: PowerRole | null;
   current_type?: string | null;
   supply_voltage?: string | null;
-  current_consumption_a?: number | null;
+  top_current_type?: string | null;
+  top_supply_voltage?: string | null;
+  bottom_current_type?: string | null;
+  bottom_supply_voltage?: string | null;
+  current_value_a?: number | null;
+};
+type ElectricalFields = {
+  role_in_power_chain?: PowerRole | null;
+  current_type?: string | null;
+  supply_voltage?: string | null;
+  top_current_type?: string | null;
+  top_supply_voltage?: string | null;
+  bottom_current_type?: string | null;
+  bottom_supply_voltage?: string | null;
+  current_value_a?: number | null;
   mount_type?: string | null;
   mount_width_mm?: number | null;
-  power_role?: string | null;
-  output_voltage?: string | null;
-  max_output_current_a?: number | null;
 };
 
 async function fetchAllDictionaryOptions<T>(path: string): Promise<T[]> {
@@ -151,7 +173,6 @@ function buildTreeOptions(
 }
 
 const pageSizeOptions = [10, 20, 50, 100];
-const equipmentElectricalFieldsStorageKey = "equipment-types-electrical-fields";
 const networkPortOptions: { label: string; value: string; disabled?: boolean }[] = [
   { label: "RJ-45 (8p8c)", value: "RJ-45 (8p8c)" },
   { label: "LC", value: "LC" },
@@ -182,6 +203,9 @@ const datasheetExtensions = [".pdf", ".xlsx", ".doc", ".docx"];
 const maxPhotoSize = 500 * 1024;
 const maxDatasheetSize = 5 * 1024 * 1024;
 
+const getPowerRoleLabel = (role?: string | null) =>
+  powerRoleOptions.find((item) => item.value === role)?.label || "-";
+
 const getFileIcon = (filename?: string | null) => {
   const ext = filename?.split(".").pop()?.toLowerCase() || "";
   switch (ext) {
@@ -211,6 +235,123 @@ const formatSerialPorts = (ports: SerialPort[] | null | undefined, enabled: bool
   return formatted.length ? formatted.join(", ") : "-";
 };
 
+const getEquipmentElectricalFields = (equipment: EquipmentType): ElectricalFields => {
+  const attributes = equipment.power_attributes;
+  return {
+    role_in_power_chain:
+      (attributes?.role_in_power_chain || equipment.role_in_power_chain || equipment.power_role) as
+        | PowerRole
+        | null
+        | undefined,
+    current_type: attributes?.current_type ?? equipment.current_type ?? null,
+    supply_voltage: attributes?.supply_voltage ?? equipment.supply_voltage ?? null,
+    top_current_type: attributes?.top_current_type ?? equipment.top_current_type ?? null,
+    top_supply_voltage: attributes?.top_supply_voltage ?? equipment.top_supply_voltage ?? null,
+    bottom_current_type: attributes?.bottom_current_type ?? equipment.bottom_current_type ?? null,
+    bottom_supply_voltage: attributes?.bottom_supply_voltage ?? equipment.bottom_supply_voltage ?? null,
+    current_value_a:
+      attributes?.current_value_a ??
+      equipment.current_value_a ??
+      equipment.current_consumption_a ??
+      equipment.max_output_current_a ??
+      null,
+    mount_type: equipment.mount_type ?? null,
+    mount_width_mm: equipment.mount_width_mm ?? null
+  };
+};
+
+const buildPowerTooltipContent = (electrical: ElectricalFields) => {
+  const role = electrical.role_in_power_chain;
+  if (!role || role === "passive") {
+    return `Роль: ${getPowerRoleLabel(role)}\nЭлектропараметры не заполняются`;
+  }
+  if (role === "converter") {
+    return [
+      `Роль: ${getPowerRoleLabel(role)}`,
+      `Верхняя сторона: ${electrical.top_current_type || "-"}, ${electrical.top_supply_voltage || "-"}`,
+      `Нижняя сторона: ${electrical.bottom_current_type || "-"}, ${electrical.bottom_supply_voltage || "-"}`,
+      `Ток, А: ${electrical.current_value_a ?? "-"}`
+    ].join("\n");
+  }
+  return [
+    `Роль: ${getPowerRoleLabel(role)}`,
+    `Род тока: ${electrical.current_type || "-"}`,
+    `Напряжение: ${electrical.supply_voltage || "-"}`,
+    `${role === "source" ? "Ток, А" : "Потребление, А"}: ${electrical.current_value_a ?? "-"}`
+  ].join("\n");
+};
+
+const buildPowerDialogFields = (
+  currentTypeOptions: { value: string; label: string }[],
+  supplyVoltageOptions: { value: string; label: string }[]
+): FieldConfig[] => [
+  {
+    name: "role_in_power_chain",
+    label: "Роль в цепи питания",
+    type: "select",
+    options: powerRoleOptions
+  },
+  {
+    name: "current_type",
+    label: "Род тока",
+    type: "select",
+    options: currentTypeOptions,
+    visibleWhen: (values) => values.role_in_power_chain === "source" || values.role_in_power_chain === "consumer"
+  },
+  {
+    name: "supply_voltage",
+    label: "Напряжение питания, В",
+    type: "select",
+    options: supplyVoltageOptions,
+    visibleWhen: (values) => values.role_in_power_chain === "source" || values.role_in_power_chain === "consumer"
+  },
+  {
+    name: "current_value_a",
+    label: "Потребление / ток, А",
+    type: "number",
+    min: 0,
+    step: "any",
+    visibleWhen: (values) => values.role_in_power_chain === "source" || values.role_in_power_chain === "consumer"
+  },
+  {
+    name: "top_current_type",
+    label: "Род тока верхняя сторона",
+    type: "select",
+    options: currentTypeOptions,
+    visibleWhen: (values) => values.role_in_power_chain === "converter"
+  },
+  {
+    name: "top_supply_voltage",
+    label: "Напряжение верхняя сторона, В",
+    type: "select",
+    options: supplyVoltageOptions,
+    visibleWhen: (values) => values.role_in_power_chain === "converter"
+  },
+  {
+    name: "bottom_current_type",
+    label: "Род тока нижняя сторона",
+    type: "select",
+    options: currentTypeOptions,
+    visibleWhen: (values) => values.role_in_power_chain === "converter"
+  },
+  {
+    name: "bottom_supply_voltage",
+    label: "Напряжение нижняя сторона, В",
+    type: "select",
+    options: supplyVoltageOptions,
+    visibleWhen: (values) => values.role_in_power_chain === "converter"
+  },
+  {
+    name: "converter_current_value_a",
+    label: "Ток, А",
+    type: "number",
+    min: 0,
+    step: "any",
+    visibleWhen: (values) => values.role_in_power_chain === "converter",
+    onChange: (value) => ({ current_value_a: value })
+  }
+];
+
 export default function EquipmentTypesPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -228,29 +369,8 @@ export default function EquipmentTypesPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [datasheetFile, setDatasheetFile] = useState<File | null>(null);
-  const [electricalFieldsByEquipmentId, setElectricalFieldsByEquipmentId] = useState<
-    Record<number, ElectricalFields>
-  >(() => {
-    try {
-      const raw = localStorage.getItem(equipmentElectricalFieldsStorageKey);
-      if (!raw) {
-        return {};
-      }
-      const parsed = JSON.parse(raw);
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch {
-      return {};
-    }
-  });
   const photoFileRef = useRef<File | null>(null);
   const datasheetFileRef = useRef<File | null>(null);
-
-  useEffect(() => {
-    localStorage.setItem(
-      equipmentElectricalFieldsStorageKey,
-      JSON.stringify(electricalFieldsByEquipmentId)
-    );
-  }, [electricalFieldsByEquipmentId]);
 
   const currentTypeOptions = useMemo(
     () => [
@@ -275,43 +395,6 @@ export default function EquipmentTypesPage() {
     [t]
   );
 
-  const getEquipmentElectricalFields = (equipment: EquipmentType): ElectricalFields => {
-    const localFields = electricalFieldsByEquipmentId[equipment.id];
-    return {
-      current_type:
-        localFields && Object.prototype.hasOwnProperty.call(localFields, "current_type")
-          ? localFields.current_type
-          : equipment.current_type ?? null,
-      supply_voltage:
-        localFields && Object.prototype.hasOwnProperty.call(localFields, "supply_voltage")
-          ? localFields.supply_voltage
-          : equipment.supply_voltage ?? null,
-      current_consumption_a:
-        localFields && Object.prototype.hasOwnProperty.call(localFields, "current_consumption_a")
-          ? localFields.current_consumption_a
-          : equipment.current_consumption_a ?? null,
-      mount_type:
-        localFields && Object.prototype.hasOwnProperty.call(localFields, "mount_type")
-          ? localFields.mount_type
-          : equipment.mount_type ?? null,
-      mount_width_mm:
-        localFields && Object.prototype.hasOwnProperty.call(localFields, "mount_width_mm")
-          ? localFields.mount_width_mm
-          : equipment.mount_width_mm ?? null,
-      power_role:
-        localFields && Object.prototype.hasOwnProperty.call(localFields, "power_role")
-          ? localFields.power_role
-          : equipment.power_role ?? null,
-      output_voltage:
-        localFields && Object.prototype.hasOwnProperty.call(localFields, "output_voltage")
-          ? localFields.output_voltage
-          : equipment.output_voltage ?? null,
-      max_output_current_a:
-        localFields && Object.prototype.hasOwnProperty.call(localFields, "max_output_current_a")
-          ? localFields.max_output_current_a
-          : equipment.max_output_current_a ?? null
-    };
-  };
   const onPickPhoto = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     console.log("[ET] picked photo", file?.name, file?.size);
@@ -500,6 +583,229 @@ export default function EquipmentTypesPage() {
     resetMediaFiles();
   };
 
+  const powerDialogFields = useMemo(
+    () => buildPowerDialogFields(currentTypeOptions, supplyVoltageOptions),
+    [currentTypeOptions, supplyVoltageOptions]
+  );
+
+  const buildDialogFields = (networkPorts?: NetworkPort[] | null): FieldConfig[] => [
+    { name: "name", label: t("common.fields.name"), type: "text" },
+    { name: "nomenclature_number", label: t("common.fields.nomenclature"), type: "text" },
+    { name: "article", label: t("pagesUi.equipmentTypes.fields.article"), type: "text" },
+    ...powerDialogFields,
+    {
+      name: "mount_type",
+      label: "Тип монтажа",
+      type: "select",
+      options: mountTypeOptions
+    },
+    {
+      name: "mount_width_mm",
+      label: "Ширина монтажа, мм",
+      type: "number",
+      min: 0
+    },
+    {
+      name: "manufacturer_id",
+      label: t("common.fields.manufacturer"),
+      type: "treeSelect",
+      treeOptions: manufacturerTreeOptions,
+      leafOnly: true
+    },
+    {
+      name: "equipment_category_id",
+      label: t("common.fields.equipmentCategory"),
+      type: "treeSelect",
+      treeOptions: equipmentCategoryTreeOptions,
+      leafOnly: true
+    },
+    {
+      name: "is_channel_forming",
+      label: t("common.fields.channelForming"),
+      type: "checkbox"
+    },
+    {
+      name: "ai_count",
+      label: "AI",
+      type: "number",
+      visibleWhen: (values) => Boolean(values.is_channel_forming)
+    },
+    {
+      name: "di_count",
+      label: "DI",
+      type: "number",
+      visibleWhen: (values) => Boolean(values.is_channel_forming)
+    },
+    {
+      name: "ao_count",
+      label: "AO",
+      type: "number",
+      visibleWhen: (values) => Boolean(values.is_channel_forming)
+    },
+    {
+      name: "do_count",
+      label: "DO",
+      type: "number",
+      visibleWhen: (values) => Boolean(values.is_channel_forming)
+    },
+    {
+      name: "is_network",
+      label: t("common.fields.isNetwork"),
+      type: "checkbox"
+    },
+    {
+      name: "network_ports",
+      label: t("common.fields.portsInterfaces"),
+      type: "ports",
+      options: buildNetworkPortOptions(networkPorts),
+      visibleWhen: (values) => Boolean(values.is_network)
+    },
+    {
+      name: "has_serial_interfaces",
+      label: t("pagesUi.equipmentTypes.fields.hasSerialInterfaces"),
+      type: "checkbox"
+    },
+    {
+      name: "serial_ports",
+      label: t("pagesUi.equipmentTypes.serialPorts.title"),
+      type: "ports",
+      options: serialPortOptions,
+      visibleWhen: (values) => Boolean(values.has_serial_interfaces),
+      portsLabels: {
+        title: t("pagesUi.equipmentTypes.serialPorts.title"),
+        add: t("pagesUi.equipmentTypes.serialPorts.add"),
+        portType: t("pagesUi.equipmentTypes.serialPorts.portType"),
+        count: t("pagesUi.equipmentTypes.serialPorts.count")
+      }
+    },
+    { name: "unit_price_rub", label: t("common.fields.priceRub"), type: "number" }
+  ];
+
+  const buildDialogValues = (equipment?: EquipmentType) => {
+    const electrical = equipment ? getEquipmentElectricalFields(equipment) : {};
+    return {
+      ...(equipment || {}),
+      article: equipment?.article || "",
+      role_in_power_chain: electrical.role_in_power_chain || "passive",
+      current_type: electrical.current_type || "",
+      supply_voltage: electrical.supply_voltage || "",
+      top_current_type: electrical.top_current_type || "",
+      top_supply_voltage: electrical.top_supply_voltage || "",
+      bottom_current_type: electrical.bottom_current_type || "",
+      bottom_supply_voltage: electrical.bottom_supply_voltage || "",
+      current_value_a: electrical.current_value_a ?? "",
+      converter_current_value_a: electrical.current_value_a ?? "",
+      mount_type: equipment?.mount_type || "",
+      mount_width_mm: equipment?.mount_width_mm ?? "",
+      manufacturer_id:
+        equipment && manufacturerOptions.some((item) => item.id === equipment.manufacturer_id)
+          ? equipment.manufacturer_id
+          : "",
+      equipment_category_id:
+        equipment && equipmentCategoryOptions.some((item) => item.id === equipment.equipment_category_id)
+          ? equipment.equipment_category_id
+          : "",
+      is_channel_forming: equipment?.is_channel_forming ?? false,
+      ai_count: equipment?.ai_count ?? 0,
+      di_count: equipment?.di_count ?? 0,
+      ao_count: equipment?.ao_count ?? 0,
+      do_count: equipment?.do_count ?? 0,
+      is_network: equipment?.is_network ?? false,
+      network_ports: equipment?.network_ports || [],
+      has_serial_interfaces: equipment?.has_serial_interfaces ?? false,
+      serial_ports: equipment?.serial_ports || [],
+      unit_price_rub: equipment?.unit_price_rub ?? ""
+    };
+  };
+
+  const buildEquipmentTypePayload = (values: Record<string, any>) => {
+    if (
+      values.is_network &&
+      ((values.network_ports as NetworkPort[] | undefined) || []).some((item) =>
+        legacyNetworkPortValues.has(item?.type)
+      )
+    ) {
+      throw new Error(t("pagesUi.equipmentTypes.validation.networkPortsDisallowSerial"));
+    }
+
+    const parseNullableNumber = (value: unknown, errorKey: string) => {
+      if (value === "" || value === undefined || value === null) {
+        return null;
+      }
+      const parsed = Number(value);
+      if (Number.isNaN(parsed) || parsed < 0) {
+        throw new Error(t(errorKey));
+      }
+      return parsed;
+    };
+
+    const manufacturerId =
+      values.manufacturer_id === "" || values.manufacturer_id === undefined
+        ? undefined
+        : Number(values.manufacturer_id);
+    const equipmentCategoryId =
+      values.equipment_category_id === "" || values.equipment_category_id === undefined
+        ? undefined
+        : Number(values.equipment_category_id);
+    const currentValue = parseNullableNumber(
+      values.current_value_a,
+      "pagesUi.equipmentTypes.validation.currentConsumptionInvalid"
+    );
+
+    const role = (values.role_in_power_chain ? String(values.role_in_power_chain) : "passive") as PowerRole;
+
+    return {
+      name: String(values.name || ""),
+      nomenclature_number: String(values.nomenclature_number || ""),
+      article: values.article ? String(values.article) : null,
+      role_in_power_chain: role,
+      power_attributes: {
+        role_in_power_chain: role,
+        current_type: values.current_type ? String(values.current_type) : null,
+        supply_voltage: values.supply_voltage ? String(values.supply_voltage) : null,
+        top_current_type: values.top_current_type ? String(values.top_current_type) : null,
+        top_supply_voltage: values.top_supply_voltage ? String(values.top_supply_voltage) : null,
+        bottom_current_type: values.bottom_current_type ? String(values.bottom_current_type) : null,
+        bottom_supply_voltage: values.bottom_supply_voltage ? String(values.bottom_supply_voltage) : null,
+        current_value_a: currentValue
+      },
+      mount_type: values.mount_type ? String(values.mount_type) : null,
+      mount_width_mm:
+        values.mount_width_mm === "" || values.mount_width_mm === undefined
+          ? null
+          : Number(values.mount_width_mm),
+      manufacturer_id: manufacturerId,
+      equipment_category_id: equipmentCategoryId,
+      is_channel_forming: Boolean(values.is_channel_forming),
+      ai_count: Number(values.ai_count || 0),
+      di_count: Number(values.di_count || 0),
+      ao_count: Number(values.ao_count || 0),
+      do_count: Number(values.do_count || 0),
+      is_network: Boolean(values.is_network),
+      network_ports: values.is_network
+        ? (((values.network_ports as NetworkPort[] | undefined) || [])
+            .filter((item) => item?.type)
+            .map((item) => ({
+              type: item.type,
+              count: Number(item.count || 0)
+            })))
+        : undefined,
+      has_serial_interfaces: Boolean(values.has_serial_interfaces),
+      serial_ports: values.has_serial_interfaces
+        ? (((values.serial_ports as SerialPort[] | undefined) || [])
+            .filter((item) => item?.type)
+            .map((item) => ({
+              type: item.type,
+              count: Number(item.count || 0)
+            })))
+        : [],
+      unit_price_rub:
+        values.unit_price_rub === "" || values.unit_price_rub === undefined
+          ? undefined
+          : Number(values.unit_price_rub)
+    } satisfies Partial<EquipmentType>;
+  };
+
   const saveEquipmentType = async (
     payload: Partial<EquipmentType>,
     equipmentId?: number
@@ -650,18 +956,17 @@ export default function EquipmentTypesPage() {
       },
       { header: t("common.fields.nomenclature"), accessorKey: "nomenclature_number" },
       {
-        header: t("pagesUi.equipmentTypes.fields.currentType"),
-        cell: ({ row }) => getEquipmentElectricalFields(row.original).current_type || "-"
-      },
-      {
-        header: t("pagesUi.equipmentTypes.fields.supplyVoltage"),
-        cell: ({ row }) => getEquipmentElectricalFields(row.original).supply_voltage || "-"
-      },
-      {
-        header: t("pagesUi.equipmentTypes.fields.currentConsumptionA"),
+        header: "Питание",
         cell: ({ row }) => {
-          const value = getEquipmentElectricalFields(row.original).current_consumption_a;
-          return value === null || value === undefined ? "-" : value;
+          const electrical = getEquipmentElectricalFields(row.original);
+          return (
+            <Tooltip title={<Typography whiteSpace="pre-line">{buildPowerTooltipContent(electrical)}</Typography>}>
+              <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
+                <InfoOutlinedIcon fontSize="small" color="action" />
+                <Typography variant="body2">{getPowerRoleLabel(electrical.role_in_power_chain)}</Typography>
+              </Box>
+            </Tooltip>
+          );
         }
       },
       {
@@ -730,245 +1035,18 @@ export default function EquipmentTypesPage() {
                 setDialog({
                   open: true,
                   title: t("pagesUi.equipmentTypes.dialogs.editTitle"),
-                  fields: [
-                    { name: "name", label: t("common.fields.name"), type: "text" },
-                    { name: "nomenclature_number", label: t("common.fields.nomenclature"), type: "text" },
-                    { name: "article", label: t("pagesUi.equipmentTypes.fields.article"), type: "text" },
-                    {
-                      name: "current_type",
-                      label: t("pagesUi.equipmentTypes.fields.currentType"),
-                      type: "select",
-                      options: currentTypeOptions
-                    },
-                    {
-                      name: "supply_voltage",
-                      label: t("pagesUi.equipmentTypes.fields.supplyVoltage"),
-                      type: "select",
-                      options: supplyVoltageOptions
-                    },
-                    {
-                      name: "current_consumption_a",
-                      label: t("pagesUi.equipmentTypes.fields.currentConsumptionA"),
-                      type: "number",
-                      min: 0,
-                      step: "any"
-                    },
-                    {
-                      name: "mount_type",
-                      label: "Тип монтажа",
-                      type: "select",
-                      options: mountTypeOptions
-                    },
-                    {
-                      name: "mount_width_mm",
-                      label: "Ширина монтажа, мм",
-                      type: "number",
-                      min: 0
-                    },
-                    {
-                      name: "power_role",
-                      label: "Роль питания",
-                      type: "select",
-                      options: powerRoleOptions
-                    },
-                    { name: "output_voltage", label: "Выходное напряжение", type: "text" },
-                    {
-                      name: "max_output_current_a",
-                      label: "Макс. выходной ток, A",
-                      type: "number",
-                      min: 0,
-                      step: "any"
-                    },
-                    {
-                      name: "manufacturer_id",
-                      label: t("common.fields.manufacturer"),
-                      type: "treeSelect",
-                      treeOptions: manufacturerTreeOptions,
-                      leafOnly: true
-                    },
-                    {
-                      name: "equipment_category_id",
-                      label: t("common.fields.equipmentCategory"),
-                      type: "treeSelect",
-                      treeOptions: equipmentCategoryTreeOptions,
-                      leafOnly: true
-                    },
-                    {
-                      name: "is_channel_forming",
-                      label: t("common.fields.channelForming"),
-                      type: "checkbox"
-                    },
-                    {
-                      name: "ai_count",
-                      label: "AI",
-                      type: "number",
-                      visibleWhen: (values) => Boolean(values.is_channel_forming)
-                    },
-                    {
-                      name: "di_count",
-                      label: "DI",
-                      type: "number",
-                      visibleWhen: (values) => Boolean(values.is_channel_forming)
-                    },
-                    {
-                      name: "ao_count",
-                      label: "AO",
-                      type: "number",
-                      visibleWhen: (values) => Boolean(values.is_channel_forming)
-                    },
-                    {
-                      name: "do_count",
-                      label: "DO",
-                      type: "number",
-                      visibleWhen: (values) => Boolean(values.is_channel_forming)
-                    },
-                    {
-                      name: "is_network",
-                      label: t("common.fields.isNetwork"),
-                      type: "checkbox"
-                    },
-                    {
-                      name: "network_ports",
-                      label: t("common.fields.portsInterfaces"),
-                      type: "ports",
-                      options: buildNetworkPortOptions(row.original.network_ports),
-                      visibleWhen: (values) => Boolean(values.is_network)
-                    },
-                    {
-                      name: "has_serial_interfaces",
-                      label: t("pagesUi.equipmentTypes.fields.hasSerialInterfaces"),
-                      type: "checkbox"
-                    },
-                    {
-                      name: "serial_ports",
-                      label: t("pagesUi.equipmentTypes.serialPorts.title"),
-                      type: "ports",
-                      options: serialPortOptions,
-                      visibleWhen: (values) => Boolean(values.has_serial_interfaces),
-                      portsLabels: {
-                        title: t("pagesUi.equipmentTypes.serialPorts.title"),
-                        add: t("pagesUi.equipmentTypes.serialPorts.add"),
-                        portType: t("pagesUi.equipmentTypes.serialPorts.portType"),
-                        count: t("pagesUi.equipmentTypes.serialPorts.count")
-                      }
-                    },
-                    { name: "unit_price_rub", label: t("common.fields.priceRub"), type: "number" }
-                  ],
-                  values: {
-                    ...row.original,
-                    manufacturer_id: manufacturerOptions.some((item) => item.id === row.original.manufacturer_id)
-                      ? row.original.manufacturer_id
-                      : "",
-                    equipment_category_id: equipmentCategoryOptions.some(
-                      (item) => item.id === row.original.equipment_category_id
-                    )
-                      ? row.original.equipment_category_id
-                      : "",
-                    ...getEquipmentElectricalFields(row.original)
-                  },
+                  fields: buildDialogFields(row.original.network_ports),
+                  values: buildDialogValues(row.original),
                   renderExtra: renderMediaInputs,
                   onSave: async (values) => {
-                    if (
-                      values.is_network &&
-                      (values.network_ports || []).some(
-                        (item: NetworkPort) => legacyNetworkPortValues.has(item?.type)
-                      )
-                    ) {
-                      setErrorMessage(t("pagesUi.equipmentTypes.validation.networkPortsDisallowSerial"));
-                      return;
+                    try {
+                      await saveEquipmentType(buildEquipmentTypePayload(values), row.original.id);
+                    } catch (error) {
+                      setErrorMessage(
+                        error instanceof Error ? error.message : t("pagesUi.equipmentTypes.errors.update")
+                      );
+                      throw error;
                     }
-                    const manufacturerId =
-                      values.manufacturer_id === "" || values.manufacturer_id === undefined
-                        ? undefined
-                        : Number(values.manufacturer_id);
-                    const equipmentCategoryId =
-                      values.equipment_category_id === "" || values.equipment_category_id === undefined
-                        ? undefined
-                        : Number(values.equipment_category_id);
-                    let currentConsumptionValue: number | null = null;
-                    if (
-                      values.current_consumption_a !== "" &&
-                      values.current_consumption_a !== undefined &&
-                      values.current_consumption_a !== null
-                    ) {
-                      const parsedCurrentConsumption = Number(values.current_consumption_a);
-                      if (Number.isNaN(parsedCurrentConsumption)) {
-                        setErrorMessage(t("pagesUi.equipmentTypes.validation.currentConsumptionInvalid"));
-                        return;
-                      }
-                      if (parsedCurrentConsumption < 0) {
-                        setErrorMessage(t("pagesUi.equipmentTypes.validation.currentConsumptionNonNegative"));
-                        return;
-                      }
-                      currentConsumptionValue = parsedCurrentConsumption;
-                    }
-                    const result = await saveEquipmentType(
-                      {
-                        name: values.name,
-                        nomenclature_number: values.nomenclature_number,
-                        article: values.article || null,
-                        current_type: values.current_type ? String(values.current_type) : null,
-                        supply_voltage: values.supply_voltage ? String(values.supply_voltage) : null,
-                        current_consumption_a: currentConsumptionValue,
-                        mount_type: values.mount_type ? String(values.mount_type) : null,
-                        mount_width_mm:
-                          values.mount_width_mm === "" || values.mount_width_mm === undefined
-                            ? null
-                            : Number(values.mount_width_mm),
-                        power_role: values.power_role ? String(values.power_role) : null,
-                        output_voltage: values.output_voltage ? String(values.output_voltage) : null,
-                        max_output_current_a:
-                          values.max_output_current_a === "" || values.max_output_current_a === undefined
-                            ? null
-                            : Number(values.max_output_current_a),
-                        manufacturer_id: manufacturerId,
-                        equipment_category_id: equipmentCategoryId,
-                        is_channel_forming: values.is_channel_forming,
-                        ai_count: Number(values.ai_count || 0),
-                        di_count: Number(values.di_count || 0),
-                        ao_count: Number(values.ao_count || 0),
-                        do_count: Number(values.do_count || 0),
-                        is_network: values.is_network,
-                        network_ports: values.is_network
-                          ? (values.network_ports || [])
-                              .filter((item: NetworkPort) => item?.type)
-                              .map((item: NetworkPort) => ({
-                                type: item.type,
-                                count: Number(item.count || 0)
-                              }))
-                          : undefined,
-                        has_serial_interfaces: values.has_serial_interfaces,
-                          serial_ports: values.has_serial_interfaces
-                            ? (values.serial_ports || [])
-                                .filter((item: SerialPort) => item?.type)
-                                .map((item: SerialPort) => ({
-                                  type: item.type,
-                                  count: Number(item.count || 0)
-                                }))
-                            : [],
-                        unit_price_rub: values.unit_price_rub === "" ? undefined : values.unit_price_rub
-                      },
-                      row.original.id
-                    );
-                    setElectricalFieldsByEquipmentId((prev) => ({
-                      ...prev,
-                      [result.id]: {
-                        current_type: values.current_type ? String(values.current_type) : null,
-                        supply_voltage: values.supply_voltage ? String(values.supply_voltage) : null,
-                        current_consumption_a: currentConsumptionValue,
-                        mount_type: values.mount_type ? String(values.mount_type) : null,
-                        mount_width_mm:
-                          values.mount_width_mm === "" || values.mount_width_mm === undefined
-                            ? null
-                            : Number(values.mount_width_mm),
-                        power_role: values.power_role ? String(values.power_role) : null,
-                        output_voltage: values.output_voltage ? String(values.output_voltage) : null,
-                        max_output_current_a:
-                          values.max_output_current_a === "" || values.max_output_current_a === undefined
-                            ? null
-                            : Number(values.max_output_current_a)
-                      }
-                    }));
                   }
                 });
               }}
@@ -1005,12 +1083,12 @@ export default function EquipmentTypesPage() {
     manufacturerOptions,
     manufacturerTreeOptions,
     restoreMutation,
+    buildDialogFields,
+    buildDialogValues,
+    buildEquipmentTypePayload,
     renderMediaInputs,
     resetMediaFiles,
     saveEquipmentType,
-    currentTypeOptions,
-    supplyVoltageOptions,
-    electricalFieldsByEquipmentId,
     t,
     updateMutation
   ]);
@@ -1102,256 +1180,18 @@ export default function EquipmentTypesPage() {
                   setDialog({
                     open: true,
                     title: t("pagesUi.equipmentTypes.dialogs.createTitle"),
-                    fields: [
-                      { name: "name", label: t("common.fields.name"), type: "text" },
-                      { name: "nomenclature_number", label: t("common.fields.nomenclature"), type: "text" },
-                      { name: "article", label: t("pagesUi.equipmentTypes.fields.article"), type: "text" },
-                      {
-                        name: "current_type",
-                        label: t("pagesUi.equipmentTypes.fields.currentType"),
-                        type: "select",
-                        options: currentTypeOptions
-                      },
-                      {
-                        name: "supply_voltage",
-                        label: t("pagesUi.equipmentTypes.fields.supplyVoltage"),
-                        type: "select",
-                        options: supplyVoltageOptions
-                      },
-                    {
-                      name: "current_consumption_a",
-                      label: t("pagesUi.equipmentTypes.fields.currentConsumptionA"),
-                      type: "number",
-                      min: 0,
-                      step: "any"
-                    },
-                    {
-                      name: "mount_type",
-                      label: "Тип монтажа",
-                      type: "select",
-                      options: mountTypeOptions
-                    },
-                    {
-                      name: "mount_width_mm",
-                      label: "Ширина монтажа, мм",
-                      type: "number",
-                      min: 0
-                    },
-                    {
-                      name: "power_role",
-                      label: "Роль питания",
-                      type: "select",
-                      options: powerRoleOptions
-                    },
-                    { name: "output_voltage", label: "Выходное напряжение", type: "text" },
-                    {
-                      name: "max_output_current_a",
-                      label: "Макс. выходной ток, A",
-                      type: "number",
-                      min: 0,
-                      step: "any"
-                    },
-                      {
-                        name: "manufacturer_id",
-                        label: t("common.fields.manufacturer"),
-                        type: "treeSelect",
-                        treeOptions: manufacturerTreeOptions,
-                        leafOnly: true
-                      },
-                      {
-                        name: "equipment_category_id",
-                        label: t("common.fields.equipmentCategory"),
-                        type: "treeSelect",
-                        treeOptions: equipmentCategoryTreeOptions,
-                        leafOnly: true
-                      },
-                      {
-                        name: "is_channel_forming",
-                        label: t("common.fields.channelForming"),
-                        type: "checkbox"
-                      },
-                      {
-                        name: "ai_count",
-                        label: "AI",
-                        type: "number",
-                        visibleWhen: (values) => Boolean(values.is_channel_forming)
-                      },
-                      {
-                        name: "di_count",
-                        label: "DI",
-                        type: "number",
-                        visibleWhen: (values) => Boolean(values.is_channel_forming)
-                      },
-                      {
-                        name: "ao_count",
-                        label: "AO",
-                        type: "number",
-                        visibleWhen: (values) => Boolean(values.is_channel_forming)
-                      },
-                      {
-                        name: "do_count",
-                        label: "DO",
-                        type: "number",
-                        visibleWhen: (values) => Boolean(values.is_channel_forming)
-                      },
-                      {
-                        name: "is_network",
-                        label: t("common.fields.isNetwork"),
-                        type: "checkbox"
-                      },
-                      {
-                        name: "network_ports",
-                        label: t("common.fields.portsInterfaces"),
-                        type: "ports",
-                        options: networkPortOptions,
-                        visibleWhen: (values) => Boolean(values.is_network)
-                      },
-                      {
-                        name: "has_serial_interfaces",
-                        label: t("pagesUi.equipmentTypes.fields.hasSerialInterfaces"),
-                        type: "checkbox"
-                      },
-                      {
-                        name: "serial_ports",
-                        label: t("pagesUi.equipmentTypes.serialPorts.title"),
-                        type: "ports",
-                        options: serialPortOptions,
-                        visibleWhen: (values) => Boolean(values.has_serial_interfaces),
-                        portsLabels: {
-                          title: t("pagesUi.equipmentTypes.serialPorts.title"),
-                          add: t("pagesUi.equipmentTypes.serialPorts.add"),
-                          portType: t("pagesUi.equipmentTypes.serialPorts.portType"),
-                          count: t("pagesUi.equipmentTypes.serialPorts.count")
-                        }
-                      },
-                      { name: "unit_price_rub", label: t("common.fields.priceRub"), type: "number" }
-                    ],
-                    values: {
-                      name: "",
-                      article: "",
-                      nomenclature_number: "",
-                      current_type: "",
-                      supply_voltage: "",
-                      current_consumption_a: "",
-                      mount_type: "",
-                      mount_width_mm: "",
-                      power_role: "",
-                      output_voltage: "",
-                      max_output_current_a: "",
-                      manufacturer_id: "",
-                      equipment_category_id: "",
-                      is_channel_forming: false,
-                      ai_count: 0,
-                      di_count: 0,
-                      ao_count: 0,
-                      do_count: 0,
-                      is_network: false,
-                      network_ports: [],
-                      has_serial_interfaces: false,
-                      serial_ports: [],
-                      unit_price_rub: ""
-                    },
+                    fields: buildDialogFields(),
+                    values: buildDialogValues(),
                     renderExtra: renderMediaInputs,
                     onSave: async (values) => {
-                      if (
-                        values.is_network &&
-                        (values.network_ports || []).some(
-                          (item: NetworkPort) => legacyNetworkPortValues.has(item?.type)
-                        )
-                      ) {
-                        setErrorMessage(t("pagesUi.equipmentTypes.validation.networkPortsDisallowSerial"));
-                        return;
+                      try {
+                        await saveEquipmentType(buildEquipmentTypePayload(values));
+                      } catch (error) {
+                        setErrorMessage(
+                          error instanceof Error ? error.message : t("pagesUi.equipmentTypes.errors.create")
+                        );
+                        throw error;
                       }
-                      const manufacturerId =
-                        values.manufacturer_id === "" || values.manufacturer_id === undefined
-                          ? undefined
-                          : Number(values.manufacturer_id);
-                      const equipmentCategoryId =
-                        values.equipment_category_id === "" ||
-                        values.equipment_category_id === undefined
-                          ? undefined
-                          : Number(values.equipment_category_id);
-                      let currentConsumptionValue: number | null = null;
-                      if (
-                        values.current_consumption_a !== "" &&
-                        values.current_consumption_a !== undefined &&
-                        values.current_consumption_a !== null
-                      ) {
-                        const parsedCurrentConsumption = Number(values.current_consumption_a);
-                        if (Number.isNaN(parsedCurrentConsumption)) {
-                          setErrorMessage(t("pagesUi.equipmentTypes.validation.currentConsumptionInvalid"));
-                          return;
-                        }
-                        if (parsedCurrentConsumption < 0) {
-                          setErrorMessage(t("pagesUi.equipmentTypes.validation.currentConsumptionNonNegative"));
-                          return;
-                        }
-                        currentConsumptionValue = parsedCurrentConsumption;
-                      }
-                      const result = await saveEquipmentType({
-                        name: values.name,
-                        nomenclature_number: values.nomenclature_number,
-                        article: values.article || null,
-                        current_type: values.current_type ? String(values.current_type) : null,
-                        supply_voltage: values.supply_voltage ? String(values.supply_voltage) : null,
-                        current_consumption_a: currentConsumptionValue,
-                        mount_type: values.mount_type ? String(values.mount_type) : null,
-                        mount_width_mm:
-                          values.mount_width_mm === "" || values.mount_width_mm === undefined
-                            ? null
-                            : Number(values.mount_width_mm),
-                        power_role: values.power_role ? String(values.power_role) : null,
-                        output_voltage: values.output_voltage ? String(values.output_voltage) : null,
-                        max_output_current_a:
-                          values.max_output_current_a === "" || values.max_output_current_a === undefined
-                            ? null
-                            : Number(values.max_output_current_a),
-                        manufacturer_id: manufacturerId,
-                        equipment_category_id: equipmentCategoryId,
-                        is_channel_forming: values.is_channel_forming,
-                        ai_count: Number(values.ai_count || 0),
-                        di_count: Number(values.di_count || 0),
-                        ao_count: Number(values.ao_count || 0),
-                        do_count: Number(values.do_count || 0),
-                        is_network: values.is_network,
-                        network_ports: values.is_network
-                          ? (values.network_ports || [])
-                              .filter((item: NetworkPort) => item?.type)
-                              .map((item: NetworkPort) => ({
-                                type: item.type,
-                                count: Number(item.count || 0)
-                              }))
-                          : undefined,
-                        has_serial_interfaces: values.has_serial_interfaces,
-                        serial_ports: values.has_serial_interfaces
-                          ? (values.serial_ports || [])
-                              .filter((item: SerialPort) => item?.type)
-                              .map((item: SerialPort) => ({
-                                type: item.type,
-                                count: Number(item.count || 0)
-                              }))
-                          : [],
-                        unit_price_rub: values.unit_price_rub === "" ? undefined : values.unit_price_rub
-                      });
-                      setElectricalFieldsByEquipmentId((prev) => ({
-                        ...prev,
-                      [result.id]: {
-                        current_type: values.current_type ? String(values.current_type) : null,
-                        supply_voltage: values.supply_voltage ? String(values.supply_voltage) : null,
-                        current_consumption_a: currentConsumptionValue,
-                        mount_type: values.mount_type ? String(values.mount_type) : null,
-                        mount_width_mm:
-                          values.mount_width_mm === "" || values.mount_width_mm === undefined
-                            ? null
-                            : Number(values.mount_width_mm),
-                        power_role: values.power_role ? String(values.power_role) : null,
-                        output_voltage: values.output_voltage ? String(values.output_voltage) : null,
-                        max_output_current_a:
-                          values.max_output_current_a === "" || values.max_output_current_a === undefined
-                            ? null
-                            : Number(values.max_output_current_a)
-                      }
-                    }));
                     }
                   });
                 }}
