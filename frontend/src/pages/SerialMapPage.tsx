@@ -113,7 +113,7 @@ function xmlSafe(value: string) {
 }
 
 function exportXml(document: SerialMapDocumentData) {
-  return `<?xml version="1.0" encoding="UTF-8"?><SerialMap><Nodes>${document.nodes.map((node) => `<Node id="${xmlSafe(node.id)}" type="${xmlSafe(node.kind)}" name="${xmlSafe(node.name)}" address="${node.address ?? ""}" protocol="${xmlSafe(node.protocol)}" baudRate="${node.baudRate}" parity="${xmlSafe(node.parity)}" dataBits="${node.dataBits}" stopBits="${node.stopBits}" segment="${node.segment}"><Note>${xmlSafe(node.note)}</Note></Node>`).join("")}</Nodes><Edges>${document.edges.map((edge) => `<Edge id="${xmlSafe(edge.id)}" from="${xmlSafe(edge.fromNodeId)}" to="${xmlSafe(edge.toNodeId)}" protocol="${xmlSafe(edge.protocol)}" baudRate="${edge.baudRate}" label="${xmlSafe(edge.label)}" />`).join("")}</Edges></SerialMap>`;
+  return `<?xml version="1.0" encoding="UTF-8"?><SerialMap><Nodes>${document.nodes.map((node) => `<Node id="${xmlSafe(node.id)}" type="${xmlSafe(node.kind)}" name="${xmlSafe(node.name)}" address="${node.address ?? ""}" protocol="${xmlSafe(node.protocol)}" baudRate="${node.baudRate}" parity="${xmlSafe(node.parity)}" dataBits="${node.dataBits}" stopBits="${node.stopBits}" segment="${node.segment}"><Note>${xmlSafe(node.note)}</Note></Node>`).join("")}</Nodes><Edges>${document.edges.map((edge) => `<Edge id="${xmlSafe(edge.id)}" from="${xmlSafe(edge.fromNodeId)}" to="${xmlSafe(edge.toNodeId)}" protocol="${xmlSafe(edge.protocol)}" baudRate="${edge.baudRate}" label="${xmlSafe(edge.label)}" cableMark="${xmlSafe(edge.cableMark)}" />`).join("")}</Edges></SerialMap>`;
 }
 
 function exportCsv(document: SerialMapDocumentData) {
@@ -606,7 +606,7 @@ export default function SerialMapPage() {
     if (duplicate) return setMessage({ tone: "warning", text: "Такая связь уже существует." });
     if ([from, to].some((node) => node.protocol === "RS-232" && document.edges.some((edge) => edge.fromNodeId === node.id || edge.toNodeId === node.id))) return setMessage({ tone: "warning", text: "RS-232 допускает только одно соединение на узел." });
     const edgeId = `edge_${Math.random().toString(36).slice(2, 10)}`;
-    mutateCurrentDocument((current) => ({ ...current, edges: [...current.edges, { id: edgeId, fromNodeId: fromId, toNodeId: toId, protocol: from.protocol, baudRate: from.baudRate, label: "", meta: {} }] }));
+    mutateCurrentDocument((current) => ({ ...current, edges: [...current.edges, { id: edgeId, fromNodeId: fromId, toNodeId: toId, protocol: from.protocol, baudRate: from.baudRate, label: "", cableMark: "", meta: {} }] }));
     setSelectedNodeIds([]);
     setSelectedEdgeId(edgeId);
     setToolMode("select");
@@ -1044,6 +1044,14 @@ export default function SerialMapPage() {
     if (selectedEdge) {
       return (
         <div className="space-y-3">
+          <select className="h-10 w-full border border-slate-200 bg-white px-3 text-sm" value={selectedEdge.protocol} onChange={(event) => {
+            const protocol = event.target.value as SerialMapProtocol;
+            const supportedRates = getProtocolMeta(protocol).baudRates;
+            updateSelectedEdge({ protocol, baudRate: supportedRates.includes(selectedEdge.baudRate) ? selectedEdge.baudRate : supportedRates[0] });
+          }} onBlur={handleSelectCommit} disabled={readOnly}>
+            {protocolOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+          <Input value={selectedEdge.cableMark} onChange={(event) => updateSelectedEdge({ cableMark: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder={t("pages.serialMap.fields.cableMark", { defaultValue: "Марка кабеля" })} disabled={readOnly} />
           <Input value={selectedEdge.label} onChange={(event) => updateSelectedEdge({ label: event.target.value })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder="Подпись" disabled={readOnly} />
           <Input value={selectedEdge.baudRate} onChange={(event) => updateSelectedEdge({ baudRate: Number(event.target.value) })} onBlur={handleFieldCommit} onKeyDown={handleFieldKeyDown} placeholder="Скорость" disabled={readOnly} />
         </div>

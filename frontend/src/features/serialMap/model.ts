@@ -5,6 +5,7 @@ import type {
   SerialMapDataPoolEntry,
   SerialMapDiagnostic,
   SerialMapDocumentData,
+  SerialMapEdge,
   SerialMapEligibleEquipment,
   SerialMapGatewayMapping,
   SerialMapNode,
@@ -60,6 +61,29 @@ export function createEmptyDocument(): SerialMapDocumentData {
     nodes: [],
     edges: [],
     history: { past: [], future: [] },
+  };
+}
+
+function normalizeEdge(input: Partial<SerialMapEdge> | undefined): SerialMapEdge | null {
+  if (!input?.id || !input.fromNodeId || !input.toNodeId) return null;
+  const protocol = input.protocol && SERIAL_MAP_PROTOCOLS.some((item) => item.value === input.protocol) ? input.protocol : "Modbus RTU";
+  const baudRate = typeof input.baudRate === "number" && Number.isFinite(input.baudRate) ? input.baudRate : inferBaudRateFromProtocol(protocol);
+  return {
+    id: input.id,
+    fromNodeId: input.fromNodeId,
+    toNodeId: input.toNodeId,
+    protocol,
+    baudRate,
+    label: typeof input.label === "string" ? input.label : "",
+    cableMark:
+      typeof input.cableMark === "string"
+        ? input.cableMark
+        : typeof input.meta?.cableMark === "string"
+          ? String(input.meta.cableMark)
+          : typeof input.meta?.cable_mark === "string"
+            ? String(input.meta.cable_mark)
+            : "",
+    meta: input.meta && typeof input.meta === "object" ? input.meta : {},
   };
 }
 
@@ -296,11 +320,11 @@ export function createDemoDocument(): SerialMapDocumentData {
   rsGateway.converterMappings = [createEmptyGatewayMapping(), createEmptyGatewayMapping()];
   document.nodes = [rsMaster, rsBus, rsSlave1, rsSlave2, rsSensor, rsGateway];
   document.edges = [
-    { id: createId("edge"), fromNodeId: rsMaster.id, toNodeId: rsBus.id, protocol: "RS-485", baudRate: 9600, label: "", meta: {} },
-    { id: createId("edge"), fromNodeId: rsBus.id, toNodeId: rsSlave1.id, protocol: "Modbus RTU", baudRate: 9600, label: "", meta: {} },
-    { id: createId("edge"), fromNodeId: rsBus.id, toNodeId: rsSlave2.id, protocol: "Modbus RTU", baudRate: 9600, label: "", meta: {} },
-    { id: createId("edge"), fromNodeId: rsBus.id, toNodeId: rsSensor.id, protocol: "Modbus RTU", baudRate: 9600, label: "", meta: {} },
-    { id: createId("edge"), fromNodeId: rsBus.id, toNodeId: rsGateway.id, protocol: "Modbus RTU", baudRate: 9600, label: "", meta: {} },
+    { id: createId("edge"), fromNodeId: rsMaster.id, toNodeId: rsBus.id, protocol: "RS-485", baudRate: 9600, label: "", cableMark: "", meta: {} },
+    { id: createId("edge"), fromNodeId: rsBus.id, toNodeId: rsSlave1.id, protocol: "Modbus RTU", baudRate: 9600, label: "", cableMark: "", meta: {} },
+    { id: createId("edge"), fromNodeId: rsBus.id, toNodeId: rsSlave2.id, protocol: "Modbus RTU", baudRate: 9600, label: "", cableMark: "", meta: {} },
+    { id: createId("edge"), fromNodeId: rsBus.id, toNodeId: rsSensor.id, protocol: "Modbus RTU", baudRate: 9600, label: "", cableMark: "", meta: {} },
+    { id: createId("edge"), fromNodeId: rsBus.id, toNodeId: rsGateway.id, protocol: "Modbus RTU", baudRate: 9600, label: "", cableMark: "", meta: {} },
   ];
   return document;
 }
@@ -316,7 +340,7 @@ function normalizeLegacyScheme(scheme: LegacySerialMapScheme | undefined): Seria
     updatedAt: new Date().toISOString(),
     viewport: structuredClone(scheme.viewport || defaultViewport),
     nodes: structuredClone(scheme.nodes || []),
-    edges: structuredClone(scheme.edges || []),
+    edges: (scheme.edges || []).map((edge) => normalizeEdge(edge)).filter((edge): edge is SerialMapEdge => Boolean(edge)),
     history: structuredClone(scheme.history || { past: [], future: [] }),
   };
 }
@@ -337,7 +361,7 @@ export function normalizeSerialMapDocument(input: unknown): SerialMapDocumentDat
       updatedAt: current.updatedAt || new Date().toISOString(),
       viewport: current.viewport || { ...defaultViewport },
       nodes: current.nodes || [],
-      edges: current.edges || [],
+      edges: (current.edges || []).map((edge) => normalizeEdge(edge)).filter((edge): edge is SerialMapEdge => Boolean(edge)),
       history: current.history || { past: [], future: [] },
     };
   }

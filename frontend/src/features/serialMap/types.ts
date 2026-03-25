@@ -74,6 +74,7 @@ export type SerialMapEdge = {
   protocol: SerialMapProtocol;
   baudRate: number;
   label: string;
+  cableMark: string;
   meta: Record<string, string | number | boolean | null>;
 };
 

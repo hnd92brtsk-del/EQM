@@ -143,3 +143,77 @@ def test_sync_marks_missing_operation_items_as_out_of_operation():
 
     assert len(synced.items) == 1
     assert synced.items[0].source_status == "out_of_operation"
+
+
+def test_sync_refreshes_source_backed_fields_from_equipment_type():
+    equipment = make_equipment_type(
+        name="Блок питания DR-75-24",
+        supply_voltage="24В",
+        current_consumption_a=3.2,
+        mount_width_mm=54,
+        power_role="source",
+        output_voltage="24В",
+        max_output_current_a=3.2,
+        ai_count=0,
+        di_count=0,
+        ao_count=0,
+        do_count=0,
+        channel_count=0,
+        is_channel_forming=False,
+        is_network=False,
+        network_ports=[],
+    )
+    document = default_document()
+    document.items = [
+        DigitalTwinItem(
+            id=stable_item_id("cabinet", 11),
+            item_kind="source-backed",
+            source_status="active",
+            placement_mode="wall",
+            wall_id="back",
+            sort_order=0,
+            name="Старое имя",
+            user_label="PSU-1",
+            equipment_item_source="cabinet",
+            equipment_item_id=11,
+            equipment_type_id=equipment.id,
+            quantity=1,
+            supply_voltage="220В",
+            current_consumption_a=1.0,
+            mount_width_mm=30,
+            power_role="consumer",
+        )
+    ]
+
+    synced = sync_document_with_operation_items(document, "cabinet", [make_operation_item(11, equipment_type=equipment)])
+
+    assert len(synced.items) == 1
+    item = synced.items[0]
+    assert item.name == "Блок питания DR-75-24"
+    assert item.user_label == "PSU-1"
+    assert item.supply_voltage == "24В"
+    assert item.current_consumption_a == 3.2
+    assert item.mount_width_mm == 54
+    assert item.power_role == "source"
+    assert item.output_voltage == "24В"
+    assert item.max_output_current_a == 3.2
+
+
+def test_sync_keeps_manual_items_but_does_not_create_new_manual_entries():
+    equipment = make_equipment_type(name="Контроллер")
+    document = default_document()
+    document.items = [
+        DigitalTwinItem(
+            id="manual-legacy",
+            item_kind="manual",
+            source_status="active",
+            placement_mode="unplaced",
+            name="Старый ручной элемент",
+            quantity=1,
+        )
+    ]
+
+    synced = sync_document_with_operation_items(document, "cabinet", [make_operation_item(15, equipment_type=equipment)])
+
+    assert any(item.id == "manual-legacy" and item.item_kind == "manual" for item in synced.items)
+    assert any(item.id == stable_item_id("cabinet", 15) and item.item_kind == "source-backed" for item in synced.items)
