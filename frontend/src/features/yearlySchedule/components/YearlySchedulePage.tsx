@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { ErrorSnackbar } from "../../../components/ErrorSnackbar";
 import { AppButton } from "../../../components/ui/AppButton";
 import { useAuth } from "../../../context/AuthContext";
+import { hasPermission } from "../../../utils/permissions";
 import {
   deleteYearlyScheduleEvent,
   fillYearlyScheduleMonth,
@@ -58,7 +59,7 @@ function getInitialYear(searchParams: URLSearchParams) {
 export default function YearlySchedulePage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const canWrite = user?.role === "admin";
+  const canWrite = hasPermission(user, "personnel", "write");
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialYear = getInitialYear(searchParams);

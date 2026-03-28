@@ -1,6 +1,7 @@
 from datetime import date
-from pydantic import BaseModel, Field
 from typing import Optional
+
+from pydantic import BaseModel, Field
 
 from app.schemas.common import EntityBase, SoftDeleteFields
 from app.schemas.users import UserOut
@@ -14,6 +15,7 @@ class PersonnelBase(BaseModel):
     first_name: str = Field(min_length=1, max_length=100)
     last_name: str = Field(min_length=1, max_length=100)
     middle_name: str | None = Field(default=None, max_length=100)
+    role: str | None = Field(default=None, max_length=200)
     position: str = Field(min_length=1, max_length=200)
     personnel_number: str | None = Field(default=None, max_length=50)
     service: str | None = Field(default=None, max_length=200)
@@ -40,6 +42,7 @@ class PersonnelUpdate(BaseModel):
     first_name: str | None = Field(default=None, min_length=1, max_length=100)
     last_name: str | None = Field(default=None, min_length=1, max_length=100)
     middle_name: str | None = Field(default=None, max_length=100)
+    role: str | None = Field(default=None, max_length=200)
     position: str | None = Field(default=None, min_length=1, max_length=200)
     personnel_number: str | None = Field(default=None, max_length=50)
     service: str | None = Field(default=None, max_length=200)
@@ -124,6 +127,7 @@ class PersonnelOut(EntityBase, SoftDeleteFields):
     first_name: str
     last_name: str
     middle_name: str | None = None
+    role: str | None = None
     position: str
     personnel_number: str | None = None
     service: str | None = None

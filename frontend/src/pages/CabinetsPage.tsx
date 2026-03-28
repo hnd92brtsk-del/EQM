@@ -42,6 +42,7 @@ import {
 } from "../api/cabinetFiles";
 import { syncDigitalTwinFromOperation } from "../api/digitalTwins";
 import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
@@ -227,7 +228,7 @@ export default function CabinetsPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const canWrite = user?.role === "admin" || user?.role === "engineer";
+  const canWrite = hasPermission(user, "cabinets", "write");
   const queryClient = useQueryClient();
 
   const [page, setPage] = useState(1);

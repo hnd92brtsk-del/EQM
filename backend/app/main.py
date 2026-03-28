@@ -28,6 +28,7 @@ from app.routers import (
     audit_logs,
     sessions,
     dashboard,
+    role_permissions,
     personnel,
     chat,
     equipment_in_operation,
@@ -83,6 +84,7 @@ app.include_router(movements.router, prefix="/api/v1/movements", tags=["movement
 app.include_router(audit_logs.router, prefix="/api/v1/audit-logs", tags=["audit-logs"])
 app.include_router(sessions.router, prefix="/api/v1/sessions", tags=["sessions"])
 app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["dashboard"])
+app.include_router(role_permissions.router, prefix="/api/v1/admin/role-permissions", tags=["role-permissions"])
 app.include_router(chat.router, prefix="/api/v1", tags=["chat"])
 app.include_router(personnel.router, prefix="/api/v1/personnel", tags=["personnel"])
 app.include_router(pid.router, prefix="/api/v1/pid", tags=["pid"])

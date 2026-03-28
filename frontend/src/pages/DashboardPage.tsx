@@ -54,6 +54,7 @@ type EquipmentAction = {
   entity_id?: number | null;
   created_at?: string;
   actor_id?: number;
+  display_user_label?: string;
   username?: string;
   movement_type?: string;
   equipment_type?: string;
@@ -62,6 +63,7 @@ type EquipmentAction = {
 type RecentLogin = {
   id?: number;
   user_id?: number;
+  display_user_label?: string;
   username?: string;
   started_at?: string;
   ended_at?: string | null;
@@ -419,13 +421,11 @@ export default function DashboardPage() {
       {
         header: t("dashboard.columns.entity"),
         cell: ({ row }) =>
-          row.original.equipment_type ||
-          row.original.entity ||
-          (row.original.entity_id ? `ID ${row.original.entity_id}` : "-")
+          row.original.equipment_type || row.original.entity || (row.original.entity_id ? `ID ${row.original.entity_id}` : "-")
       },
       {
         header: t("dashboard.columns.user"),
-        cell: ({ row }) => row.original.username || row.original.actor_id || "-"
+        cell: ({ row }) => row.original.display_user_label || row.original.username || row.original.actor_id || "-"
       },
       {
         header: t("dashboard.columns.date"),
@@ -439,7 +439,7 @@ export default function DashboardPage() {
     () => [
       {
         header: t("dashboard.columns.user"),
-        cell: ({ row }) => row.original.username || row.original.user_id || "-"
+        cell: ({ row }) => row.original.display_user_label || row.original.username || row.original.user_id || "-"
       },
       {
         header: t("dashboard.columns.login"),

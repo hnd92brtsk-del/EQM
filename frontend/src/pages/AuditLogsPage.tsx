@@ -19,12 +19,14 @@ import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { listEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
+import { hasPermission } from "../utils/permissions";
 
 const pageSizeOptions = [10, 20, 50, 100];
 
 type AuditLog = {
   id: number;
   actor_id: number;
+  display_user_label: string;
   action: string;
   entity: string;
   entity_id?: number | null;
@@ -34,7 +36,7 @@ type AuditLog = {
 export default function AuditLogsPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const canView = user?.role === "admin" || user?.role === "engineer";
+  const canView = hasPermission(user, "admin_audit", "read");
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -60,10 +62,7 @@ export default function AuditLogsPage() {
         page_size: pageSize,
         sort: sort || undefined,
         filters: {
-          actor_id:
-            columnFilters.actor_id && !Number.isNaN(Number(columnFilters.actor_id))
-              ? Number(columnFilters.actor_id)
-              : undefined,
+          q: columnFilters.q || undefined,
           entity: columnFilters.entity || undefined,
           action: columnFilters.action || undefined,
           entity_id:
@@ -90,11 +89,11 @@ export default function AuditLogsPage() {
       { header: t("pagesUi.auditLogs.columns.id"), accessorKey: "id" },
       {
         header: t("pagesUi.auditLogs.columns.actor"),
-        accessorKey: "actor_id",
+        accessorKey: "display_user_label",
         meta: {
-          filterType: "number",
-          filterKey: "actor_id",
-          filterPlaceholder: t("pagesUi.auditLogs.fields.actorId")
+          filterType: "text",
+          filterKey: "q",
+          filterPlaceholder: "ID / ФИО / роль"
         } as ColumnMeta<AuditLog>
       },
       {

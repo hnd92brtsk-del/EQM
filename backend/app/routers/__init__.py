@@ -23,6 +23,7 @@ from app.routers import movements
 from app.routers import audit_logs
 from app.routers import sessions
 from app.routers import dashboard
+from app.routers import role_permissions
 from app.routers import personnel
 from app.routers import chat
 from app.routers import pid
@@ -58,6 +59,7 @@ __all__ = [
     "audit_logs",
     "sessions",
     "dashboard",
+    "role_permissions",
     "chat",
     "pid",
     "ipam",

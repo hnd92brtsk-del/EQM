@@ -8,6 +8,7 @@ export type Personnel = {
   first_name: string;
   last_name: string;
   middle_name?: string | null;
+  role?: string | null;
   position: string;
   personnel_number?: string | null;
   service?: string | null;

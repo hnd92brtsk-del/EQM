@@ -1,28 +1,35 @@
-﻿from fastapi import APIRouter, Depends
-from sqlalchemy import select, func, cast, Float, and_, or_, union_all
+from fastapi import APIRouter, Depends
+from sqlalchemy import Float, and_, cast, func, or_, select, union_all
 
-from app.core.dependencies import get_db, get_current_user
+from app.core.access import require_space_access
+from app.core.dependencies import get_db
+from app.core.identity import build_full_name, build_personnel_identity_subquery, make_identity
+from app.models.audit import AuditLog
 from app.models.core import Cabinet, EquipmentType, Warehouse
-from app.models.operations import WarehouseItem, CabinetItem, AssemblyItem
 from app.models.io import IOSignal
-from app.models.security import User
+from app.models.operations import AssemblyItem, CabinetItem, WarehouseItem
+from app.models.security import SpaceKey, User
+from app.models.security import User as SecurityUser
+from app.models.sessions import UserSession
 from app.schemas.dashboard import (
-    DashboardOut,
-    MetricsOut,
-    EquipmentByTypeItem,
-    EquipmentByWarehouseItem,
-    DashboardOverviewOut,
-    DashboardKpisOut,
     DashboardDonutsOut,
+    DashboardKpisOut,
+    DashboardOut,
+    DashboardOverviewOut,
     DonutQtyItem,
     DonutValueItem,
+    EquipmentByTypeItem,
+    EquipmentByWarehouseItem,
+    MetricsOut,
+    RecentEquipmentActionOut,
+    RecentLoginOut,
 )
 
 router = APIRouter()
 
 
 @router.get("/", response_model=DashboardOut)
-def get_dashboard(db=Depends(get_db), user: User = Depends(get_current_user)):
+def get_dashboard(db=Depends(get_db), user: User = Depends(require_space_access(SpaceKey.overview, "read"))):
     cabinets_total = db.scalar(
         select(func.count()).select_from(Cabinet).where(Cabinet.is_deleted == False)
     ) or 0
@@ -121,7 +128,7 @@ def get_dashboard(db=Depends(get_db), user: User = Depends(get_current_user)):
 
 
 @router.get("/overview", response_model=DashboardOverviewOut)
-def get_dashboard_overview(db=Depends(get_db), user: User = Depends(get_current_user)):
+def get_dashboard_overview(db=Depends(get_db), user: User = Depends(require_space_access(SpaceKey.overview, "read"))):
     price_expr = func.coalesce(
         cast(EquipmentType.meta_data["unit_price_rub"].astext, Float), 0.0
     )
@@ -303,3 +310,105 @@ def get_dashboard_overview(db=Depends(get_db), user: User = Depends(get_current_
     )
 
     return DashboardOverviewOut(kpis=kpis, donuts=donuts)
+
+
+@router.get("/recent-equipment-actions", response_model=list[RecentEquipmentActionOut])
+def get_recent_equipment_actions(
+    limit: int = 10,
+    db=Depends(get_db),
+    user: User = Depends(require_space_access(SpaceKey.overview, "read")),
+):
+    personnel_identity = build_personnel_identity_subquery()
+    rows = db.execute(
+        select(
+            AuditLog,
+            SecurityUser.username.label("username"),
+            SecurityUser.role.label("system_role"),
+            personnel_identity.c.first_name,
+            personnel_identity.c.last_name,
+            personnel_identity.c.middle_name,
+            personnel_identity.c.personnel_role,
+        )
+        .join(SecurityUser, SecurityUser.id == AuditLog.actor_id)
+        .outerjoin(personnel_identity, personnel_identity.c.user_id == SecurityUser.id)
+        .where(
+            or_(
+                AuditLog.entity.ilike("%equipment%"),
+                AuditLog.entity.ilike("%movement%"),
+                AuditLog.entity.ilike("%warehouse%"),
+                AuditLog.entity.ilike("%cabinet%"),
+                AuditLog.entity.ilike("%assembl%"),
+            )
+        )
+        .order_by(AuditLog.created_at.desc())
+        .limit(limit)
+    ).all()
+
+    result = []
+    for audit_log, username, system_role, first_name, last_name, middle_name, personnel_role in rows:
+        personnel_full_name = build_full_name(last_name, first_name, middle_name)
+        identity = make_identity(audit_log.actor_id, username, personnel_full_name, personnel_role, system_role)
+        result.append(
+            RecentEquipmentActionOut(
+                id=audit_log.id,
+                actor_id=audit_log.actor_id,
+                identity=identity,
+                action=audit_log.action,
+                entity=audit_log.entity,
+                entity_id=audit_log.entity_id,
+                created_at=audit_log.created_at.isoformat() if audit_log.created_at else None,
+                movement_type=(audit_log.meta or {}).get("movement_type"),
+                equipment_type=(audit_log.meta or {}).get("equipment_type"),
+                username=username,
+                personnel_full_name=personnel_full_name,
+                personnel_role=personnel_role,
+                system_role=identity.system_role,
+                display_user_label=identity.display_user_label,
+            )
+        )
+    return result
+
+
+@router.get("/recent-logins", response_model=list[RecentLoginOut])
+def get_recent_logins(
+    limit: int = 10,
+    db=Depends(get_db),
+    user: User = Depends(require_space_access(SpaceKey.overview, "read")),
+):
+    personnel_identity = build_personnel_identity_subquery()
+    rows = db.execute(
+        select(
+            UserSession,
+            SecurityUser.username.label("username"),
+            SecurityUser.role.label("system_role"),
+            personnel_identity.c.first_name,
+            personnel_identity.c.last_name,
+            personnel_identity.c.middle_name,
+            personnel_identity.c.personnel_role,
+        )
+        .join(SecurityUser, SecurityUser.id == UserSession.user_id)
+        .outerjoin(personnel_identity, personnel_identity.c.user_id == SecurityUser.id)
+        .order_by(UserSession.started_at.desc())
+        .limit(limit)
+    ).all()
+
+    result = []
+    for session, username, system_role, first_name, last_name, middle_name, personnel_role in rows:
+        personnel_full_name = build_full_name(last_name, first_name, middle_name)
+        identity = make_identity(session.user_id, username, personnel_full_name, personnel_role, system_role)
+        result.append(
+            RecentLoginOut(
+                id=session.id,
+                user_id=session.user_id,
+                identity=identity,
+                username=username,
+                personnel_full_name=personnel_full_name,
+                personnel_role=personnel_role,
+                system_role=identity.system_role,
+                display_user_label=identity.display_user_label,
+                started_at=session.started_at.isoformat() if session.started_at else None,
+                ended_at=session.ended_at.isoformat() if session.ended_at else None,
+                end_reason=session.end_reason,
+            )
+        )
+    return result

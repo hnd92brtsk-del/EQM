@@ -26,6 +26,7 @@ import { EntityDialog, DialogState, TreeFieldOption } from "../components/Entity
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { AppButton } from "../components/ui/AppButton";
 import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 import { annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
 
 type Manufacturer = {
@@ -91,7 +92,7 @@ function buildCountryOptions(nodes: ManufacturerNode[]): TreeFieldOption[] {
 export default function ManufacturersPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const canWrite = user?.role === "admin" || user?.role === "engineer";
+  const canWrite = hasPermission(user, "dictionaries", "write");
   const queryClient = useQueryClient();
 
   const [q, setQ] = useState("");

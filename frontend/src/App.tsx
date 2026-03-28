@@ -1,10 +1,11 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { Box, CircularProgress } from "@mui/material";
+import { Box, CircularProgress, Typography } from "@mui/material";
 
 import { useAuth } from "./context/AuthContext";
 import { AppLayout } from "./components/AppLayout";
 import LoginPage from "./pages/LoginPage";
+import { hasPermission, type PermissionAction, type SpaceKey } from "./utils/permissions";
 
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const ManufacturersPage = lazy(() => import("./pages/ManufacturersPage"));
@@ -27,6 +28,7 @@ const UsersPage = lazy(() => import("./pages/UsersPage"));
 const SessionsPage = lazy(() => import("./pages/SessionsPage"));
 const AuditLogsPage = lazy(() => import("./pages/AuditLogsPage"));
 const AdminDiagnosticsPage = lazy(() => import("./pages/AdminDiagnosticsPage"));
+const RolePermissionsPage = lazy(() => import("./pages/RolePermissionsPage"));
 const DclPage = lazy(() => import("./pages/DclPage"));
 const SerialMapPage = lazy(() => import("./pages/SerialMapPage"));
 const NetworkMapPage = lazy(() => import("./pages/NetworkMapPage"));
@@ -64,6 +66,22 @@ function RequireAuth({ children }: { children: JSX.Element }) {
   return children;
 }
 
+function RequireSpace({
+  children,
+  space,
+  action = "read"
+}: {
+  children: JSX.Element;
+  space: SpaceKey;
+  action?: PermissionAction;
+}) {
+  const { user } = useAuth();
+  if (!hasPermission(user, space, action)) {
+    return <Typography>Нет доступа</Typography>;
+  }
+  return children;
+}
+
 export default function App() {
   return (
     <Routes>
@@ -76,39 +94,40 @@ export default function App() {
               <Suspense fallback={<RouteLoadingFallback />}>
                 <Routes>
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/dashboard" element={<RequireSpace space="overview"><DashboardPage /></RequireSpace>} />
                   <Route path="/dictionaries" element={<Navigate to="/dictionaries/manufacturers" replace />} />
-                  <Route path="/dictionaries/manufacturers" element={<ManufacturersPage />} />
-                  <Route path="/dictionaries/locations" element={<LocationsPage />} />
-                  <Route path="/dictionaries/field-equipments" element={<FieldEquipmentsPage />} />
-                  <Route path="/dictionaries/main-equipment" element={<MainEquipmentPage />} />
-                  <Route path="/dictionaries/data-types" element={<DataTypesPage />} />
-                  <Route path="/dictionaries/measurement-units" element={<MeasurementUnitsPage />} />
-                  <Route path="/dictionaries/signal-types" element={<SignalTypesPage />} />
-                  <Route path="/dictionaries/equipment-categories" element={<EquipmentCategoriesPage />} />
-                  <Route path="/dictionaries/equipment-types" element={<EquipmentTypesPage />} />
-                  <Route path="/warehouses" element={<WarehousesPage />} />
-                  <Route path="/warehouse-items" element={<WarehouseItemsPage />} />
-                  <Route path="/cabinets" element={<CabinetsPage />} />
-                  <Route path="/assemblies" element={<AssembliesPage />} />
-                  <Route path="/cabinet-items" element={<CabinetItemsPage />} />
-                  <Route path="/equipment/technological" element={<TechnologicalEquipmentPage />} />
-                  <Route path="/cabinets/:id/composition" element={<CabinetCompositionPage />} />
-                  <Route path="/assemblies/:id/composition" element={<CabinetCompositionPage />} />
-                  <Route path="/movements" element={<MovementsPage />} />
-                  <Route path="/io-signals" element={<IOSignalsPage />} />
-                  <Route path="/ipam" element={<IPAMPage />} />
-                  <Route path="/engineering/dcl" element={<DclPage />} />
-                  <Route path="/engineering/serial-map" element={<SerialMapPage />} />
-                  <Route path="/engineering/network-map" element={<NetworkMapPage />} />
+                  <Route path="/dictionaries/manufacturers" element={<RequireSpace space="dictionaries"><ManufacturersPage /></RequireSpace>} />
+                  <Route path="/dictionaries/locations" element={<RequireSpace space="dictionaries"><LocationsPage /></RequireSpace>} />
+                  <Route path="/dictionaries/field-equipments" element={<RequireSpace space="dictionaries"><FieldEquipmentsPage /></RequireSpace>} />
+                  <Route path="/dictionaries/main-equipment" element={<RequireSpace space="dictionaries"><MainEquipmentPage /></RequireSpace>} />
+                  <Route path="/dictionaries/data-types" element={<RequireSpace space="dictionaries"><DataTypesPage /></RequireSpace>} />
+                  <Route path="/dictionaries/measurement-units" element={<RequireSpace space="dictionaries"><MeasurementUnitsPage /></RequireSpace>} />
+                  <Route path="/dictionaries/signal-types" element={<RequireSpace space="dictionaries"><SignalTypesPage /></RequireSpace>} />
+                  <Route path="/dictionaries/equipment-categories" element={<RequireSpace space="dictionaries"><EquipmentCategoriesPage /></RequireSpace>} />
+                  <Route path="/dictionaries/equipment-types" element={<RequireSpace space="equipment"><EquipmentTypesPage /></RequireSpace>} />
+                  <Route path="/warehouses" element={<RequireSpace space="dictionaries"><WarehousesPage /></RequireSpace>} />
+                  <Route path="/warehouse-items" element={<RequireSpace space="equipment"><WarehouseItemsPage /></RequireSpace>} />
+                  <Route path="/cabinets" element={<RequireSpace space="cabinets"><CabinetsPage /></RequireSpace>} />
+                  <Route path="/assemblies" element={<RequireSpace space="cabinets"><AssembliesPage /></RequireSpace>} />
+                  <Route path="/cabinet-items" element={<RequireSpace space="equipment"><CabinetItemsPage /></RequireSpace>} />
+                  <Route path="/equipment/technological" element={<RequireSpace space="equipment"><TechnologicalEquipmentPage /></RequireSpace>} />
+                  <Route path="/cabinets/:id/composition" element={<RequireSpace space="cabinets"><CabinetCompositionPage /></RequireSpace>} />
+                  <Route path="/assemblies/:id/composition" element={<RequireSpace space="cabinets"><CabinetCompositionPage /></RequireSpace>} />
+                  <Route path="/movements" element={<RequireSpace space="equipment"><MovementsPage /></RequireSpace>} />
+                  <Route path="/io-signals" element={<RequireSpace space="engineering"><IOSignalsPage /></RequireSpace>} />
+                  <Route path="/ipam" element={<RequireSpace space="engineering"><IPAMPage /></RequireSpace>} />
+                  <Route path="/engineering/dcl" element={<RequireSpace space="engineering"><DclPage /></RequireSpace>} />
+                  <Route path="/engineering/serial-map" element={<RequireSpace space="engineering"><SerialMapPage /></RequireSpace>} />
+                  <Route path="/engineering/network-map" element={<RequireSpace space="engineering"><NetworkMapPage /></RequireSpace>} />
                   <Route path="/help" element={<HelpPage />} />
-                  <Route path="/personnel" element={<PersonnelPage />} />
-                  <Route path="/personnel/schedule" element={<PersonnelSchedulePage />} />
-                  <Route path="/personnel/:id" element={<PersonnelDetailsPage />} />
-                  <Route path="/admin/users" element={<UsersPage />} />
-                  <Route path="/admin/sessions" element={<SessionsPage />} />
-                  <Route path="/admin/audit" element={<AuditLogsPage />} />
-                  <Route path="/admin/diagnostics" element={<AdminDiagnosticsPage />} />
+                  <Route path="/personnel" element={<RequireSpace space="personnel"><PersonnelPage /></RequireSpace>} />
+                  <Route path="/personnel/schedule" element={<RequireSpace space="personnel"><PersonnelSchedulePage /></RequireSpace>} />
+                  <Route path="/personnel/:id" element={<RequireSpace space="personnel"><PersonnelDetailsPage /></RequireSpace>} />
+                  <Route path="/admin/users" element={<RequireSpace space="admin_users" action="admin"><UsersPage /></RequireSpace>} />
+                  <Route path="/admin/role-permissions" element={<RequireSpace space="admin_users" action="admin"><RolePermissionsPage /></RequireSpace>} />
+                  <Route path="/admin/sessions" element={<RequireSpace space="admin_sessions"><SessionsPage /></RequireSpace>} />
+                  <Route path="/admin/audit" element={<RequireSpace space="admin_audit"><AuditLogsPage /></RequireSpace>} />
+                  <Route path="/admin/diagnostics" element={<RequireSpace space="admin_diagnostics"><AdminDiagnosticsPage /></RequireSpace>} />
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 </Routes>
               </Suspense>

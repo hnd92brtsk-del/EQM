@@ -23,6 +23,7 @@ import { EntityDialog, DialogState, type TreeFieldOption } from "../components/E
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { AppButton } from "../components/ui/AppButton";
 import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 import {
   getIOTree,
   listIOSignals,
@@ -170,7 +171,7 @@ const ioColumnMeta: Record<string, ColumnMeta> = {
 export default function IOSignalsPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const canWrite = user?.role === "admin" || user?.role === "engineer";
+  const canWrite = hasPermission(user, "engineering", "write");
   const queryClient = useQueryClient();
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());

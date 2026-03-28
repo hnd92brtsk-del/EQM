@@ -43,6 +43,7 @@ import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { apiFetch } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 import { AppButton } from "../components/ui/AppButton";
 import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
 import { ProtectedImage } from "../components/ProtectedImage";
@@ -1198,7 +1199,7 @@ function LocationTreeNodeCard({
 export default function CabinetItemsPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const canWrite = user?.role === "admin" || user?.role === "engineer";
+  const canWrite = hasPermission(user, "equipment", "write");
   const queryClient = useQueryClient();
 
   const [q, setQ] = useState("");

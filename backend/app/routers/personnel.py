@@ -9,7 +9,8 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import selectinload
 
 from app.core.config import get_settings
-from app.core.dependencies import get_db, require_read_access, require_admin
+from app.core.access import require_space_access
+from app.core.dependencies import get_db
 from app.core.pagination import paginate
 from app.core.query import apply_search, apply_sort, apply_date_filters
 from app.core.audit import add_audit_log, model_to_dict
@@ -22,7 +23,7 @@ from app.models.core import (
     PersonnelYearlyScheduleEvent,
 )
 from app.models.attachments import Attachment
-from app.models.security import User
+from app.models.security import SpaceKey, User
 from app.schemas.common import Pagination
 from app.schemas.personnel import (
     DeleteYearlyScheduleEventRequest,
@@ -124,7 +125,7 @@ def accumulate_summary(
 def list_schedule_templates(
     include_deleted: bool = False,
     db=Depends(get_db),
-    user: User = Depends(require_read_access()),
+    user: User = Depends(require_space_access(SpaceKey.personnel, "read")),
 ):
     query = select(PersonnelScheduleTemplate)
     if not include_deleted:
@@ -137,7 +138,7 @@ def get_yearly_schedule(
     year: int,
     include_deleted: bool = False,
     db=Depends(get_db),
-    user: User = Depends(require_read_access()),
+    user: User = Depends(require_space_access(SpaceKey.personnel, "read")),
 ):
     personnel_query = (
         select(Personnel)
@@ -194,7 +195,7 @@ def get_yearly_schedule(
 def get_yearly_schedule_summary(
     year: int,
     db=Depends(get_db),
-    user: User = Depends(require_read_access()),
+    user: User = Depends(require_space_access(SpaceKey.personnel, "read")),
 ):
     rows = db.execute(
         select(
@@ -215,7 +216,7 @@ def get_yearly_schedule_summary(
 def update_yearly_schedule_statuses(
     payload: UpdateYearlyScheduleStatusesRequest,
     db=Depends(get_db),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_space_access(SpaceKey.personnel, "write")),
 ):
     updated_records: list[PersonnelYearlyScheduleAssignment] = []
 
@@ -289,7 +290,7 @@ def update_yearly_schedule_statuses(
 def fill_yearly_schedule_month(
     payload: MonthFillYearlyScheduleRequest,
     db=Depends(get_db),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_space_access(SpaceKey.personnel, "write")),
 ):
     validate_schedule_status(payload.status)
     ensure_personnel(db, payload.personnel_id)
@@ -317,7 +318,7 @@ def fill_yearly_schedule_month(
 def upsert_yearly_schedule_event(
     payload: UpsertYearlyScheduleEventRequest,
     db=Depends(get_db),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_space_access(SpaceKey.personnel, "write")),
 ):
     ensure_personnel(db, payload.personnel_id)
     ensure_year_matches(payload.iso_date, payload.year)
@@ -378,7 +379,7 @@ def upsert_yearly_schedule_event(
 def delete_yearly_schedule_event(
     payload: DeleteYearlyScheduleEventRequest,
     db=Depends(get_db),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_space_access(SpaceKey.personnel, "write")),
 ):
     ensure_personnel(db, payload.personnel_id)
     ensure_year_matches(payload.iso_date, payload.year)
@@ -427,7 +428,7 @@ def list_personnel(
     updated_at_from: datetime | None = None,
     updated_at_to: datetime | None = None,
     db=Depends(get_db),
-    user: User = Depends(require_read_access()),
+    user: User = Depends(require_space_access(SpaceKey.personnel, "read")),
 ):
     query = select(Personnel).options(selectinload(Personnel.user), selectinload(Personnel.schedule_template))
     if is_deleted is None:
@@ -469,7 +470,7 @@ def get_personnel(
     person_id: int,
     include_deleted: bool = False,
     db=Depends(get_db),
-    user: User = Depends(require_read_access()),
+    user: User = Depends(require_space_access(SpaceKey.personnel, "read")),
 ):
     query = (
         select(Personnel)
@@ -496,7 +497,7 @@ def get_personnel(
 def create_personnel(
     payload: PersonnelCreate,
     db=Depends(get_db),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_space_access(SpaceKey.personnel, "write")),
 ):
     ensure_schedule_template(db, payload.schedule_template_id)
     personnel = Personnel(is_deleted=False, **payload.model_dump())
@@ -523,7 +524,7 @@ def update_personnel(
     person_id: int,
     payload: PersonnelUpdate,
     db=Depends(get_db),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_space_access(SpaceKey.personnel, "write")),
 ):
     personnel = db.scalar(select(Personnel).where(Personnel.id == person_id))
     if not personnel:
@@ -555,7 +556,7 @@ def update_personnel(
 def delete_personnel(
     person_id: int,
     db=Depends(get_db),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_space_access(SpaceKey.personnel, "write")),
 ):
     personnel = db.scalar(select(Personnel).where(Personnel.id == person_id))
     if not personnel:
@@ -584,7 +585,7 @@ def delete_personnel(
 def restore_personnel(
     person_id: int,
     db=Depends(get_db),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_space_access(SpaceKey.personnel, "write")),
 ):
     personnel = db.scalar(select(Personnel).where(Personnel.id == person_id))
     if not personnel:
@@ -615,7 +616,7 @@ def create_competency(
     person_id: int,
     payload: PersonnelCompetencyCreate,
     db=Depends(get_db),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_space_access(SpaceKey.personnel, "write")),
 ):
     ensure_personnel(db, person_id)
     competency = PersonnelCompetency(personnel_id=person_id, is_deleted=False, **payload.model_dump())
@@ -643,7 +644,7 @@ def update_competency(
     competency_id: int,
     payload: PersonnelCompetencyUpdate,
     db=Depends(get_db),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_space_access(SpaceKey.personnel, "write")),
 ):
     competency = db.scalar(
         select(PersonnelCompetency).where(
@@ -679,7 +680,7 @@ def delete_competency(
     person_id: int,
     competency_id: int,
     db=Depends(get_db),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_space_access(SpaceKey.personnel, "write")),
 ):
     competency = db.scalar(
         select(PersonnelCompetency).where(
@@ -714,7 +715,7 @@ def restore_competency(
     person_id: int,
     competency_id: int,
     db=Depends(get_db),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_space_access(SpaceKey.personnel, "write")),
 ):
     competency = db.scalar(
         select(PersonnelCompetency).where(
@@ -750,7 +751,7 @@ def create_training(
     person_id: int,
     payload: PersonnelTrainingCreate,
     db=Depends(get_db),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_space_access(SpaceKey.personnel, "write")),
 ):
     ensure_personnel(db, person_id)
     training = PersonnelTraining(personnel_id=person_id, is_deleted=False, **payload.model_dump())
@@ -778,7 +779,7 @@ def update_training(
     training_id: int,
     payload: PersonnelTrainingUpdate,
     db=Depends(get_db),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_space_access(SpaceKey.personnel, "write")),
 ):
     training = db.scalar(
         select(PersonnelTraining).where(
@@ -814,7 +815,7 @@ def delete_training(
     person_id: int,
     training_id: int,
     db=Depends(get_db),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_space_access(SpaceKey.personnel, "write")),
 ):
     training = db.scalar(
         select(PersonnelTraining).where(
@@ -849,7 +850,7 @@ def restore_training(
     person_id: int,
     training_id: int,
     db=Depends(get_db),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_space_access(SpaceKey.personnel, "write")),
 ):
     training = db.scalar(
         select(PersonnelTraining).where(
@@ -887,7 +888,7 @@ def list_personnel_attachments(
     entity_id: int | None = None,
     include_deleted: bool = False,
     db=Depends(get_db),
-    user: User = Depends(require_read_access()),
+    user: User = Depends(require_space_access(SpaceKey.personnel, "read")),
 ):
     ensure_personnel(db, person_id, include_deleted=True)
     if entity != "personnel":
@@ -925,7 +926,7 @@ def list_personnel_attachments(
 def download_attachment(
     attachment_id: int,
     db=Depends(get_db),
-    user: User = Depends(require_read_access()),
+    user: User = Depends(require_space_access(SpaceKey.personnel, "read")),
 ):
     attachment = db.scalar(select(Attachment).where(Attachment.id == attachment_id))
     if not attachment or attachment.is_deleted:
@@ -943,7 +944,7 @@ def upload_attachment(
     entity_id: int | None = None,
     file: UploadFile = File(...),
     db=Depends(get_db),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_space_access(SpaceKey.personnel, "write")),
 ):
     ensure_personnel(db, person_id)
     if entity != "personnel":

@@ -19,12 +19,14 @@ import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { listEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
+import { hasPermission } from "../utils/permissions";
 
 const pageSizeOptions = [10, 20, 50, 100];
 
 type Session = {
   id: number;
   user_id: number;
+  display_user_label: string;
   started_at: string;
   ended_at?: string | null;
   end_reason?: string | null;
@@ -35,7 +37,7 @@ type Session = {
 export default function SessionsPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const canView = user?.role === "admin";
+  const canView = hasPermission(user, "admin_sessions", "read");
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -61,10 +63,7 @@ export default function SessionsPage() {
         page_size: pageSize,
         sort: sort || undefined,
         filters: {
-          user_id:
-            columnFilters.user_id && !Number.isNaN(Number(columnFilters.user_id))
-              ? Number(columnFilters.user_id)
-              : undefined,
+          q: columnFilters.q || undefined,
           end_reason: columnFilters.end_reason || undefined,
           ip_address: columnFilters.ip_address || undefined
         }
@@ -87,11 +86,11 @@ export default function SessionsPage() {
       { header: t("pagesUi.sessions.columns.id"), accessorKey: "id" },
       {
         header: t("pagesUi.sessions.columns.user"),
-        accessorKey: "user_id",
+        accessorKey: "display_user_label",
         meta: {
-          filterType: "number",
-          filterKey: "user_id",
-          filterPlaceholder: t("pagesUi.sessions.fields.userId")
+          filterType: "text",
+          filterKey: "q",
+          filterPlaceholder: "ID / ФИО / роль"
         } as ColumnMeta<Session>
       },
       { header: t("pagesUi.sessions.columns.startedAt"), accessorKey: "started_at" },

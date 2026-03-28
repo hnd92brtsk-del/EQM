@@ -1,15 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-import { getMe, login as apiLogin, logout as apiLogout } from "../api/auth";
-import { setToken, getToken } from "../api/client";
-
-export type UserRole = "admin" | "engineer" | "viewer";
-
-export type AuthUser = {
-  id: number;
-  username: string;
-  role: UserRole;
-};
+import { type AuthUser, getMe, login as apiLogin, logout as apiLogout } from "../api/auth";
+import { getToken, setToken } from "../api/client";
 
 type AuthContextValue = {
   user: AuthUser | null;

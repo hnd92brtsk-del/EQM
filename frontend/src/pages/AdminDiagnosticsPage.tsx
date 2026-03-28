@@ -51,6 +51,7 @@ import { type ColumnMeta, DataTable } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 
 const pageSizeOptions = [10, 20, 50, 100];
 const refreshIntervalMs = 3_600_000;
@@ -73,7 +74,7 @@ type ChartDatum = { name: string; rows?: number; totalMb?: number; tableMb?: num
 export default function AdminDiagnosticsPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const canView = user?.role === "admin";
+  const canView = hasPermission(user, "admin_diagnostics", "read");
 
   const [tab, setTab] = useState<DiagnosticsTab>("overview");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);

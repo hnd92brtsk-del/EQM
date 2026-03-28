@@ -24,6 +24,7 @@ import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, updateEntity, restoreEntity, Pagination } from "../api/entities";
 import { apiFetch } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 import { AppButton } from "../components/ui/AppButton";
 import { buildLocationLookups } from "../utils/locations";
 import { annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
@@ -78,7 +79,7 @@ function sortTree(nodes: LocationNode[]): LocationNode[] {
 export default function LocationsPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const canWrite = user?.role === "admin" || user?.role === "engineer";
+  const canWrite = hasPermission(user, "dictionaries", "write");
   const queryClient = useQueryClient();
 
   const [q, setQ] = useState("");

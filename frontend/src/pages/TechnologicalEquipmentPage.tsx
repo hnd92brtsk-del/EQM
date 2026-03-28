@@ -53,6 +53,7 @@ import {
   MenubarTrigger,
 } from "../components/ui/menubar";
 import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 import { exportPidDiagramJson, validatePidDiagramImport } from "../features/pid/io";
 import { cn } from "../lib/utils";
 import type { PidDiagram, PidEdge, PidNode, PidProcess } from "../types/pid";
@@ -300,7 +301,7 @@ export default function TechnologicalEquipmentPage() {
   const pidApi = usePidApi();
   const queryClient = useQueryClient();
 
-  const canWrite = user?.role === "admin" || user?.role === "engineer";
+  const canWrite = hasPermission(user, "equipment", "write");
   const readOnly = !canWrite;
 
   const canvasRef = useRef<PidCanvasHandle | null>(null);

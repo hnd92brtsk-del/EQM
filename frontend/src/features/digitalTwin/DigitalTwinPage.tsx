@@ -29,6 +29,7 @@ import { ErrorSnackbar } from "../../components/ErrorSnackbar";
 import { SearchableSelectField } from "../../components/SearchableSelectField";
 import { AppButton } from "../../components/ui/AppButton";
 import { useAuth } from "../../context/AuthContext";
+import { hasPermission } from "../../utils/permissions";
 import {
   buildIoSummary, buildLoadSummary, buildManualItem, buildNetworkSummary, buildValidation,
   cloneDocument, createManualDraft, itemDisplayName, type ManualItemDraft, wallColors,
@@ -314,7 +315,7 @@ export function DigitalTwinPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { t } = useTranslation();
-  const canWrite = user?.role === "admin" || user?.role === "engineer";
+  const canWrite = hasPermission(user, "equipment", "write");
   const scope: DigitalTwinScope = location.pathname.startsWith("/assemblies/") ? "assembly" : "cabinet";
   const sourceId = Number(id || 0);
 

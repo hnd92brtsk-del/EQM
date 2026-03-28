@@ -24,6 +24,7 @@ import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
@@ -41,7 +42,7 @@ const pageSizeOptions = [10, 20, 50, 100];
 export default function WarehousesPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const canWrite = user?.role === "admin" || user?.role === "engineer";
+  const canWrite = hasPermission(user, "dictionaries", "write");
   const queryClient = useQueryClient();
 
   const [page, setPage] = useState(1);

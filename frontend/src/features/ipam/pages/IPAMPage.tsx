@@ -13,6 +13,7 @@ import { ErrorSnackbar } from "../../../components/ErrorSnackbar";
 import { SearchableTreeSelectField, type SearchableTreeSelectOption } from "../../../components/SearchableTreeSelectField";
 import { AppButton } from "../../../components/ui/AppButton";
 import { useAuth } from "../../../context/AuthContext";
+import { hasPermission } from "../../../utils/permissions";
 import { buildLocationLookups, fetchLocationsTree } from "../../../utils/locations";
 import { assignAddress, createSubnetFromCalculator, createVlan, deleteSubnet, deleteVlan, exportSubnetCsv, getAddressDetails, getHostEquipmentTree, getSubnetAddresses, listSubnets, listVlans, patchAddress, releaseAddress, updateSubnet, updateVlan } from "../api/ipam";
 import type { HostEquipmentTreeLeaf, HostEquipmentTreeNode, IPAddressDetails, Subnet, Vlan } from "../types";
@@ -81,8 +82,8 @@ export default function IPAMPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
-  const canOperate = user?.role === "admin" || user?.role === "engineer";
-  const canAdmin = user?.role === "admin";
+  const canOperate = hasPermission(user, "engineering", "write");
+  const canAdmin = hasPermission(user, "engineering", "write");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [sidebarTab, setSidebarTab] = useState<"subnets" | "vlans">("subnets");

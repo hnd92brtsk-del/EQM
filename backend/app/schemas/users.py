@@ -1,5 +1,7 @@
-﻿from enum import Enum
+from enum import Enum
+
 from pydantic import BaseModel, Field
+
 from app.schemas.common import EntityBase, SoftDeleteFields
 
 
@@ -9,9 +11,17 @@ class UserRole(str, Enum):
     viewer = "viewer"
 
 
+class SpacePermissionOut(BaseModel):
+    space_key: str
+    can_read: bool
+    can_write: bool
+    can_admin: bool
+
+
 class UserOut(EntityBase, SoftDeleteFields):
     username: str
     role: UserRole
+    permissions: list[SpacePermissionOut] = []
 
 
 class UserCreate(BaseModel):

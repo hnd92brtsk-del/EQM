@@ -42,6 +42,7 @@ import {
   MenubarTrigger,
 } from "../../components/ui/menubar";
 import { useAuth } from "../../context/AuthContext";
+import { hasPermission } from "../../utils/permissions";
 import { cn } from "../../lib/utils";
 import {
   createNetworkTopology,
@@ -341,7 +342,7 @@ export default function NetworkMapPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const canWrite = user?.role === "admin" || user?.role === "engineer";
+  const canWrite = hasPermission(user, "engineering", "write");
   const readOnly = !canWrite;
 
   const canvasShellRef = useRef<HTMLDivElement | null>(null);

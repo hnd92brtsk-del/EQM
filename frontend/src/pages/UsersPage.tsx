@@ -23,6 +23,7 @@ import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 
 import { type ColumnMeta, DataTable, type DataTableFiltersState } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
@@ -31,6 +32,7 @@ import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } f
 import { useAuth } from "../context/AuthContext";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { SearchableSelectField } from "../components/SearchableSelectField";
+import { hasPermission } from "../utils/permissions";
 
 const pageSizeOptions = [10, 20, 50, 100];
 
@@ -44,7 +46,8 @@ type User = {
 export default function UsersPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const canWrite = user?.role === "admin";
+  const canWrite = hasPermission(user, "admin_users", "admin");
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
@@ -244,17 +247,22 @@ export default function UsersPage() {
             />
             <Box sx={{ flexGrow: 1 }} />
             {canWrite && (
-              <AppButton
-                variant="contained"
-                startIcon={<AddRoundedIcon />}
-                onClick={() => {
-                  setEditUser(null);
-                  resetForm();
-                  setDialogOpen(true);
-                }}
-              >
-                {t("actions.add")}
-              </AppButton>
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <AppButton variant="outlined" onClick={() => navigate("/admin/role-permissions")}>
+                  Пространства и права
+                </AppButton>
+                <AppButton
+                  variant="contained"
+                  startIcon={<AddRoundedIcon />}
+                  onClick={() => {
+                    setEditUser(null);
+                    resetForm();
+                    setDialogOpen(true);
+                  }}
+                >
+                  {t("actions.add")}
+                </AppButton>
+              </Box>
             )}
           </Box>
 

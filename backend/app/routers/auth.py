@@ -1,14 +1,16 @@
-﻿from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 
-from app.core.dependencies import get_db, get_current_user, oauth2_scheme
-from app.core.security import verify_password, create_access_token, hash_token, decode_token
+from app.core.access import build_user_permissions
 from app.core.audit import add_audit_log, model_to_dict
+from app.core.dependencies import get_current_user, get_db, oauth2_scheme
+from app.core.identity import user_out_with_permissions
+from app.core.security import create_access_token, decode_token, hash_token, verify_password
 from app.models.security import User
 from app.models.sessions import UserSession
 from app.schemas.auth import LoginIn, TokenOut
-from app.schemas.users import UserOut
 
 router = APIRouter()
 
@@ -46,18 +48,12 @@ def login(payload: LoginIn, request: Request, db=Depends(get_db)):
     )
 
     db.commit()
+    db.refresh(user)
+    permissions = build_user_permissions(db, user)
 
     return TokenOut(
         access_token=token,
-        user=UserOut(
-            id=user.id,
-            username=user.username,
-            role=user.role.value,
-            created_at=user.created_at,
-            updated_at=user.updated_at,
-            is_deleted=user.is_deleted,
-            deleted_at=user.deleted_at,
-        ),
+        user=user_out_with_permissions(user, permissions),
     )
 
 
@@ -88,14 +84,6 @@ def logout(
     return {"status": "ok"}
 
 
-@router.get("/me", response_model=UserOut)
-def me(user: User = Depends(get_current_user)):
-    return UserOut(
-        id=user.id,
-        username=user.username,
-        role=user.role.value,
-        created_at=user.created_at,
-        updated_at=user.updated_at,
-        is_deleted=user.is_deleted,
-        deleted_at=user.deleted_at,
-    )
+@router.get("/me")
+def me(user: User = Depends(get_current_user), db=Depends(get_db)):
+    return user_out_with_permissions(user, build_user_permissions(db, user))

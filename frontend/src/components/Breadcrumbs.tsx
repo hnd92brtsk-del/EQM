@@ -41,7 +41,7 @@ export function Breadcrumbs() {
   const location = useLocation();
   const { user } = useAuth();
   const { t } = useTranslation();
-  const chain = findNavChain(location.pathname, navTree, user?.role);
+  const chain = findNavChain(location.pathname, navTree, user);
 
   const crumbs = [
     { id: "root", label: t("menu.root"), path: "/dashboard" },

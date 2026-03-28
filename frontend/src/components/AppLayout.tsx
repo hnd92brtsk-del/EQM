@@ -53,7 +53,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const toggleDrawer = () => setMobileOpen((prev) => !prev);
 
   const navSections = useMemo(() => navTree, []);
-  const { openGroups, setOpenGroups } = useAutoOpenGroups(navSections, user?.role);
+  const { openGroups, setOpenGroups } = useAutoOpenGroups(navSections, user);
 
   useEffect(() => {
     try {
@@ -95,7 +95,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pr: 0.5 }}>
         <SidebarNavTree
           items={navSections}
-          role={user?.role}
+          user={user}
           openGroups={openGroups}
           setOpenGroups={setOpenGroups}
         />

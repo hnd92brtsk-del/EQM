@@ -26,6 +26,7 @@ import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, Pagination, restoreEntity, updateEntity } from "../api/entities";
 import { apiFetch } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 import { AppButton } from "../components/ui/AppButton";
 import { buildDataTypeLookups } from "../utils/dataTypes";
 import { annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
@@ -80,7 +81,7 @@ function sortTree(nodes: DataTypeNode[]): DataTypeNode[] {
 export default function DataTypesPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const canWrite = user?.role === "admin" || user?.role === "engineer";
+  const canWrite = hasPermission(user, "dictionaries", "write");
   const queryClient = useQueryClient();
 
   const [q, setQ] = useState("");

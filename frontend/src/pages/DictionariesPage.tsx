@@ -21,6 +21,7 @@ import { DataTable } from "../components/DataTable";
 import { EntityDialog, type DialogState } from "../components/EntityDialog";
 import { createEntity, listEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 import { AppButton } from "../components/ui/AppButton";
 import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
 
@@ -70,7 +71,7 @@ const networkPortOptions = [
 export default function DictionariesPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const canEdit = user?.role === "admin" || user?.role === "engineer";
+  const canEdit = hasPermission(user, "dictionaries", "write");
   const queryClient = useQueryClient();
 
   const [tab, setTab] = useState(0);

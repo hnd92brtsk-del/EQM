@@ -15,11 +15,12 @@ import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
-import { isAllowedForRole, findNavChain, NavItem, NavRole } from "../navigation/nav";
+import type { AuthUser } from "../api/auth";
+import { findNavChain, isAllowedForUser, NavItem } from "../navigation/nav";
 
 type SidebarNavTreeProps = {
   items: NavItem[];
-  role?: NavRole;
+  user?: AuthUser | null;
   level?: number;
   openGroups: Record<string, boolean>;
   setOpenGroups: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
@@ -31,21 +32,10 @@ const matchPathPattern = (pattern: string, pathname: string) => {
   if (patternParts.length !== pathParts.length) {
     return false;
   }
-  return patternParts.every((part, index) => {
-    if (part.startsWith(":")) {
-      return pathParts[index].length > 0;
-    }
-    return part === pathParts[index];
-  });
+  return patternParts.every((part, index) => (part.startsWith(":") ? pathParts[index].length > 0 : part === pathParts[index]));
 };
 
-const isActivePath = (item: NavItem, pathname: string) => {
-  if (!item.path) {
-    return false;
-  }
-  return matchPathPattern(item.path, pathname);
-};
-
+const isActivePath = (item: NavItem, pathname: string) => Boolean(item.path) && matchPathPattern(item.path!, pathname);
 const getItemLabel = (item: NavItem, t: (key: string) => string) => t(item.labelKey);
 
 const renderIcon = (item: NavItem, fallback: React.ElementType, color: string) => {
@@ -53,13 +43,7 @@ const renderIcon = (item: NavItem, fallback: React.ElementType, color: string) =
   return <Icon sx={{ color }} />;
 };
 
-export function SidebarNavTree({
-  items,
-  role,
-  level = 0,
-  openGroups,
-  setOpenGroups
-}: SidebarNavTreeProps) {
+export function SidebarNavTree({ items, user, level = 0, openGroups, setOpenGroups }: SidebarNavTreeProps) {
   const { pathname } = useLocation();
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -71,20 +55,15 @@ export function SidebarNavTree({
   const filteredItems = useMemo(
     () =>
       items.filter((item) => {
-        if (!isAllowedForRole(item, role)) {
+        if (!isAllowedForUser(item, user)) {
           return false;
         }
-        if (item.showInMenu === false) {
-          return false;
-        }
-        return true;
+        return item.showInMenu !== false;
       }),
-    [items, role]
+    [items, user]
   );
 
-  const handleToggle = (id: string) => {
-    setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
+  const handleToggle = (id: string) => setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
 
   return (
     <List sx={{ pl: level ? 1.5 : 0 }}>
@@ -109,16 +88,9 @@ export function SidebarNavTree({
                   mb: 0.5,
                   pl: level * 2 + 2,
                   color: sidebarTextColor,
-                  "&:hover": {
-                    backgroundColor: alpha(theme.palette.common.white, 0.04)
-                  },
-                  "& .MuiListItemText-primary": {
-                    color: sidebarTextColor,
-                    fontWeight: isOpen ? 700 : 600
-                  },
-                  "& .MuiSvgIcon-root": {
-                    color: isOpen ? sidebarTextColor : sidebarMutedColor
-                  }
+                  "&:hover": { backgroundColor: alpha(theme.palette.common.white, 0.04) },
+                  "& .MuiListItemText-primary": { color: sidebarTextColor, fontWeight: isOpen ? 700 : 600 },
+                  "& .MuiSvgIcon-root": { color: isOpen ? sidebarTextColor : sidebarMutedColor }
                 }}
               >
                 <ListItemIcon>{renderIcon(item, DashboardRoundedIcon, iconColor)}</ListItemIcon>
@@ -126,13 +98,7 @@ export function SidebarNavTree({
                 {isOpen ? <ExpandLessRoundedIcon /> : <ExpandMoreRoundedIcon />}
               </ListItemButton>
               <Collapse id={contentId} in={isOpen} timeout="auto" unmountOnExit>
-                <SidebarNavTree
-                  items={item.children || []}
-                  role={role}
-                  level={level + 1}
-                  openGroups={openGroups}
-                  setOpenGroups={setOpenGroups}
-                />
+                <SidebarNavTree items={item.children || []} user={user} level={level + 1} openGroups={openGroups} setOpenGroups={setOpenGroups} />
               </Collapse>
             </Box>
           );
@@ -153,17 +119,9 @@ export function SidebarNavTree({
               mb: 0.5,
               pl: level * 2 + 2,
               borderLeft: "3px solid transparent",
-              "&:hover": {
-                backgroundColor: alpha(theme.palette.common.white, 0.04)
-              },
-              "& .MuiListItemText-primary": {
-                fontWeight: isActive ? 600 : 500,
-                color: labelColor
-              },
-              "&.active": {
-                backgroundColor: alpha(theme.palette.primary.main, 0.16),
-                borderLeftColor: theme.palette.primary.main
-              }
+              "&:hover": { backgroundColor: alpha(theme.palette.common.white, 0.04) },
+              "& .MuiListItemText-primary": { fontWeight: isActive ? 600 : 500, color: labelColor },
+              "&.active": { backgroundColor: alpha(theme.palette.primary.main, 0.16), borderLeftColor: theme.palette.primary.main }
             }}
             selected={isActive}
           >
@@ -176,12 +134,12 @@ export function SidebarNavTree({
   );
 }
 
-export function useAutoOpenGroups(items: NavItem[], role?: NavRole) {
+export function useAutoOpenGroups(items: NavItem[], user?: AuthUser | null) {
   const { pathname } = useLocation();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    const chain = findNavChain(pathname, items, role);
+    const chain = findNavChain(pathname, items, user);
     const groupIds = chain.filter((item) => item.children && item.children.length > 0).map((item) => item.id);
     if (groupIds.length === 0) {
       return;
@@ -193,8 +151,7 @@ export function useAutoOpenGroups(items: NavItem[], role?: NavRole) {
       });
       return next;
     });
-  }, [items, pathname, role]);
+  }, [items, pathname, user]);
 
   return { openGroups, setOpenGroups };
 }
-

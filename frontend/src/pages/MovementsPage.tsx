@@ -20,6 +20,7 @@ import { type ColumnMeta, DataTable, type DataTableFiltersState } from "../compo
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, listEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
@@ -53,7 +54,7 @@ type Assembly = { id: number; name: string };
 export default function MovementsPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const canWrite = user?.role === "admin" || user?.role === "engineer";
+  const canWrite = hasPermission(user, "equipment", "write");
   const queryClient = useQueryClient();
 
   const [movementType, setMovementType] = useState("");

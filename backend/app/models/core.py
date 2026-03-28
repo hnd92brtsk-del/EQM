@@ -419,6 +419,7 @@ class Personnel(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     middle_name: Mapped[str | None] = mapped_column(String(100))
+    role: Mapped[str | None] = mapped_column(String(200))
     position: Mapped[str] = mapped_column(String(200), nullable=False)
     personnel_number: Mapped[str | None] = mapped_column(String(50))
     service: Mapped[str | None] = mapped_column(String(200))

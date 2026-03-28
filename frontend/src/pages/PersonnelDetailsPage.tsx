@@ -46,6 +46,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import { SearchableSelectField } from "../components/SearchableSelectField";
+import { hasPermission } from "../utils/permissions";
 
 type DialogState = {
   open: boolean;
@@ -68,7 +69,7 @@ export default function PersonnelDetailsPage() {
   const personId = Number(id);
   const { user } = useAuth();
   const { t } = useTranslation();
-  const canWrite = user?.role === "admin";
+  const canWrite = hasPermission(user, "personnel", "write");
   const queryClient = useQueryClient();
 
   const [tab, setTab] = useState(0);

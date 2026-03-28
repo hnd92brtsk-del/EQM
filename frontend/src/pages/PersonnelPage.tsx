@@ -37,6 +37,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
+import { hasPermission } from "../utils/permissions";
 
 type UserOption = { id: number; username: string };
 
@@ -45,7 +46,7 @@ const pageSizeOptions = [10, 20, 50, 100];
 export default function PersonnelPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const canWrite = user?.role === "admin";
+  const canWrite = hasPermission(user, "personnel", "write");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -169,6 +170,7 @@ export default function PersonnelPage() {
           </AppButton>
         )
       },
+      { header: "Роль", accessorKey: "role" },
       { header: t("pagesUi.personnel.columns.position"), accessorKey: "position" },
       { header: t("pagesUi.personnel.columns.personnelNumber"), accessorKey: "personnel_number" },
       {
@@ -203,6 +205,7 @@ export default function PersonnelPage() {
                     { name: "first_name", label: t("pagesUi.personnel.fields.firstName"), type: "text" },
                     { name: "last_name", label: t("pagesUi.personnel.fields.lastName"), type: "text" },
                     { name: "middle_name", label: t("pagesUi.personnel.fields.middleName"), type: "text" },
+                    { name: "role", label: "Роль", type: "text" },
                     { name: "position", label: t("pagesUi.personnel.fields.position"), type: "text" },
                     {
                       name: "personnel_number",
@@ -348,6 +351,7 @@ export default function PersonnelPage() {
                       { name: "first_name", label: t("pagesUi.personnel.fields.firstName"), type: "text" },
                       { name: "last_name", label: t("pagesUi.personnel.fields.lastName"), type: "text" },
                       { name: "middle_name", label: t("pagesUi.personnel.fields.middleName"), type: "text" },
+                      { name: "role", label: "Роль", type: "text" },
                       { name: "position", label: t("pagesUi.personnel.fields.position"), type: "text" },
                       {
                         name: "personnel_number",

@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { sendChat } from "../api/chat";
 import { useAuth } from "../context/AuthContext";
 import type { Message } from "../types";
+import { hasPermission } from "../utils/permissions";
 
 interface Props {
   open: boolean;
@@ -23,7 +24,7 @@ interface Props {
 export default function ChatDialog({ open, onClose }: Props) {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = hasPermission(user, "admin_users", "admin");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
 

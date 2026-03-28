@@ -7,7 +7,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
 from app.core.dependencies import get_current_user, get_db, require_admin
-from app.models.security import User, UserRole
+from app.models.security import AccessSpace, RoleSpacePermission, User, UserRole
 from app.models.core import (
     Personnel,
     PersonnelCompetency,
@@ -32,6 +32,8 @@ def db_session():
         engine,
         tables=[
             User.__table__,
+            AccessSpace.__table__,
+            RoleSpacePermission.__table__,
             PersonnelScheduleTemplate.__table__,
             Personnel.__table__,
             PersonnelCompetency.__table__,
@@ -55,6 +57,8 @@ def db_session():
                 PersonnelCompetency.__table__,
                 Personnel.__table__,
                 PersonnelScheduleTemplate.__table__,
+                RoleSpacePermission.__table__,
+                AccessSpace.__table__,
                 User.__table__,
             ],
         )

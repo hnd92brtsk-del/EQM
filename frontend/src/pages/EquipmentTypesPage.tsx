@@ -33,6 +33,7 @@ import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { uploadEquipmentTypeDatasheet, uploadEquipmentTypePhoto } from "../api/equipmentTypeMedia";
 import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { ProtectedImage } from "../components/ProtectedImage";
@@ -355,7 +356,7 @@ const buildPowerDialogFields = (
 export default function EquipmentTypesPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const canWrite = user?.role === "admin" || user?.role === "engineer";
+  const canWrite = hasPermission(user, "equipment", "write");
   const queryClient = useQueryClient();
 
   const [page, setPage] = useState(1);

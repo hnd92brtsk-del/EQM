@@ -1,14 +1,28 @@
-﻿import enum
-from sqlalchemy import String, Enum, DateTime, Index
+import enum
+
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base, TimestampMixin, SoftDeleteMixin, VersionMixin
+from app.db.base import Base, SoftDeleteMixin, TimestampMixin, VersionMixin
 
 
 class UserRole(enum.Enum):
     admin = "admin"
     engineer = "engineer"
     viewer = "viewer"
+
+
+class SpaceKey(enum.Enum):
+    overview = "overview"
+    personnel = "personnel"
+    equipment = "equipment"
+    cabinets = "cabinets"
+    engineering = "engineering"
+    dictionaries = "dictionaries"
+    admin_users = "admin_users"
+    admin_sessions = "admin_sessions"
+    admin_audit = "admin_audit"
+    admin_diagnostics = "admin_diagnostics"
 
 
 class User(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
@@ -19,6 +33,29 @@ class User(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[UserRole] = mapped_column(Enum(UserRole, name="user_role"), nullable=False, index=True)
     last_login_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AccessSpace(Base):
+    __tablename__ = "access_spaces"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    label: Mapped[str] = mapped_column(String(120), nullable=False)
+    is_admin_space: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+
+
+class RoleSpacePermission(Base):
+    __tablename__ = "role_space_permissions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    role: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    space_key: Mapped[str] = mapped_column(String(64), ForeignKey("access_spaces.key"), nullable=False, index=True)
+    can_read: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    can_write: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    can_admin: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("role", "space_key", name="uq_role_space_permissions_role_space"),
+    )
 
 
 Index(
