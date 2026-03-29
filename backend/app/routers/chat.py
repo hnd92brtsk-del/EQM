@@ -1,7 +1,7 @@
-﻿# Chat proxy router for LM Studio; keeps frontend API stable.
-# Prompts enforce read-only vs admin guidance without data mutation.
+# Прокси-роутер чата скрывает детали LLM-провайдера от frontend.
+# Системные промпты ограничивают режимы доступа без модификации данных.
 import json
-from typing import Any, List, Literal
+from typing import List, Literal
 
 import httpx
 import jsonschema
@@ -54,7 +54,7 @@ async def _proxy_chat(
         formatted_messages = [{"role": "system", "content": schema_prompt}] + formatted_messages
 
     payload = {
-        "model": settings.lm_model,
+        "model": settings.llm_model,
         "messages": formatted_messages,
         "temperature": 0.4,
         "max_tokens": 512,
@@ -63,13 +63,12 @@ async def _proxy_chat(
         payload["response_format"] = {"type": "json_object"}
 
     headers: dict[str, str] = {}
-    if settings.lm_studio_api_key:
-        headers["Authorization"] = f"Bearer {settings.lm_studio_api_key}"
+    if settings.llm_api_key:
+        headers["Authorization"] = f"Bearer {settings.llm_api_key}"
 
-    url = f"{str(settings.lm_studio_base_url).rstrip('/')}/v1/chat/completions"
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
-            response = await client.post(url, json=payload, headers=headers)
+            response = await client.post(settings.llm_chat_completions_url, json=payload, headers=headers)
             response.raise_for_status()
     except (httpx.RequestError, httpx.HTTPStatusError):
         raise HTTPException(

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 
-from app.core.config import BASE_DIR, get_settings
+from app.core.config import get_settings
 from app.core.dependencies import get_db, require_read_access, require_write_access
 from app.models.core import Cabinet
 from app.models.cabinet_files import CabinetFile
@@ -28,9 +28,7 @@ def ensure_cabinet(db, cabinet_id: int) -> Cabinet:
 
 def get_storage_dir() -> Path:
     settings = get_settings()
-    storage_dir = Path(settings.cabinet_files_dir)
-    if not storage_dir.is_absolute():
-        storage_dir = BASE_DIR / storage_dir
+    storage_dir = settings.cabinet_files_dir_path
     storage_dir.mkdir(parents=True, exist_ok=True)
     return storage_dir
 

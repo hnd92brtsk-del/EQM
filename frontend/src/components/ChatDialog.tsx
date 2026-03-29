@@ -55,7 +55,7 @@ export default function ChatDialog({ open, onClose }: Props) {
                 variant="caption"
                 color={message.role === "user" ? "primary" : "secondary"}
               >
-                {message.role === "user" ? user?.username : "phi-3-mini-4k-instruct"}
+                {message.role === "user" ? user?.username : "phi3-mini-4k-instruct"}
               </Typography>
               <Typography>{message.content}</Typography>
             </Box>

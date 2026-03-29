@@ -1,0 +1,65 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: eqm-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ${POSTGRES_DATA_DIR}:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - eqm
+
+  backend:
+    image: eqm/backend:1.0.0
+    container_name: eqm-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ${PHOTO_DIR}:${PHOTO_DIR}
+      - ${DATASHEET_DIR}:${DATASHEET_DIR}
+      - ${UPLOAD_DIR}:${UPLOAD_DIR}
+      - ${CABINET_FILES_DIR}:${CABINET_FILES_DIR}
+      - ${PID_STORAGE_ROOT}:${PID_STORAGE_ROOT}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    networks:
+      - eqm
+
+  nginx:
+    image: eqm/frontend-nginx:1.0.0
+    container_name: eqm-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    networks:
+      - eqm
+
+networks:
+  eqm:
+    driver: bridge

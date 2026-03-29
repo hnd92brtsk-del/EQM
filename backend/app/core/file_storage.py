@@ -6,9 +6,8 @@ from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile, status
 
+from app.core.config import get_settings
 
-PHOTO_DIRNAME = "Photo"
-DATASHEET_DIRNAME = "Datasheets"
 PHOTO_MAX_BYTES = 500 * 1024
 DATASHEET_MAX_BYTES = 5 * 1024 * 1024
 PHOTO_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
@@ -30,16 +29,12 @@ class StoredFile:
     path: Path
 
 
-def get_repo_root() -> Path:
-    return Path(__file__).resolve().parents[3]
-
-
 def get_storage_dir(kind: str) -> Path:
-    base = get_repo_root()
+    settings = get_settings()
     if kind == "photo":
-        return base / PHOTO_DIRNAME
+        return settings.photo_dir_path
     if kind == "datasheet":
-        return base / DATASHEET_DIRNAME
+        return settings.datasheet_dir_path
     raise ValueError(f"Unsupported storage kind: {kind}")
 
 

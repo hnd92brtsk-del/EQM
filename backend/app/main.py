@@ -2,7 +2,7 @@
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.core.config import BASE_DIR, get_settings
+from app.core.config import get_settings
 from app.routers import (
     auth,
     users,
@@ -46,9 +46,7 @@ app = FastAPI(title="EQM API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-    ],
+    allow_origins=settings.cors_allow_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -94,11 +92,16 @@ app.include_router(serial_map_documents.router, prefix="/api/v1/serial-map-docum
 app.include_router(diagnostics.router, prefix="/api/v1/admin/diagnostics", tags=["diagnostics"])
 app.include_router(digital_twins.router, prefix="/api/v1/digital-twins", tags=["digital-twins"])
 
-pid_images_dir = BASE_DIR / "app" / "pid_storage" / "images"
+pid_images_dir = settings.pid_images_dir_path
 pid_images_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/api/v1/pid-storage/images", StaticFiles(directory=str(pid_images_dir)), name="pid-images")
 
 
 @app.get("/")
 def root():
+    return {"status": "ok"}
+
+
+@app.get("/health")
+def health():
     return {"status": "ok"}

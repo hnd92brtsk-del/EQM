@@ -979,7 +979,7 @@ def upload_attachment(
         raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="File too large")
 
     settings = get_settings()
-    upload_dir = Path(settings.upload_dir)
+    upload_dir = settings.upload_dir_path
     upload_dir.mkdir(parents=True, exist_ok=True)
     safe_name = f"{uuid4().hex}_{Path(file.filename).name}"
     storage_path = upload_dir / safe_name
