@@ -74,6 +74,27 @@ class MovementCreate(BaseModel):
         return self
 
 
+class MovementBatchItemCreate(BaseModel):
+    equipment_type_id: int
+    quantity: int = Field(ge=1)
+    reference: Optional[str] = Field(default=None, max_length=200)
+    comment: Optional[str] = Field(default=None, max_length=1000)
+
+
+class MovementBatchCreate(BaseModel):
+    movement_type: MovementType
+    to_cabinet_id: Optional[int] = None
+    items: list[MovementBatchItemCreate] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_batch(self):
+        if self.movement_type != MovementType.direct_to_cabinet:
+            raise ValueError("Only direct_to_cabinet is supported for batch")
+        if not self.to_cabinet_id:
+            raise ValueError("to_cabinet_id is required for direct_to_cabinet batch")
+        return self
+
+
 class MovementOut(EntityBase):
     movement_type: MovementType
     equipment_type_id: int

@@ -12,7 +12,11 @@ from app.models.core import EquipmentType, Warehouse, Cabinet
 from app.models.assemblies import Assembly
 from app.models.security import User
 from app.schemas.common import Pagination
-from app.schemas.movements import MovementOut, MovementCreate
+from app.schemas.movements import (
+    MovementBatchCreate,
+    MovementCreate,
+    MovementOut,
+)
 from app.services.equipment_uniqueness import is_unique_equipment
 from app.services.io_signals import ensure_io_signals_for_equipment_in_operation
 
@@ -172,71 +176,12 @@ def change_quantity(item, delta: int):
         item.last_updated = datetime.utcnow()
 
 
-@router.get("/", response_model=Pagination[MovementOut])
-def list_movements(
-    page: int = 1,
-    page_size: int = 50,
-    q: str | None = None,
-    sort: str | None = None,
-    movement_type: MovementType | None = None,
-    equipment_type_id: int | None = None,
-    from_warehouse_id: int | None = None,
-    to_warehouse_id: int | None = None,
-    from_cabinet_id: int | None = None,
-    to_cabinet_id: int | None = None,
-    reference: str | None = None,
-    comment: str | None = None,
-    performed_by_id: int | None = None,
-    created_at_from: datetime | None = None,
-    created_at_to: datetime | None = None,
-    db=Depends(get_db),
-    user: User = Depends(require_read_access()),
-):
-    query = select(EquipmentMovement)
-    if movement_type:
-        query = query.where(EquipmentMovement.movement_type == movement_type)
-    if equipment_type_id:
-        query = query.where(EquipmentMovement.equipment_type_id == equipment_type_id)
-    if from_warehouse_id:
-        query = query.where(EquipmentMovement.from_warehouse_id == from_warehouse_id)
-    if to_warehouse_id:
-        query = query.where(EquipmentMovement.to_warehouse_id == to_warehouse_id)
-    if from_cabinet_id:
-        query = query.where(EquipmentMovement.from_cabinet_id == from_cabinet_id)
-    if to_cabinet_id:
-        query = query.where(EquipmentMovement.to_cabinet_id == to_cabinet_id)
-    if performed_by_id:
-        query = query.where(EquipmentMovement.performed_by_id == performed_by_id)
-    query = apply_text_filter(query, EquipmentMovement.reference, reference)
-    query = apply_text_filter(query, EquipmentMovement.comment, comment)
-    if created_at_from:
-        query = query.where(EquipmentMovement.created_at >= created_at_from)
-    if created_at_to:
-        query = query.where(EquipmentMovement.created_at <= created_at_to)
-    if q:
-        query = query.where(
-            (EquipmentMovement.reference.ilike(f"%{q}%"))
-            | (EquipmentMovement.comment.ilike(f"%{q}%"))
-        )
-
-    query = apply_sort(query, EquipmentMovement, sort) if sort else query.order_by(EquipmentMovement.id.desc())
-
-    total, items = paginate(query, db, page, page_size)
-    return Pagination(items=items, page=page, page_size=page_size, total=total)
-
-
-@router.post("/", response_model=MovementOut)
-def create_movement(
-    payload: MovementCreate,
-    db=Depends(get_db),
-    current_user: User = Depends(require_write_access()),
-):
+def resolve_movement_dependencies(db, payload: MovementCreate):
     equipment_type = db.scalar(
         select(EquipmentType).where(EquipmentType.id == payload.equipment_type_id, EquipmentType.is_deleted == False)
     )
     if not equipment_type:
         raise HTTPException(status_code=404, detail="Equipment type not found")
-    equipment_is_unique = is_unique_equipment(equipment_type)
 
     if payload.from_warehouse_id:
         from_wh = db.scalar(
@@ -269,6 +214,16 @@ def create_movement(
         if not to_assembly:
             raise HTTPException(status_code=404, detail="Destination assembly not found")
 
+    return equipment_type, is_unique_equipment(equipment_type)
+
+
+def apply_movement_changes(
+    db,
+    payload: MovementCreate,
+    current_user: User,
+    equipment_type: EquipmentType,
+    equipment_is_unique: bool,
+):
     movement = EquipmentMovement(
         movement_type=MovementType(payload.movement_type),
         equipment_type_id=payload.equipment_type_id,
@@ -409,7 +364,106 @@ def create_movement(
         before=None,
         after=model_to_dict(movement),
     )
+    return movement
 
+
+@router.get("/", response_model=Pagination[MovementOut])
+def list_movements(
+    page: int = 1,
+    page_size: int = 50,
+    q: str | None = None,
+    sort: str | None = None,
+    movement_type: MovementType | None = None,
+    equipment_type_id: int | None = None,
+    from_warehouse_id: int | None = None,
+    to_warehouse_id: int | None = None,
+    from_cabinet_id: int | None = None,
+    to_cabinet_id: int | None = None,
+    reference: str | None = None,
+    comment: str | None = None,
+    performed_by_id: int | None = None,
+    created_at_from: datetime | None = None,
+    created_at_to: datetime | None = None,
+    db=Depends(get_db),
+    user: User = Depends(require_read_access()),
+):
+    query = select(EquipmentMovement)
+    if movement_type:
+        query = query.where(EquipmentMovement.movement_type == movement_type)
+    if equipment_type_id:
+        query = query.where(EquipmentMovement.equipment_type_id == equipment_type_id)
+    if from_warehouse_id:
+        query = query.where(EquipmentMovement.from_warehouse_id == from_warehouse_id)
+    if to_warehouse_id:
+        query = query.where(EquipmentMovement.to_warehouse_id == to_warehouse_id)
+    if from_cabinet_id:
+        query = query.where(EquipmentMovement.from_cabinet_id == from_cabinet_id)
+    if to_cabinet_id:
+        query = query.where(EquipmentMovement.to_cabinet_id == to_cabinet_id)
+    if performed_by_id:
+        query = query.where(EquipmentMovement.performed_by_id == performed_by_id)
+    query = apply_text_filter(query, EquipmentMovement.reference, reference)
+    query = apply_text_filter(query, EquipmentMovement.comment, comment)
+    if created_at_from:
+        query = query.where(EquipmentMovement.created_at >= created_at_from)
+    if created_at_to:
+        query = query.where(EquipmentMovement.created_at <= created_at_to)
+    if q:
+        query = query.where(
+            (EquipmentMovement.reference.ilike(f"%{q}%"))
+            | (EquipmentMovement.comment.ilike(f"%{q}%"))
+        )
+
+    query = apply_sort(query, EquipmentMovement, sort) if sort else query.order_by(EquipmentMovement.id.desc())
+
+    total, items = paginate(query, db, page, page_size)
+    return Pagination(items=items, page=page, page_size=page_size, total=total)
+
+
+@router.post("/", response_model=MovementOut)
+def create_movement(
+    payload: MovementCreate,
+    db=Depends(get_db),
+    current_user: User = Depends(require_write_access()),
+):
+    equipment_type, equipment_is_unique = resolve_movement_dependencies(db, payload)
+    movement = apply_movement_changes(db, payload, current_user, equipment_type, equipment_is_unique)
     db.commit()
     db.refresh(movement)
     return movement
+
+
+@router.post("/batch", response_model=list[MovementOut])
+def create_movement_batch(
+    payload: MovementBatchCreate,
+    db=Depends(get_db),
+    current_user: User = Depends(require_write_access()),
+):
+    created_movements: list[EquipmentMovement] = []
+    try:
+        for item in payload.items:
+            movement_payload = MovementCreate(
+                movement_type=payload.movement_type,
+                equipment_type_id=item.equipment_type_id,
+                quantity=item.quantity,
+                to_cabinet_id=payload.to_cabinet_id,
+                reference=item.reference,
+                comment=item.comment,
+            )
+            equipment_type, equipment_is_unique = resolve_movement_dependencies(db, movement_payload)
+            movement = apply_movement_changes(
+                db,
+                movement_payload,
+                current_user,
+                equipment_type,
+                equipment_is_unique,
+            )
+            created_movements.append(movement)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    for movement in created_movements:
+        db.refresh(movement)
+    return created_movements

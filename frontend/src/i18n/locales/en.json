@@ -1110,10 +1110,13 @@
       },
       "inline": {
         "add": "Add",
+        "addRow": "Add row",
         "remove": "Remove",
+        "removeRow": "Remove row",
         "addTooltip": "Add equipment",
         "removeTooltip": "Remove equipment",
         "addDialogTitle": "Add equipment to cabinet {{name}}",
+        "rowLabel": "Position {{index}}",
         "removeDialogTitle": "Remove equipment from cabinet {{name}}",
         "availableToRemove": "Available to remove: {{count}}",
         "removeUnavailable": "Cannot remove the selected quantity from this cabinet.",

@@ -39,8 +39,9 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { LOOKUP_QUERY_STALE_TIME } from "../api/queryDefaults";
+import { createDirectToCabinetBatch } from "../api/movements";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
-import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
+import { deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { apiFetch } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
@@ -226,9 +227,18 @@ type DetailFilters = {
 };
 
 type ExpandedGroupKeysByContainer = Record<string, string[]>;
+type AddToCabinetEntry = {
+  equipmentTypeId: number | "";
+  quantity: number;
+};
 
 const getContainerKey = (container: Pick<EquipmentInOperationContainer, "source" | "container_id">) =>
   `${container.source}:${container.container_id}`;
+
+const createEmptyAddEntry = (): AddToCabinetEntry => ({
+  equipmentTypeId: "",
+  quantity: 1
+});
 
 const powerRoleLabels: Record<PowerRole, string> = {
   source: "Источник",
@@ -522,7 +532,7 @@ function ContainerAccordion({
   onEditItem: (item: EquipmentInOperationItem) => void;
   onDeleteItem: (item: EquipmentInOperationItem) => void;
   onRestoreItem: (item: EquipmentInOperationItem) => void;
-  onAddToCabinet: (payload: { cabinetId: number; equipmentTypeId: number; quantity: number }) => void;
+  onAddToCabinet: (payload: { cabinetId: number; items: AddToCabinetEntry[] }) => void;
   equipmentOptions: { value: number; label: string }[];
   onErrorMessage: (message: string) => void;
 }) {
@@ -530,8 +540,7 @@ function ContainerAccordion({
   const navigate = useNavigate();
   const theme = useTheme();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [selectedEquipmentId, setSelectedEquipmentId] = useState<number | "">("");
-  const [inlineQuantity, setInlineQuantity] = useState(1);
+  const [addEntries, setAddEntries] = useState<AddToCabinetEntry[]>([createEmptyAddEntry()]);
 
   const detailQuery = useQuery({
     queryKey: [
@@ -569,23 +578,40 @@ function ContainerAccordion({
     () => buildEquipmentGroups(detailQuery.data || [], equipmentMap, i18n.language),
     [detailQuery.data, equipmentMap, i18n.language]
   );
-  const selectedEquipment = selectedEquipmentId === "" ? undefined : equipmentFlagsMap.get(Number(selectedEquipmentId));
-  const forceQtyOne = Boolean(
-    selectedEquipment?.is_channel_forming || selectedEquipment?.is_network || selectedEquipment?.has_serial_interfaces
-  );
-  const effectiveQuantity = forceQtyOne ? 1 : inlineQuantity;
-  const canAdd = container.source === "cabinet" && selectedEquipmentId !== "" && Number.isFinite(effectiveQuantity) && effectiveQuantity >= 1;
+  const hasValidAddEntries = addEntries.some((entry) => {
+    if (entry.equipmentTypeId === "") {
+      return false;
+    }
+    return Number.isFinite(entry.quantity) && entry.quantity >= 1;
+  });
+  const hasInvalidAddEntries = addEntries.some((entry) => {
+    if (entry.equipmentTypeId === "") {
+      return false;
+    }
+    return !Number.isFinite(entry.quantity) || entry.quantity < 1;
+  });
+  const canAdd = container.source === "cabinet" && hasValidAddEntries && !hasInvalidAddEntries;
 
   const handleAddDialogOpen = () => {
     setAddDialogOpen(true);
-    setSelectedEquipmentId("");
-    setInlineQuantity(1);
+    setAddEntries([createEmptyAddEntry()]);
   };
 
   const handleAddDialogClose = () => {
     setAddDialogOpen(false);
-    setSelectedEquipmentId("");
-    setInlineQuantity(1);
+    setAddEntries([createEmptyAddEntry()]);
+  };
+
+  const handleAddEntryChange = (index: number, nextEntry: AddToCabinetEntry) => {
+    setAddEntries((prev) => prev.map((entry, entryIndex) => (entryIndex === index ? nextEntry : entry)));
+  };
+
+  const handleAppendEntry = () => {
+    setAddEntries((prev) => [...prev, createEmptyAddEntry()]);
+  };
+
+  const handleRemoveEntry = (index: number) => {
+    setAddEntries((prev) => (prev.length === 1 ? [createEmptyAddEntry()] : prev.filter((_, entryIndex) => entryIndex !== index)));
   };
 
   const handleAdd = () => {
@@ -593,10 +619,28 @@ function ContainerAccordion({
       onErrorMessage(t("validation.requiredFields"));
       return;
     }
+    const groupedItems = new Map<number, number>();
+    addEntries.forEach((entry) => {
+      const equipmentTypeId = entry.equipmentTypeId === "" ? NaN : Number(entry.equipmentTypeId);
+      const quantity = Number(entry.quantity);
+      if (!Number.isFinite(equipmentTypeId)) {
+        return;
+      }
+      if (!Number.isFinite(quantity) || quantity < 1) {
+        return;
+      }
+      groupedItems.set(equipmentTypeId, (groupedItems.get(equipmentTypeId) || 0) + quantity);
+    });
+    if (groupedItems.size === 0) {
+      onErrorMessage(t("validation.requiredFields"));
+      return;
+    }
     onAddToCabinet({
       cabinetId: container.container_id,
-      equipmentTypeId: Number(selectedEquipmentId),
-      quantity: effectiveQuantity
+      items: Array.from(groupedItems.entries()).map(([equipmentTypeId, quantity]) => ({
+        equipmentTypeId,
+        quantity
+      }))
     });
     handleAddDialogClose();
   };
@@ -991,47 +1035,93 @@ function ContainerAccordion({
               {t("pagesUi.cabinetItems.inline.addDialogTitle", { name: container.container_name })}
             </DialogTitle>
             <DialogContent sx={{ display: "grid", gap: 2, pt: 2 }}>
-              <SearchableSelectField
-                label={t("common.fields.equipment")}
-                value={selectedEquipmentId}
-                options={equipmentOptions}
-                onChange={(nextValue) => {
-                  const nextEquipmentId = nextValue === "" ? "" : Number(nextValue);
-                  setSelectedEquipmentId(nextEquipmentId);
-                  const nextEquipment = nextEquipmentId === "" ? undefined : equipmentFlagsMap.get(Number(nextEquipmentId));
-                  if (
-                    nextEquipment?.is_channel_forming ||
-                    nextEquipment?.is_network ||
-                    nextEquipment?.has_serial_interfaces
-                  ) {
-                    setInlineQuantity(1);
-                  }
-                }}
-                emptyOptionLabel={t("common.notSelected")}
-                fullWidth
-                size="small"
-              />
-              {selectedEquipment ? (
-                <Typography variant="body2" color="text.secondary">
-                  {formatEquipmentPowerSummary(selectedEquipment)}
-                </Typography>
-              ) : null}
-              <TextField
-                label={t("common.fields.quantity")}
-                type="number"
-                size="small"
-                value={forceQtyOne ? 1 : inlineQuantity}
-                onChange={(event) => setInlineQuantity(Number(event.target.value))}
-                inputProps={{ min: 1 }}
-                disabled={forceQtyOne}
-                helperText={
-                  forceQtyOne
-                    ? t("pagesUi.cabinetItems.placeholders.quantityLocked")
-                    : " "
-                }
-              />
+              {addEntries.map((entry, index) => {
+                const selectedEquipment =
+                  entry.equipmentTypeId === "" ? undefined : equipmentFlagsMap.get(Number(entry.equipmentTypeId));
+                const forceQtyOne = Boolean(
+                  selectedEquipment?.is_channel_forming ||
+                    selectedEquipment?.is_network ||
+                    selectedEquipment?.has_serial_interfaces
+                );
+                return (
+                  <Box
+                    key={`add-entry-${index}`}
+                    sx={{
+                      display: "grid",
+                      gap: 1.5,
+                      p: 1.5,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 1.5
+                    }}
+                  >
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1 }}>
+                      <Typography variant="subtitle2">
+                        {t("pagesUi.cabinetItems.inline.rowLabel", { index: index + 1 })}
+                      </Typography>
+                      <Tooltip title={t("pagesUi.cabinetItems.inline.removeRow")}>
+                        <span>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleRemoveEntry(index)}
+                            disabled={addEntries.length === 1}
+                          >
+                            <DeleteOutlineRoundedIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    </Box>
+                    <SearchableSelectField
+                      label={t("common.fields.equipment")}
+                      value={entry.equipmentTypeId}
+                      options={equipmentOptions}
+                      onChange={(nextValue) => {
+                        const nextEquipmentId = nextValue === "" ? "" : Number(nextValue);
+                        const nextEquipment =
+                          nextEquipmentId === "" ? undefined : equipmentFlagsMap.get(Number(nextEquipmentId));
+                        handleAddEntryChange(index, {
+                          equipmentTypeId: nextEquipmentId,
+                          quantity:
+                            nextEquipment?.is_channel_forming ||
+                            nextEquipment?.is_network ||
+                            nextEquipment?.has_serial_interfaces
+                              ? 1
+                              : entry.quantity
+                        });
+                      }}
+                      emptyOptionLabel={t("common.notSelected")}
+                      fullWidth
+                      size="small"
+                    />
+                    {selectedEquipment ? (
+                      <Typography variant="body2" color="text.secondary">
+                        {formatEquipmentPowerSummary(selectedEquipment)}
+                      </Typography>
+                    ) : null}
+                    <TextField
+                      label={t("common.fields.quantity")}
+                      type="number"
+                      size="small"
+                      value={forceQtyOne ? 1 : entry.quantity}
+                      onChange={(event) =>
+                        handleAddEntryChange(index, {
+                          ...entry,
+                          quantity: Number(event.target.value)
+                        })
+                      }
+                      inputProps={{ min: 1 }}
+                      disabled={forceQtyOne}
+                      helperText={forceQtyOne ? t("pagesUi.cabinetItems.placeholders.quantityLocked") : " "}
+                    />
+                  </Box>
+                );
+              })}
             </DialogContent>
             <DialogActions>
+              <AppButton variant="outlined" onClick={handleAppendEntry} startIcon={<AddRoundedIcon />}>
+                {t("pagesUi.cabinetItems.inline.addRow")}
+              </AppButton>
+              <Box sx={{ flexGrow: 1 }} />
               <AppButton variant="outlined" onClick={handleAddDialogClose}>
                 {t("actions.cancel")}
               </AppButton>
@@ -1081,7 +1171,7 @@ function LocationTreeNodeCard({
   onEditItem: (item: EquipmentInOperationItem) => void;
   onDeleteItem: (item: EquipmentInOperationItem) => void;
   onRestoreItem: (item: EquipmentInOperationItem) => void;
-  onAddToCabinet: (payload: { cabinetId: number; equipmentTypeId: number; quantity: number }) => void;
+  onAddToCabinet: (payload: { cabinetId: number; items: AddToCabinetEntry[] }) => void;
   equipmentOptions: { value: number; label: string }[];
   onErrorMessage: (message: string) => void;
 }) {
@@ -1359,7 +1449,15 @@ export default function CabinetItemsPage() {
   });
 
   const movementMutation = useMutation({
-    mutationFn: (payload: Record<string, unknown>) => createEntity("/movements", payload),
+    mutationFn: (payload: { cabinetId: number; items: AddToCabinetEntry[] }) =>
+      createDirectToCabinetBatch({
+        movement_type: "direct_to_cabinet",
+        to_cabinet_id: payload.cabinetId,
+        items: payload.items.map((item) => ({
+          equipment_type_id: item.equipmentTypeId as number,
+          quantity: item.quantity
+        }))
+      }),
     onSuccess: () => {
       invalidateEquipmentQueries();
       queryClient.invalidateQueries({ queryKey: ["warehouse-items"] });
@@ -1593,14 +1691,7 @@ export default function CabinetItemsPage() {
                 }}
                 onDeleteItem={(item) => deleteMutation.mutate({ id: item.id, source: item.source })}
                 onRestoreItem={(item) => restoreMutation.mutate({ id: item.id, source: item.source })}
-                onAddToCabinet={({ cabinetId, equipmentTypeId, quantity }) =>
-                  movementMutation.mutate({
-                    movement_type: "direct_to_cabinet",
-                    equipment_type_id: equipmentTypeId,
-                    to_cabinet_id: cabinetId,
-                    quantity
-                  })
-                }
+                onAddToCabinet={({ cabinetId, items }) => movementMutation.mutate({ cabinetId, items })}
                 onErrorMessage={(message) => setErrorMessage(message)}
               />
             ))}

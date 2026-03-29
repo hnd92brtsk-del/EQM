@@ -5,7 +5,7 @@ from app.core.access import require_space_access
 from app.core.dependencies import get_db
 from app.core.identity import build_full_name, build_personnel_identity_subquery, make_identity
 from app.models.audit import AuditLog
-from app.models.core import Cabinet, EquipmentType, Warehouse
+from app.models.core import Cabinet, EquipmentCategory, EquipmentType, Warehouse
 from app.models.io import IOSignal
 from app.models.operations import AssemblyItem, CabinetItem, WarehouseItem
 from app.models.security import SpaceKey, User
@@ -26,6 +26,19 @@ from app.schemas.dashboard import (
 )
 
 router = APIRouter()
+
+
+def build_root_category_map(categories: list[EquipmentCategory]) -> dict[int, str]:
+    categories_by_id = {category.id: category for category in categories}
+    roots: dict[int, str] = {}
+    for category in categories:
+        current = category
+        seen: set[int] = set()
+        while current.parent_id and current.parent_id in categories_by_id and current.parent_id not in seen:
+            seen.add(current.id)
+            current = categories_by_id[current.parent_id]
+        roots[category.id] = current.name
+    return roots
 
 
 @router.get("/", response_model=DashboardOut)
@@ -198,24 +211,41 @@ def get_dashboard_overview(db=Depends(get_db), user: User = Depends(require_spac
         )
     ) or 0.0
 
+    active_categories = db.scalars(
+        select(EquipmentCategory).where(EquipmentCategory.is_deleted == False)
+    ).all()
+    root_category_map = build_root_category_map(active_categories)
+
     by_category_rows = db.execute(
         select(
-            EquipmentType.name,
+            EquipmentType.equipment_category_id,
             func.coalesce(func.sum(WarehouseItem.quantity), 0).label("qty"),
         )
         .join(EquipmentType, WarehouseItem.equipment_type_id == EquipmentType.id)
+        .outerjoin(EquipmentCategory, EquipmentType.equipment_category_id == EquipmentCategory.id)
         .where(
             WarehouseItem.is_deleted == False,
             EquipmentType.is_deleted == False,
+            or_(
+                EquipmentType.equipment_category_id.is_(None),
+                EquipmentCategory.is_deleted == False,
+            ),
         )
-        .group_by(EquipmentType.name)
-        .order_by(EquipmentType.name)
+        .group_by(EquipmentType.equipment_category_id)
     ).all()
 
+    category_totals: dict[str, int] = {}
+    for row in by_category_rows:
+        qty = int(row.qty or 0)
+        if qty <= 0:
+            continue
+        category_name = root_category_map.get(row.equipment_category_id) if row.equipment_category_id else None
+        bucket_name = category_name or "Без категории"
+        category_totals[bucket_name] = category_totals.get(bucket_name, 0) + qty
+
     by_category = [
-        DonutQtyItem(name=row.name, qty=row.qty or 0)
-        for row in by_category_rows
-        if (row.qty or 0) > 0
+        DonutQtyItem(name=name, qty=qty)
+        for name, qty in sorted(category_totals.items(), key=lambda item: item[0])
     ]
 
     by_warehouse_qty_rows = db.execute(
