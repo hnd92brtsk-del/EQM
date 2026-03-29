@@ -7,7 +7,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
 from app.core.dependencies import get_current_user, get_db, require_admin
-from app.models.security import AccessSpace, RoleSpacePermission, User, UserRole
+from app.models.security import AccessSpace, RoleDefinition, RoleSpacePermission, User, UserRole
 from app.models.core import (
     Personnel,
     PersonnelCompetency,
@@ -16,6 +16,7 @@ from app.models.core import (
     PersonnelYearlyScheduleAssignment,
     PersonnelYearlyScheduleEvent,
 )
+from app.models.sessions import UserSession
 from app.routers import personnel as personnel_router
 
 
@@ -32,8 +33,10 @@ def db_session():
         engine,
         tables=[
             User.__table__,
+            RoleDefinition.__table__,
             AccessSpace.__table__,
             RoleSpacePermission.__table__,
+            UserSession.__table__,
             PersonnelScheduleTemplate.__table__,
             Personnel.__table__,
             PersonnelCompetency.__table__,
@@ -57,8 +60,10 @@ def db_session():
                 PersonnelCompetency.__table__,
                 Personnel.__table__,
                 PersonnelScheduleTemplate.__table__,
+                UserSession.__table__,
                 RoleSpacePermission.__table__,
                 AccessSpace.__table__,
+                RoleDefinition.__table__,
                 User.__table__,
             ],
         )
@@ -66,8 +71,14 @@ def db_session():
 
 @pytest.fixture()
 def users(db_session):
-    admin = User(username="admin", password_hash="x", role=UserRole.admin)
-    viewer = User(username="viewer", password_hash="x", role=UserRole.viewer)
+    db_session.add_all(
+        [
+            RoleDefinition(key=UserRole.admin.value, label="Administrator", is_system=True),
+            RoleDefinition(key=UserRole.viewer.value, label="Viewer", is_system=True),
+        ]
+    )
+    admin = User(username="admin", password_hash="x", role=UserRole.admin.value)
+    viewer = User(username="viewer", password_hash="x", role=UserRole.viewer.value)
     db_session.add_all([admin, viewer])
     db_session.commit()
     db_session.refresh(admin)
@@ -89,7 +100,7 @@ def make_app(db_session, user):
     app.dependency_overrides[get_current_user] = lambda: user
 
     def _require_admin():
-        if user.role != UserRole.admin:
+        if user.role != UserRole.admin.value:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
         return user
 

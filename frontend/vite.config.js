@@ -1,8 +1,14 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+var appVersion = readFileSync(fileURLToPath(new URL("../VERSION", import.meta.url)), "utf-8").trim();
 export default defineConfig({
     base: "/",
     plugins: [react()],
+    define: {
+        __APP_VERSION__: JSON.stringify(appVersion)
+    },
     build: {
         rollupOptions: {
             output: {

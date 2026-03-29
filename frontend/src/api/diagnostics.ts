@@ -124,6 +124,7 @@ export type DiagnosticsRuntimeNode = {
 };
 
 export type DiagnosticsSummary = {
+  app_version: string;
   checked_at: string;
   host: string;
   refresh_seconds: number;

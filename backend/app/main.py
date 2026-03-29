@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import BASE_DIR, get_settings
+from app.core.versioning import read_version
 from app.routers import (
     auth,
     users,
@@ -42,7 +43,7 @@ from app.routers import (
 
 settings = get_settings()
 
-app = FastAPI(title="EQM API", version="0.1.0")
+app = FastAPI(title="EQM API", version=read_version())
 
 app.add_middleware(
     CORSMiddleware,

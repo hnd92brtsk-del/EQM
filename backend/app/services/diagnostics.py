@@ -18,6 +18,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import text
 
 from app.core.config import BASE_DIR, get_settings
+from app.core.versioning import read_version
 from app.db.session import engine
 from app.schemas.diagnostics import (
     DiagnosticsCommandGroupOut,
@@ -1085,6 +1086,7 @@ def get_diagnostics_summary() -> DiagnosticsSummaryOut:
     database_overview = collect_database_overview()
     runtime_topology = build_runtime_topology(services, processes)
     return DiagnosticsSummaryOut(
+        app_version=read_version(),
         checked_at=utc_now(),
         host=socket.gethostname(),
         refresh_seconds=REFRESH_SECONDS,

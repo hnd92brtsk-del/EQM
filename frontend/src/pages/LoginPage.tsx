@@ -4,6 +4,7 @@ import { Box, Stack, TextField, Typography } from "@mui/material";
 import { alpha, styled } from "@mui/material/styles";
 import { useTranslation } from "react-i18next";
 
+import { APP_VERSION } from "../appVersion";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
 import authBg from "../assets/auth/imgstart2.jpg";
@@ -209,6 +210,9 @@ export default function LoginPage() {
               sx={{ textAlign: "center", mt: 1.5, lineHeight: 1.4 }}
             >
               {t("auth.helper.accountCreation")}
+            </Typography>
+            <Typography variant="caption" sx={{ textAlign: "center", color: "rgba(255,255,255,0.72)" }}>
+              {t("auth.version", { version: APP_VERSION })}
             </Typography>
           </Stack>
         </Box>

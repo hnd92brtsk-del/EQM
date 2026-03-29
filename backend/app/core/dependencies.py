@@ -36,9 +36,11 @@ def get_current_user(token: str = Depends(oauth2_scheme), db=Depends(get_db)) ->
     return user
 
 
-def require_roles(allowed: Iterable[UserRole]):
+def require_roles(allowed: Iterable[str | UserRole]):
+    allowed_values = {role.value if isinstance(role, UserRole) else str(role) for role in allowed}
+
     def checker(user: User = Depends(get_current_user)):
-        if user.role not in allowed:
+        if user.role not in allowed_values:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
         return user
 

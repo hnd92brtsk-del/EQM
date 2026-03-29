@@ -1,4 +1,4 @@
-from app.models.security import AccessSpace, RoleSpacePermission, SpaceKey, User, UserRole
+from app.models.security import AccessSpace, RoleDefinition, RoleSpacePermission, SpaceKey, User, UserRole
 from app.models.sessions import UserSession
 from app.models.core import (
     Manufacturer,
@@ -35,6 +35,7 @@ from app.models.serial_map import SerialMapDocument
 __all__ = [
     "User",
     "UserRole",
+    "RoleDefinition",
     "SpaceKey",
     "AccessSpace",
     "RoleSpacePermission",

@@ -1,16 +1,19 @@
 from pydantic import BaseModel
 
-from app.schemas.users import UserRole
-
-
 class AccessSpaceOut(BaseModel):
     key: str
     label: str
     is_admin_space: bool
 
 
+class RoleDefinitionOut(BaseModel):
+    key: str
+    label: str
+    is_system: bool
+
+
 class RoleSpacePermissionOut(BaseModel):
-    role: UserRole
+    role: str
     space_key: str
     can_read: bool
     can_write: bool
@@ -18,12 +21,13 @@ class RoleSpacePermissionOut(BaseModel):
 
 
 class RolePermissionsMatrixOut(BaseModel):
+    roles: list[RoleDefinitionOut]
     spaces: list[AccessSpaceOut]
     permissions: list[RoleSpacePermissionOut]
 
 
 class RoleSpacePermissionUpdate(BaseModel):
-    role: UserRole
+    role: str
     space_key: str
     can_read: bool
     can_write: bool
@@ -32,3 +36,8 @@ class RoleSpacePermissionUpdate(BaseModel):
 
 class RolePermissionsMatrixUpdate(BaseModel):
     permissions: list[RoleSpacePermissionUpdate]
+
+
+class RoleDefinitionCreate(BaseModel):
+    key: str
+    label: str

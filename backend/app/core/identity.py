@@ -68,7 +68,7 @@ def user_out_with_permissions(user: User, permissions) -> UserOut:
     return UserOut(
         id=user.id,
         username=user.username,
-        role=user.role.value,
+        role=user.role,
         permissions=permissions,
         created_at=user.created_at,
         updated_at=user.updated_at,

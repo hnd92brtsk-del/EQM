@@ -130,6 +130,7 @@ class DiagnosticsRuntimeTopologyOut(BaseModel):
 
 
 class DiagnosticsSummaryOut(BaseModel):
+    app_version: str
     checked_at: datetime
     host: str
     refresh_seconds: int = 3600

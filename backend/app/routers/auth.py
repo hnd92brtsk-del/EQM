@@ -7,6 +7,7 @@ from app.core.access import build_user_permissions
 from app.core.audit import add_audit_log, model_to_dict
 from app.core.dependencies import get_current_user, get_db, oauth2_scheme
 from app.core.identity import user_out_with_permissions
+from app.core.log_retention import enforce_table_row_limit
 from app.core.security import create_access_token, decode_token, hash_token, verify_password
 from app.models.security import User
 from app.models.sessions import UserSession
@@ -32,9 +33,11 @@ def login(payload: LoginIn, request: Request, db=Depends(get_db)):
     db.add(session)
     db.flush()
 
-    token = create_access_token(user.username, user.id, user.role.value, session.id)
+    token = create_access_token(user.username, user.id, user.role, session.id)
     session.session_token_hash = hash_token(token)
     user.last_login_at = datetime.utcnow()
+    db.flush()
+    enforce_table_row_limit(db, UserSession)
 
     add_audit_log(
         db,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Box,Card,
+  Box,
+  Card,
   CardContent,
   Dialog,
   DialogActions,
@@ -25,13 +26,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
+import { apiFetch } from "../api/client";
 import { type ColumnMeta, DataTable, type DataTableFiltersState } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
+import { SearchableSelectField } from "../components/SearchableSelectField";
+import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { AppButton } from "../components/ui/AppButton";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
-import { getTablePaginationProps } from "../components/tablePaginationI18n";
-import { SearchableSelectField } from "../components/SearchableSelectField";
 import { hasPermission } from "../utils/permissions";
 
 const pageSizeOptions = [10, 20, 50, 100];
@@ -39,8 +41,18 @@ const pageSizeOptions = [10, 20, 50, 100];
 type User = {
   id: number;
   username: string;
-  role: "admin" | "engineer" | "viewer";
+  role: string;
   is_deleted: boolean;
+};
+
+type RoleDefinition = {
+  key: string;
+  label: string;
+  is_system: boolean;
+};
+
+type RoleMatrix = {
+  roles: RoleDefinition[];
 };
 
 export default function UsersPage() {
@@ -53,7 +65,7 @@ export default function UsersPage() {
   const [editUser, setEditUser] = useState<User | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<User["role"]>("engineer");
+  const [role, setRole] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [sort, setSort] = useState("-created_at");
@@ -89,6 +101,11 @@ export default function UsersPage() {
       })
   });
 
+  const rolesQuery = useQuery({
+    queryKey: ["role-permissions", "roles"],
+    queryFn: () => apiFetch<RoleMatrix>("/admin/role-permissions")
+  });
+
   useEffect(() => {
     if (usersQuery.error) {
       setErrorMessage(
@@ -99,15 +116,35 @@ export default function UsersPage() {
     }
   }, [usersQuery.error, t]);
 
+  const roleOptions = useMemo(
+    () =>
+      (rolesQuery.data?.roles ?? []).map((item) => ({
+        value: item.key,
+        label: t(`roles.${item.key}`, { defaultValue: item.label })
+      })),
+    [rolesQuery.data?.roles, t]
+  );
+
+  const roleLabelMap = useMemo(
+    () => Object.fromEntries(roleOptions.map((item) => [item.value, item.label])),
+    [roleOptions]
+  );
+
+  useEffect(() => {
+    if (!role && roleOptions.length > 0) {
+      setRole(roleOptions[0].value);
+    }
+  }, [role, roleOptions]);
+
   const createMutation = useMutation({
-    mutationFn: (payload: any) => createEntity("/users", payload),
+    mutationFn: (payload: unknown) => createEntity("/users", payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
     onError: (error) =>
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.users.errors.create"))
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: any }) => updateEntity("/users", id, payload),
+    mutationFn: ({ id, payload }: { id: number; payload: unknown }) => updateEntity("/users", id, payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
     onError: (error) =>
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.users.errors.update"))
@@ -130,7 +167,7 @@ export default function UsersPage() {
   const resetForm = () => {
     setUsername("");
     setPassword("");
-    setRole("engineer");
+    setRole(roleOptions[0]?.value ?? "");
   };
 
   const columns = useMemo<ColumnDef<User>[]>(() => {
@@ -152,13 +189,9 @@ export default function UsersPage() {
           filterType: "select",
           filterKey: "role",
           filterPlaceholder: t("common.all"),
-          filterOptions: [
-            { label: t("roles.admin"), value: "admin" },
-            { label: t("roles.engineer"), value: "engineer" },
-            { label: t("roles.viewer"), value: "viewer" }
-          ]
+          filterOptions: roleOptions
         } as ColumnMeta<User>,
-        cell: ({ row }) => t(`roles.${row.original.role}`)
+        cell: ({ row }) => roleLabelMap[row.original.role] ?? row.original.role
       },
       {
         header: t("common.status.label"),
@@ -206,7 +239,7 @@ export default function UsersPage() {
     }
 
     return base;
-  }, [canWrite, deleteMutation, restoreMutation, t, i18n.language]);
+  }, [canWrite, deleteMutation, restoreMutation, t, i18n.language, roleOptions, roleLabelMap]);
 
   return (
     <Box sx={{ display: "grid", gap: 2 }}>
@@ -249,7 +282,7 @@ export default function UsersPage() {
             {canWrite && (
               <Box sx={{ display: "flex", gap: 1 }}>
                 <AppButton variant="outlined" onClick={() => navigate("/admin/role-permissions")}>
-                  Пространства и права
+                  {t("pagesUi.users.rolePermissions")}
                 </AppButton>
                 <AppButton
                   variant="contained"
@@ -313,12 +346,8 @@ export default function UsersPage() {
             <SearchableSelectField
               label={t("common.fields.role")}
               value={role}
-              options={[
-                { value: "admin", label: t("roles.admin") },
-                { value: "engineer", label: t("roles.engineer") },
-                { value: "viewer", label: t("roles.viewer") }
-              ]}
-              onChange={(nextValue) => setRole(nextValue as User["role"])}
+              options={roleOptions}
+              onChange={(nextValue) => setRole(nextValue as string)}
               emptyOptionLabel={t("actions.notSelected")}
               fullWidth
             />
@@ -343,6 +372,7 @@ export default function UsersPage() {
                 }
                 setDialogOpen(false);
               }}
+              disabled={!role}
             >
               {t("actions.save")}
             </AppButton>
@@ -353,6 +383,3 @@ export default function UsersPage() {
     </Box>
   );
 }
-
-
-

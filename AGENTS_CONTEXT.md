@@ -328,3 +328,12 @@ git --no-pager diff --staged --name-only
 - Проверить, что изменения в `backend/app/core/security.py` и `backend/app/core/config.py` не нарушают RBAC/авторизацию (быстрая ручная проверка через `uvicorn` и Swagger рекомендована).
 
 **Конец документа**
+---
+
+## Versioning Rule For Codex
+
+- The single source of truth for the project version is the root file `VERSION`.
+- The format is strictly `vMAJOR.MINOR.BUILD`.
+- For normal Codex work, always bump `BUILD` after any repo mutation by running `python tools/bump_version.py`.
+- Only change `MINOR` or `MAJOR` when the user explicitly asks for it.
+- In every final Codex response after file changes, print the new project version exactly as `Новая версия проекта: vX.Y.Z`.

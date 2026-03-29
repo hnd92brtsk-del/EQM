@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException, status
+from sqlalchemy import inspect
 from sqlalchemy import select
 
 from app.core.dependencies import get_current_user, get_db
-from app.models.security import AccessSpace, RoleSpacePermission, SpaceKey, User, UserRole
+from app.models.security import AccessSpace, RoleDefinition, RoleSpacePermission, SpaceKey, User, UserRole
 from app.schemas.users import SpacePermissionOut
 
 WORK_SPACES = {
@@ -29,18 +30,29 @@ DEFAULT_SPACE_CATALOG: list[tuple[SpaceKey, str, bool]] = [
     (SpaceKey.admin_diagnostics, "Admin Diagnostics", True),
 ]
 
+DEFAULT_ROLE_CATALOG: list[tuple[str, str, bool]] = [
+    (UserRole.admin.value, "Administrator", True),
+    (UserRole.engineer.value, "Engineer", True),
+    (UserRole.viewer.value, "Viewer", True),
+]
+
 
 def normalize_permission_flags(can_read: bool, can_write: bool, can_admin: bool) -> tuple[bool, bool, bool]:
     normalized_read = bool(can_read or can_write or can_admin)
     return normalized_read, bool(can_write), bool(can_admin)
 
 
-def default_role_permission_map(role: UserRole) -> dict[SpaceKey, tuple[bool, bool, bool]]:
+def normalize_role_key(role: str | UserRole) -> str:
+    return role.value if isinstance(role, UserRole) else str(role)
+
+
+def default_role_permission_map(role: str | UserRole) -> dict[SpaceKey, tuple[bool, bool, bool]]:
+    normalized_role = normalize_role_key(role)
     permissions: dict[SpaceKey, tuple[bool, bool, bool]] = {}
     for key, _label, is_admin in DEFAULT_SPACE_CATALOG:
-        if role == UserRole.admin:
+        if normalized_role == UserRole.admin.value:
             permissions[key] = (True, True, True if is_admin else False)
-        elif role == UserRole.engineer:
+        elif normalized_role == UserRole.engineer.value:
             permissions[key] = (True, True, False) if key in WORK_SPACES else (False, False, False)
         else:
             permissions[key] = (True, False, False) if key in WORK_SPACES else (False, False, False)
@@ -48,19 +60,38 @@ def default_role_permission_map(role: UserRole) -> dict[SpaceKey, tuple[bool, bo
 
 
 def ensure_space_permissions_seeded(db) -> None:
-    if db.scalar(select(AccessSpace).limit(1)) is None:
-        for key, label, is_admin in DEFAULT_SPACE_CATALOG:
+    bind = db.get_bind()
+    inspector = inspect(bind)
+    existing_tables = set(inspector.get_table_names())
+
+    if "role_definitions" not in existing_tables:
+        RoleDefinition.__table__.create(bind, checkfirst=True)
+        existing_tables.add("role_definitions")
+
+    existing_spaces = {space.key: space for space in db.scalars(select(AccessSpace)).all()}
+    for key, label, is_admin in DEFAULT_SPACE_CATALOG:
+        if key.value not in existing_spaces:
             db.add(AccessSpace(key=key.value, label=label, is_admin_space=is_admin))
-        db.flush()
 
-    if db.scalar(select(RoleSpacePermission).limit(1)) is not None:
-        return
+    existing_roles = {role.key: role for role in db.scalars(select(RoleDefinition)).all()}
+    for key, label, is_system in DEFAULT_ROLE_CATALOG:
+        if key not in existing_roles:
+            db.add(RoleDefinition(key=key, label=label, is_system=is_system))
 
-    for role in UserRole:
-        for space_key, (can_read, can_write, can_admin) in default_role_permission_map(role).items():
+    db.flush()
+
+    existing_permissions = {
+        (permission.role, permission.space_key): permission
+        for permission in db.scalars(select(RoleSpacePermission)).all()
+    }
+    for role_key, _label, _is_system in DEFAULT_ROLE_CATALOG:
+        for space_key, (can_read, can_write, can_admin) in default_role_permission_map(role_key).items():
+            key = (role_key, space_key.value)
+            if key in existing_permissions:
+                continue
             db.add(
                 RoleSpacePermission(
-                    role=role.value,
+                    role=role_key,
                     space_key=space_key.value,
                     can_read=can_read,
                     can_write=can_write,
@@ -70,10 +101,11 @@ def ensure_space_permissions_seeded(db) -> None:
     db.flush()
 
 
-def get_role_permissions(db, role: UserRole) -> list[RoleSpacePermission]:
+def get_role_permissions(db, role: str | UserRole) -> list[RoleSpacePermission]:
     ensure_space_permissions_seeded(db)
+    normalized_role = normalize_role_key(role)
     return db.scalars(
-        select(RoleSpacePermission).where(RoleSpacePermission.role == role.value).order_by(RoleSpacePermission.space_key)
+        select(RoleSpacePermission).where(RoleSpacePermission.role == normalized_role).order_by(RoleSpacePermission.space_key)
     ).all()
 
 

@@ -3,18 +3,26 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 
-from app.core.access import build_user_permissions, require_space_access
+from app.core.access import build_user_permissions, ensure_space_permissions_seeded, require_space_access
 from app.core.audit import add_audit_log, model_to_dict
 from app.core.dependencies import get_db
 from app.core.identity import user_out_with_permissions
 from app.core.pagination import paginate
 from app.core.query import apply_alphabet_filter, apply_date_filters, apply_search, apply_sort, apply_text_filter
 from app.core.security import hash_password
-from app.models.security import SpaceKey, User, UserRole
+from app.models.security import RoleDefinition, SpaceKey, User
 from app.schemas.common import Pagination
 from app.schemas.users import UserCreate, UserOut, UserUpdate
 
 router = APIRouter()
+
+
+def _get_role_or_400(db, role_key: str) -> RoleDefinition:
+    ensure_space_permissions_seeded(db)
+    role = db.scalar(select(RoleDefinition).where(RoleDefinition.key == role_key))
+    if role is None:
+        raise HTTPException(status_code=400, detail="Role not found")
+    return role
 
 
 @router.get("/", response_model=Pagination[UserOut])
@@ -25,7 +33,7 @@ def list_users(
     sort: str | None = None,
     is_deleted: bool | None = None,
     include_deleted: bool = False,
-    role: UserRole | None = None,
+    role: str | None = None,
     username: str | None = None,
     username_alphabet: str | None = None,
     created_at_from: datetime | None = None,
@@ -87,7 +95,7 @@ def create_user(
     user = User(
         username=payload.username,
         password_hash=hash_password(payload.password),
-        role=UserRole(payload.role),
+        role=_get_role_or_400(db, payload.role).key,
     )
     db.add(user)
     db.flush()
@@ -122,7 +130,7 @@ def update_user(
     if payload.password:
         user.password_hash = hash_password(payload.password)
     if payload.role:
-        user.role = UserRole(payload.role)
+        user.role = _get_role_or_400(db, payload.role).key
 
     add_audit_log(
         db,

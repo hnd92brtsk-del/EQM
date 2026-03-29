@@ -3,6 +3,7 @@ from typing import Any
 
 from sqlalchemy.inspection import inspect
 
+from app.core.log_retention import enforce_table_row_limit
 from app.models.audit import AuditLog
 
 
@@ -76,3 +77,5 @@ def add_audit_log(
     )
 
     db.add(log)
+    db.flush()
+    enforce_table_row_limit(db, AuditLog)

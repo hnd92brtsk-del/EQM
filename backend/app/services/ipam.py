@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import selectinload
 
+from app.core.log_retention import enforce_table_row_limit
 from app.models.core import Cabinet, EquipmentType, Location, Manufacturer
 from app.models.assemblies import Assembly
 from app.models.ipam import EquipmentNetworkInterface, IPAddress, IPAddressAuditLog, Subnet
@@ -506,6 +507,8 @@ def audit_ip_address_change(
             payload_json=payload_json or {},
         )
     )
+    db.flush()
+    enforce_table_row_limit(db, IPAddressAuditLog)
 
 
 def get_or_create_ip_record(db, subnet: Subnet, offset: int, status: str) -> IPAddress:

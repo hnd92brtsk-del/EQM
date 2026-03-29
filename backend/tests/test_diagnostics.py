@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.core.dependencies import get_current_user
+from app.core.versioning import read_version
 from app.models.security import UserRole
 from app.routers import diagnostics as diagnostics_router
 from app.schemas.diagnostics import (
@@ -18,15 +19,17 @@ from app.schemas.diagnostics import (
 from app.services import diagnostics as diagnostics_service
 
 
-def make_app(user_role: UserRole) -> FastAPI:
+def make_app(user_role: str | UserRole) -> FastAPI:
     app = FastAPI()
     app.include_router(diagnostics_router.router, prefix="/api/v1/admin/diagnostics")
-    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(role=user_role)
+    normalized_role = user_role.value if isinstance(user_role, UserRole) else user_role
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(role=normalized_role)
     return app
 
 
 def test_diagnostics_summary_requires_admin(monkeypatch):
     sample = DiagnosticsSummaryOut(
+        app_version="v1.0.1",
         checked_at=datetime(2026, 3, 21, 10, 0, tzinfo=UTC),
         host="eqm-dev",
         refresh_seconds=3600,
@@ -91,7 +94,15 @@ def test_diagnostics_summary_requires_admin(monkeypatch):
     monkeypatch.setattr(diagnostics_router, "get_diagnostics_summary", lambda: sample)
 
     assert TestClient(make_app(UserRole.viewer)).get("/api/v1/admin/diagnostics/summary").status_code == 403
-    assert TestClient(make_app(UserRole.admin)).get("/api/v1/admin/diagnostics/summary").json()["refresh_seconds"] == 3600
+    payload = TestClient(make_app(UserRole.admin)).get("/api/v1/admin/diagnostics/summary").json()
+    assert payload["refresh_seconds"] == 3600
+    assert payload["app_version"] == "v1.0.1"
+
+
+def test_main_app_uses_shared_project_version():
+    from app.main import app
+
+    assert app.version == read_version()
 
 
 def test_delete_and_kill_endpoints_require_admin(monkeypatch):

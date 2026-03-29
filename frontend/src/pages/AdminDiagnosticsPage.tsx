@@ -47,6 +47,7 @@ import {
   type DiagnosticsSourceKind,
   type DiagnosticsStatus
 } from "../api/diagnostics";
+import { APP_VERSION } from "../appVersion";
 import { type ColumnMeta, DataTable } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
@@ -437,6 +438,13 @@ export default function AdminDiagnosticsPage() {
             </CardContent>
           </Card>
           <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+            <Card>
+              <CardContent>
+                <Typography variant="overline" color="text.secondary">{t("pagesUi.diagnostics.overview.versionLabel")}</Typography>
+                <Typography variant="h5">{summaryQuery.data?.app_version || APP_VERSION}</Typography>
+                <Typography variant="body2" color="text.secondary">{t("pagesUi.diagnostics.overview.versionHint")}</Typography>
+              </CardContent>
+            </Card>
             <Card>
               <CardContent>
                 <Typography variant="overline" color="text.secondary">База данных</Typography>

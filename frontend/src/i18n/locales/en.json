@@ -31,6 +31,7 @@
     "en": "EN"
   },
   "auth": {
+    "version": "Version: {{version}}",
     "loginTitle": "Sign in to EQM",
     "loginHint": "Use admin/admin12345 for the first login.",
     "username": "Username",
@@ -463,6 +464,7 @@
     "equipment_categories": "Equipment Categories",
     "admin": "Admin",
     "admin_users": "Users",
+    "admin_role_permissions": "Role permissions",
     "admin_sessions": "Sessions",
     "admin_audit": "Audit Logs",
     "admin_diagnostics": "Diagnostics",
@@ -759,6 +761,8 @@
         "logs": "Errors & logs"
       },
       "overview": {
+        "versionLabel": "Build version",
+        "versionHint": "Shared project version read from the root VERSION file.",
         "title": "Service health",
         "host": "Host: {{host}} • EQM processes: {{processCount}} • warnings: {{warningCount}} • critical: {{errorCount}}",
         "serviceLine": "Port: {{port}} • PID: {{pid}} • HTTP: {{http}}",
@@ -871,6 +875,32 @@
         "update": "Failed to update user",
         "delete": "Failed to delete user",
         "restore": "Failed to restore user"
+      },
+      "rolePermissions": "Spaces and permissions"
+    },
+    "rolePermissions": {
+      "title": "Role permissions matrix",
+      "subtitle": "Manage space access and create custom roles.",
+      "actions": {
+        "save": "Save permissions",
+        "createRole": "Create role",
+        "create": "Create"
+      },
+      "permissions": {
+        "read": "Read",
+        "write": "Write",
+        "admin": "Admin"
+      },
+      "createRoleDialog": {
+        "title": "New role",
+        "key": "Role key",
+        "keyHint": "Use latin letters, numbers, dash or underscore.",
+        "label": "Role name"
+      },
+      "errors": {
+        "load": "Failed to load role permissions",
+        "save": "Failed to save role permissions",
+        "createRole": "Failed to create role"
       }
     },
     "cabinets": {

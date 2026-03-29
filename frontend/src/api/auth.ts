@@ -10,7 +10,7 @@ export type SpacePermission = {
 export type AuthUser = {
   id: number;
   username: string;
-  role: "admin" | "engineer" | "viewer";
+  role: string;
   permissions: SpacePermission[];
 };
 
