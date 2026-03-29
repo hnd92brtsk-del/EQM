@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointer
 import {
   Alert,
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
@@ -28,10 +29,12 @@ import LinkRoundedIcon from "@mui/icons-material/LinkRounded";
 import PanToolAltRoundedIcon from "@mui/icons-material/PanToolAltRounded";
 import PlaylistAddRoundedIcon from "@mui/icons-material/PlaylistAddRounded";
 import { useTranslation } from "react-i18next";
+import { alpha, useTheme } from "@mui/material/styles";
 
 import type { DigitalTwinDocument, DigitalTwinItem, DigitalTwinPowerNode } from "../../api/digitalTwins";
 import { AppButton } from "../../components/ui/AppButton";
 import {
+  analyzePowerGraph,
   boundsOfPowerNodes,
   CABINET_INPUT_NODE_ID,
   canCopyPowerSelection,
@@ -41,8 +44,10 @@ import {
   edgePathForPowerGraph,
   findPowerNodeByItemId,
   fitPowerGraphViewport,
+  formatRequiredPowerLabel,
   getPowerNodeCenter,
   getPowerNodeSize,
+  isItemPoweredByGraph,
   itemDisplayName,
   normalizeVoltageLabel,
   removePowerEdgeFromDocument,
@@ -108,10 +113,13 @@ export function PowerGraphCanvas({
   setErrorMessage,
 }: PowerGraphCanvasProps) {
   const { t } = useTranslation();
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const shellRef = useRef<HTMLDivElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const inspectorRef = useRef<HTMLDivElement | null>(null);
   const interactionRef = useRef<PowerGraphInteraction>(null);
+  const initialViewportResolvedRef = useRef(false);
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
@@ -120,6 +128,7 @@ export function PowerGraphCanvas({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [addGraphObjectOpen, setAddGraphObjectOpen] = useState(false);
   const [graphClipboard, setGraphClipboard] = useState<{ kind: "manual-node"; item: DigitalTwinItem; node: DigitalTwinPowerNode } | null>(null);
+  const [wrapperSize, setWrapperSize] = useState({ width: 0, height: 0 });
   const viewport = document.viewport || defaultViewport;
   const nodes = useMemo(() => ensureRenderableNodes(document), [document]);
   const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
@@ -147,6 +156,86 @@ export function PowerGraphCanvas({
     }),
     [sceneBounds],
   );
+  const powerAnalysis = useMemo(() => analyzePowerGraph(document), [document]);
+  const selectedGraphItemPowered = selectedGraphItem ? isItemPoweredByGraph(document, selectedGraphItem.id) : false;
+  const selectedGraphItemRequiredPower = selectedGraphItem
+    ? formatRequiredPowerLabel(selectedGraphItem.supply_voltage, selectedGraphItem.current_type)
+    : null;
+  const graphSurfaceColor = isDark ? "#1e293b" : "#eef3fb";
+  const graphGridDot = isDark ? "rgba(255,255,255,0.16)" : "rgba(15,23,42,0.14)";
+  const edgeColor = isDark ? "#94a3b8" : "#475569";
+  const selectedEdgeColor = isDark ? "#f8fafc" : "#0f172a";
+  const nodeTextColor = "#0f172a";
+  const nodeFillColor = isDark ? "#f8fafc" : "#ffffff";
+  const edgeLabelFill = isDark ? "rgba(15,23,42,0.9)" : "rgba(255,255,255,0.96)";
+  const edgeLabelText = isDark ? "#f8fafc" : "#0f172a";
+  const getNodeRolePalette = (role: DigitalTwinItem["power_role"] | "cabinet-input" | null | undefined) => {
+    if (role === "cabinet-input" || role === "source") {
+      return {
+        fill: isDark ? "#ccfbf1" : "#c9f7ee",
+        border: "#0f766e",
+        chip: alpha(theme.palette.success.main, isDark ? 0.16 : 0.12),
+      };
+    }
+    if (role === "converter") {
+      return {
+        fill: isDark ? "#fef3c7" : "#fff1c2",
+        border: "#d97706",
+        chip: alpha(theme.palette.warning.main, isDark ? 0.18 : 0.14),
+      };
+    }
+    if (role === "consumer") {
+      return {
+        fill: isDark ? "#dbeafe" : "#e2efff",
+        border: "#2563eb",
+        chip: alpha(theme.palette.info.main, isDark ? 0.16 : 0.12),
+      };
+    }
+    return {
+      fill: nodeFillColor,
+      border: isDark ? "#cbd5e1" : "#94a3b8",
+      chip: alpha(theme.palette.common.black, isDark ? 0.06 : 0.05),
+    };
+  };
+  const getNodeVisualState = (node: DigitalTwinPowerNode, item: DigitalTwinItem | null) => {
+    const isCabinetInput = node.kind === "cabinet-input";
+    const isPowered = isCabinetInput || powerAnalysis.energizedNodeIds.has(node.id);
+    const rolePalette = getNodeRolePalette(isCabinetInput ? "cabinet-input" : item?.power_role);
+    if (!isPowered) {
+      return {
+        fill: isDark ? "#fee2e2" : "#fff1f1",
+        border: "#dc2626",
+        chip: alpha(theme.palette.error.main, isDark ? 0.16 : 0.12),
+        text: "#7f1d1d",
+        powered: false,
+      };
+    }
+    return {
+      fill: rolePalette.fill,
+      border: rolePalette.border,
+      chip: rolePalette.chip,
+      text: nodeTextColor,
+      powered: true,
+    };
+  };
+  const hasVisibleNodes = useMemo(() => {
+    if (!wrapperSize.width || !wrapperSize.height || !nodes.length) return true;
+    return nodes.some((node) => {
+      const size = getPowerNodeSize(node);
+      const left = node.x * viewport.zoom + viewport.x;
+      const top = node.y * viewport.zoom + viewport.y;
+      const right = left + size.width * viewport.zoom;
+      const bottom = top + size.height * viewport.zoom;
+      return right >= 0 && bottom >= 0 && left <= wrapperSize.width && top <= wrapperSize.height;
+    });
+  }, [nodes, viewport.x, viewport.y, viewport.zoom, wrapperSize.height, wrapperSize.width]);
+  const legendItems = [
+    { label: "Источник / ввод шкафа", fill: isDark ? "#ccfbf1" : "#c9f7ee", border: "#0f766e" },
+    { label: "Потребитель", fill: isDark ? "#dbeafe" : "#e2efff", border: "#2563eb" },
+    { label: "Преобразователь", fill: isDark ? "#fef3c7" : "#fff1c2", border: "#d97706" },
+    { label: "Не запитан по графу", fill: isDark ? "#fee2e2" : "#fff1f1", border: "#dc2626" },
+    { label: "Выбранный узел", fill: isDark ? "#eff6ff" : "#eff6ff", border: "#2563eb", highlight: true },
+  ];
 
   useEffect(() => {
     if (selectedNodeId && !nodeById.has(selectedNodeId)) setSelectedNodeId(null);
@@ -158,6 +247,28 @@ export function PowerGraphCanvas({
     globalThis.document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => globalThis.document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
+
+  useEffect(() => {
+    const element = wrapperRef.current;
+    if (!element) return;
+    const updateSize = () => {
+      const bounds = element.getBoundingClientRect();
+      setWrapperSize({ width: bounds.width, height: bounds.height });
+    };
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (initialViewportResolvedRef.current) return;
+    const bounds = wrapperRef.current?.getBoundingClientRect();
+    if (!bounds || !nodes.length) return;
+    initialViewportResolvedRef.current = true;
+    if (hasVisibleNodes) return;
+    setViewport(fitPowerGraphViewport(nodes, { width: bounds.width, height: bounds.height }));
+  }, [hasVisibleNodes, nodes]);
 
   const setViewport = (nextViewport: DigitalTwinDocument["viewport"]) => {
     updateDocument((current) => {
@@ -522,13 +633,61 @@ export function PowerGraphCanvas({
               border: "1px solid",
               borderColor: "divider",
               borderRadius: 3,
-              bgcolor: "#1e293b",
+              bgcolor: graphSurfaceColor,
               cursor: toolMode === "pan" ? "grab" : toolMode === "connect" ? "crosshair" : "default",
-              backgroundImage: "radial-gradient(rgba(255,255,255,0.16) 1px, transparent 1px)",
+              backgroundImage: `radial-gradient(${graphGridDot} 1px, transparent 1px)`,
               backgroundSize: `${24 * viewport.zoom}px ${24 * viewport.zoom}px`,
               backgroundPosition: `${viewport.x}px ${viewport.y}px`,
             }}
           >
+            {nodes.length && !hasVisibleNodes ? (
+              <Alert
+                severity="warning"
+                action={<Button color="inherit" size="small" onClick={fitView}>Показать все</Button>}
+                sx={{ position: "absolute", top: 12, left: 12, right: 12, zIndex: 2 }}
+              >
+                Узлы графа есть в документе, но не попадают в текущую область просмотра.
+              </Alert>
+            ) : null}
+            <Box
+              sx={{
+                position: "absolute",
+                top: nodes.length && !hasVisibleNodes ? 76 : 12,
+                right: 12,
+                zIndex: 2,
+                width: 244,
+                borderRadius: 2,
+                border: "1px solid",
+                borderColor: "divider",
+                bgcolor: alpha(theme.palette.background.paper, isDark ? 0.94 : 0.96),
+                boxShadow: 3,
+                p: 1.25,
+                display: "grid",
+                gap: 1,
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                Легенда
+              </Typography>
+              {legendItems.map((item) => (
+                <Box key={item.label} sx={{ display: "grid", gridTemplateColumns: "20px 1fr", gap: 1, alignItems: "center" }}>
+                  <Box
+                    sx={{
+                      width: 20,
+                      height: 14,
+                      borderRadius: 1,
+                      border: "2px solid",
+                      borderColor: item.border,
+                      bgcolor: item.fill,
+                      boxShadow: item.highlight ? "0 0 0 3px rgba(37,99,235,0.16)" : "none",
+                    }}
+                  />
+                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.25 }}>
+                    {item.label}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
             <Box
               sx={{
                 position: "absolute",
@@ -559,7 +718,7 @@ export function PowerGraphCanvas({
                       <path
                         d={path}
                         fill="none"
-                        stroke={selected ? "#f8fafc" : "#94a3b8"}
+                        stroke={selected ? selectedEdgeColor : edgeColor}
                         strokeWidth={selected ? 3.2 : 2}
                         style={{ cursor: "pointer" }}
                         onPointerDown={(event) => event.stopPropagation()}
@@ -573,11 +732,11 @@ export function PowerGraphCanvas({
                           focusInspector();
                         }}
                       />
-                      <polygon points={`${b.x - 12},${b.y - 6} ${b.x},${b.y} ${b.x - 12},${b.y + 6}`} fill={selected ? "#f8fafc" : "#94a3b8"} />
+                      <polygon points={`${b.x - 12},${b.y - 6} ${b.x},${b.y} ${b.x - 12},${b.y + 6}`} fill={selected ? selectedEdgeColor : edgeColor} />
                       {(edge.label || edge.voltage) ? (
                         <g>
-                          <rect x={mid.x - 54} y={mid.y - 12} rx="10" width="108" height="24" fill="rgba(15,23,42,0.88)" />
-                          <text x={mid.x} y={mid.y + 4} textAnchor="middle" fill="#f8fafc" fontSize="11">{edge.label || edge.voltage}</text>
+                          <rect x={mid.x - 54} y={mid.y - 12} rx="10" width="108" height="24" fill={edgeLabelFill} stroke={alpha(edgeColor, 0.35)} />
+                          <text x={mid.x} y={mid.y + 4} textAnchor="middle" fill={edgeLabelText} fontSize="11">{edge.label || edge.voltage}</text>
                         </g>
                       ) : null}
                     </g>
@@ -590,6 +749,7 @@ export function PowerGraphCanvas({
                 const selected = node.id === selectedNodeId;
                 const pending = node.id === pendingConnectNodeId;
                 const item = node.item_id ? document.items.find((entry) => entry.id === node.item_id) || null : null;
+                const visualState = getNodeVisualState(node, item);
                 const bucket = node.kind === "cabinet-input"
                   ? normalizeVoltageLabel(document.cabinet_properties.incoming_voltage, document.cabinet_properties.incoming_current_type)
                   : item
@@ -606,20 +766,40 @@ export function PowerGraphCanvas({
                       width: size.width,
                       minHeight: size.height,
                       borderRadius: 2.5,
-                      border: pending ? "2px solid #38bdf8" : selected ? "2px solid #2563eb" : node.kind === "cabinet-input" ? "1px solid #14b8a6" : "1px solid #cbd5e1",
-                      bgcolor: node.kind === "cabinet-input" ? "rgba(204,251,241,0.96)" : "#ffffff",
+                      border: pending ? "2px solid #38bdf8" : selected ? "2px solid #2563eb" : `1px solid ${visualState.border}`,
+                      bgcolor: visualState.fill,
                       boxShadow: selected ? "0 0 0 4px rgba(37,99,235,0.16)" : pending ? "0 0 0 4px rgba(56,189,248,0.14)" : "0 12px 28px rgba(15,23,42,0.18)",
+                      color: visualState.text,
                       px: 1.4,
                       py: 1.1,
                       cursor: toolMode === "pan" ? "grab" : toolMode === "connect" ? "crosshair" : canWrite ? "grab" : "pointer",
                       userSelect: "none",
                     }}
                   >
-                    <Typography variant="body2" sx={{ fontWeight: node.kind === "cabinet-input" ? 700 : 600, lineHeight: 1.25 }}>
+                    <Typography variant="body2" sx={{ fontWeight: node.kind === "cabinet-input" ? 700 : 600, lineHeight: 1.25, color: visualState.text }}>
                       {node.label}
                     </Typography>
-                    <Stack direction="row" spacing={0.75} sx={{ mt: 0.9, flexWrap: "wrap" }} useFlexGap>
-                      <Chip size="small" label={bucket || node.voltage || "?"} sx={{ height: 22 }} />
+                    <Stack
+                      direction="row"
+                      spacing={0.75}
+                      sx={{
+                        mt: 0.9,
+                        flexWrap: "wrap",
+                        "& .MuiChip-root": { color: visualState.text, bgcolor: visualState.chip },
+                        "& .MuiChip-label": { color: visualState.text, fontWeight: 600 },
+                      }}
+                      useFlexGap
+                    >
+                      <Chip
+                        size="small"
+                        label={bucket || node.voltage || "?"}
+                        sx={{
+                          height: 22,
+                          bgcolor: visualState.chip,
+                          color: visualState.text,
+                          "& .MuiChip-label": { color: visualState.text, fontWeight: 600 },
+                        }}
+                      />
                       {node.kind === "cabinet-input" ? <Chip size="small" label="Источник" sx={{ height: 22 }} /> : null}
                     </Stack>
                   </Box>
@@ -662,6 +842,8 @@ export function PowerGraphCanvas({
                   <TextField size="small" label={t("pagesUi.digitalTwin.fields.powerRole")} value={selectedGraphItem.power_role || "-"} disabled />
                   <TextField size="small" label={t("pagesUi.digitalTwin.fields.supplyVoltage")} value={selectedGraphItem.supply_voltage || "-"} disabled />
                   <TextField size="small" label={t("pagesUi.digitalTwin.fields.currentType")} value={selectedGraphItem.current_type || "-"} disabled />
+                  <TextField size="small" label="Требуемое питание" value={selectedGraphItemRequiredPower || "-"} disabled />
+                  <TextField size="small" label="Питание по графу" value={selectedGraphItemPowered ? "Подведено" : "Не подведено"} disabled />
                   <Typography variant="body2" color="text.secondary">
                     {selectedGraphItem.item_kind === "manual"
                       ? "Manual-объект можно копировать и вставлять через toolbar."

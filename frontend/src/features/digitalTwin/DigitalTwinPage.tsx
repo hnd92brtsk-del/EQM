@@ -17,11 +17,6 @@ import {
   MenuItem,
   Select,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   TextField,
   Tooltip,
   Typography,
@@ -38,6 +33,7 @@ import LanRoundedIcon from "@mui/icons-material/LanRounded";
 import MemoryRoundedIcon from "@mui/icons-material/MemoryRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import SettingsEthernetRoundedIcon from "@mui/icons-material/SettingsEthernetRounded";
+import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useLocation, useParams } from "react-router-dom";
@@ -55,16 +51,30 @@ import {
 import { createCabinetItem, deleteCabinetItem } from "../../api/cabinetItems";
 import { listEquipmentTypesForSelect, updateEquipmentType, type EquipmentTypeRecord } from "../../api/equipmentTypes";
 import { type IOSignal, listIOSignals, rebuildIOSignals, updateIOSignal } from "../../api/ioSignals";
+import { DataTable } from "../../components/DataTable";
+import { EntityDialog, type DialogState } from "../../components/EntityDialog";
 import { ErrorSnackbar } from "../../components/ErrorSnackbar";
 import { SearchableSelectField } from "../../components/SearchableSelectField";
 import { AppButton } from "../../components/ui/AppButton";
 import { useAuth } from "../../context/AuthContext";
 import { hasPermission } from "../../utils/permissions";
+import { buildDataTypeLookups, fetchDataTypesTree } from "../../utils/dataTypes";
+import { buildFieldEquipmentLookups, fetchFieldEquipmentsTree } from "../../utils/fieldEquipments";
+import { buildMeasurementUnitLookups, fetchMeasurementUnitsTree } from "../../utils/measurementUnits";
 import { assignAddress, getCabinetItemIPAMSummary, getSubnetAddresses, listEligibleEquipment, listSubnets, releaseAddress } from "../ipam/api/ipam";
+import {
+  buildIOSignalColumns,
+  buildIOSignalUpdatePayload,
+  buildTreeSelectOptions,
+  createIOSignalEditDialogState,
+  ioSignalTypeOptions,
+  type TreeSelectNode,
+} from "../ioSignals/shared";
 import type { EligibleEquipment, Subnet } from "../ipam/types";
 import { createSerialMapDocument, getSerialMapDocument, listSerialMapDocuments, listSerialMapEligibleEquipment, updateSerialMapDocument } from "../serialMap/api";
 import { createEmptyDocument, createNodeFromEquipment } from "../serialMap/model";
 import type { SerialMapEligibleEquipment } from "../serialMap/types";
+import { buildSignalTypeLookups, fetchSignalTypesTree } from "../../utils/signalTypes";
 import {
   buildIoSummary,
   buildLoadSummary,
@@ -449,19 +459,94 @@ function SignalListDialog({
   onClose: () => void;
   onError: (message: string) => void;
 }) {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const canWrite = hasPermission(user, "engineering", "write");
   const queryClient = useQueryClient();
+  const [dialog, setDialog] = useState<DialogState | null>(null);
   const signalsQuery = useQuery({
     queryKey: ["digital-twin-signal-modal", item?.equipment_item_id],
     enabled: open && Boolean(item?.equipment_item_id),
     queryFn: () => listIOSignals(item!.equipment_item_id!),
   });
+  const measurementUnitsTreeQuery = useQuery({
+    queryKey: ["measurement-units-tree-options", false],
+    queryFn: () => fetchMeasurementUnitsTree(false),
+  });
+  const signalTypesTreeQuery = useQuery({
+    queryKey: ["signal-types-tree-options", false],
+    queryFn: () => fetchSignalTypesTree(false),
+  });
+  const dataTypesTreeQuery = useQuery({
+    queryKey: ["data-types-tree-options", false],
+    queryFn: () => fetchDataTypesTree(false),
+  });
+  const fieldEquipmentsTreeQuery = useQuery({
+    queryKey: ["field-equipments-tree-options", false],
+    queryFn: () => fetchFieldEquipmentsTree(false),
+  });
+
+  const { options: measurementUnitOptions, breadcrumbMap: measurementUnitBreadcrumbs, leafIds } =
+    useMemo(() => buildMeasurementUnitLookups(measurementUnitsTreeQuery.data || []), [
+      measurementUnitsTreeQuery.data,
+    ]);
+  const measurementUnitLeafOptions = useMemo(
+    () =>
+      measurementUnitOptions
+        .filter((option) => leafIds.has(option.value))
+        .map((option) => ({
+          ...option,
+          label: measurementUnitBreadcrumbs.get(option.value) || option.label,
+        })),
+    [leafIds, measurementUnitBreadcrumbs, measurementUnitOptions]
+  );
+  const {
+    options: signalKindOptions,
+    breadcrumbMap: signalKindBreadcrumbs,
+    leafIds: signalKindLeafIds,
+  } = useMemo(() => buildSignalTypeLookups(signalTypesTreeQuery.data || []), [signalTypesTreeQuery.data]);
+  const signalKindLeafOptions = useMemo(
+    () =>
+      signalKindOptions
+        .filter((option) => signalKindLeafIds.has(option.value))
+        .map((option) => ({
+          ...option,
+          label: signalKindBreadcrumbs.get(option.value) || option.label,
+        })),
+    [signalKindBreadcrumbs, signalKindLeafIds, signalKindOptions]
+  );
+  const { breadcrumbMap: dataTypeBreadcrumbs } = useMemo(
+    () => buildDataTypeLookups(dataTypesTreeQuery.data || []),
+    [dataTypesTreeQuery.data]
+  );
+  const { breadcrumbMap: fieldEquipmentBreadcrumbs } = useMemo(
+    () => buildFieldEquipmentLookups(fieldEquipmentsTreeQuery.data || []),
+    [fieldEquipmentsTreeQuery.data]
+  );
+  const dataTypeTreeOptions = useMemo(
+    () => buildTreeSelectOptions((dataTypesTreeQuery.data || []) as TreeSelectNode[]),
+    [dataTypesTreeQuery.data]
+  );
+  const fieldEquipmentTreeOptions = useMemo(
+    () => buildTreeSelectOptions((fieldEquipmentsTreeQuery.data || []) as TreeSelectNode[]),
+    [fieldEquipmentsTreeQuery.data]
+  );
+
+  useEffect(() => {
+    if (signalsQuery.error) {
+      onError(
+        signalsQuery.error instanceof Error ? signalsQuery.error.message : t("pagesUi.ioSignals.errors.loadSignals")
+      );
+    }
+  }, [onError, signalsQuery.error, t]);
+
   const rebuildMutation = useMutation({
     mutationFn: () => rebuildIOSignals(item!.equipment_item_id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["digital-twin-signal-modal", item?.equipment_item_id] });
       queryClient.invalidateQueries({ queryKey: ["digital-twin-io-signals", item?.equipment_item_id] });
     },
-    onError: (error) => onError(error instanceof Error ? error.message : "Не удалось перестроить каналы"),
+    onError: (error) => onError(error instanceof Error ? error.message : t("pagesUi.ioSignals.errors.rebuild")),
   });
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: Partial<IOSignal> }) => updateIOSignal(id, payload),
@@ -469,51 +554,85 @@ function SignalListDialog({
       queryClient.invalidateQueries({ queryKey: ["digital-twin-signal-modal", item?.equipment_item_id] });
       queryClient.invalidateQueries({ queryKey: ["digital-twin-io-signals", item?.equipment_item_id] });
     },
-    onError: (error) => onError(error instanceof Error ? error.message : "Не удалось обновить канал"),
+    onError: (error) => onError(error instanceof Error ? error.message : t("pagesUi.ioSignals.errors.update")),
   });
 
+  const columns = useMemo<ColumnDef<IOSignal>[]>(
+    () =>
+      buildIOSignalColumns({
+        t,
+        canWrite,
+        lookupMaps: {
+          dataTypeBreadcrumbs,
+          signalKindBreadcrumbs,
+          fieldEquipmentBreadcrumbs,
+          measurementUnitBreadcrumbs,
+        },
+        onEdit: (signal) =>
+          setDialog(
+            createIOSignalEditDialogState({
+              t,
+              signal,
+              resources: {
+                signalTypeOptions: ioSignalTypeOptions,
+                signalKindLeafOptions,
+                measurementUnitLeafOptions,
+                dataTypeTreeOptions,
+                fieldEquipmentTreeOptions,
+              },
+              onSave: (values) =>
+                updateMutation
+                  .mutateAsync({
+                    id: signal.id,
+                    payload: buildIOSignalUpdatePayload(values),
+                  })
+                  .then(() => undefined),
+            })
+          ),
+      }),
+    [
+      canWrite,
+      dataTypeBreadcrumbs,
+      dataTypeTreeOptions,
+      fieldEquipmentBreadcrumbs,
+      fieldEquipmentTreeOptions,
+      measurementUnitBreadcrumbs,
+      measurementUnitLeafOptions,
+      signalKindBreadcrumbs,
+      signalKindLeafOptions,
+      t,
+      updateMutation,
+    ]
+  );
+
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
-      <DialogTitle>Signal List: {item ? itemDisplayName(item) : ""}</DialogTitle>
-      <DialogContent sx={{ display: "grid", gap: 2, pt: 2 }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
-          <Typography variant="body2" color="text.secondary">Плейсхолдеры каналов считаются свободными, пока не заполнены инженерные поля.</Typography>
-          <AppButton variant="outlined" onClick={() => rebuildMutation.mutate()} disabled={!item?.equipment_item_id || rebuildMutation.isPending}>Перестроить каналы</AppButton>
-        </Box>
-        <Box sx={{ maxHeight: 480, overflow: "auto" }}>
-          <Table size="small" stickyHeader>
-            <TableHead>
-              <TableRow>
-                <TableCell>Тип</TableCell>
-                <TableCell>Канал</TableCell>
-                <TableCell>Tag</TableCell>
-                <TableCell>Signal</TableCell>
-                <TableCell>Connection</TableCell>
-                <TableCell width={120}>Статус</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {(signalsQuery.data || []).map((signal) => {
-                const configured = isSignalConfigured(signal);
-                return (
-                  <TableRow key={signal.id}>
-                    <TableCell>{signal.signal_type}</TableCell>
-                    <TableCell>{signal.channel_index}</TableCell>
-                    <TableCell><TextField size="small" value={signal.tag || ""} onChange={(event) => updateMutation.mutate({ id: signal.id, payload: { tag: event.target.value } })} /></TableCell>
-                    <TableCell><TextField size="small" value={signal.signal || ""} onChange={(event) => updateMutation.mutate({ id: signal.id, payload: { signal: event.target.value } })} /></TableCell>
-                    <TableCell><TextField size="small" value={signal.connection_point || ""} onChange={(event) => updateMutation.mutate({ id: signal.id, payload: { connection_point: event.target.value } })} /></TableCell>
-                    <TableCell><Chip size="small" color={configured ? "success" : "default"} label={configured ? "Занят" : "Свободен"} /></TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Box>
-      </DialogContent>
-      <DialogActions>
-        <AppButton variant="outlined" onClick={onClose}>Закрыть</AppButton>
-      </DialogActions>
-    </Dialog>
+    <>
+      <Dialog open={open} onClose={onClose} fullWidth maxWidth="xl">
+        <DialogTitle>{t("pages.ioSignals")}: {item ? itemDisplayName(item) : ""}</DialogTitle>
+        <DialogContent sx={{ display: "grid", gap: 2, pt: 2 }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
+            <Typography variant="body2" color="text.secondary">
+              {t("pagesUi.ioSignals.empty.noSignals")}
+            </Typography>
+            <AppButton
+              variant="outlined"
+              onClick={() => rebuildMutation.mutate()}
+              disabled={!item?.equipment_item_id || rebuildMutation.isPending}
+            >
+              {t("pagesUi.ioSignals.actions.rebuild")}
+            </AppButton>
+          </Box>
+          <Box sx={{ maxHeight: 480, overflow: "auto" }}>
+            {signalsQuery.isLoading ? <LinearProgress sx={{ mb: 1 }} /> : null}
+            <DataTable data={signalsQuery.data || []} columns={columns} />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <AppButton variant="outlined" onClick={onClose}>{t("actions.close")}</AppButton>
+        </DialogActions>
+      </Dialog>
+      {dialog ? <EntityDialog state={dialog} onClose={() => setDialog(null)} /> : null}
+    </>
   );
 }
 
@@ -1210,3 +1329,4 @@ export function DigitalTwinPage() {
     </LocalErrorBoundary>
   );
 }
+

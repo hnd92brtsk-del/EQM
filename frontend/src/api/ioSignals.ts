@@ -39,12 +39,16 @@ export type IOSignal = {
   channel_index: number;
   tag?: string | null;
   signal?: string | null;
+  plc_absolute_address?: string | null;
   data_type_id?: number | null;
   data_type_full_path?: string | null;
   signal_kind_id?: number | null;
   field_equipment_id?: number | null;
   field_equipment_full_path?: string | null;
   connection_point?: string | null;
+  range_from?: string | null;
+  range_to?: string | null;
+  full_range?: string | null;
   measurement_unit_id?: number | null;
   measurement_unit_full_path?: string | null;
   is_active: boolean;
@@ -56,10 +60,14 @@ export type IOSignalUpdate = Partial<
     IOSignal,
     | "tag"
     | "signal"
+    | "plc_absolute_address"
     | "data_type_id"
     | "signal_kind_id"
     | "field_equipment_id"
     | "connection_point"
+    | "range_from"
+    | "range_to"
+    | "full_range"
     | "measurement_unit_id"
     | "is_active"
   >

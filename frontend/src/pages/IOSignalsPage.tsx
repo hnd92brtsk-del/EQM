@@ -6,20 +6,17 @@ import {
   Collapse,
   IconButton,
   TextField,
-  Typography,
-  type SxProps,
-  type Theme
+  Typography
 } from "@mui/material";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import SyncRoundedIcon from "@mui/icons-material/SyncRounded";
-import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
-import { EntityDialog, DialogState, type TreeFieldOption } from "../components/EntityDialog";
+import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { AppButton } from "../components/ui/AppButton";
 import { useAuth } from "../context/AuthContext";
@@ -39,19 +36,14 @@ import { buildDataTypeLookups, fetchDataTypesTree } from "../utils/dataTypes";
 import { buildFieldEquipmentLookups, fetchFieldEquipmentsTree } from "../utils/fieldEquipments";
 import { buildSignalTypeLookups, fetchSignalTypesTree } from "../utils/signalTypes";
 import { annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
-
-const signalTypeOptions = [
-  { value: "AI", label: "AI" },
-  { value: "AO", label: "AO" },
-  { value: "DI", label: "DI" },
-  { value: "DO", label: "DO" }
-];
-
-type TreeSelectNode = {
-  id: number;
-  name: string;
-  children?: TreeSelectNode[];
-};
+import {
+  buildIOSignalColumns,
+  buildIOSignalUpdatePayload,
+  buildTreeSelectOptions,
+  createIOSignalEditDialogState,
+  ioSignalTypeOptions,
+  type TreeSelectNode,
+} from "../features/ioSignals/shared";
 
 type IOTreeEntry =
   | {
@@ -75,19 +67,6 @@ type IOTreeEntry =
       device: IOTreeChannelDevice;
       children: IOTreeEntry[];
     };
-
-type ColumnMeta = {
-  headerSx?: SxProps<Theme>;
-  cellSx?: SxProps<Theme>;
-};
-
-function buildTreeSelectOptions(nodes: TreeSelectNode[]): TreeFieldOption[] {
-  return nodes.map((node) => ({
-    value: node.id,
-    label: node.name,
-    children: buildTreeSelectOptions(node.children || [])
-  }));
-}
 
 function buildDeviceEntry(device: IOTreeChannelDevice): IOTreeEntry {
   return {
@@ -120,53 +99,6 @@ function buildLocationEntry(location: IOTreeLocation): IOTreeEntry {
     children: [...(location.children || []).map(buildLocationEntry), ...(location.cabinets || []).map(buildCabinetEntry)]
   };
 }
-
-const ioColumnMeta: Record<string, ColumnMeta> = {
-  channelIndex: {
-    headerSx: { width: 96 },
-    cellSx: { width: 96, whiteSpace: "nowrap" }
-  },
-  dataType: {
-    headerSx: { width: 146 },
-    cellSx: { width: 146 }
-  },
-  tag: {
-    headerSx: { width: 84 },
-    cellSx: { width: 84, whiteSpace: "nowrap" }
-  },
-  signal: {
-    headerSx: { width: 108 },
-    cellSx: { width: 108 }
-  },
-  signalType: {
-    headerSx: { width: 84 },
-    cellSx: { width: 84, whiteSpace: "nowrap" }
-  },
-  signalKind: {
-    headerSx: { width: 88 },
-    cellSx: { width: 88 }
-  },
-  fieldEquipment: {
-    headerSx: { width: 248 },
-    cellSx: { width: 248 }
-  },
-  connectionPoint: {
-    headerSx: { width: 128 },
-    cellSx: { width: 128, whiteSpace: "nowrap" }
-  },
-  units: {
-    headerSx: { width: 156 },
-    cellSx: { width: 156 }
-  },
-  status: {
-    headerSx: { width: 104 },
-    cellSx: { width: 104, whiteSpace: "nowrap" }
-  },
-  actions: {
-    headerSx: { width: 120 },
-    cellSx: { width: 120, whiteSpace: "nowrap" }
-  }
-};
 
 export default function IOSignalsPage() {
   const { t } = useTranslation();
@@ -464,208 +396,38 @@ export default function IOSignalsPage() {
     }
   };
 
-  const columns = useMemo<ColumnDef<IOSignal>[]>(() => {
-    const base: ColumnDef<IOSignal>[] = [
-      {
-        id: "channelIndex",
-        header: t("pagesUi.ioSignals.columns.channelIndex"),
-        meta: ioColumnMeta.channelIndex,
-        cell: ({ row }) => `${row.original.signal_type}-${row.original.channel_index}`
-      },
-      {
-        id: "dataType",
-        header: t("pagesUi.ioSignals.columns.dataType"),
-        meta: ioColumnMeta.dataType,
-        cell: ({ row }) =>
-          row.original.data_type_full_path ||
-          (row.original.data_type_id
-            ? dataTypeBreadcrumbs.get(row.original.data_type_id) || row.original.data_type_id
-            : "-")
-      },
-      {
-        id: "tag",
-        header: t("pagesUi.ioSignals.columns.tag"),
-        accessorKey: "tag",
-        meta: ioColumnMeta.tag
-      },
-      {
-        id: "signal",
-        header: t("pagesUi.ioSignals.columns.signal"),
-        accessorKey: "signal",
-        meta: ioColumnMeta.signal
-      },
-      {
-        id: "signalType",
-        header: t("pagesUi.ioSignals.columns.signalType"),
-        accessorKey: "signal_type",
-        meta: ioColumnMeta.signalType
-      },
-      {
-        id: "signalKind",
-        header: t("pagesUi.ioSignals.columns.signalKind"),
-        meta: ioColumnMeta.signalKind,
-        cell: ({ row }) =>
-          row.original.signal_kind_id
-            ? signalKindBreadcrumbs.get(row.original.signal_kind_id) || row.original.signal_kind_id
-            : "-"
-      },
-      {
-        id: "fieldEquipment",
-        header: t("pagesUi.ioSignals.columns.fieldEquipment"),
-        meta: ioColumnMeta.fieldEquipment,
-        cell: ({ row }) =>
-          row.original.field_equipment_full_path ||
-          (row.original.field_equipment_id
-            ? fieldEquipmentBreadcrumbs.get(row.original.field_equipment_id) ||
-              row.original.field_equipment_id
-            : "-")
-      },
-      {
-        id: "connectionPoint",
-        header: t("pagesUi.ioSignals.columns.connectionPoint"),
-        meta: ioColumnMeta.connectionPoint,
-        cell: ({ row }) => row.original.connection_point || "-"
-      },
-      {
-        id: "units",
-        header: t("pagesUi.ioSignals.columns.units"),
-        meta: ioColumnMeta.units,
-        cell: ({ row }) =>
-          row.original.measurement_unit_full_path ||
-          (row.original.measurement_unit_id
-            ? measurementUnitBreadcrumbs.get(row.original.measurement_unit_id) ||
-              row.original.measurement_unit_id
-            : "-")
-      },
-      {
-        id: "status",
-        header: t("common.status.label"),
-        meta: ioColumnMeta.status,
-        cell: ({ row }) => (
-          <span className="status-pill">
-            {row.original.is_active ? t("common.status.active") : t("common.status.inactive")}
-          </span>
-        )
-      }
-    ];
-
-    if (canWrite) {
-      base.push({
-        id: "actions",
-        header: t("actions.actions"),
-        meta: ioColumnMeta.actions,
-        cell: ({ row }) => (
-          <AppButton
-            size="small"
-            startIcon={<EditRoundedIcon />}
-            onClick={() =>
-              setDialog({
-                open: true,
-                title: t("pagesUi.ioSignals.dialogs.editTitle"),
-                fields: [
-                  {
-                    name: "signal_type",
-                    label: t("pagesUi.ioSignals.fields.signalType"),
-                    type: "select",
-                    options: signalTypeOptions,
-                    disabledWhen: () => true
-                  },
-                  {
-                    name: "channel_index",
-                    label: t("pagesUi.ioSignals.fields.channelIndex"),
-                    type: "number",
-                    disabledWhen: () => true
-                  },
-                  { name: "tag", label: t("pagesUi.ioSignals.fields.tag"), type: "text" },
-                  { name: "signal", label: t("pagesUi.ioSignals.fields.signal"), type: "text" },
-                  {
-                    name: "data_type_id",
-                    label: t("pagesUi.ioSignals.fields.dataType"),
-                    type: "treeSelect",
-                    treeOptions: dataTypeTreeOptions,
-                    leafOnly: true
-                  },
-                  {
-                    name: "signal_kind_id",
-                    label: t("pagesUi.ioSignals.fields.signalKind"),
-                    type: "select",
-                    options: signalKindLeafOptions
-                  },
-                  {
-                    name: "field_equipment_id",
-                    label: t("pagesUi.ioSignals.fields.fieldEquipment"),
-                    type: "treeSelect",
-                    treeOptions: fieldEquipmentTreeOptions,
-                    leafOnly: true
-                  },
-                  {
-                    name: "connection_point",
-                    label: t("pagesUi.ioSignals.fields.connectionPoint"),
-                    type: "text"
-                  },
-                  {
-                    name: "measurement_unit_id",
-                    label: t("pagesUi.ioSignals.fields.units"),
-                    type: "select",
-                    options: measurementUnitLeafOptions
-                  },
-                  { name: "is_active", label: t("pagesUi.ioSignals.fields.status"), type: "checkbox" }
-                ],
-                values: {
-                  ...row.original,
-                  measurement_unit_id: row.original.measurement_unit_id ?? "",
-                  data_type_id: row.original.data_type_id ?? "",
-                  signal_kind_id: row.original.signal_kind_id ?? "",
-                  field_equipment_id: row.original.field_equipment_id ?? "",
-                  connection_point: row.original.connection_point ?? ""
-                },
-                onSave: (values) => {
-                  const measurementUnitId =
-                    values.measurement_unit_id === "" || values.measurement_unit_id === undefined
-                      ? null
-                      : Number(values.measurement_unit_id);
-                  const dataTypeId =
-                    values.data_type_id === "" || values.data_type_id === undefined
-                      ? null
-                      : Number(values.data_type_id);
-                  const signalKindId =
-                    values.signal_kind_id === "" || values.signal_kind_id === undefined
-                      ? null
-                      : Number(values.signal_kind_id);
-                  const fieldEquipmentId =
-                    values.field_equipment_id === "" || values.field_equipment_id === undefined
-                      ? null
-                      : Number(values.field_equipment_id);
-                  const connectionPoint =
-                    values.connection_point === "" || values.connection_point === undefined
-                      ? null
-                      : String(values.connection_point);
-                  updateMutation.mutate({
-                    id: row.original.id,
-                    payload: {
-                      tag: values.tag,
-                      signal: values.signal,
-                      data_type_id: dataTypeId,
-                      signal_kind_id: signalKindId,
-                      field_equipment_id: fieldEquipmentId,
-                      connection_point: connectionPoint,
-                      measurement_unit_id: measurementUnitId,
-                      is_active: values.is_active
-                    }
-                  });
-                  setDialog(null);
-                }
-              })
-            }
-          >
-            {t("actions.edit")}
-          </AppButton>
-        )
-      });
-    }
-
-    return base;
-  }, [
+  const columns = useMemo<ColumnDef<IOSignal>[]>(
+    () =>
+      buildIOSignalColumns({
+        t,
+        canWrite,
+        lookupMaps: {
+          dataTypeBreadcrumbs,
+          signalKindBreadcrumbs,
+          fieldEquipmentBreadcrumbs,
+          measurementUnitBreadcrumbs
+        },
+        onEdit: (signal) =>
+          setDialog(
+            createIOSignalEditDialogState({
+              t,
+              signal,
+              resources: {
+                signalTypeOptions: ioSignalTypeOptions,
+                signalKindLeafOptions,
+                measurementUnitLeafOptions,
+                dataTypeTreeOptions,
+                fieldEquipmentTreeOptions
+              },
+              onSave: (values) =>
+                updateMutation.mutateAsync({
+                  id: signal.id,
+                  payload: buildIOSignalUpdatePayload(values)
+                }).then(() => undefined)
+            })
+          )
+      }),
+    [
     canWrite,
     dataTypeBreadcrumbs,
     dataTypeTreeOptions,

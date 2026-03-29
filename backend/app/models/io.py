@@ -31,6 +31,7 @@ class IOSignal(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
 
     tag: Mapped[str | None] = mapped_column(String(200))
     signal: Mapped[str | None] = mapped_column(String(500))
+    plc_absolute_address: Mapped[str | None] = mapped_column(String(255))
     data_type_id: Mapped[int | None] = mapped_column(
         ForeignKey("data_types.id", ondelete="SET NULL"), index=True
     )
@@ -41,6 +42,9 @@ class IOSignal(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
         ForeignKey("field_equipments.id", ondelete="SET NULL"), index=True
     )
     connection_point: Mapped[str | None] = mapped_column(String(255))
+    range_from: Mapped[str | None] = mapped_column(String(255))
+    range_to: Mapped[str | None] = mapped_column(String(255))
+    full_range: Mapped[str | None] = mapped_column(String(255))
     measurement_unit_id: Mapped[int | None] = mapped_column(
         ForeignKey("measurement_units.id", ondelete="SET NULL"), index=True
     )

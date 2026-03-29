@@ -7,6 +7,15 @@ export type ValidationIssue = {
   detail: string;
 };
 
+export type PowerGraphAnalysis = {
+  nodes: DigitalTwinPowerNode[];
+  edges: DigitalTwinPowerEdge[];
+  nodeById: Map<string, DigitalTwinPowerNode>;
+  incomingByTarget: Map<string, DigitalTwinPowerEdge[]>;
+  outgoingBySource: Map<string, DigitalTwinPowerEdge[]>;
+  energizedNodeIds: Set<string>;
+};
+
 export type ManualItemDraft = {
   name: string;
   mount_type: "din-rail" | "wall" | "other";
@@ -208,6 +217,13 @@ export function getPowerBucketStyle(value?: string | null, currentType?: string 
   return bucket ? powerBucketStyles[bucket] : powerBucketStyles.undefined;
 }
 
+export function formatRequiredPowerLabel(value?: string | null, currentType?: string | null) {
+  if (!value && !currentType) return "питание не задано";
+  const bucket = normalizeVoltageLabel(value, currentType);
+  if (bucket) return powerBucketStyles[bucket].label;
+  return [value, currentType].filter(Boolean).join(" ").trim() || "питание не задано";
+}
+
 export function voltageToNumber(value?: string | null) {
   if (!value) return null;
   const match = value.match(/(\d+(?:[.,]\d+)?)/);
@@ -244,20 +260,57 @@ function resolveNodeSupplyVoltage(document: DigitalTwinDocument, node: DigitalTw
   return item ? normalizeVoltageLabel(item.supply_voltage, item.current_type) : null;
 }
 
-export function buildValidation(document: DigitalTwinDocument): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
+export function analyzePowerGraph(document: DigitalTwinDocument): PowerGraphAnalysis {
   const activeItems = document.items.filter((item) => item.source_status !== "out_of_operation");
   const activeItemIds = new Set(activeItems.map((item) => item.id));
   const nodes = document.powerGraph.nodes.filter((node) => node.kind === "cabinet-input" || (node.item_id && activeItemIds.has(node.item_id)));
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
-  const incomingByTarget = new Map<string, typeof document.powerGraph.edges>();
-  const outgoingBySource = new Map<string, typeof document.powerGraph.edges>();
+  const edges = document.powerGraph.edges.filter((edge) => nodeById.has(edge.source) && nodeById.has(edge.target));
+  const incomingByTarget = new Map<string, DigitalTwinPowerEdge[]>();
+  const outgoingBySource = new Map<string, DigitalTwinPowerEdge[]>();
 
-  document.powerGraph.edges.forEach((edge) => {
-    if (!nodeById.has(edge.source) || !nodeById.has(edge.target)) return;
+  edges.forEach((edge) => {
     incomingByTarget.set(edge.target, [...(incomingByTarget.get(edge.target) || []), edge]);
     outgoingBySource.set(edge.source, [...(outgoingBySource.get(edge.source) || []), edge]);
   });
+
+  const energizedNodeIds = new Set<string>();
+  const queue: string[] = [];
+  if (nodeById.has(CABINET_INPUT_NODE_ID)) {
+    energizedNodeIds.add(CABINET_INPUT_NODE_ID);
+    queue.push(CABINET_INPUT_NODE_ID);
+  }
+
+  while (queue.length) {
+    const nodeId = queue.shift()!;
+    const node = nodeById.get(nodeId);
+    if (!node) continue;
+    const item = resolveNodeItem(document, node);
+    const canFeedDownstream =
+      node.kind === "cabinet-input"
+      || item?.power_role === "source"
+      || item?.power_role === "converter";
+    if (!canFeedDownstream) continue;
+    for (const edge of outgoingBySource.get(nodeId) || []) {
+      if (energizedNodeIds.has(edge.target)) continue;
+      energizedNodeIds.add(edge.target);
+      queue.push(edge.target);
+    }
+  }
+
+  return { nodes, edges, nodeById, incomingByTarget, outgoingBySource, energizedNodeIds };
+}
+
+export function isItemPoweredByGraph(document: DigitalTwinDocument, itemId: string) {
+  const analysis = analyzePowerGraph(document);
+  const node = analysis.nodes.find((entry) => entry.item_id === itemId);
+  return node ? analysis.energizedNodeIds.has(node.id) : false;
+}
+
+export function buildValidation(document: DigitalTwinDocument): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const activeItems = document.items.filter((item) => item.source_status !== "out_of_operation");
+  const { nodes, edges, nodeById, incomingByTarget, outgoingBySource, energizedNodeIds } = analyzePowerGraph(document);
 
   activeItems.forEach((item) => {
     if (item.power_role === "passive") return;
@@ -271,18 +324,43 @@ export function buildValidation(document: DigitalTwinDocument): ValidationIssue[
       });
       return;
     }
-    if (!(incomingByTarget.get(node.id) || []).length && item.power_role !== "source" && item.power_role !== "consumer" && item.power_role !== "converter") return;
-    if (!(incomingByTarget.get(node.id) || []).length) {
+
+    const incomingEdges = incomingByTarget.get(node.id) || [];
+    const requiredPower = formatRequiredPowerLabel(item.supply_voltage, item.current_type);
+    const isFeedRole = item.power_role === "source" || item.power_role === "converter";
+    if (!incomingEdges.length && item.power_role !== "source" && item.power_role !== "consumer" && item.power_role !== "converter") return;
+
+    if (!incomingEdges.length && isFeedRole) {
+      issues.push({
+        id: `missing-feed-${item.id}`,
+        severity: "warning",
+        title: "Источник не подключён ко вводу шкафа",
+        detail: `${itemDisplayName(item)} присутствует на графе, но питание до него не подведено.`,
+      });
+      return;
+    }
+
+    if (!incomingEdges.length) {
       issues.push({
         id: `missing-feed-${item.id}`,
         severity: "warning",
         title: "Нет источника питания",
-        detail: `${itemDisplayName(item)} не подключен к источнику.`,
+        detail: `${itemDisplayName(item)} требует ${requiredPower}, но по графу не запитан.`,
+      });
+      return;
+    }
+
+    if (!energizedNodeIds.has(node.id)) {
+      issues.push({
+        id: `upstream-feed-${item.id}`,
+        severity: "warning",
+        title: "Питание по цепочке не доведено",
+        detail: `${itemDisplayName(item)} подключен на графе, но upstream-цепочка не запитана. Требуемое питание: ${requiredPower}.`,
       });
     }
   });
 
-  document.powerGraph.edges.forEach((edge) => {
+  edges.forEach((edge) => {
     const sourceNode = nodeById.get(edge.source);
     const targetNode = nodeById.get(edge.target);
     if (!sourceNode || !targetNode) return;
