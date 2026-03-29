@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Box, CircularProgress, Typography } from "@mui/material";
 
 import { useAuth } from "./context/AuthContext";
@@ -49,7 +49,8 @@ function RouteLoadingFallback() {
 }
 
 function RequireAuth({ children }: { children: JSX.Element }) {
-  const { user, loading } = useAuth();
+  const { user, loading, authFailureReason } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -60,7 +61,16 @@ function RequireAuth({ children }: { children: JSX.Element }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{
+          from: `${location.pathname}${location.search}${location.hash}`,
+          reason: authFailureReason
+        }}
+      />
+    );
   }
 
   return children;

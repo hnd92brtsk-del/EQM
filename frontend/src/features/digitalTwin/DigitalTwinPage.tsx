@@ -1,51 +1,110 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import React, { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  Alert, Box, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-  IconButton, LinearProgress, MenuItem, Stack, TextField, Tooltip, Typography,
+  Alert,
+  Box,
+  Card,
+  CardContent,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  FormControl,
+  IconButton,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TextField,
+  Tooltip,
+  Typography,
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import AutorenewRoundedIcon from "@mui/icons-material/AutorenewRounded";
+import CableRoundedIcon from "@mui/icons-material/CableRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import DeviceHubRoundedIcon from "@mui/icons-material/DeviceHubRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
+import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
+import LanRoundedIcon from "@mui/icons-material/LanRounded";
+import MemoryRoundedIcon from "@mui/icons-material/MemoryRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
+import SettingsEthernetRoundedIcon from "@mui/icons-material/SettingsEthernetRounded";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  addEdge, applyNodeChanges, Background, Controls, MiniMap, ReactFlow, ReactFlowProvider,
-  type Connection, type Edge, type Node, type NodeChange,
-} from "reactflow";
-import "reactflow/dist/style.css";
 import { useTranslation } from "react-i18next";
 import { useLocation, useParams } from "react-router-dom";
 
 import {
-  type DigitalTwinDocument, type DigitalTwinItem, type DigitalTwinPowerEdge, type DigitalTwinRecord,
-  type DigitalTwinScope, type TwinPlacementMode, ensureDigitalTwin, syncDigitalTwinFromOperation, updateDigitalTwin,
+  type DigitalTwinDocument,
+  type DigitalTwinItem,
+  type DigitalTwinRecord,
+  type DigitalTwinScope,
+  type TwinPlacementMode,
+  ensureDigitalTwin,
+  syncDigitalTwinFromOperation,
+  updateDigitalTwin,
 } from "../../api/digitalTwins";
 import { createCabinetItem, deleteCabinetItem } from "../../api/cabinetItems";
 import { listEquipmentTypesForSelect, updateEquipmentType, type EquipmentTypeRecord } from "../../api/equipmentTypes";
-import { type IOSignal, listIOSignals } from "../../api/ioSignals";
+import { type IOSignal, listIOSignals, rebuildIOSignals, updateIOSignal } from "../../api/ioSignals";
 import { ErrorSnackbar } from "../../components/ErrorSnackbar";
 import { SearchableSelectField } from "../../components/SearchableSelectField";
 import { AppButton } from "../../components/ui/AppButton";
 import { useAuth } from "../../context/AuthContext";
 import { hasPermission } from "../../utils/permissions";
+import { assignAddress, getCabinetItemIPAMSummary, getSubnetAddresses, listEligibleEquipment, listSubnets, releaseAddress } from "../ipam/api/ipam";
+import type { EligibleEquipment, Subnet } from "../ipam/types";
+import { createSerialMapDocument, getSerialMapDocument, listSerialMapDocuments, listSerialMapEligibleEquipment, updateSerialMapDocument } from "../serialMap/api";
+import { createEmptyDocument, createNodeFromEquipment } from "../serialMap/model";
+import type { SerialMapEligibleEquipment } from "../serialMap/types";
 import {
-  buildIoSummary, buildLoadSummary, buildManualItem, buildNetworkSummary, buildValidation,
-  cloneDocument, createManualDraft, itemDisplayName, type ManualItemDraft, wallColors,
+  buildIoSummary,
+  buildLoadSummary,
+  buildManualItem,
+  buildNetworkSummary,
+  buildValidation,
+  cloneDocument,
+  createManualDraft,
+  getPowerBucketStyle,
+  itemDisplayName,
+  normalizeDigitalTwinDocument,
+  wallColors,
+  type ManualItemDraft,
 } from "./utils";
+import { PowerGraphCanvas } from "./PowerGraphCanvas";
 import {
-  buildCurrentTypeOptions, buildEquipmentTypeUpdatePayload, buildSupplyVoltageOptions,
-  createNomenclatureDraft, formatEquipmentTypeOptionLabel, getCurrentTypeLabel, type NomenclatureDraft,
+  buildCurrentTypeOptions,
+  buildEquipmentTypeUpdatePayload,
+  buildSupplyVoltageOptions,
+  createNomenclatureDraft,
+  formatEquipmentTypeOptionLabel,
+  getCurrentTypeLabel,
+  type NomenclatureDraft,
 } from "./nomenclature";
 
 type PlacementTarget = { placement_mode: TwinPlacementMode; wall_id: string | null; rail_id: string | null };
 type ItemEditorDraft = ManualItemDraft & { user_label: string };
 type SourceBackedEditorDraft = NomenclatureDraft & { user_label: string };
 type ChannelUsageSummary = {
-  total: number; used: number; free: number;
-  aiTotal: number; diTotal: number; aoTotal: number; doTotal: number;
-  aiUsed: number; diUsed: number; aoUsed: number; doUsed: number;
+  total: number;
+  used: number;
+  free: number;
+  aiTotal: number;
+  diTotal: number;
+  aoTotal: number;
+  doTotal: number;
+  aiUsed: number;
+  diUsed: number;
+  aoUsed: number;
+  doUsed: number;
   hasLiveData: boolean;
 };
 
@@ -65,6 +124,49 @@ const powerRoleOptions = [
   { value: "converter", labelKey: "pagesUi.digitalTwin.enums.powerRole.converter" },
   { value: "passive", labelKey: "pagesUi.digitalTwin.enums.powerRole.passive" },
 ];
+const serialNodeKindOptions = [
+  { value: "master", label: "Master" },
+  { value: "slave", label: "Slave" },
+  { value: "sensor", label: "Sensor" },
+  { value: "gateway", label: "Gateway" },
+] as const;
+
+type LocalErrorBoundaryProps = {
+  title: string;
+  children: React.ReactNode;
+};
+
+type LocalErrorBoundaryState = {
+  error: Error | null;
+};
+
+class LocalErrorBoundary extends React.Component<LocalErrorBoundaryProps, LocalErrorBoundaryState> {
+  state: LocalErrorBoundaryState = { error: null };
+
+  static getDerivedStateFromError(error: Error): LocalErrorBoundaryState {
+    return { error };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error(`[DigitalTwinPage] ${this.props.title}`, error);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <Alert severity="error">
+          {this.props.title}: {this.state.error.message || "Не удалось отрисовать блок."}
+        </Alert>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function describeQueryError(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+}
 
 const getPlacement = (item: DigitalTwinItem): PlacementTarget => ({
   placement_mode: item.placement_mode,
@@ -155,57 +257,33 @@ function applyItemEditorDraft(item: DigitalTwinItem, draft: ItemEditorDraft) {
 
 function createSourceBackedDraft(item: DigitalTwinItem, equipment?: EquipmentTypeRecord | null): SourceBackedEditorDraft {
   return {
-    ...createNomenclatureDraft(equipment || {
-      id: item.equipment_type_id || 0,
-      name: item.name,
-      nomenclature_number: item.nomenclature_number || "",
-      article: item.article || "",
-      role_in_power_chain: item.power_role || "passive",
-      power_attributes: {
-        role_in_power_chain: item.power_role || "passive",
-        current_type: item.current_type || null,
-        supply_voltage: item.supply_voltage || null,
-        current_value_a: item.current_consumption_a ?? item.max_output_current_a ?? null,
-      },
-      current_type: item.current_type || null,
-      supply_voltage: item.supply_voltage || null,
-      current_consumption_a: item.current_consumption_a ?? null,
-      top_current_type: null,
-      top_supply_voltage: null,
-      bottom_current_type: null,
-      bottom_supply_voltage: item.output_voltage || null,
-      current_value_a: item.current_consumption_a ?? item.max_output_current_a ?? null,
-      manufacturer_id: 0,
-      equipment_category_id: null,
-      is_channel_forming: item.is_channel_forming,
-      channel_count: item.channel_count,
-      ai_count: item.ai_count,
-      di_count: item.di_count,
-      ao_count: item.ao_count,
-      do_count: item.do_count,
-      is_network: item.is_network,
-      network_ports: item.network_ports,
-      has_serial_interfaces: item.has_serial_interfaces,
-      serial_ports: item.serial_ports,
-      mount_type: item.mount_type || null,
-      mount_width_mm: item.mount_width_mm ?? null,
-      power_role: item.power_role || null,
-      output_voltage: item.output_voltage || null,
-      max_output_current_a: item.max_output_current_a ?? null,
-      is_deleted: false,
-    }),
+    ...createNomenclatureDraft(equipment || null),
     user_label: item.user_label || "",
   };
 }
 
-const countSignalsByType = (signals: IOSignal[]) =>
-  signals.reduce((acc, signal) => {
+function isSignalConfigured(signal: IOSignal) {
+  return Boolean(
+    signal.tag?.trim()
+    || signal.signal?.trim()
+    || signal.data_type_id
+    || signal.signal_kind_id
+    || signal.field_equipment_id
+    || signal.connection_point?.trim()
+    || signal.measurement_unit_id,
+  );
+}
+
+function countSignalsByType(signals: IOSignal[]) {
+  return signals.reduce((acc, signal) => {
+    if (!isSignalConfigured(signal)) return acc;
     if (signal.signal_type === "AI") acc.ai += 1;
     if (signal.signal_type === "DI") acc.di += 1;
     if (signal.signal_type === "AO") acc.ao += 1;
     if (signal.signal_type === "DO") acc.do += 1;
     return acc;
   }, { ai: 0, di: 0, ao: 0, do: 0 });
+}
 
 function buildChannelUsage(item: DigitalTwinItem, signals?: IOSignal[]): ChannelUsageSummary {
   const aiTotal = item.ai_count || 0;
@@ -216,34 +294,66 @@ function buildChannelUsage(item: DigitalTwinItem, signals?: IOSignal[]): Channel
   const counts = signals ? countSignalsByType(signals) : { ai: 0, di: 0, ao: 0, do: 0 };
   const used = signals ? counts.ai + counts.di + counts.ao + counts.do : 0;
   return {
-    total, used, free: Math.max(total - used, 0),
-    aiTotal, diTotal, aoTotal, doTotal,
-    aiUsed: counts.ai, diUsed: counts.di, aoUsed: counts.ao, doUsed: counts.do,
+    total,
+    used,
+    free: Math.max(total - used, 0),
+    aiTotal,
+    diTotal,
+    aoTotal,
+    doTotal,
+    aiUsed: counts.ai,
+    diUsed: counts.di,
+    aoUsed: counts.ao,
+    doUsed: counts.do,
     hasLiveData: Boolean(signals),
   };
 }
 
+function ChannelUsageBlock({ label, used, total }: { label: string; used: number; total: number }) {
+  if (total <= 0) return null;
+  return (
+    <Box sx={{ display: "grid", gap: 0.5 }}>
+      <Typography variant="caption" color="text.secondary">{label} {used}/{total}</Typography>
+      <LinearProgress variant="determinate" value={total ? (used / total) * 100 : 0} sx={{ height: 6, borderRadius: 999, bgcolor: "rgba(255,255,255,0.12)" }} />
+    </Box>
+  );
+}
+
 function TwinCard({
-  item, selected, usage, moveToStockLabel, editLabel, deleteLabel, stockLabel, outOfOperationLabel,
-  noPowerLabel, onSelect, onEdit, onDelete, onMoveToStock, onDropBefore, renderCurrentType, renderChannelSummary,
+  item,
+  selected,
+  usage,
+  moveToStockLabel,
+  editLabel,
+  deleteLabel,
+  stockLabel,
+  outOfOperationLabel,
+  noPowerLabel,
+  onSelect,
+  onDelete,
+  onMoveToStock,
+  onDropBefore,
+  renderCurrentType,
 }: {
-  item: DigitalTwinItem; selected: boolean; usage?: ChannelUsageSummary;
-  moveToStockLabel: string; editLabel: string; deleteLabel: string; stockLabel: string;
-  outOfOperationLabel: string; noPowerLabel: string;
-  onSelect: () => void; onEdit: () => void; onDelete?: () => void; onMoveToStock?: () => void;
+  item: DigitalTwinItem;
+  selected: boolean;
+  usage?: ChannelUsageSummary;
+  moveToStockLabel: string;
+  editLabel: string;
+  deleteLabel: string;
+  stockLabel: string;
+  outOfOperationLabel: string;
+  noPowerLabel: string;
+  onSelect: () => void;
+  onDelete?: () => void;
+  onMoveToStock?: () => void;
   onDropBefore?: (draggedItemId: string, targetItemId: string) => void;
   renderCurrentType: (value?: string | null) => string;
-  renderChannelSummary: (summary: ChannelUsageSummary, item: DigitalTwinItem) => string;
 }) {
   const [dragOver, setDragOver] = useState(false);
+  const supplyStyle = getPowerBucketStyle(item.supply_voltage, item.current_type);
+  const outputStyle = item.power_role === "converter" ? getPowerBucketStyle(item.output_voltage, item.current_type) : null;
   const powerLine = item.supply_voltage ? [item.supply_voltage, renderCurrentType(item.current_type)].filter(Boolean).join(" • ") : noPowerLabel;
-  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setDragOver(false);
-    const draggedItemId = event.dataTransfer.getData("text/plain");
-    if (draggedItemId && draggedItemId !== item.id) onDropBefore?.(draggedItemId, item.id);
-  };
 
   return (
     <Card
@@ -252,38 +362,57 @@ function TwinCard({
       onDragStart={(event) => { event.dataTransfer.setData("text/plain", item.id); event.dataTransfer.effectAllowed = "move"; }}
       onDragOver={(event) => { event.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
-      onDrop={handleDrop}
+      onDrop={(event) => {
+        event.preventDefault();
+        setDragOver(false);
+        const draggedItemId = event.dataTransfer.getData("text/plain");
+        if (draggedItemId && draggedItemId !== item.id) onDropBefore?.(draggedItemId, item.id);
+      }}
       sx={{
-        width: { xs: "100%", sm: 220 }, border: "1px solid",
+        width: { xs: "100%", sm: 240 },
+        border: "1px solid",
         borderColor: dragOver ? "primary.main" : selected ? "text.primary" : "divider",
-        boxShadow: dragOver ? "0 0 0 3px rgba(47,111,237,0.12)" : "none", borderRadius: 3, cursor: "grab",
+        boxShadow: dragOver ? "0 0 0 3px rgba(47,111,237,0.12)" : "none",
+        borderRadius: 3,
+        cursor: "grab",
+        overflow: "hidden",
+        bgcolor: "#1f2937",
+        color: "#f8fafc",
       }}
     >
+      <Box sx={{ display: "flex", height: 8, bgcolor: outputStyle ? "transparent" : supplyStyle.bg }}>
+        {outputStyle ? (
+          <>
+            <Box sx={{ flex: 1, bgcolor: supplyStyle.bg, borderRight: "1px solid rgba(255,255,255,0.55)" }} />
+            <Box sx={{ flex: 1, bgcolor: outputStyle.bg }} />
+          </>
+        ) : null}
+      </Box>
       <CardContent sx={{ p: 1.25, display: "grid", gap: 1, "&:last-child": { pb: 1.25 } }}>
         <Stack direction="row" spacing={1} alignItems="flex-start">
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-            <Typography variant="subtitle2" sx={{ lineHeight: 1.2, wordBreak: "break-word" }}>{itemDisplayName(item)}</Typography>
-            {item.user_label ? <Typography variant="caption" color="text.secondary">{item.name}</Typography> : null}
+            <Stack direction="row" spacing={0.75} alignItems="center">
+              <Typography variant="subtitle2" sx={{ lineHeight: 1.2, wordBreak: "break-word" }}>{itemDisplayName(item)}</Typography>
+              {supplyStyle.alert ? <ErrorOutlineRoundedIcon sx={{ fontSize: 16, color: "#fbbf24" }} /> : null}
+            </Stack>
+            {item.user_label ? <Typography variant="caption" color="rgba(226,232,240,0.85)">{item.name}</Typography> : null}
           </Box>
           <Stack direction="row" spacing={0.25}>
             {item.placement_mode !== "unplaced" ? (
-              <Tooltip title={moveToStockLabel}><IconButton size="small" onClick={(event) => { event.stopPropagation(); onMoveToStock?.(); }}><Inventory2OutlinedIcon fontSize="small" /></IconButton></Tooltip>
-            ) : <Chip size="small" variant="outlined" label={stockLabel} />}
-            <Tooltip title={editLabel}><IconButton size="small" onClick={(event) => { event.stopPropagation(); onEdit(); }}><EditRoundedIcon fontSize="small" /></IconButton></Tooltip>
+              <Tooltip title={moveToStockLabel}><IconButton size="small" sx={{ color: "#cbd5e1" }} onClick={(event) => { event.stopPropagation(); onMoveToStock?.(); }}><Inventory2OutlinedIcon fontSize="small" /></IconButton></Tooltip>
+            ) : <Chip size="small" variant="outlined" label={stockLabel} sx={{ color: "#cbd5e1", borderColor: "rgba(203,213,225,0.32)" }} />}
+            <Tooltip title={editLabel}><IconButton size="small" sx={{ color: "#cbd5e1" }} onClick={(event) => { event.stopPropagation(); onSelect(); }}><EditRoundedIcon fontSize="small" /></IconButton></Tooltip>
             {onDelete ? <Tooltip title={deleteLabel}><IconButton size="small" color="error" onClick={(event) => { event.stopPropagation(); onDelete(); }}><DeleteOutlineRoundedIcon fontSize="small" /></IconButton></Tooltip> : null}
           </Stack>
         </Stack>
-        <Typography variant="caption" color="text.secondary">{powerLine}</Typography>
+        <Typography variant="caption" color="rgba(226,232,240,0.85)">{powerLine}</Typography>
         {item.source_status === "out_of_operation" ? <Chip size="small" color="warning" variant="outlined" label={outOfOperationLabel} sx={{ justifySelf: "start" }} /> : null}
-        {item.is_channel_forming && usage && usage.total > 0 ? (
-          <Box sx={{ display: "grid", gap: 0.5 }}>
-            <Typography variant="caption" color="text.secondary">{renderChannelSummary(usage, item)}</Typography>
-            <LinearProgress variant="determinate" value={usage.total ? (usage.used / usage.total) * 100 : 0} sx={{ height: 8, borderRadius: 999 }} />
-            <Typography variant="caption" color="text.secondary">
-              {usage.hasLiveData
-                ? `AI ${usage.aiUsed}/${usage.aiTotal} • DI ${usage.diUsed}/${usage.diTotal} • AO ${usage.aoUsed}/${usage.aoTotal} • DO ${usage.doUsed}/${usage.doTotal}`
-                : `AI ${usage.aiTotal} • DI ${usage.diTotal} • AO ${usage.aoTotal} • DO ${usage.doTotal}`}
-            </Typography>
+        {item.is_channel_forming && usage ? (
+          <Box sx={{ display: "grid", gap: 0.75 }}>
+            <ChannelUsageBlock label="AI" used={usage.aiUsed} total={usage.aiTotal} />
+            <ChannelUsageBlock label="AO" used={usage.aoUsed} total={usage.aoTotal} />
+            <ChannelUsageBlock label="DI" used={usage.diUsed} total={usage.diTotal} />
+            <ChannelUsageBlock label="DO" used={usage.doUsed} total={usage.doTotal} />
           </Box>
         ) : null}
       </CardContent>
@@ -309,7 +438,299 @@ function DropArea({ title, hint, onDropItem, children }: { title: string; hint?:
   );
 }
 
-export function DigitalTwinPage() {
+function SignalListDialog({
+  open,
+  item,
+  onClose,
+  onError,
+}: {
+  open: boolean;
+  item: DigitalTwinItem | null;
+  onClose: () => void;
+  onError: (message: string) => void;
+}) {
+  const queryClient = useQueryClient();
+  const signalsQuery = useQuery({
+    queryKey: ["digital-twin-signal-modal", item?.equipment_item_id],
+    enabled: open && Boolean(item?.equipment_item_id),
+    queryFn: () => listIOSignals(item!.equipment_item_id!),
+  });
+  const rebuildMutation = useMutation({
+    mutationFn: () => rebuildIOSignals(item!.equipment_item_id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["digital-twin-signal-modal", item?.equipment_item_id] });
+      queryClient.invalidateQueries({ queryKey: ["digital-twin-io-signals", item?.equipment_item_id] });
+    },
+    onError: (error) => onError(error instanceof Error ? error.message : "Не удалось перестроить каналы"),
+  });
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Partial<IOSignal> }) => updateIOSignal(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["digital-twin-signal-modal", item?.equipment_item_id] });
+      queryClient.invalidateQueries({ queryKey: ["digital-twin-io-signals", item?.equipment_item_id] });
+    },
+    onError: (error) => onError(error instanceof Error ? error.message : "Не удалось обновить канал"),
+  });
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
+      <DialogTitle>Signal List: {item ? itemDisplayName(item) : ""}</DialogTitle>
+      <DialogContent sx={{ display: "grid", gap: 2, pt: 2 }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
+          <Typography variant="body2" color="text.secondary">Плейсхолдеры каналов считаются свободными, пока не заполнены инженерные поля.</Typography>
+          <AppButton variant="outlined" onClick={() => rebuildMutation.mutate()} disabled={!item?.equipment_item_id || rebuildMutation.isPending}>Перестроить каналы</AppButton>
+        </Box>
+        <Box sx={{ maxHeight: 480, overflow: "auto" }}>
+          <Table size="small" stickyHeader>
+            <TableHead>
+              <TableRow>
+                <TableCell>Тип</TableCell>
+                <TableCell>Канал</TableCell>
+                <TableCell>Tag</TableCell>
+                <TableCell>Signal</TableCell>
+                <TableCell>Connection</TableCell>
+                <TableCell width={120}>Статус</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {(signalsQuery.data || []).map((signal) => {
+                const configured = isSignalConfigured(signal);
+                return (
+                  <TableRow key={signal.id}>
+                    <TableCell>{signal.signal_type}</TableCell>
+                    <TableCell>{signal.channel_index}</TableCell>
+                    <TableCell><TextField size="small" value={signal.tag || ""} onChange={(event) => updateMutation.mutate({ id: signal.id, payload: { tag: event.target.value } })} /></TableCell>
+                    <TableCell><TextField size="small" value={signal.signal || ""} onChange={(event) => updateMutation.mutate({ id: signal.id, payload: { signal: event.target.value } })} /></TableCell>
+                    <TableCell><TextField size="small" value={signal.connection_point || ""} onChange={(event) => updateMutation.mutate({ id: signal.id, payload: { connection_point: event.target.value } })} /></TableCell>
+                    <TableCell><Chip size="small" color={configured ? "success" : "default"} label={configured ? "Занят" : "Свободен"} /></TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <AppButton variant="outlined" onClick={onClose}>Закрыть</AppButton>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function IpamDialog({
+  open,
+  item,
+  onClose,
+  onError,
+}: {
+  open: boolean;
+  item: DigitalTwinItem | null;
+  onClose: () => void;
+  onError: (message: string) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [selectedSubnetId, setSelectedSubnetId] = useState<number | "">("");
+  const [selectedOffset, setSelectedOffset] = useState<number | null>(null);
+  const [selectedInterfaceId, setSelectedInterfaceId] = useState<number | "">("");
+
+  const summaryQuery = useQuery({
+    queryKey: ["digital-twin-ipam-summary", item?.equipment_item_id],
+    enabled: open && Boolean(item?.equipment_item_id),
+    queryFn: () => getCabinetItemIPAMSummary(item!.equipment_item_id!),
+  });
+  const eligibleQuery = useQuery({
+    queryKey: ["digital-twin-ipam-eligible", item?.equipment_item_id],
+    enabled: open && Boolean(item?.equipment_item_id),
+    queryFn: () => listEligibleEquipment({}),
+  });
+  const subnetsQuery = useQuery({
+    queryKey: ["digital-twin-ipam-subnets"],
+    enabled: open,
+    queryFn: () => listSubnets({ page: 1, page_size: 200, sort: "network_address" }),
+  });
+  const gridQuery = useQuery({
+    queryKey: ["digital-twin-ipam-grid", selectedSubnetId],
+    enabled: open && Boolean(selectedSubnetId),
+    queryFn: () => getSubnetAddresses(Number(selectedSubnetId), { mode: "grid", include_service: true }),
+  });
+
+  const equipment = useMemo<EligibleEquipment | null>(() => {
+    if (!item?.equipment_item_id) return null;
+    return (eligibleQuery.data || []).find((entry) => entry.equipment_item_id === item.equipment_item_id && entry.equipment_source === "cabinet") || null;
+  }, [eligibleQuery.data, item?.equipment_item_id]);
+  const subnets = subnetsQuery.data?.items || [];
+
+  useEffect(() => {
+    if (equipment?.network_interfaces[0]) setSelectedInterfaceId(equipment.network_interfaces[0].id);
+  }, [equipment?.network_interfaces]);
+
+  const assignMutation = useMutation({
+    mutationFn: () => assignAddress(Number(selectedSubnetId), selectedOffset!, {
+      equipment_source: "cabinet",
+      equipment_item_id: item!.equipment_item_id!,
+      equipment_interface_id: Number(selectedInterfaceId),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["digital-twin-ipam-summary", item?.equipment_item_id] });
+      queryClient.invalidateQueries({ queryKey: ["digital-twin-ipam-grid", selectedSubnetId] });
+    },
+    onError: (error) => onError(error instanceof Error ? error.message : "Не удалось назначить IP"),
+  });
+  const releaseMutation = useMutation({
+    mutationFn: (offset: number) => releaseAddress(Number(selectedSubnetId), offset),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["digital-twin-ipam-summary", item?.equipment_item_id] });
+      queryClient.invalidateQueries({ queryKey: ["digital-twin-ipam-grid", selectedSubnetId] });
+    },
+    onError: (error) => onError(error instanceof Error ? error.message : "Не удалось освободить IP"),
+  });
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
+      <DialogTitle>IPAM: {item ? itemDisplayName(item) : ""}</DialogTitle>
+      <DialogContent sx={{ display: "grid", gap: 2, pt: 2 }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+          <Card sx={{ flex: 1 }}>
+            <CardContent sx={{ display: "grid", gap: 1.5 }}>
+              <Typography variant="subtitle2">Текущие связи</Typography>
+              <Typography variant="body2">Интерфейсов: {summaryQuery.data?.network_interfaces_count || 0}</Typography>
+              <Typography variant="body2">IP: {(summaryQuery.data?.linked_ip_addresses || []).join(", ") || "Нет"}</Typography>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Подсеть</InputLabel>
+                <Select label="Подсеть" value={selectedSubnetId} onChange={(event) => { setSelectedSubnetId(event.target.value as number); setSelectedOffset(null); }}>
+                  <MenuItem value="">Не выбрано</MenuItem>
+                  {subnets.map((subnet: Subnet) => <MenuItem key={subnet.id} value={subnet.id}>{subnet.cidr} {subnet.name ? `• ${subnet.name}` : ""}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <FormControl size="small" fullWidth disabled={!equipment?.network_interfaces.length}>
+                <InputLabel>Интерфейс</InputLabel>
+                <Select label="Интерфейс" value={selectedInterfaceId} onChange={(event) => setSelectedInterfaceId(Number(event.target.value))}>
+                  {(equipment?.network_interfaces || []).map((iface) => <MenuItem key={iface.id} value={iface.id}>{iface.interface_name}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <Typography variant="caption" color="text.secondary">Выберите свободный адрес в сетке справа и назначьте его текущему устройству.</Typography>
+            </CardContent>
+          </Card>
+          <Card sx={{ flex: 1.2 }}>
+            <CardContent sx={{ display: "grid", gap: 1.5 }}>
+              <Typography variant="subtitle2">Сетка адресов</Typography>
+              <Box sx={{ display: "grid", gridTemplateColumns: "repeat(16, 1fr)", gap: 0.75, minHeight: 220 }}>
+                {(gridQuery.data?.items || []).slice(0, 256).map((address) => (
+                  <Box
+                    key={`${address.subnet_id}:${address.ip_offset}`}
+                    title={`${address.ip_address} (${address.status})`}
+                    onClick={() => setSelectedOffset(address.ip_offset)}
+                    sx={{ height: 24, borderRadius: 1, cursor: "pointer", border: selectedOffset === address.ip_offset ? "2px solid #111827" : "1px solid rgba(15,23,42,0.12)", bgcolor: address.status === "free" ? "#d1fae5" : address.status === "used" ? "#fecaca" : address.status === "reserved" ? "#fde68a" : "#cbd5e1" }}
+                  />
+                ))}
+              </Box>
+              <Stack direction="row" spacing={1}>
+                <AppButton onClick={() => { if (selectedOffset != null) assignMutation.mutate(); }} disabled={selectedOffset == null || !selectedInterfaceId || assignMutation.isPending}>Назначить</AppButton>
+                <AppButton variant="outlined" onClick={() => { if (selectedOffset != null) releaseMutation.mutate(selectedOffset); }} disabled={selectedOffset == null || releaseMutation.isPending}>Освободить</AppButton>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <AppButton variant="outlined" onClick={onClose}>Закрыть</AppButton>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function SerialMapDialog({
+  open,
+  item,
+  sourceContext,
+  onClose,
+  onError,
+}: {
+  open: boolean;
+  item: DigitalTwinItem | null;
+  sourceContext?: Record<string, unknown> | null;
+  onClose: () => void;
+  onError: (message: string) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [selectedDocumentId, setSelectedDocumentId] = useState<number | "">("");
+  const [selectedKind, setSelectedKind] = useState<(typeof serialNodeKindOptions)[number]["value"]>("slave");
+
+  const documentsQuery = useQuery({
+    queryKey: ["digital-twin-serial-documents"],
+    enabled: open,
+    queryFn: () => listSerialMapDocuments({ page: 1, page_size: 200 }),
+  });
+  const eligibleQuery = useQuery({
+    queryKey: ["digital-twin-serial-eligible", item?.equipment_item_id],
+    enabled: open && Boolean(item?.equipment_item_id),
+    queryFn: () => listSerialMapEligibleEquipment({}),
+  });
+
+  const eligibleEquipment = useMemo<SerialMapEligibleEquipment | null>(() => {
+    if (!item?.equipment_item_id) return null;
+    return (eligibleQuery.data || []).find((entry) => entry.id === item.equipment_item_id && entry.source === "cabinet") || null;
+  }, [eligibleQuery.data, item?.equipment_item_id]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!eligibleEquipment) throw new Error("Оборудование недоступно для Serial Map.");
+      const documentRecord = selectedDocumentId
+        ? await getSerialMapDocument(Number(selectedDocumentId))
+        : await createSerialMapDocument({
+          name: `Serial Map - ${String(sourceContext?.name || "Шкаф")}`,
+          scope: "cabinet",
+          location_id: typeof sourceContext?.location_id === "number" ? sourceContext.location_id : null,
+          source_context: sourceContext || null,
+          document: createEmptyDocument(),
+        });
+      const current = structuredClone(documentRecord.document);
+      const existingNode = current.nodes.find((node) => node.sourceRef?.source === "cabinet" && node.sourceRef.equipmentInOperationId === eligibleEquipment.id);
+      if (existingNode) {
+        existingNode.kind = selectedKind;
+        existingNode.serialPorts = eligibleEquipment.serialPorts;
+      } else {
+        const nextNode = createNodeFromEquipment(eligibleEquipment, { x: 60 + current.nodes.length * 30, y: 80 + current.nodes.length * 18 });
+        nextNode.kind = selectedKind;
+        current.nodes.push(nextNode);
+      }
+      await updateSerialMapDocument(documentRecord.id, { document: current });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["digital-twin-serial-documents"] });
+      onClose();
+    },
+    onError: (error) => onError(error instanceof Error ? error.message : "Не удалось обновить Serial Map"),
+  });
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Serial Map: {item ? itemDisplayName(item) : ""}</DialogTitle>
+      <DialogContent sx={{ display: "grid", gap: 2, pt: 2 }}>
+        <FormControl size="small" fullWidth>
+          <InputLabel>Документ</InputLabel>
+          <Select label="Документ" value={selectedDocumentId} onChange={(event) => setSelectedDocumentId(event.target.value as number)}>
+            <MenuItem value="">Создать новый</MenuItem>
+            {(documentsQuery.data?.items || []).map((doc) => <MenuItem key={doc.id} value={doc.id}>{doc.name}</MenuItem>)}
+          </Select>
+        </FormControl>
+        <FormControl size="small" fullWidth>
+          <InputLabel>Тип узла</InputLabel>
+          <Select label="Тип узла" value={selectedKind} onChange={(event) => setSelectedKind(event.target.value as (typeof serialNodeKindOptions)[number]["value"])}>
+            {serialNodeKindOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
+          </Select>
+        </FormControl>
+        <Typography variant="body2" color="text.secondary">Узел будет создан или обновлён по `sourceRef` выбранного cabinet item.</Typography>
+      </DialogContent>
+      <DialogActions>
+        <AppButton variant="outlined" onClick={onClose}>Отмена</AppButton>
+        <AppButton onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !eligibleEquipment}>Сохранить</AppButton>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function DigitalTwinPageInner() {
   const { id } = useParams();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -321,16 +742,17 @@ export function DigitalTwinPage() {
 
   const [record, setRecord] = useState<DigitalTwinRecord | null>(null);
   const [document, setDocument] = useState<DigitalTwinDocument | null>(null);
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [manualDialogOpen, setManualDialogOpen] = useState(false);
   const [manualDraft, setManualDraft] = useState<ManualItemDraft>(createManualDraft());
   const [cabinetDraft, setCabinetDraft] = useState<NomenclatureDraft>(createNomenclatureDraft());
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState<ItemEditorDraft | null>(null);
+  const [manualEditorDraft, setManualEditorDraft] = useState<ItemEditorDraft | null>(null);
   const [sourceEditDraft, setSourceEditDraft] = useState<SourceBackedEditorDraft | null>(null);
+  const [signalDialogOpen, setSignalDialogOpen] = useState(false);
+  const [ipamDialogOpen, setIpamDialogOpen] = useState(false);
+  const [serialDialogOpen, setSerialDialogOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const lastSavedSignatureRef = useRef("");
+  const lastSavedSignatureRef = useState({ current: "" })[0];
 
   const twinQuery = useQuery({
     queryKey: ["digital-twin-ensure", scope, sourceId],
@@ -338,7 +760,6 @@ export function DigitalTwinPage() {
     enabled: sourceId > 0,
     refetchOnWindowFocus: false,
   });
-
   const equipmentTypesQuery = useQuery({
     queryKey: ["equipment-types-select-all"],
     queryFn: listEquipmentTypesForSelect,
@@ -348,18 +769,25 @@ export function DigitalTwinPage() {
 
   useEffect(() => {
     if (!twinQuery.data) return;
-    lastSavedSignatureRef.current = JSON.stringify(twinQuery.data.document);
+    const normalizedDocument = normalizeDigitalTwinDocument(twinQuery.data.document);
+    lastSavedSignatureRef.current = JSON.stringify(normalizedDocument);
     setRecord(twinQuery.data);
-    setDocument(twinQuery.data.document);
+    setDocument(normalizedDocument);
     setSaveState("idle");
-  }, [twinQuery.data]);
+  }, [twinQuery.data, lastSavedSignatureRef]);
+
+  useEffect(() => {
+    if (!twinQuery.error) return;
+    console.error("[DigitalTwinPage] ensureDigitalTwin failed", twinQuery.error);
+  }, [twinQuery.error]);
 
   const saveMutation = useMutation({
     mutationFn: (payload: { twinId: number; document: DigitalTwinDocument }) => updateDigitalTwin(payload.twinId, { document: payload.document }),
     onSuccess: (data) => {
-      lastSavedSignatureRef.current = JSON.stringify(data.document);
+      const normalizedDocument = normalizeDigitalTwinDocument(data.document);
+      lastSavedSignatureRef.current = JSON.stringify(normalizedDocument);
       setRecord(data);
-      setDocument(data.document);
+      setDocument(normalizedDocument);
       setSaveState("saved");
       queryClient.setQueryData(["digital-twin-ensure", scope, sourceId], data);
     },
@@ -368,32 +796,27 @@ export function DigitalTwinPage() {
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.digitalTwin.errors.save"));
     },
   });
-
   const syncMutation = useMutation({
     mutationFn: () => syncDigitalTwinFromOperation(scope, sourceId),
     onSuccess: (data) => {
-      lastSavedSignatureRef.current = JSON.stringify(data.document);
+      const normalizedDocument = normalizeDigitalTwinDocument(data.document);
+      lastSavedSignatureRef.current = JSON.stringify(normalizedDocument);
       setRecord(data);
-      setDocument(data.document);
-      setSaveState("saved");
+      setDocument(normalizedDocument);
       queryClient.setQueryData(["digital-twin-ensure", scope, sourceId], data);
     },
     onError: (error) => setErrorMessage(error instanceof Error ? error.message : t("pagesUi.digitalTwin.errors.sync")),
   });
-
   const createCabinetItemMutation = useMutation({
     mutationFn: createCabinetItem,
     onError: (error) => setErrorMessage(error instanceof Error ? error.message : t("pagesUi.digitalTwin.errors.sync")),
   });
-
   const deleteCabinetItemMutation = useMutation({
     mutationFn: deleteCabinetItem,
     onError: (error) => setErrorMessage(error instanceof Error ? error.message : t("pagesUi.digitalTwin.errors.sync")),
   });
-
   const updateEquipmentTypeMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: ReturnType<typeof buildEquipmentTypeUpdatePayload> }) =>
-      updateEquipmentType(id, payload),
+    mutationFn: ({ id: equipmentTypeId, payload }: { id: number; payload: ReturnType<typeof buildEquipmentTypeUpdatePayload> }) => updateEquipmentType(equipmentTypeId, payload),
     onSuccess: (updated) => {
       queryClient.setQueryData<EquipmentTypeRecord[] | undefined>(["equipment-types-select-all"], (current) =>
         current?.map((item) => (item.id === updated.id ? updated : item)),
@@ -412,7 +835,7 @@ export function DigitalTwinPage() {
       saveMutation.mutate({ twinId: record.id, document });
     }, 700);
     return () => window.clearTimeout(timer);
-  }, [canWrite, document, record?.id, saveMutation]);
+  }, [canWrite, document, record?.id, saveMutation, lastSavedSignatureRef]);
 
   const updateDocument = (updater: (current: DigitalTwinDocument) => DigitalTwinDocument) => {
     setDocument((current) => (current ? updater(cloneDocument(current)) : current));
@@ -422,19 +845,20 @@ export function DigitalTwinPage() {
     if (!record?.id) return;
     setSaveState("saving");
     const data = await saveMutation.mutateAsync({ twinId: record.id, document: nextDocument });
-    return data.document;
+    return normalizeDigitalTwinDocument(data.document);
   };
 
   const activeWallId = document?.ui.active_wall_id || document?.walls[0]?.id || "back";
   const rails = (document?.rails || []).filter((rail) => rail.wall_id === activeWallId).sort((a, b) => a.sort_order - b.sort_order);
   const selectedItem = document?.items.find((item) => item.id === document.ui.selected_item_id) || null;
-  const editingItem = document?.items.find((item) => item.id === editingItemId) || null;
-  const selectedEdge = document?.powerGraph.edges.find((edge) => edge.id === selectedEdgeId) || null;
   const validationIssues = useMemo(() => (document ? buildValidation(document) : []), [document]);
   const loadSummary = useMemo(() => (document ? buildLoadSummary(document) : {}), [document]);
   const ioSummary = useMemo(() => (document ? buildIoSummary(document) : { ai: 0, di: 0, ao: 0, do: 0 }), [document]);
   const networkSummary = useMemo(() => (document ? buildNetworkSummary(document) : { rows: [], total: 0 }), [document]);
-
+  const networkItems = useMemo(
+    () => (document?.items || []).filter((item) => item.is_network && item.equipment_item_source === "cabinet" && Boolean(item.equipment_item_id)),
+    [document?.items],
+  );
   const signalQueryItems = useMemo(
     () => (document?.items || []).filter((item) => item.is_channel_forming && item.equipment_item_source === "cabinet" && Boolean(item.equipment_item_id)),
     [document?.items],
@@ -447,67 +871,51 @@ export function DigitalTwinPage() {
       enabled: Boolean(item.equipment_item_id),
     })),
   });
-
+  const ipamSummaries = useQueries({
+    queries: networkItems.map((item) => ({
+      queryKey: ["digital-twin-ipam-summary-inline", item.equipment_item_id],
+      queryFn: () => getCabinetItemIPAMSummary(item.equipment_item_id!),
+      enabled: Boolean(item.equipment_item_id),
+      staleTime: 60_000,
+    })),
+  });
   const usageByItemId = useMemo(() => {
     const map = new Map<string, ChannelUsageSummary>();
     for (const item of document?.items || []) map.set(item.id, buildChannelUsage(item));
     signalQueryItems.forEach((item, index) => { if (signalQueries[index]?.data) map.set(item.id, buildChannelUsage(item, signalQueries[index].data)); });
     return map;
   }, [document?.items, signalQueries, signalQueryItems]);
+  const cabinetLinkedIps = useMemo(() => ipamSummaries.flatMap((query) => query.data?.linked_ip_addresses || []), [ipamSummaries]);
 
-  const flowNodes = useMemo<Node[]>(() => (document?.powerGraph.nodes || []).map((node) => ({
-    id: node.id,
-    position: { x: node.x, y: node.y },
-    data: { label: node.label },
-    style: { width: 160, borderRadius: 14, border: "1px solid #cbd5e1", padding: 10 },
-  })), [document?.powerGraph.nodes]);
-
-  const flowEdges = useMemo<Edge[]>(() => (document?.powerGraph.edges || []).map((edge) => ({
-    id: edge.id,
-    source: edge.source,
-    target: edge.target,
-    label: edge.label || edge.voltage || "",
-    style: { stroke: selectedEdgeId === edge.id ? "#111827" : "#64748b", strokeWidth: selectedEdgeId === edge.id ? 2.4 : 1.8 },
-  })), [document?.powerGraph.edges, selectedEdgeId]);
-
-  const nomenclatureOptions = useMemo(
-    () => (equipmentTypesQuery.data || []).map((item) => ({ value: item.id, label: formatEquipmentTypeOptionLabel(item) })),
-    [equipmentTypesQuery.data],
-  );
-  const equipmentById = useMemo(
-    () => new Map((equipmentTypesQuery.data || []).map((item) => [item.id, item])),
-    [equipmentTypesQuery.data],
-  );
+  const nomenclatureOptions = useMemo(() => (equipmentTypesQuery.data || []).map((item) => ({ value: item.id, label: formatEquipmentTypeOptionLabel(item) })), [equipmentTypesQuery.data]);
+  const equipmentById = useMemo(() => new Map((equipmentTypesQuery.data || []).map((item) => [item.id, item])), [equipmentTypesQuery.data]);
   const cabinetCurrentTypeOptions = useMemo(() => buildCurrentTypeOptions(t), [t]);
   const cabinetSupplyVoltageOptions = useMemo(() => buildSupplyVoltageOptions(t), [t]);
   const formatCurrentType = (value?: string | null) => getCurrentTypeLabel(value, t);
 
-  if (twinQuery.isLoading || !record || !document) return <Typography>{t("pagesUi.digitalTwin.states.loading")}</Typography>;
-
-  const wallStyle = wallColors[activeWallId] || wallColors.back;
-  const unplacedItems = document.items.filter((item) => item.placement_mode === "unplaced").sort((a, b) => a.sort_order - b.sort_order);
-  const wallItems = document.items.filter((item) => item.placement_mode === "wall" && item.wall_id === activeWallId).sort((a, b) => a.sort_order - b.sort_order);
-  const moveItemToTarget = (draggedItemId: string, target: PlacementTarget, beforeItemId?: string | null) => updateDocument((current) => moveItemWithinDocument(current, draggedItemId, target, beforeItemId));
-  const openEditor = (item: DigitalTwinItem) => {
-    if (scope === "cabinet" && item.item_kind === "source-backed") {
-      if (!item.equipment_type_id || !equipmentById.has(item.equipment_type_id)) {
-        setErrorMessage(t("pagesUi.digitalTwin.errors.sync"));
-        return;
-      }
-      setEditingItemId(item.id);
-      setSourceEditDraft(createSourceBackedDraft(item, equipmentById.get(item.equipment_type_id)));
-      setEditDraft(null);
+  useEffect(() => {
+    if (!selectedItem) {
+      setManualEditorDraft(null);
+      setSourceEditDraft(null);
       return;
     }
-    setEditingItemId(item.id);
-    setEditDraft(createItemEditorDraft(item));
-    setSourceEditDraft(null);
-  };
-  const renderChannelSummary = (summary: ChannelUsageSummary, item: DigitalTwinItem) =>
-    summary.hasLiveData || item.item_kind === "manual"
-      ? t("pagesUi.digitalTwin.cards.channelUsage", { used: summary.used, free: summary.free, total: summary.total })
-      : t("pagesUi.digitalTwin.cards.channelCapacity", { total: summary.total });
+    if (selectedItem.item_kind === "source-backed" && selectedItem.equipment_type_id && equipmentById.has(selectedItem.equipment_type_id)) {
+      setSourceEditDraft(createSourceBackedDraft(selectedItem, equipmentById.get(selectedItem.equipment_type_id)));
+      setManualEditorDraft(null);
+    } else {
+      setManualEditorDraft(createItemEditorDraft(selectedItem));
+      setSourceEditDraft(null);
+    }
+  }, [selectedItem, equipmentById]);
 
+  const wallStyle = wallColors[activeWallId] || wallColors.back;
+  const unplacedItems = document?.items.filter((item) => item.placement_mode === "unplaced").sort((a, b) => a.sort_order - b.sort_order) || [];
+  const wallItems = document?.items.filter((item) => item.placement_mode === "wall" && item.wall_id === activeWallId).sort((a, b) => a.sort_order - b.sort_order) || [];
+  const selectedIpamSummary = selectedItem?.equipment_item_id
+    ? ipamSummaries[networkItems.findIndex((entry) => entry.equipment_item_id === selectedItem.equipment_item_id)]?.data || null
+    : null;
+
+  const moveItemToTarget = (draggedItemId: string, target: PlacementTarget, beforeItemId?: string | null) => updateDocument((current) => moveItemWithinDocument(current, draggedItemId, target, beforeItemId));
   const onDeleteItem = async (item: DigitalTwinItem) => {
     if (scope === "cabinet" && item.item_kind === "source-backed" && item.equipment_item_id) {
       await deleteCabinetItemMutation.mutateAsync(item.equipment_item_id);
@@ -518,9 +926,8 @@ export function DigitalTwinPage() {
       updateDocument((current) => removeItemCompletely(current, item.id));
     }
   };
-
   const onSaveCabinetAdd = async () => {
-    if (scope !== "cabinet" || !sourceId || !record || !cabinetDraft.equipment_type_id) return;
+    if (scope !== "cabinet" || !sourceId || !cabinetDraft.equipment_type_id) return;
     await updateEquipmentTypeMutation.mutateAsync({
       id: Number(cabinetDraft.equipment_type_id),
       payload: buildEquipmentTypeUpdatePayload(cabinetDraft),
@@ -534,26 +941,72 @@ export function DigitalTwinPage() {
     setCabinetDraft(createNomenclatureDraft());
     setManualDialogOpen(false);
   };
-
-  const onSaveSourceEdit = async () => {
-    if (!editingItem || !sourceEditDraft || !editingItem.equipment_type_id || !document) return;
-    await updateEquipmentTypeMutation.mutateAsync({
-      id: editingItem.equipment_type_id,
-      payload: buildEquipmentTypeUpdatePayload(sourceEditDraft),
-    });
-
-    const nextDocument = cloneDocument(document);
-    const nextItem = nextDocument.items.find((entry) => entry.id === editingItem.id);
-    if (nextItem) nextItem.user_label = sourceEditDraft.user_label.trim() || null;
-    await saveDocumentNow(nextDocument);
-    await syncMutation.mutateAsync();
-    setEditingItemId(null);
-    setSourceEditDraft(null);
+  const onSaveSelectedItem = async () => {
+    if (!selectedItem || !document) return;
+    if (selectedItem.item_kind === "source-backed" && sourceEditDraft && selectedItem.equipment_type_id) {
+      await updateEquipmentTypeMutation.mutateAsync({
+        id: selectedItem.equipment_type_id,
+        payload: buildEquipmentTypeUpdatePayload(sourceEditDraft),
+      });
+      const nextDocument = cloneDocument(document);
+      const nextItem = nextDocument.items.find((entry) => entry.id === selectedItem.id);
+      if (nextItem) nextItem.user_label = sourceEditDraft.user_label.trim() || null;
+      await saveDocumentNow(nextDocument);
+      await syncMutation.mutateAsync();
+      return;
+    }
+    if (manualEditorDraft) {
+      updateDocument((current) => {
+        const entry = current.items.find((item) => item.id === selectedItem.id);
+        if (entry) applyItemEditorDraft(entry, manualEditorDraft);
+        return current;
+      });
+    }
   };
 
-  return (
-    <ReactFlowProvider>
+  if (!sourceId) {
+    return <Alert severity="error">Не удалось определить идентификатор шкафа или сборки.</Alert>;
+  }
+
+  if (twinQuery.isPending || twinQuery.isLoading) {
+    return (
       <Box sx={{ display: "grid", gap: 2 }}>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          {t(scope === "assembly" ? "pagesUi.digitalTwin.titleAssembly" : "pagesUi.digitalTwin.titleCabinet")}
+        </Typography>
+        <Alert severity="info">{t("pagesUi.digitalTwin.states.loading")}</Alert>
+      </Box>
+    );
+  }
+
+  if (twinQuery.isError) {
+    return (
+      <Box sx={{ display: "grid", gap: 2 }}>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          {t(scope === "assembly" ? "pagesUi.digitalTwin.titleAssembly" : "pagesUi.digitalTwin.titleCabinet")}
+        </Typography>
+        <Alert severity="error">
+          Не удалось открыть состав. {describeQueryError(twinQuery.error, "Ошибка загрузки digital twin документа.")}
+        </Alert>
+      </Box>
+    );
+  }
+
+  if (!record || !document) {
+    return (
+      <Box sx={{ display: "grid", gap: 2 }}>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          {t(scope === "assembly" ? "pagesUi.digitalTwin.titleAssembly" : "pagesUi.digitalTwin.titleCabinet")}
+        </Typography>
+        <Alert severity="warning">
+          Не удалось подготовить документ состава шкафа для отображения.
+        </Alert>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ display: "grid", gap: 2 }}>
         <Box sx={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 2, alignItems: "flex-start" }}>
           <Box>
             <Typography variant="h4" sx={{ fontWeight: 700 }}>
@@ -563,17 +1016,13 @@ export function DigitalTwinPage() {
             <Typography variant="body2" color="text.secondary">{t("pagesUi.digitalTwin.subtitle")}</Typography>
           </Box>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ "& > *": { minHeight: 40 } }}>
-            <Chip
-              icon={<SaveRoundedIcon />}
-              label={saveState === "saving" ? t("pagesUi.digitalTwin.states.saving") : saveState === "saved" ? t("pagesUi.digitalTwin.states.saved") : saveState === "error" ? t("pagesUi.digitalTwin.states.error") : t("pagesUi.digitalTwin.states.draft")}
-              color={saveState === "saved" ? "success" : saveState === "error" ? "warning" : "default"}
-            />
+            <Chip icon={<SaveRoundedIcon />} label={saveState === "saving" ? t("pagesUi.digitalTwin.states.saving") : saveState === "saved" ? t("pagesUi.digitalTwin.states.saved") : saveState === "error" ? t("pagesUi.digitalTwin.states.error") : t("pagesUi.digitalTwin.states.draft")} color={saveState === "saved" ? "success" : saveState === "error" ? "warning" : "default"} />
             <AppButton variant="outlined" startIcon={<AutorenewRoundedIcon />} onClick={() => syncMutation.mutate()} disabled={!canWrite || syncMutation.isPending}>{t("pagesUi.digitalTwin.actions.sync")}</AppButton>
             <AppButton variant="contained" startIcon={<AddRoundedIcon />} onClick={() => updateDocument((current) => { current.rails.push({ id: `rail-${Date.now()}`, wall_id: activeWallId, name: t("pagesUi.digitalTwin.rails.defaultName", { index: rails.length + 1 }), length_mm: 600, sort_order: rails.length }); return current; })} disabled={!canWrite}>{t("pagesUi.digitalTwin.actions.addRail")}</AppButton>
           </Stack>
         </Box>
 
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "320px minmax(0, 1fr) 340px" }, gap: 2 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", xl: "320px minmax(0, 1fr) 360px" }, gap: 2 }}>
           <Card><CardContent sx={{ display: "grid", gap: 2 }}>
             <Typography variant="h6">{t("pagesUi.digitalTwin.sections.domainModel")}</Typography>
             <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1 }}>
@@ -581,41 +1030,11 @@ export function DigitalTwinPage() {
                 <AppButton key={wall.id} variant={wall.id === activeWallId ? "contained" : "outlined"} size="small" onClick={() => updateDocument((current) => { current.ui.active_wall_id = wall.id; return current; })}>{wall.name}</AppButton>
               ))}
             </Box>
-            <AppButton
-              fullWidth
-              variant="outlined"
-              onClick={() => {
-                if (scope === "cabinet") {
-                  setCabinetDraft(createNomenclatureDraft());
-                } else {
-                  setManualDraft(createManualDraft());
-                }
-                setManualDialogOpen(true);
-              }}
-              disabled={!canWrite}
-            >
-              {t("pagesUi.digitalTwin.actions.addManual")}
-            </AppButton>
+            <AppButton fullWidth variant="outlined" onClick={() => { if (scope === "cabinet") setCabinetDraft(createNomenclatureDraft()); else setManualDraft(createManualDraft()); setManualDialogOpen(true); }} disabled={!canWrite}>{t("pagesUi.digitalTwin.actions.addManual")}</AppButton>
             <DropArea title={t("pagesUi.digitalTwin.unplaced.title")} hint={t("pagesUi.digitalTwin.unplaced.hint")} onDropItem={(itemId) => moveItemToTarget(itemId, { placement_mode: "unplaced", wall_id: null, rail_id: null })}>
               {unplacedItems.length ? <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
                 {unplacedItems.map((item) => (
-                  <TwinCard
-                    key={item.id}
-                    item={item}
-                    selected={selectedItem?.id === item.id}
-                    usage={usageByItemId.get(item.id)}
-                    moveToStockLabel={t("pagesUi.digitalTwin.cards.moveToStock")}
-                    editLabel={t("pagesUi.digitalTwin.cards.edit")}
-                    deleteLabel={t("pagesUi.digitalTwin.cards.delete")}
-                    stockLabel={t("pagesUi.digitalTwin.cards.inStock")}
-                    outOfOperationLabel={t("pagesUi.digitalTwin.cards.outOfOperation")}
-                    noPowerLabel={t("pagesUi.digitalTwin.cards.noPower")}
-                    onSelect={() => updateDocument((current) => { current.ui.selected_item_id = item.id; return current; })}
-                    onEdit={() => openEditor(item)}
-                    onDelete={scope === "cabinet" || item.item_kind === "manual" ? () => { void onDeleteItem(item); } : undefined}
-                    renderCurrentType={formatCurrentType}
-                    renderChannelSummary={renderChannelSummary}
-                  />
+                  <TwinCard key={item.id} item={item} selected={selectedItem?.id === item.id} usage={usageByItemId.get(item.id)} moveToStockLabel={t("pagesUi.digitalTwin.cards.moveToStock")} editLabel={t("pagesUi.digitalTwin.cards.edit")} deleteLabel={t("pagesUi.digitalTwin.cards.delete")} stockLabel={t("pagesUi.digitalTwin.cards.inStock")} outOfOperationLabel={t("pagesUi.digitalTwin.cards.outOfOperation")} noPowerLabel={t("pagesUi.digitalTwin.cards.noPower")} onSelect={() => updateDocument((current) => { current.ui.selected_item_id = item.id; return current; })} onDelete={scope === "cabinet" || item.item_kind === "manual" ? () => { void onDeleteItem(item); } : undefined} renderCurrentType={formatCurrentType} />
                 ))}
               </Box> : <Typography variant="body2" color="text.secondary">{t("pagesUi.digitalTwin.unplaced.empty")}</Typography>}
             </DropArea>
@@ -628,63 +1047,20 @@ export function DigitalTwinPage() {
                 const items = document.items.filter((item) => item.placement_mode === "rail" && item.rail_id === rail.id).sort((a, b) => a.sort_order - b.sort_order);
                 const occupied = items.reduce((sum, item) => sum + ((item.mount_width_mm || 0) * Math.max(item.quantity || 1, 1)), 0);
                 return (
-                  <DropArea
-                    key={rail.id}
-                    title={rail.name}
-                    hint={t("pagesUi.digitalTwin.rails.hint", { length: rail.length_mm, occupied, free: Math.max(rail.length_mm - occupied, 0) })}
-                    onDropItem={(itemId) => moveItemToTarget(itemId, { placement_mode: "rail", wall_id: rail.wall_id, rail_id: rail.id })}
-                  >
-                    <Box sx={{ height: 8, borderRadius: 99, bgcolor: "rgba(15,23,42,0.10)", overflow: "hidden" }}>
-                      <Box sx={{ width: `${Math.min(occupied / rail.length_mm, 1) * 100}%`, height: "100%", bgcolor: "#111827" }} />
-                    </Box>
+                  <DropArea key={rail.id} title={rail.name} hint={t("pagesUi.digitalTwin.rails.hint", { length: rail.length_mm, occupied, free: Math.max(rail.length_mm - occupied, 0) })} onDropItem={(itemId) => moveItemToTarget(itemId, { placement_mode: "rail", wall_id: rail.wall_id, rail_id: rail.id })}>
+                    <Box sx={{ height: 8, borderRadius: 99, bgcolor: "rgba(15,23,42,0.10)", overflow: "hidden" }}><Box sx={{ width: `${Math.min(occupied / rail.length_mm, 1) * 100}%`, height: "100%", bgcolor: "#111827" }} /></Box>
                     {items.length ? <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
                       {items.map((item) => (
-                        <TwinCard
-                          key={item.id}
-                          item={item}
-                          selected={selectedItem?.id === item.id}
-                          usage={usageByItemId.get(item.id)}
-                          moveToStockLabel={t("pagesUi.digitalTwin.cards.moveToStock")}
-                          editLabel={t("pagesUi.digitalTwin.cards.edit")}
-                          deleteLabel={t("pagesUi.digitalTwin.cards.delete")}
-                          stockLabel={t("pagesUi.digitalTwin.cards.inStock")}
-                          outOfOperationLabel={t("pagesUi.digitalTwin.cards.outOfOperation")}
-                          noPowerLabel={t("pagesUi.digitalTwin.cards.noPower")}
-                          onSelect={() => updateDocument((current) => { current.ui.selected_item_id = item.id; return current; })}
-                          onEdit={() => openEditor(item)}
-                          onMoveToStock={() => moveItemToTarget(item.id, { placement_mode: "unplaced", wall_id: null, rail_id: null })}
-                          onDelete={scope === "cabinet" || item.item_kind === "manual" ? () => { void onDeleteItem(item); } : undefined}
-                          onDropBefore={(draggedItemId, targetItemId) => moveItemToTarget(draggedItemId, { placement_mode: "rail", wall_id: rail.wall_id, rail_id: rail.id }, targetItemId)}
-                          renderCurrentType={formatCurrentType}
-                          renderChannelSummary={renderChannelSummary}
-                        />
+                        <TwinCard key={item.id} item={item} selected={selectedItem?.id === item.id} usage={usageByItemId.get(item.id)} moveToStockLabel={t("pagesUi.digitalTwin.cards.moveToStock")} editLabel={t("pagesUi.digitalTwin.cards.edit")} deleteLabel={t("pagesUi.digitalTwin.cards.delete")} stockLabel={t("pagesUi.digitalTwin.cards.inStock")} outOfOperationLabel={t("pagesUi.digitalTwin.cards.outOfOperation")} noPowerLabel={t("pagesUi.digitalTwin.cards.noPower")} onSelect={() => updateDocument((current) => { current.ui.selected_item_id = item.id; return current; })} onMoveToStock={() => moveItemToTarget(item.id, { placement_mode: "unplaced", wall_id: null, rail_id: null })} onDelete={scope === "cabinet" || item.item_kind === "manual" ? () => { void onDeleteItem(item); } : undefined} onDropBefore={(draggedItemId, targetItemId) => moveItemToTarget(draggedItemId, { placement_mode: "rail", wall_id: rail.wall_id, rail_id: rail.id }, targetItemId)} renderCurrentType={formatCurrentType} />
                       ))}
                     </Box> : <Typography variant="body2" color="text.secondary">{t("pagesUi.digitalTwin.rails.empty")}</Typography>}
                   </DropArea>
                 );
               })}
-
               <DropArea title={t("pagesUi.digitalTwin.freeMount.title")} hint={t("pagesUi.digitalTwin.freeMount.hint")} onDropItem={(itemId) => moveItemToTarget(itemId, { placement_mode: "wall", wall_id: activeWallId, rail_id: null })}>
                 {wallItems.length ? <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
                   {wallItems.map((item) => (
-                    <TwinCard
-                      key={item.id}
-                      item={item}
-                      selected={selectedItem?.id === item.id}
-                      usage={usageByItemId.get(item.id)}
-                      moveToStockLabel={t("pagesUi.digitalTwin.cards.moveToStock")}
-                      editLabel={t("pagesUi.digitalTwin.cards.edit")}
-                      deleteLabel={t("pagesUi.digitalTwin.cards.delete")}
-                      stockLabel={t("pagesUi.digitalTwin.cards.inStock")}
-                      outOfOperationLabel={t("pagesUi.digitalTwin.cards.outOfOperation")}
-                      noPowerLabel={t("pagesUi.digitalTwin.cards.noPower")}
-                      onSelect={() => updateDocument((current) => { current.ui.selected_item_id = item.id; return current; })}
-                      onEdit={() => openEditor(item)}
-                      onMoveToStock={() => moveItemToTarget(item.id, { placement_mode: "unplaced", wall_id: null, rail_id: null })}
-                      onDelete={scope === "cabinet" || item.item_kind === "manual" ? () => { void onDeleteItem(item); } : undefined}
-                      renderCurrentType={formatCurrentType}
-                      renderChannelSummary={renderChannelSummary}
-                    />
+                    <TwinCard key={item.id} item={item} selected={selectedItem?.id === item.id} usage={usageByItemId.get(item.id)} moveToStockLabel={t("pagesUi.digitalTwin.cards.moveToStock")} editLabel={t("pagesUi.digitalTwin.cards.edit")} deleteLabel={t("pagesUi.digitalTwin.cards.delete")} stockLabel={t("pagesUi.digitalTwin.cards.inStock")} outOfOperationLabel={t("pagesUi.digitalTwin.cards.outOfOperation")} noPowerLabel={t("pagesUi.digitalTwin.cards.noPower")} onSelect={() => updateDocument((current) => { current.ui.selected_item_id = item.id; return current; })} onMoveToStock={() => moveItemToTarget(item.id, { placement_mode: "unplaced", wall_id: null, rail_id: null })} onDelete={scope === "cabinet" || item.item_kind === "manual" ? () => { void onDeleteItem(item); } : undefined} renderCurrentType={formatCurrentType} />
                   ))}
                 </Box> : <Typography variant="body2" color="text.secondary">{t("pagesUi.digitalTwin.freeMount.empty")}</Typography>}
               </DropArea>
@@ -692,59 +1068,89 @@ export function DigitalTwinPage() {
           </CardContent></Card>
 
           <Card><CardContent sx={{ display: "grid", gap: 2 }}>
-            <Typography variant="h6">{t("pagesUi.digitalTwin.sections.powerGraph")}</Typography>
-            <Box sx={{ height: 340, border: "1px solid", borderColor: "divider", borderRadius: 3, overflow: "hidden" }}>
-              <ReactFlow
-                nodes={flowNodes}
-                edges={flowEdges}
-                fitView
-                onNodesChange={(changes: NodeChange[]) => updateDocument((current) => {
-                  const nextNodes = applyNodeChanges(changes, flowNodes);
-                  current.powerGraph.nodes = current.powerGraph.nodes.map((node) => {
-                    const next = nextNodes.find((entry) => entry.id === node.id);
-                    return next ? { ...node, x: next.position.x, y: next.position.y } : node;
-                  });
-                  return current;
-                })}
-                onConnect={(connection: Connection) => {
-                  if (!connection.source || !connection.target) return;
-                  updateDocument((current) => {
-                    const nextEdges = addEdge(
-                      { id: `edge-${Date.now()}`, source: connection.source!, target: connection.target!, label: "" },
-                      current.powerGraph.edges.map((edge) => ({ id: edge.id, source: edge.source, target: edge.target, label: edge.label || edge.voltage || "" })),
-                    );
-                    current.powerGraph.edges = nextEdges.map((edge): DigitalTwinPowerEdge => ({ id: edge.id, source: edge.source, target: edge.target, label: String(edge.label || ""), voltage: null, role: "feed" }));
-                    return current;
-                  });
-                }}
-                onEdgeClick={(_, edge) => setSelectedEdgeId(edge.id)}
-              >
-                <MiniMap /><Controls /><Background />
-              </ReactFlow>
-            </Box>
-
-            {selectedEdge ? <Stack spacing={1}>
-              <TextField size="small" label={t("pagesUi.digitalTwin.fields.edgeLabel")} value={selectedEdge.label} onChange={(event) => updateDocument((current) => { const edge = current.powerGraph.edges.find((entry) => entry.id === selectedEdge.id); if (edge) edge.label = event.target.value; return current; })} />
-              <TextField size="small" label={t("pagesUi.digitalTwin.fields.edgeVoltage")} value={selectedEdge.voltage || ""} onChange={(event) => updateDocument((current) => { const edge = current.powerGraph.edges.find((entry) => entry.id === selectedEdge.id); if (edge) edge.voltage = event.target.value || null; return current; })} />
-              <TextField select size="small" label={t("pagesUi.digitalTwin.fields.edgeRole")} value={selectedEdge.role || "feed"} onChange={(event) => updateDocument((current) => { const edge = current.powerGraph.edges.find((entry) => entry.id === selectedEdge.id); if (edge) edge.role = String(event.target.value); return current; })}>
-                <MenuItem value="feed">{t("pagesUi.digitalTwin.enums.edgeRole.feed")}</MenuItem>
-                <MenuItem value="reserve">{t("pagesUi.digitalTwin.enums.edgeRole.reserve")}</MenuItem>
-                <MenuItem value="loop">{t("pagesUi.digitalTwin.enums.edgeRole.loop")}</MenuItem>
-              </TextField>
-            </Stack> : null}
-
-            {validationIssues.length ? validationIssues.map((issue) => (
-              <Alert key={issue.id} severity={issue.severity === "error" ? "error" : "warning"}>{issue.title}: {issue.detail}</Alert>
-            )) : <Alert severity="success">{t("pagesUi.digitalTwin.validation.clear")}</Alert>}
+            <Typography variant="h6">{selectedItem ? "Свойства объекта" : "Свойства шкафа"}</Typography>
+            {!selectedItem ? (
+              <>
+                <TextField size="small" label="Вводное напряжение" value={document.cabinet_properties.incoming_voltage || ""} onChange={(event) => updateDocument((current) => { current.cabinet_properties.incoming_voltage = event.target.value || null; return current; })} select>
+                  <MenuItem value="">Не задано</MenuItem>
+                  {cabinetSupplyVoltageOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
+                </TextField>
+                <TextField size="small" label="Тип тока ввода" value={document.cabinet_properties.incoming_current_type || ""} onChange={(event) => updateDocument((current) => { current.cabinet_properties.incoming_current_type = event.target.value || null; return current; })} select>
+                  <MenuItem value="">Не задано</MenuItem>
+                  {cabinetCurrentTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
+                </TextField>
+                <TextField size="small" label="Подпись ввода" value={document.cabinet_properties.incoming_label || ""} onChange={(event) => updateDocument((current) => { current.cabinet_properties.incoming_label = event.target.value || null; return current; })} />
+                <Divider />
+                <Typography variant="subtitle2">IP-адреса шкафа</Typography>
+                <Typography variant="body2">{cabinetLinkedIps.join(", ") || "Нет назначенных адресов"}</Typography>
+              </>
+            ) : (
+              <>
+                <Typography variant="subtitle2">Номенклатура</Typography>
+                <TextField size="small" label="Отображаемое имя" value={sourceEditDraft?.user_label ?? manualEditorDraft?.user_label ?? ""} onChange={(event) => {
+                  if (sourceEditDraft) setSourceEditDraft({ ...sourceEditDraft, user_label: event.target.value });
+                  if (manualEditorDraft) setManualEditorDraft({ ...manualEditorDraft, user_label: event.target.value });
+                }} />
+                <TextField size="small" label={t("pagesUi.digitalTwin.fields.name")} value={selectedItem.name} disabled />
+                <TextField size="small" label="Производитель" value={selectedItem.manufacturer_name || "-"} disabled />
+                <TextField size="small" label="Артикул" value={selectedItem.article || "-"} disabled />
+                <TextField size="small" label="Номенклатура" value={selectedItem.nomenclature_number || "-"} disabled />
+                <Divider />
+                <Typography variant="subtitle2">Статусы</Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  {selectedItem.is_channel_forming ? <Chip size="small" icon={<MemoryRoundedIcon />} label="Каналообразующее" /> : null}
+                  {selectedItem.is_network ? <Chip size="small" icon={<LanRoundedIcon />} label="Сетевое" /> : null}
+                  {selectedItem.has_serial_interfaces ? <Chip size="small" icon={<CableRoundedIcon />} label="Последовательные интерфейсы" /> : null}
+                  {selectedItem.source_status === "out_of_operation" ? <Chip size="small" color="warning" label="Вне эксплуатации" /> : null}
+                </Stack>
+                <Divider />
+                <Typography variant="subtitle2">Экземпляр</Typography>
+                {sourceEditDraft ? (
+                  <>
+                    <TextField select size="small" label={t("pagesUi.digitalTwin.fields.mountType")} value={sourceEditDraft.mount_type} onChange={(event) => setSourceEditDraft({ ...sourceEditDraft, mount_type: event.target.value as SourceBackedEditorDraft["mount_type"] })}>{mountTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{t(option.labelKey)}</MenuItem>)}</TextField>
+                    <TextField size="small" label={t("pagesUi.digitalTwin.fields.mountWidth")} type="number" value={sourceEditDraft.mount_width_mm} onChange={(event) => setSourceEditDraft({ ...sourceEditDraft, mount_width_mm: event.target.value })} />
+                    <TextField select size="small" label={t("pagesUi.digitalTwin.fields.powerRole")} value={sourceEditDraft.role_in_power_chain} onChange={(event) => setSourceEditDraft({ ...sourceEditDraft, role_in_power_chain: event.target.value as SourceBackedEditorDraft["role_in_power_chain"] })}>{powerRoleOptions.map((option) => <MenuItem key={option.value} value={option.value}>{t(option.labelKey)}</MenuItem>)}</TextField>
+                    {(sourceEditDraft.role_in_power_chain === "source" || sourceEditDraft.role_in_power_chain === "consumer") ? <>
+                      <TextField select size="small" label={t("pagesUi.digitalTwin.fields.currentType")} value={sourceEditDraft.current_type} onChange={(event) => setSourceEditDraft({ ...sourceEditDraft, current_type: event.target.value })}>{cabinetCurrentTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}</TextField>
+                      <TextField select size="small" label={t("pagesUi.digitalTwin.fields.supplyVoltage")} value={sourceEditDraft.supply_voltage} onChange={(event) => setSourceEditDraft({ ...sourceEditDraft, supply_voltage: event.target.value })}>{cabinetSupplyVoltageOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}</TextField>
+                      <TextField size="small" label={t("pagesUi.digitalTwin.fields.currentConsumption")} type="number" value={sourceEditDraft.current_value_a} onChange={(event) => setSourceEditDraft({ ...sourceEditDraft, current_value_a: event.target.value })} />
+                    </> : null}
+                  </>
+                ) : manualEditorDraft ? (
+                  <>
+                    <TextField size="small" label={t("pagesUi.digitalTwin.fields.name")} value={manualEditorDraft.name} onChange={(event) => setManualEditorDraft({ ...manualEditorDraft, name: event.target.value })} />
+                    <TextField select size="small" label={t("pagesUi.digitalTwin.fields.mountType")} value={manualEditorDraft.mount_type} onChange={(event) => setManualEditorDraft({ ...manualEditorDraft, mount_type: event.target.value as ItemEditorDraft["mount_type"] })}>{mountTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{t(option.labelKey)}</MenuItem>)}</TextField>
+                    <TextField size="small" label={t("pagesUi.digitalTwin.fields.mountWidth")} type="number" value={manualEditorDraft.mount_width_mm} onChange={(event) => setManualEditorDraft({ ...manualEditorDraft, mount_width_mm: event.target.value })} />
+                    <TextField select size="small" label={t("pagesUi.digitalTwin.fields.currentType")} value={manualEditorDraft.current_type} onChange={(event) => setManualEditorDraft({ ...manualEditorDraft, current_type: event.target.value })}>{currentTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{t(option.labelKey)}</MenuItem>)}</TextField>
+                    <TextField size="small" label={t("pagesUi.digitalTwin.fields.supplyVoltage")} value={manualEditorDraft.supply_voltage} onChange={(event) => setManualEditorDraft({ ...manualEditorDraft, supply_voltage: event.target.value })} />
+                  </>
+                ) : null}
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  {selectedItem.is_channel_forming && selectedItem.equipment_item_id ? <AppButton size="small" variant="outlined" startIcon={<DeviceHubRoundedIcon />} onClick={() => setSignalDialogOpen(true)}>Signal List</AppButton> : null}
+                  {selectedItem.is_network && selectedItem.equipment_item_id ? <AppButton size="small" variant="outlined" startIcon={<SettingsEthernetRoundedIcon />} onClick={() => setIpamDialogOpen(true)}>IPAM</AppButton> : null}
+                  {selectedItem.has_serial_interfaces && selectedItem.equipment_item_id ? <AppButton size="small" variant="outlined" startIcon={<CableRoundedIcon />} onClick={() => setSerialDialogOpen(true)}>Serial Map</AppButton> : null}
+                </Stack>
+                {selectedIpamSummary ? <Typography variant="body2" color="text.secondary">IP: {selectedIpamSummary.linked_ip_addresses.join(", ") || "Нет"}</Typography> : null}
+                <AppButton onClick={() => { void onSaveSelectedItem(); }} disabled={!canWrite}>Сохранить свойства</AppButton>
+              </>
+            )}
           </CardContent></Card>
         </Box>
+
+        <LocalErrorBoundary title="Ошибка блока графа питания">
+          <PowerGraphCanvas
+            document={document}
+            canWrite={canWrite}
+            validationIssues={validationIssues}
+            updateDocument={updateDocument}
+            setErrorMessage={setErrorMessage}
+          />
+        </LocalErrorBoundary>
 
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "repeat(3, 1fr)" }, gap: 2 }}>
           <Card><CardContent sx={{ display: "grid", gap: 1 }}>
             <Typography variant="h6">{t("pagesUi.digitalTwin.sections.load")}</Typography>
-            {["380VAC", "220VAC", "24VDC", "Other"].map((bucket) => (
-              <Typography key={bucket} variant="body2">{bucket}: {(loadSummary[bucket]?.power || 0).toFixed(1)} W / {(loadSummary[bucket]?.current || 0).toFixed(2)} A</Typography>
-            ))}
+            {["380VAC", "220VAC", "24VDC", "Other"].map((bucket) => <Typography key={bucket} variant="body2">{bucket}: {(loadSummary[bucket]?.power || 0).toFixed(1)} W / {(loadSummary[bucket]?.current || 0).toFixed(2)} A</Typography>)}
           </CardContent></Card>
           <Card><CardContent sx={{ display: "grid", gap: 1 }}>
             <Typography variant="h6">{t("pagesUi.digitalTwin.sections.io")}</Typography>
@@ -763,189 +1169,44 @@ export function DigitalTwinPage() {
           <DialogContent sx={{ display: "grid", gap: 2, pt: 2 }}>
             {scope === "cabinet" ? (
               <>
-                <SearchableSelectField
-                  label={t("common.fields.nomenclature")}
-                  value={cabinetDraft.equipment_type_id}
-                  options={nomenclatureOptions}
-                  hideEmptyOption
-                  onChange={(value) => {
-                    const equipment = equipmentById.get(Number(value));
-                    setCabinetDraft(createNomenclatureDraft(equipment));
-                  }}
-                  noOptionsLabel={equipmentTypesQuery.isLoading ? t("pagesUi.digitalTwin.states.loading") : undefined}
-                />
+                <SearchableSelectField label={t("common.fields.nomenclature")} value={cabinetDraft.equipment_type_id} options={nomenclatureOptions} hideEmptyOption onChange={(value) => { const equipment = equipmentById.get(Number(value)); setCabinetDraft(createNomenclatureDraft(equipment)); }} noOptionsLabel={equipmentTypesQuery.isLoading ? t("pagesUi.digitalTwin.states.loading") : undefined} />
                 <TextField size="small" label={t("pagesUi.digitalTwin.fields.name")} value={cabinetDraft.name} disabled />
-                <TextField select size="small" label={t("pagesUi.digitalTwin.fields.mountType")} value={cabinetDraft.mount_type} onChange={(event) => setCabinetDraft((current) => ({ ...current, mount_type: event.target.value as NomenclatureDraft["mount_type"] }))}>
-                  {mountTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{t(option.labelKey)}</MenuItem>)}
-                </TextField>
+                <TextField select size="small" label={t("pagesUi.digitalTwin.fields.mountType")} value={cabinetDraft.mount_type} onChange={(event) => setCabinetDraft((current) => ({ ...current, mount_type: event.target.value as NomenclatureDraft["mount_type"] }))}>{mountTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{t(option.labelKey)}</MenuItem>)}</TextField>
                 <TextField size="small" label={t("pagesUi.digitalTwin.fields.mountWidth")} type="number" value={cabinetDraft.mount_width_mm} onChange={(event) => setCabinetDraft((current) => ({ ...current, mount_width_mm: event.target.value }))} />
-                <TextField select size="small" label={t("pagesUi.digitalTwin.fields.powerRole")} value={cabinetDraft.role_in_power_chain} onChange={(event) => setCabinetDraft((current) => ({ ...current, role_in_power_chain: event.target.value as NomenclatureDraft["role_in_power_chain"] }))}>
-                  {powerRoleOptions.map((option) => <MenuItem key={option.value} value={option.value}>{t(option.labelKey)}</MenuItem>)}
-                </TextField>
+                <TextField select size="small" label={t("pagesUi.digitalTwin.fields.powerRole")} value={cabinetDraft.role_in_power_chain} onChange={(event) => setCabinetDraft((current) => ({ ...current, role_in_power_chain: event.target.value as NomenclatureDraft["role_in_power_chain"] }))}>{powerRoleOptions.map((option) => <MenuItem key={option.value} value={option.value}>{t(option.labelKey)}</MenuItem>)}</TextField>
                 {(cabinetDraft.role_in_power_chain === "source" || cabinetDraft.role_in_power_chain === "consumer") ? <>
-                  <TextField select size="small" label={t("pagesUi.digitalTwin.fields.currentType")} value={cabinetDraft.current_type} onChange={(event) => setCabinetDraft((current) => ({ ...current, current_type: event.target.value }))}>
-                    {cabinetCurrentTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
-                  </TextField>
-                  <TextField select size="small" label={t("pagesUi.digitalTwin.fields.supplyVoltage")} value={cabinetDraft.supply_voltage} onChange={(event) => setCabinetDraft((current) => ({ ...current, supply_voltage: event.target.value }))}>
-                    {cabinetSupplyVoltageOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
-                  </TextField>
-                  <TextField size="small" label={t("pagesUi.digitalTwin.fields.currentConsumption")} type="number" value={cabinetDraft.current_value_a} onChange={(event) => setCabinetDraft((current) => ({ ...current, current_value_a: event.target.value }))} />
+                  <TextField select size="small" label={t("pagesUi.digitalTwin.fields.currentType")} value={cabinetDraft.current_type} onChange={(event) => setCabinetDraft((current) => ({ ...current, current_type: event.target.value }))}>{cabinetCurrentTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}</TextField>
+                  <TextField select size="small" label={t("pagesUi.digitalTwin.fields.supplyVoltage")} value={cabinetDraft.supply_voltage} onChange={(event) => setCabinetDraft((current) => ({ ...current, supply_voltage: event.target.value }))}>{cabinetSupplyVoltageOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}</TextField>
                 </> : null}
-                {cabinetDraft.role_in_power_chain === "converter" ? <>
-                  <TextField select size="small" label="Тип тока верхняя сторона" value={cabinetDraft.top_current_type} onChange={(event) => setCabinetDraft((current) => ({ ...current, top_current_type: event.target.value }))}>
-                    {cabinetCurrentTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
-                  </TextField>
-                  <TextField select size="small" label="Напряжение верхняя сторона" value={cabinetDraft.top_supply_voltage} onChange={(event) => setCabinetDraft((current) => ({ ...current, top_supply_voltage: event.target.value }))}>
-                    {cabinetSupplyVoltageOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
-                  </TextField>
-                  <TextField select size="small" label="Тип тока нижняя сторона" value={cabinetDraft.bottom_current_type} onChange={(event) => setCabinetDraft((current) => ({ ...current, bottom_current_type: event.target.value }))}>
-                    {cabinetCurrentTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
-                  </TextField>
-                  <TextField select size="small" label="Напряжение нижняя сторона" value={cabinetDraft.bottom_supply_voltage} onChange={(event) => setCabinetDraft((current) => ({ ...current, bottom_supply_voltage: event.target.value }))}>
-                    {cabinetSupplyVoltageOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
-                  </TextField>
-                  <TextField size="small" label={t("pagesUi.digitalTwin.fields.currentConsumption")} type="number" value={cabinetDraft.current_value_a} onChange={(event) => setCabinetDraft((current) => ({ ...current, current_value_a: event.target.value }))} />
-                </> : null}
-                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 1 }}>
-                  <TextField size="small" label="AI" type="number" value={cabinetDraft.ai_count} onChange={(event) => setCabinetDraft((current) => ({ ...current, ai_count: event.target.value }))} />
-                  <TextField size="small" label="DI" type="number" value={cabinetDraft.di_count} onChange={(event) => setCabinetDraft((current) => ({ ...current, di_count: event.target.value }))} />
-                  <TextField size="small" label="AO" type="number" value={cabinetDraft.ao_count} onChange={(event) => setCabinetDraft((current) => ({ ...current, ao_count: event.target.value }))} />
-                  <TextField size="small" label="DO" type="number" value={cabinetDraft.do_count} onChange={(event) => setCabinetDraft((current) => ({ ...current, do_count: event.target.value }))} />
-                </Box>
-                <TextField size="small" label={t("pagesUi.digitalTwin.fields.networkPorts")} type="number" value={cabinetDraft.network_port_count} onChange={(event) => setCabinetDraft((current) => ({ ...current, network_port_count: event.target.value }))} />
               </>
             ) : (
               <>
                 <TextField size="small" label={t("pagesUi.digitalTwin.fields.name")} value={manualDraft.name} onChange={(event) => setManualDraft((current) => ({ ...current, name: event.target.value }))} />
-                <TextField select size="small" label={t("pagesUi.digitalTwin.fields.mountType")} value={manualDraft.mount_type} onChange={(event) => setManualDraft((current) => ({ ...current, mount_type: event.target.value as ManualItemDraft["mount_type"] }))}>
-                  {mountTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{t(option.labelKey)}</MenuItem>)}
-                </TextField>
+                <TextField select size="small" label={t("pagesUi.digitalTwin.fields.mountType")} value={manualDraft.mount_type} onChange={(event) => setManualDraft((current) => ({ ...current, mount_type: event.target.value as ManualItemDraft["mount_type"] }))}>{mountTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{t(option.labelKey)}</MenuItem>)}</TextField>
                 <TextField size="small" label={t("pagesUi.digitalTwin.fields.mountWidth")} type="number" value={manualDraft.mount_width_mm} onChange={(event) => setManualDraft((current) => ({ ...current, mount_width_mm: event.target.value }))} />
-                <TextField select size="small" label={t("pagesUi.digitalTwin.fields.currentType")} value={manualDraft.current_type} onChange={(event) => setManualDraft((current) => ({ ...current, current_type: event.target.value }))}>
-                  {currentTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{t(option.labelKey)}</MenuItem>)}
-                </TextField>
+                <TextField select size="small" label={t("pagesUi.digitalTwin.fields.currentType")} value={manualDraft.current_type} onChange={(event) => setManualDraft((current) => ({ ...current, current_type: event.target.value }))}>{currentTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{t(option.labelKey)}</MenuItem>)}</TextField>
                 <TextField size="small" label={t("pagesUi.digitalTwin.fields.supplyVoltage")} value={manualDraft.supply_voltage} onChange={(event) => setManualDraft((current) => ({ ...current, supply_voltage: event.target.value }))} />
-                <TextField size="small" label={t("pagesUi.digitalTwin.fields.currentConsumption")} type="number" value={manualDraft.current_consumption_a} onChange={(event) => setManualDraft((current) => ({ ...current, current_consumption_a: event.target.value }))} />
-                <TextField select size="small" label={t("pagesUi.digitalTwin.fields.powerRole")} value={manualDraft.power_role} onChange={(event) => setManualDraft((current) => ({ ...current, power_role: event.target.value as ManualItemDraft["power_role"] }))}>
-                  {powerRoleOptions.map((option) => <MenuItem key={option.value} value={option.value}>{t(option.labelKey)}</MenuItem>)}
-                </TextField>
-                <TextField size="small" label={t("pagesUi.digitalTwin.fields.outputVoltage")} value={manualDraft.output_voltage} onChange={(event) => setManualDraft((current) => ({ ...current, output_voltage: event.target.value }))} />
-                <TextField size="small" label={t("pagesUi.digitalTwin.fields.maxOutputCurrent")} type="number" value={manualDraft.max_output_current_a} onChange={(event) => setManualDraft((current) => ({ ...current, max_output_current_a: event.target.value }))} />
-                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 1 }}>
-                  <TextField size="small" label="AI" type="number" value={manualDraft.ai_count} onChange={(event) => setManualDraft((current) => ({ ...current, ai_count: event.target.value }))} />
-                  <TextField size="small" label="DI" type="number" value={manualDraft.di_count} onChange={(event) => setManualDraft((current) => ({ ...current, di_count: event.target.value }))} />
-                  <TextField size="small" label="AO" type="number" value={manualDraft.ao_count} onChange={(event) => setManualDraft((current) => ({ ...current, ao_count: event.target.value }))} />
-                  <TextField size="small" label="DO" type="number" value={manualDraft.do_count} onChange={(event) => setManualDraft((current) => ({ ...current, do_count: event.target.value }))} />
-                </Box>
-                <TextField size="small" label={t("pagesUi.digitalTwin.fields.networkPorts")} type="number" value={manualDraft.network_port_count} onChange={(event) => setManualDraft((current) => ({ ...current, network_port_count: event.target.value }))} />
               </>
             )}
           </DialogContent>
           <DialogActions>
             <AppButton variant="outlined" onClick={() => setManualDialogOpen(false)}>{t("actions.cancel")}</AppButton>
-            <AppButton
-              onClick={() => {
-                if (scope === "cabinet") {
-                  void onSaveCabinetAdd();
-                  return;
-                }
-                if (!manualDraft.name.trim()) return;
-                updateDocument((current) => { const item = buildManualItem(manualDraft, activeWallId); item.sort_order = current.items.length; current.items.push(item); current.ui.selected_item_id = item.id; return current; });
-                setManualDraft(createManualDraft());
-                setManualDialogOpen(false);
-              }}
-              disabled={scope === "cabinet" ? !cabinetDraft.equipment_type_id : !manualDraft.name.trim()}
-            >
-              {t("actions.add")}
-            </AppButton>
+            <AppButton onClick={() => { if (scope === "cabinet") { void onSaveCabinetAdd(); return; } if (!manualDraft.name.trim()) return; updateDocument((current) => { const item = buildManualItem(manualDraft, activeWallId); item.sort_order = current.items.length; current.items.push(item); current.ui.selected_item_id = item.id; return current; }); setManualDraft(createManualDraft()); setManualDialogOpen(false); }} disabled={scope === "cabinet" ? !cabinetDraft.equipment_type_id : !manualDraft.name.trim()}>{t("actions.add")}</AppButton>
           </DialogActions>
         </Dialog>
 
-        <Dialog open={Boolean(editingItem && (editDraft || sourceEditDraft))} onClose={() => { setEditingItemId(null); setEditDraft(null); setSourceEditDraft(null); }} fullWidth maxWidth="sm">
-          <DialogTitle>{t("pagesUi.digitalTwin.dialogs.editTitle")}</DialogTitle>
-          {editingItem && sourceEditDraft ? <>
-            <DialogContent sx={{ display: "grid", gap: 2, pt: 2 }}>
-              <TextField size="small" label={t("pagesUi.digitalTwin.fields.displayName")} value={sourceEditDraft.user_label} helperText={`${t("pagesUi.digitalTwin.fields.sourceName")}: ${editingItem.name}`} onChange={(event) => setSourceEditDraft((current) => current ? { ...current, user_label: event.target.value } : current)} />
-              <TextField size="small" label={t("pagesUi.digitalTwin.fields.name")} value={sourceEditDraft.name} disabled />
-              <TextField select size="small" label={t("pagesUi.digitalTwin.fields.mountType")} value={sourceEditDraft.mount_type} onChange={(event) => setSourceEditDraft((current) => current ? { ...current, mount_type: event.target.value as SourceBackedEditorDraft["mount_type"] } : current)}>
-                {mountTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{t(option.labelKey)}</MenuItem>)}
-              </TextField>
-              <TextField size="small" label={t("pagesUi.digitalTwin.fields.mountWidth")} type="number" value={sourceEditDraft.mount_width_mm} onChange={(event) => setSourceEditDraft((current) => current ? { ...current, mount_width_mm: event.target.value } : current)} />
-              <TextField select size="small" label={t("pagesUi.digitalTwin.fields.powerRole")} value={sourceEditDraft.role_in_power_chain} onChange={(event) => setSourceEditDraft((current) => current ? { ...current, role_in_power_chain: event.target.value as SourceBackedEditorDraft["role_in_power_chain"] } : current)}>
-                {powerRoleOptions.map((option) => <MenuItem key={option.value} value={option.value}>{t(option.labelKey)}</MenuItem>)}
-              </TextField>
-              {(sourceEditDraft.role_in_power_chain === "source" || sourceEditDraft.role_in_power_chain === "consumer") ? <>
-                <TextField select size="small" label={t("pagesUi.digitalTwin.fields.currentType")} value={sourceEditDraft.current_type} onChange={(event) => setSourceEditDraft((current) => current ? { ...current, current_type: event.target.value } : current)}>
-                  {cabinetCurrentTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
-                </TextField>
-                <TextField select size="small" label={t("pagesUi.digitalTwin.fields.supplyVoltage")} value={sourceEditDraft.supply_voltage} onChange={(event) => setSourceEditDraft((current) => current ? { ...current, supply_voltage: event.target.value } : current)}>
-                  {cabinetSupplyVoltageOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
-                </TextField>
-                <TextField size="small" label={t("pagesUi.digitalTwin.fields.currentConsumption")} type="number" value={sourceEditDraft.current_value_a} onChange={(event) => setSourceEditDraft((current) => current ? { ...current, current_value_a: event.target.value } : current)} />
-              </> : null}
-              {sourceEditDraft.role_in_power_chain === "converter" ? <>
-                <TextField select size="small" label="Тип тока верхняя сторона" value={sourceEditDraft.top_current_type} onChange={(event) => setSourceEditDraft((current) => current ? { ...current, top_current_type: event.target.value } : current)}>
-                  {cabinetCurrentTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
-                </TextField>
-                <TextField select size="small" label="Напряжение верхняя сторона" value={sourceEditDraft.top_supply_voltage} onChange={(event) => setSourceEditDraft((current) => current ? { ...current, top_supply_voltage: event.target.value } : current)}>
-                  {cabinetSupplyVoltageOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
-                </TextField>
-                <TextField select size="small" label="Тип тока нижняя сторона" value={sourceEditDraft.bottom_current_type} onChange={(event) => setSourceEditDraft((current) => current ? { ...current, bottom_current_type: event.target.value } : current)}>
-                  {cabinetCurrentTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
-                </TextField>
-                <TextField select size="small" label="Напряжение нижняя сторона" value={sourceEditDraft.bottom_supply_voltage} onChange={(event) => setSourceEditDraft((current) => current ? { ...current, bottom_supply_voltage: event.target.value } : current)}>
-                  {cabinetSupplyVoltageOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
-                </TextField>
-                <TextField size="small" label={t("pagesUi.digitalTwin.fields.currentConsumption")} type="number" value={sourceEditDraft.current_value_a} onChange={(event) => setSourceEditDraft((current) => current ? { ...current, current_value_a: event.target.value } : current)} />
-              </> : null}
-              <Box sx={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 1 }}>
-                <TextField size="small" label="AI" type="number" value={sourceEditDraft.ai_count} onChange={(event) => setSourceEditDraft((current) => current ? { ...current, ai_count: event.target.value } : current)} />
-                <TextField size="small" label="DI" type="number" value={sourceEditDraft.di_count} onChange={(event) => setSourceEditDraft((current) => current ? { ...current, di_count: event.target.value } : current)} />
-                <TextField size="small" label="AO" type="number" value={sourceEditDraft.ao_count} onChange={(event) => setSourceEditDraft((current) => current ? { ...current, ao_count: event.target.value } : current)} />
-                <TextField size="small" label="DO" type="number" value={sourceEditDraft.do_count} onChange={(event) => setSourceEditDraft((current) => current ? { ...current, do_count: event.target.value } : current)} />
-              </Box>
-              <TextField size="small" label={t("pagesUi.digitalTwin.fields.networkPorts")} type="number" value={sourceEditDraft.network_port_count} onChange={(event) => setSourceEditDraft((current) => current ? { ...current, network_port_count: event.target.value } : current)} />
-            </DialogContent>
-            <DialogActions>
-              <AppButton variant="outlined" onClick={() => { setEditingItemId(null); setSourceEditDraft(null); }}>{t("actions.cancel")}</AppButton>
-              <AppButton onClick={() => { void onSaveSourceEdit(); }}>{t("actions.save")}</AppButton>
-            </DialogActions>
-          </> : null}
-          {editingItem && editDraft ? <>
-            <DialogContent sx={{ display: "grid", gap: 2, pt: 2 }}>
-              <TextField size="small" label={t("pagesUi.digitalTwin.fields.displayName")} value={editDraft.user_label} helperText={editingItem.item_kind === "manual" ? t("pagesUi.digitalTwin.fields.displayNameManualHint") : `${t("pagesUi.digitalTwin.fields.sourceName")}: ${editingItem.name}`} onChange={(event) => setEditDraft((current) => current ? { ...current, user_label: event.target.value } : current)} />
-              <TextField size="small" label={t("pagesUi.digitalTwin.fields.name")} value={editDraft.name} disabled={editingItem.item_kind !== "manual"} onChange={(event) => setEditDraft((current) => current ? { ...current, name: event.target.value } : current)} />
-              <TextField select size="small" label={t("pagesUi.digitalTwin.fields.mountType")} value={editDraft.mount_type} onChange={(event) => setEditDraft((current) => current ? { ...current, mount_type: event.target.value as ItemEditorDraft["mount_type"] } : current)}>
-                {mountTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{t(option.labelKey)}</MenuItem>)}
-              </TextField>
-              <TextField size="small" label={t("pagesUi.digitalTwin.fields.mountWidth")} type="number" value={editDraft.mount_width_mm} onChange={(event) => setEditDraft((current) => current ? { ...current, mount_width_mm: event.target.value } : current)} />
-              <TextField select size="small" label={t("pagesUi.digitalTwin.fields.currentType")} value={editDraft.current_type} onChange={(event) => setEditDraft((current) => current ? { ...current, current_type: event.target.value } : current)}>
-                {currentTypeOptions.map((option) => <MenuItem key={option.value} value={option.value}>{t(option.labelKey)}</MenuItem>)}
-              </TextField>
-              <TextField size="small" label={t("pagesUi.digitalTwin.fields.supplyVoltage")} value={editDraft.supply_voltage} onChange={(event) => setEditDraft((current) => current ? { ...current, supply_voltage: event.target.value } : current)} />
-              <TextField size="small" label={t("pagesUi.digitalTwin.fields.currentConsumption")} type="number" value={editDraft.current_consumption_a} onChange={(event) => setEditDraft((current) => current ? { ...current, current_consumption_a: event.target.value } : current)} />
-              <TextField select size="small" label={t("pagesUi.digitalTwin.fields.powerRole")} value={editDraft.power_role} onChange={(event) => setEditDraft((current) => current ? { ...current, power_role: event.target.value as ItemEditorDraft["power_role"] } : current)}>
-                {powerRoleOptions.map((option) => <MenuItem key={option.value} value={option.value}>{t(option.labelKey)}</MenuItem>)}
-              </TextField>
-              <TextField size="small" label={t("pagesUi.digitalTwin.fields.outputVoltage")} value={editDraft.output_voltage} onChange={(event) => setEditDraft((current) => current ? { ...current, output_voltage: event.target.value } : current)} />
-              <TextField size="small" label={t("pagesUi.digitalTwin.fields.maxOutputCurrent")} type="number" value={editDraft.max_output_current_a} onChange={(event) => setEditDraft((current) => current ? { ...current, max_output_current_a: event.target.value } : current)} />
-              <Box sx={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 1 }}>
-                <TextField size="small" label="AI" type="number" value={editDraft.ai_count} onChange={(event) => setEditDraft((current) => current ? { ...current, ai_count: event.target.value } : current)} />
-                <TextField size="small" label="DI" type="number" value={editDraft.di_count} onChange={(event) => setEditDraft((current) => current ? { ...current, di_count: event.target.value } : current)} />
-                <TextField size="small" label="AO" type="number" value={editDraft.ao_count} onChange={(event) => setEditDraft((current) => current ? { ...current, ao_count: event.target.value } : current)} />
-                <TextField size="small" label="DO" type="number" value={editDraft.do_count} onChange={(event) => setEditDraft((current) => current ? { ...current, do_count: event.target.value } : current)} />
-              </Box>
-              <TextField size="small" label={t("pagesUi.digitalTwin.fields.networkPorts")} type="number" value={editDraft.network_port_count} onChange={(event) => setEditDraft((current) => current ? { ...current, network_port_count: event.target.value } : current)} />
-            </DialogContent>
-            <DialogActions>
-              <AppButton variant="outlined" onClick={() => { setEditingItemId(null); setEditDraft(null); }}>{t("actions.cancel")}</AppButton>
-              <AppButton onClick={() => { if (!editingItem || !editDraft) return; updateDocument((current) => { const item = current.items.find((entry) => entry.id === editingItem.id); if (item) applyItemEditorDraft(item, editDraft); return current; }); setEditingItemId(null); setEditDraft(null); }}>{t("actions.save")}</AppButton>
-            </DialogActions>
-          </> : null}
-        </Dialog>
-
+        <SignalListDialog open={signalDialogOpen} item={selectedItem} onClose={() => setSignalDialogOpen(false)} onError={setErrorMessage} />
+        <IpamDialog open={ipamDialogOpen} item={selectedItem} onClose={() => setIpamDialogOpen(false)} onError={setErrorMessage} />
+        <SerialMapDialog open={serialDialogOpen} item={selectedItem} sourceContext={record.source_context} onClose={() => setSerialDialogOpen(false)} onError={setErrorMessage} />
         <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage(null)} />
       </Box>
-    </ReactFlowProvider>
+  );
+}
+
+export function DigitalTwinPage() {
+  return (
+    <LocalErrorBoundary title="Ошибка экрана состава шкафа">
+      <DigitalTwinPageInner />
+    </LocalErrorBoundary>
   );
 }

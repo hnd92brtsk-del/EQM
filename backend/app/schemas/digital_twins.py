@@ -13,6 +13,7 @@ DigitalTwinMountType = Literal["din-rail", "wall", "other"]
 DigitalTwinPowerRole = Literal["consumer", "source", "converter", "passive"]
 DigitalTwinItemStatus = Literal["active", "out_of_operation"]
 DigitalTwinPlacementMode = Literal["unplaced", "rail", "wall"]
+DigitalTwinPowerNodeKind = Literal["item", "cabinet-input"]
 
 
 class DigitalTwinWall(BaseModel):
@@ -31,6 +32,12 @@ class DigitalTwinRail(BaseModel):
 class DigitalTwinPort(BaseModel):
     type: str = Field(min_length=1, max_length=64)
     count: int = Field(default=0, ge=0)
+
+
+class DigitalTwinCabinetProperties(BaseModel):
+    incoming_voltage: str | None = Field(default=None, max_length=32)
+    incoming_current_type: str | None = Field(default=None, max_length=32)
+    incoming_label: str | None = Field(default=None, max_length=120)
 
 
 class DigitalTwinItem(BaseModel):
@@ -72,7 +79,8 @@ class DigitalTwinItem(BaseModel):
 
 class DigitalTwinPowerNode(BaseModel):
     id: str = Field(min_length=1, max_length=100)
-    item_id: str = Field(min_length=1, max_length=100)
+    kind: DigitalTwinPowerNodeKind = "item"
+    item_id: str | None = Field(default=None, max_length=100)
     label: str = Field(min_length=1, max_length=255)
     x: float = 0
     y: float = 0
@@ -108,10 +116,11 @@ class DigitalTwinUiState(BaseModel):
 
 
 class DigitalTwinDocument(BaseModel):
-    version: int = 1
+    version: int = 2
     walls: list[DigitalTwinWall] = Field(default_factory=list)
     rails: list[DigitalTwinRail] = Field(default_factory=list)
     items: list[DigitalTwinItem] = Field(default_factory=list)
+    cabinet_properties: DigitalTwinCabinetProperties = Field(default_factory=DigitalTwinCabinetProperties)
     powerGraph: DigitalTwinPowerGraph = Field(default_factory=DigitalTwinPowerGraph)
     viewport: DigitalTwinViewport = Field(default_factory=DigitalTwinViewport)
     ui: DigitalTwinUiState = Field(default_factory=DigitalTwinUiState)

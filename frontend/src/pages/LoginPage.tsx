@@ -1,6 +1,6 @@
 ﻿import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Box, Stack, TextField, Typography } from "@mui/material";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Alert, Box, Stack, TextField, Typography } from "@mui/material";
 import { alpha, styled } from "@mui/material/styles";
 import { useTranslation } from "react-i18next";
 
@@ -53,11 +53,26 @@ export default function LoginPage() {
   const { t } = useTranslation();
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const hasError = Boolean(error);
+  const redirectTo =
+    typeof location.state === "object" &&
+    location.state !== null &&
+    "from" in location.state &&
+    typeof location.state.from === "string"
+      ? location.state.from
+      : "/dashboard";
+  const authReason =
+    typeof location.state === "object" &&
+    location.state !== null &&
+    "reason" in location.state &&
+    location.state.reason === "expired"
+      ? "expired"
+      : null;
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -65,7 +80,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(username, password);
-      navigate("/dashboard", { replace: true });
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(t("auth.invalidCredentials"));
     } finally {
@@ -147,6 +162,11 @@ export default function LoginPage() {
           }}
         >
           <Stack component="form" onSubmit={handleSubmit} spacing={2.5} sx={{ mt: 2 }}>
+            {authReason === "expired" ? (
+              <Alert severity="warning" sx={{ borderRadius: 0 }}>
+                Сессия истекла. Войди снова, и EQM вернёт тебя на нужную страницу.
+              </Alert>
+            ) : null}
             <DarkTextField
               label={t("auth.fields.login")}
               value={username}

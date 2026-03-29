@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 from app.schemas.digital_twins import (
+    DigitalTwinCabinetProperties,
     DigitalTwinDocument,
     DigitalTwinItem,
     DigitalTwinPowerEdge,
@@ -8,7 +9,13 @@ from app.schemas.digital_twins import (
     DigitalTwinPowerNode,
     DigitalTwinRail,
 )
-from app.services.digital_twins import default_document, stable_item_id, sync_document_with_operation_items
+from app.services.digital_twins import (
+    CABINET_INPUT_NODE_ID,
+    default_document,
+    normalize_document,
+    stable_item_id,
+    sync_document_with_operation_items,
+)
 
 
 def make_equipment_type(**overrides):
@@ -55,13 +62,15 @@ def test_sync_adds_source_backed_items_from_operation():
     synced = sync_document_with_operation_items(document, "cabinet", [make_operation_item(10, quantity=2)])
 
     assert len(synced.items) == 1
+    assert synced.version == 2
     item = synced.items[0]
     assert item.id == stable_item_id("cabinet", 10)
     assert item.item_kind == "source-backed"
     assert item.quantity == 2
     assert item.mount_width_mm == 110
     assert item.placement_mode == "unplaced"
-    assert synced.powerGraph.nodes[0].item_id == item.id
+    assert synced.powerGraph.nodes[0].id == CABINET_INPUT_NODE_ID
+    assert synced.powerGraph.nodes[1].item_id == item.id
 
 
 def test_sync_is_idempotent_and_preserves_manual_placement_and_edges():
@@ -96,10 +105,12 @@ def test_sync_is_idempotent_and_preserves_manual_placement_and_edges():
                 quantity=1,
             ),
         ],
+        cabinet_properties=DigitalTwinCabinetProperties(),
         powerGraph=DigitalTwinPowerGraph(
             nodes=[
-                DigitalTwinPowerNode(id="pnode-a", item_id=source_item_id, label="CPU main", x=10, y=20),
-                DigitalTwinPowerNode(id="pnode-b", item_id="manual-1", label="Ручной элемент", x=30, y=40),
+                DigitalTwinPowerNode(id=CABINET_INPUT_NODE_ID, kind="cabinet-input", item_id=None, label="Вводное напряжение", x=2, y=3),
+                DigitalTwinPowerNode(id="pnode-a", kind="item", item_id=source_item_id, label="CPU main", x=10, y=20),
+                DigitalTwinPowerNode(id="pnode-b", kind="item", item_id="manual-1", label="Ручной элемент", x=30, y=40),
             ],
             edges=[DigitalTwinPowerEdge(id="edge-1", source="pnode-a", target="pnode-b", label="feed")],
         ),
@@ -118,6 +129,7 @@ def test_sync_is_idempotent_and_preserves_manual_placement_and_edges():
     assert source_items[0].user_label == "CPU main"
     assert source_items[0].placement_mode == "rail"
     assert source_items[0].rail_id == "rail-1"
+    assert any(node.id == CABINET_INPUT_NODE_ID and node.kind == "cabinet-input" for node in synced.powerGraph.nodes)
     assert any(item.id == "manual-1" and item.item_kind == "manual" for item in synced.items)
     assert len(synced.powerGraph.edges) == 1
 
@@ -217,3 +229,47 @@ def test_sync_keeps_manual_items_but_does_not_create_new_manual_entries():
 
     assert any(item.id == "manual-legacy" and item.item_kind == "manual" for item in synced.items)
     assert any(item.id == stable_item_id("cabinet", 15) and item.item_kind == "source-backed" for item in synced.items)
+
+
+def test_normalize_document_upgrades_v1_payload_to_v2_with_cabinet_properties():
+    document = normalize_document({
+        "version": 1,
+        "walls": [{"id": "back", "name": "Задняя панель"}],
+        "rails": [],
+        "items": [],
+        "powerGraph": {"nodes": [], "edges": []},
+        "viewport": {"x": 0, "y": 0, "zoom": 1},
+        "ui": {"active_wall_id": "back", "active_layer": "all"},
+    })
+
+    assert document.version == 2
+    assert isinstance(document.cabinet_properties, DigitalTwinCabinetProperties)
+    assert document.cabinet_properties.incoming_voltage is None
+
+
+def test_sync_preserves_cabinet_input_node_and_voltage():
+    document = default_document()
+    document.cabinet_properties.incoming_voltage = "380В"
+    document.cabinet_properties.incoming_current_type = "Переменный"
+    document.powerGraph.nodes = [
+        DigitalTwinPowerNode(
+            id=CABINET_INPUT_NODE_ID,
+            kind="cabinet-input",
+            item_id=None,
+            label="Главный ввод",
+            x=55,
+            y=65,
+            voltage="220В",
+            role="source",
+            status="active",
+        )
+    ]
+
+    synced = sync_document_with_operation_items(document, "cabinet", [make_operation_item(10)])
+
+    cabinet_node = next(node for node in synced.powerGraph.nodes if node.id == CABINET_INPUT_NODE_ID)
+    assert cabinet_node.kind == "cabinet-input"
+    assert cabinet_node.label == "Вводное напряжение"
+    assert cabinet_node.voltage == "380В"
+    assert cabinet_node.x == 55
+    assert cabinet_node.y == 65

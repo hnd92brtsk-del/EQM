@@ -11,6 +11,7 @@ from app.models.core import Cabinet, EquipmentType
 from app.models.digital_twins import DigitalTwinDocument as DigitalTwinDocumentModel
 from app.models.operations import AssemblyItem, CabinetItem
 from app.schemas.digital_twins import (
+    DigitalTwinCabinetProperties,
     DigitalTwinDocument,
     DigitalTwinItem,
     DigitalTwinPowerGraph,
@@ -26,14 +27,16 @@ DEFAULT_WALLS = [
     DigitalTwinWall(id="right", name="Правая стенка"),
     DigitalTwinWall(id="top", name="Верхняя панель"),
 ]
+CABINET_INPUT_NODE_ID = "cabinet-input"
 
 
 def default_document() -> DigitalTwinDocument:
     return DigitalTwinDocument(
-        version=1,
+        version=2,
         walls=DEFAULT_WALLS,
         rails=[],
         items=[],
+        cabinet_properties=DigitalTwinCabinetProperties(),
         powerGraph=DigitalTwinPowerGraph(nodes=[], edges=[]),
         viewport=DigitalTwinViewport(x=0, y=0, zoom=1),
         ui=DigitalTwinUiState(active_wall_id="back", active_layer="all"),
@@ -42,6 +45,10 @@ def default_document() -> DigitalTwinDocument:
 
 def normalize_document(raw: dict | None) -> DigitalTwinDocument:
     document = DigitalTwinDocument.model_validate(raw or default_document().model_dump())
+    if document.version < 2:
+        document.version = 2
+    if not document.cabinet_properties:
+        document.cabinet_properties = DigitalTwinCabinetProperties()
     if not document.walls:
         document.walls = DEFAULT_WALLS.copy()
     if not document.ui.active_wall_id and document.walls:
@@ -171,13 +178,36 @@ def operation_item_to_twin_item(
 
 
 def sync_power_graph(document: DigitalTwinDocument) -> None:
-    existing_nodes = {node.item_id: node for node in document.powerGraph.nodes}
+    existing_input_node = next(
+        (node for node in document.powerGraph.nodes if node.kind == "cabinet-input" or node.id == CABINET_INPUT_NODE_ID),
+        None,
+    )
+    existing_nodes = {
+        node.item_id: node
+        for node in document.powerGraph.nodes
+        if node.item_id and node.kind == "item"
+    }
     next_nodes: list[DigitalTwinPowerNode] = []
+    cabinet_label = document.cabinet_properties.incoming_label or "Вводное напряжение"
+    next_nodes.append(
+        DigitalTwinPowerNode(
+            id=CABINET_INPUT_NODE_ID,
+            kind="cabinet-input",
+            item_id=None,
+            label=cabinet_label,
+            x=existing_input_node.x if existing_input_node else 40,
+            y=existing_input_node.y if existing_input_node else 40,
+            voltage=document.cabinet_properties.incoming_voltage,
+            role="source",
+            status="active",
+        )
+    )
     for index, item in enumerate(document.items):
         previous = existing_nodes.get(item.id)
         next_nodes.append(
             DigitalTwinPowerNode(
                 id=previous.id if previous else f"pnode-{item.id}",
+                kind="item",
                 item_id=item.id,
                 label=item.user_label or item.name,
                 x=previous.x if previous else 80 + (index % 3) * 180,
@@ -195,6 +225,8 @@ def sync_power_graph(document: DigitalTwinDocument) -> None:
 
 
 def ensure_document_integrity(document: DigitalTwinDocument) -> DigitalTwinDocument:
+    document.version = 2
+    document.cabinet_properties = document.cabinet_properties or DigitalTwinCabinetProperties()
     wall_ids = {wall.id for wall in document.walls}
     rail_ids = {rail.id for rail in document.rails}
     for item in document.items:

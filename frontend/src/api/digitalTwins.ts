@@ -5,10 +5,17 @@ export type TwinMountType = "din-rail" | "wall" | "other";
 export type TwinPowerRole = "consumer" | "source" | "converter" | "passive";
 export type TwinItemStatus = "active" | "out_of_operation";
 export type TwinPlacementMode = "unplaced" | "rail" | "wall";
+export type TwinPowerNodeKind = "item" | "cabinet-input";
 
 export type DigitalTwinWall = {
   id: string;
   name: string;
+};
+
+export type DigitalTwinCabinetProperties = {
+  incoming_voltage?: string | null;
+  incoming_current_type?: string | null;
+  incoming_label?: string | null;
 };
 
 export type DigitalTwinRail = {
@@ -63,7 +70,8 @@ export type DigitalTwinItem = {
 
 export type DigitalTwinPowerNode = {
   id: string;
-  item_id: string;
+  kind: TwinPowerNodeKind;
+  item_id?: string | null;
   label: string;
   x: number;
   y: number;
@@ -82,10 +90,11 @@ export type DigitalTwinPowerEdge = {
 };
 
 export type DigitalTwinDocument = {
-  version: number;
+  version: 2;
   walls: DigitalTwinWall[];
   rails: DigitalTwinRail[];
   items: DigitalTwinItem[];
+  cabinet_properties: DigitalTwinCabinetProperties;
   powerGraph: {
     nodes: DigitalTwinPowerNode[];
     edges: DigitalTwinPowerEdge[];

@@ -38,6 +38,7 @@ export function buildCurrentTypeOptions(t: TFunction) {
 
 export function buildSupplyVoltageOptions(t: TFunction) {
   return [
+    { value: "380В", label: "380 В" },
     { value: "220В", label: t("pagesUi.equipmentTypes.options.supplyVoltage.v220") },
     { value: "24В", label: t("pagesUi.equipmentTypes.options.supplyVoltage.v24") },
     { value: "220В/24В", label: t("pagesUi.equipmentTypes.options.supplyVoltage.v220v24") },

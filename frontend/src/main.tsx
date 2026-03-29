@@ -9,6 +9,12 @@ import { DEFAULT_QUERY_GC_TIME, DEFAULT_QUERY_STALE_TIME } from "./api/queryDefa
 import "./i18n";
 import "./styles.css";
 
+function resolveRouterBasename() {
+  const path = globalThis.location?.pathname || "/";
+  if (path === "/EQM" || path.startsWith("/EQM/")) return "/EQM";
+  return "/";
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -24,7 +30,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <AppThemeProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <BrowserRouter>
+          <BrowserRouter basename={resolveRouterBasename()}>
             <App />
           </BrowserRouter>
         </AuthProvider>
