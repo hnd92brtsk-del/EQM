@@ -26,6 +26,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 
 import { EDGE_STYLES, getPidNodeVisualSpec, inferMainEquipmentShapeKey } from "../../constants/pidPalette";
+import { resolveMainEquipmentLibraryKey } from "../../features/pid/mainEquipmentObjectSymbols";
 import { normalizePidSymbol } from "../../features/pid/symbols";
 import type { PidDiagram, PidEdge, PidNode, PidSourceRef } from "../../types/pid";
 import { PidNodeRenderer } from "./nodes/PidNodeRenderer";
@@ -102,23 +103,26 @@ function buildSourceLookup(
   return sourceLookup;
 }
 
-function getShapeKey(node: Pick<PidNode, "sourceRef" | "properties">) {
+function getShapeKey(node: Pick<PidNode, "sourceRef" | "properties" | "symbolKey" | "category">) {
   const ownShapeKey = node.properties.meta?.shapeKey;
-  if (typeof ownShapeKey === "string" && ownShapeKey.trim()) {
-    return ownShapeKey === "generic" && typeof node.sourceRef?.name === "string"
-      ? inferMainEquipmentShapeKey(node.sourceRef.name)
-      : ownShapeKey;
-  }
   const sourceShapeKey = node.sourceRef?.meta?.shapeKey;
-  if (typeof sourceShapeKey === "string" && sourceShapeKey.trim()) {
-    return sourceShapeKey === "generic" && typeof node.sourceRef?.name === "string"
-      ? inferMainEquipmentShapeKey(node.sourceRef.name)
-      : sourceShapeKey;
+  const explicitShapeKey = typeof ownShapeKey === "string" && ownShapeKey.trim()
+    ? ownShapeKey
+    : typeof sourceShapeKey === "string" && sourceShapeKey.trim()
+      ? sourceShapeKey
+      : null;
+  const resolvedLibraryKey = resolveMainEquipmentLibraryKey({
+    id: node.sourceRef?.source === "main-equipment" ? node.sourceRef.id : null,
+    code: node.category === "main" ? node.symbolKey : null,
+    libraryKey: explicitShapeKey,
+  });
+  if (resolvedLibraryKey) {
+    return resolvedLibraryKey;
   }
   if (typeof node.sourceRef?.name === "string" && node.sourceRef.name.trim()) {
     return inferMainEquipmentShapeKey(node.sourceRef.name);
   }
-  return "generic";
+  return explicitShapeKey || "generic";
 }
 
 function toRfNode(node: PidNode, selectedNodeIds: string[]): CanvasNode {
@@ -398,7 +402,11 @@ export const PidCanvas = forwardRef<PidCanvasHandle, Props>(function PidCanvas(
 
       const pidSymbol = normalizePidSymbol(
         preset.sourceRef?.meta || null,
-        preset.sourceRef?.meta?.shapeKey || (preset.category === "instrument" ? preset.symbolKey : "generic")
+        resolveMainEquipmentLibraryKey({
+          id: preset.sourceRef?.source === "main-equipment" ? preset.sourceRef.id : null,
+          code: preset.category === "main" ? preset.symbolKey : null,
+          libraryKey: preset.sourceRef?.meta?.shapeKey || null,
+        }) || (preset.category === "instrument" ? preset.symbolKey : "generic")
       );
       const visual = getPidNodeVisualSpec(preset.category, pidSymbol.libraryKey || "generic");
       const id = `node_${Date.now()}`;

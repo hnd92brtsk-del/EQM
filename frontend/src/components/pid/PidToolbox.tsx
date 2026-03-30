@@ -15,6 +15,7 @@ import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import { useTranslation } from "react-i18next";
 
 import { ISA_INSTRUMENTS, inferMainEquipmentShapeKey } from "../../constants/pidPalette";
+import { resolveMainEquipmentLibraryKey } from "../../features/pid/mainEquipmentObjectSymbols";
 import { buildPidSymbolMeta, normalizePidSymbol } from "../../features/pid/symbols";
 import type { PidSourceRef } from "../../types/pid";
 import type { MainEquipmentTreeNode } from "../../utils/mainEquipment";
@@ -104,7 +105,18 @@ export function PidToolbox({
     const node = entry.item;
     const hasChildren = entry.children.length > 0;
     const isExpanded = forceExpand ? entry.shouldForceExpand : expandedIds.has(node.id);
-    const pidSymbol = normalizePidSymbol(node.meta_data, inferMainEquipmentShapeKey(node.name));
+    const resolvedLibraryKey =
+      resolveMainEquipmentLibraryKey({
+        id: node.id,
+        code: node.code,
+        libraryKey:
+          typeof node.meta_data?.shapeKey === "string"
+            ? node.meta_data.shapeKey
+            : typeof (node.meta_data?.pidSymbol as { libraryKey?: unknown } | undefined)?.libraryKey === "string"
+              ? ((node.meta_data?.pidSymbol as { libraryKey?: string }).libraryKey ?? null)
+              : null,
+      }) || inferMainEquipmentShapeKey(node.name);
+    const pidSymbol = normalizePidSymbol(node.meta_data, resolvedLibraryKey);
 
     if (hasChildren) {
       return (

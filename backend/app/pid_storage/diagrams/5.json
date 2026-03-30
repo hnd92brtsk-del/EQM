@@ -1,7 +1,7 @@
 {
   "processId": 5,
   "version": 1,
-  "updatedAt": "2026-03-30T10:00:21.779000Z",
+  "updatedAt": "2026-03-30T11:48:14.580000Z",
   "viewport": {
     "x": -881.895517750333,
     "y": -146.0674564417593,
@@ -84,8 +84,8 @@
       "label": "Автоклав высокого давления (POX / PAL)",
       "tag": "",
       "position": {
-        "x": 1062.609406932761,
-        "y": 237.68826457634015
+        "x": 540.2633222564842,
+        "y": 221.19932391012173
       },
       "sourceRef": {
         "source": "main-equipment",
@@ -149,6 +149,58 @@
             "source": "library",
             "libraryKey": "pump_centrifugal",
             "standard": "ISA-5.1"
+          }
+        }
+      },
+      "properties": {}
+    },
+    {
+      "id": "node_1774871276344",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "13.1.3",
+      "label": "Дисковый затвор (баттерфляй)",
+      "tag": "",
+      "position": {
+        "x": 740.6750972269276,
+        "y": 286.2217754319462
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 364,
+        "name": "Дисковый затвор (баттерфляй)",
+        "meta": {
+          "shapeKey": "me_13_1_3",
+          "pidSymbol": {
+            "source": "library",
+            "libraryKey": "me_13_1_3",
+            "standard": "ISO-14617"
+          }
+        }
+      },
+      "properties": {}
+    },
+    {
+      "id": "node_1774871291862",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "3.4",
+      "label": "Мельница полусамоизмельчения (МПСИ / SAG)",
+      "tag": "",
+      "position": {
+        "x": 1480.9107549925195,
+        "y": 126.04349467439567
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 275,
+        "name": "Мельница полусамоизмельчения (МПСИ / SAG)",
+        "meta": {
+          "shapeKey": "me_3_4",
+          "pidSymbol": {
+            "source": "library",
+            "libraryKey": "me_3_4",
+            "standard": "ISO-14617"
           }
         }
       },

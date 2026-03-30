@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { MAIN_EQUIPMENT_SHAPE_OPTIONS } from "../../constants/pidPalette";
+import { MAIN_EQUIPMENT_OBJECT_SYMBOLS } from "./mainEquipmentObjectSymbols";
 import { EQUIPMENT_SYMBOL_REGISTRY, getEquipmentSymbolSpec } from "./equipmentSymbolRegistry";
 
 describe("equipmentSymbolRegistry", () => {
@@ -17,5 +18,12 @@ describe("equipmentSymbolRegistry", () => {
 
   it("falls back to the generic spec", () => {
     expect(getEquipmentSymbolSpec("missing").key).toBe("generic");
+  });
+
+  it("resolves object-level main equipment symbols", () => {
+    const sample = MAIN_EQUIPMENT_OBJECT_SYMBOLS.find((item) => item.code === "4.1");
+    expect(sample).toBeTruthy();
+    expect(getEquipmentSymbolSpec(sample!.libraryKey).key).toBe(sample!.libraryKey);
+    expect(getEquipmentSymbolSpec(sample!.libraryKey).standard).toBe("ISO-14617");
   });
 });

@@ -1,11 +1,11 @@
 {
   "processId": 8,
   "version": 1,
-  "updatedAt": "2026-03-30T09:35:12.305000Z",
+  "updatedAt": "2026-03-30T11:11:01.897000Z",
   "viewport": {
-    "x": -132.00791310746047,
-    "y": -169.33263626086477,
-    "zoom": 1.5157165477239447
+    "x": -491.33103617904817,
+    "y": 302.9394630173506,
+    "zoom": 1.6245047021057737
   },
   "nodes": [
     {
@@ -16,8 +16,8 @@
       "label": "Щёковая дробилка",
       "tag": "",
       "position": {
-        "x": 382.0,
-        "y": 168.0
+        "x": 162.961684096843,
+        "y": 216.82179330371576
       },
       "sourceRef": {
         "source": "main-equipment",
@@ -35,32 +35,6 @@
       "properties": {}
     },
     {
-      "id": "node_1774863276889",
-      "type": "equipment",
-      "category": "main",
-      "symbolKey": "14.6",
-      "label": "Бункерные весы (loss-in-weight / batch)",
-      "tag": "",
-      "position": {
-        "x": 730.0390625,
-        "y": 179.49609375
-      },
-      "sourceRef": {
-        "source": "main-equipment",
-        "id": 333,
-        "name": "Бункерные весы (loss-in-weight / batch)",
-        "meta": {
-          "shapeKey": "generic",
-          "pidSymbol": {
-            "source": "library",
-            "libraryKey": "generic",
-            "standard": "ISA-5.1"
-          }
-        }
-      },
-      "properties": {}
-    },
-    {
       "id": "node_1774863294715",
       "type": "equipment",
       "category": "main",
@@ -68,8 +42,8 @@
       "label": "Инерционный грохот (вибрационный)",
       "tag": "",
       "position": {
-        "x": 945.0390625,
-        "y": 274.49609375
+        "x": 1612.7080916290927,
+        "y": 18.268854273463845
       },
       "sourceRef": {
         "source": "main-equipment",
@@ -85,13 +59,169 @@
         }
       },
       "properties": {}
+    },
+    {
+      "id": "node_1774868589975",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "1.1",
+      "label": "Щёковая дробилка",
+      "tag": "",
+      "position": {
+        "x": 547.4735250751418,
+        "y": 295.8362018710187
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 262,
+        "name": "Щёковая дробилка",
+        "meta": {
+          "shapeKey": "crusher_jaw",
+          "pidSymbol": {
+            "source": "library",
+            "libraryKey": "crusher_jaw",
+            "standard": "ISA-5.1"
+          }
+        }
+      },
+      "properties": {}
+    },
+    {
+      "id": "node_1774868765959",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "3.4",
+      "label": "Мельница полусамоизмельчения (МПСИ / SAG)",
+      "tag": "",
+      "position": {
+        "x": 1268.0605364568796,
+        "y": -35.64113655355361
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 275,
+        "name": "Мельница полусамоизмельчения (МПСИ / SAG)",
+        "meta": {
+          "shapeKey": "mill_tumbling",
+          "pidSymbol": {
+            "source": "library",
+            "libraryKey": "mill_tumbling",
+            "standard": "ISA-5.1"
+          }
+        }
+      },
+      "properties": {}
+    },
+    {
+      "id": "node_1774868790229",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "4.1",
+      "label": "Спиральный классификатор",
+      "tag": "",
+      "position": {
+        "x": 1443.6519084205656,
+        "y": -29.256708794559685
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 278,
+        "name": "Спиральный классификатор",
+        "meta": {
+          "shapeKey": "generic",
+          "pidSymbol": {
+            "source": "library",
+            "libraryKey": "generic",
+            "standard": "ISA-5.1"
+          }
+        }
+      },
+      "properties": {}
+    },
+    {
+      "id": "node_1774868910509",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "14.1",
+      "label": "Пластинчатый питатель (апрон)",
+      "tag": "",
+      "position": {
+        "x": 331.77759701986463,
+        "y": 268.7322419168911
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 328,
+        "name": "Пластинчатый питатель (апрон)",
+        "meta": {
+          "shapeKey": "feeder",
+          "pidSymbol": {
+            "source": "library",
+            "libraryKey": "feeder",
+            "standard": "ISA-5.1"
+          }
+        }
+      },
+      "properties": {}
+    },
+    {
+      "id": "node_1774868945378",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "15.1",
+      "label": "Ленточный конвейер",
+      "tag": "",
+      "position": {
+        "x": 781.8436446664199,
+        "y": 371.68608944187156
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 336,
+        "name": "Ленточный конвейер",
+        "meta": {
+          "shapeKey": "conveyor_belt",
+          "pidSymbol": {
+            "source": "library",
+            "libraryKey": "conveyor_belt",
+            "standard": "ISA-5.1"
+          }
+        }
+      },
+      "properties": {}
+    },
+    {
+      "id": "node_1774869059819",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "17.3",
+      "label": "Ёмкость (бак, зумпф, чан)",
+      "tag": "",
+      "position": {
+        "x": 1364.3313067084375,
+        "y": 315.8638262199786
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 350,
+        "name": "Ёмкость (бак, зумпф, чан)",
+        "meta": {
+          "shapeKey": "generic",
+          "pidSymbol": {
+            "source": "library",
+            "libraryKey": "generic",
+            "standard": "ISA-5.1"
+          }
+        }
+      },
+      "properties": {}
     }
   ],
   "edges": [
     {
-      "id": "edge_1774863305281",
+      "id": "edge_1774868926273",
       "source": "node_1774863261221",
-      "target": "node_1774863276889",
+      "target": "node_1774868910509",
       "edgeType": "process",
       "label": "",
       "style": {
@@ -100,8 +230,52 @@
       }
     },
     {
-      "id": "edge_1774863312305",
-      "source": "node_1774863276889",
+      "id": "edge_1774868932440",
+      "source": "node_1774868910509",
+      "target": "node_1774868589975",
+      "edgeType": "process",
+      "label": "",
+      "style": {
+        "stroke": "#1f3b57",
+        "strokeWidth": 2.6
+      }
+    },
+    {
+      "id": "edge_1774868959528",
+      "source": "node_1774868589975",
+      "target": "node_1774868945378",
+      "edgeType": "process",
+      "label": "",
+      "style": {
+        "stroke": "#1f3b57",
+        "strokeWidth": 2.6
+      }
+    },
+    {
+      "id": "edge_1774868990856",
+      "source": "node_1774868945378",
+      "target": "node_1774868765959",
+      "edgeType": "process",
+      "label": "",
+      "style": {
+        "stroke": "#1f3b57",
+        "strokeWidth": 2.6
+      }
+    },
+    {
+      "id": "edge_1774868992278",
+      "source": "node_1774868765959",
+      "target": "node_1774868790229",
+      "edgeType": "process",
+      "label": "",
+      "style": {
+        "stroke": "#1f3b57",
+        "strokeWidth": 2.6
+      }
+    },
+    {
+      "id": "edge_1774869001316",
+      "source": "node_1774868790229",
       "target": "node_1774863294715",
       "edgeType": "process",
       "label": "",

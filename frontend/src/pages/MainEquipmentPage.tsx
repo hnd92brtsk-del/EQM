@@ -31,6 +31,7 @@ import { AppButton } from "../components/ui/AppButton";
 import { buildMainEquipmentLookups } from "../utils/mainEquipment";
 import { MAIN_EQUIPMENT_SHAPE_OPTIONS, inferMainEquipmentShapeKey } from "../constants/pidPalette";
 import { EquipmentGlyph } from "../components/pid/nodes/EquipmentGlyph";
+import { resolveMainEquipmentLibraryKey } from "../features/pid/mainEquipmentObjectSymbols";
 import { mergePidSymbolIntoMetaData, normalizePidSymbol } from "../features/pid/symbols";
 import type { PidSymbol } from "../types/pid";
 import { annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
@@ -111,7 +112,19 @@ function collectDescendantIds(node: MainEquipmentNode): Set<number> {
 }
 
 function getPidSymbol(item: MainEquipment | null | undefined): PidSymbol {
-  return normalizePidSymbol(item?.meta_data, inferMainEquipmentShapeKey(item?.name || ""));
+  return normalizePidSymbol(
+    item?.meta_data,
+    resolveMainEquipmentLibraryKey({
+      id: item?.id,
+      code: item?.code,
+      libraryKey:
+        typeof item?.meta_data?.shapeKey === "string"
+          ? item.meta_data.shapeKey
+          : typeof (item?.meta_data?.pidSymbol as { libraryKey?: unknown } | undefined)?.libraryKey === "string"
+            ? ((item?.meta_data?.pidSymbol as { libraryKey?: string }).libraryKey ?? null)
+            : null,
+    }) || inferMainEquipmentShapeKey(item?.name || "")
+  );
 }
 
 export default function MainEquipmentPage() {
