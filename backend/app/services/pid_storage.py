@@ -59,3 +59,13 @@ def save_image(file: UploadFile) -> tuple[str, str]:
                 break
             target.write(chunk)
     return stored_name, original_name
+
+
+def delete_image(stored_name: str | None) -> None:
+    if not stored_name:
+        return
+    ensure_pid_storage_dirs()
+    safe_name = Path(stored_name).name
+    if not safe_name:
+        return
+    (IMAGES_DIR / safe_name).unlink(missing_ok=True)

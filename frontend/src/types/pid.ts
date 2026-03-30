@@ -1,5 +1,14 @@
 export type PidNodeCategory = "main" | "instrument" | "external";
 export type PidEdgeType = "process" | "signal" | "control" | "electric";
+export type PidSymbolSource = "library" | "upload";
+export type PidSymbolStandard = "ISA-5.1";
+
+export type PidSymbol = {
+  source: PidSymbolSource;
+  libraryKey?: string;
+  assetUrl?: string;
+  standard: PidSymbolStandard;
+};
 
 export type PidNodeType = "equipment" | "instrument" | "external";
 
@@ -23,7 +32,7 @@ export type PidSourceRef = {
   source: "main-equipment" | "field-equipment" | "equipment-in-operation" | "palette";
   id?: number;
   name?: string;
-  meta?: { shapeKey?: string };
+  meta?: { shapeKey?: string; pidSymbol?: PidSymbol | null };
 };
 
 export type PidProperties = {
@@ -31,7 +40,7 @@ export type PidProperties = {
   ranges?: string;
   signalType?: string;
   params?: string;
-  meta?: Record<string, string | number | boolean | null>;
+  meta?: Record<string, string | number | boolean | null | undefined>;
 };
 
 export type PidNode = {

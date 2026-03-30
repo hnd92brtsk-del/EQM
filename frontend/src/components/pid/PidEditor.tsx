@@ -16,7 +16,8 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 
-import { EDGE_STYLES } from "../../constants/pidPalette";
+import { EDGE_STYLES, getPidNodeVisualSpec } from "../../constants/pidPalette";
+import { normalizePidSymbol } from "../../features/pid/symbols";
 import type { PidDiagram, PidEdge, PidNode, PidSourceRef } from "../../types/pid";
 import type { MainEquipmentTreeNode } from "../../utils/mainEquipment";
 import { PidNodeRenderer } from "./nodes/PidNodeRenderer";
@@ -54,10 +55,11 @@ const clampPosition = (position: { x: number; y: number }) => ({
 });
 
 function toRfNode(node: PidNode): Node {
-  const shapeKey =
-    (node.properties.meta && typeof node.properties.meta.shapeKey === "string" && node.properties.meta.shapeKey) ||
-    node.sourceRef?.meta?.shapeKey ||
-    "generic";
+  const pidSymbol = normalizePidSymbol(
+    node.properties.meta || node.sourceRef?.meta || null,
+    node.sourceRef?.meta?.shapeKey || "generic"
+  );
+  const visual = getPidNodeVisualSpec(node.category, pidSymbol.libraryKey || "generic");
   return {
     id: node.id,
     type: node.type,
@@ -66,8 +68,10 @@ function toRfNode(node: PidNode): Node {
       label: node.label,
       tag: node.tag,
       symbolKey: node.symbolKey,
-      shapeKey,
+      shapeKey: pidSymbol.libraryKey || "generic",
+      pidSymbol,
       category: node.category,
+      visual,
     },
   };
 }
@@ -205,7 +209,8 @@ export function PidEditor({
   const addNodeAtPosition = (preset: PidNodeInsertPreset, position: { x: number; y: number }) => {
     const clamped = clampPosition(position);
     const id = `node_${Date.now()}`;
-    const shapeKey = preset.sourceRef?.meta?.shapeKey || "generic";
+    const pidSymbol = normalizePidSymbol(preset.sourceRef?.meta || null, preset.sourceRef?.meta?.shapeKey || "generic");
+    const visual = getPidNodeVisualSpec(preset.category, pidSymbol.libraryKey || "generic");
     const newNode: Node = {
       id,
       type: preset.type,
@@ -214,8 +219,10 @@ export function PidEditor({
         label: preset.label,
         tag: "",
         symbolKey: preset.symbolKey,
-        shapeKey,
+        shapeKey: pidSymbol.libraryKey || "generic",
+        pidSymbol,
         category: preset.category,
+        visual,
       },
     };
     const nextNodes = [...nodes, newNode];

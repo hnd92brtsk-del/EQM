@@ -1066,13 +1066,16 @@
       },
       "actions": {
         "addChild": "Add child",
-        "addRoot": "Add root"
+        "addRoot": "Add root",
+        "removeUploadedSymbol": "Remove uploaded SVG"
       },
       "labels": {
         "category": "Category",
         "equipment": "Equipment",
         "subtype": "Subtype",
-        "preview": "Symbol preview"
+        "preview": "Symbol preview",
+        "librarySymbol": "ISA library symbol",
+        "uploadedSymbol": "Uploaded SVG override"
       },
       "errors": {
         "load": "Failed to load main equipment",
@@ -1668,7 +1671,12 @@
       "signalType": "Signal type",
       "params": "Parameters",
       "edgeLabel": "Edge label",
-      "edgeType": "Edge type"
+      "edgeType": "Edge type",
+      "empty": "Select an object or edge on the canvas to open its properties.",
+      "edgeSection": "Connection",
+      "edgeFrom": "From",
+      "edgeTo": "To",
+      "deleteEdge": "Delete edge"
     },
     "edges": {
       "process": "Process",

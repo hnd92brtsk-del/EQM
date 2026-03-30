@@ -1,0 +1,105 @@
+{
+  "processId": 5,
+  "version": 1,
+  "updatedAt": "2026-03-30T08:40:01.623000Z",
+  "viewport": {
+    "x": -840.6660429508631,
+    "y": -139.13134980032174,
+    "zoom": 1.649384908909315
+  },
+  "nodes": [
+    {
+      "id": "node_1774859835183",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "17.8",
+      "label": "Вакуум-насос (для фильтров)",
+      "tag": "",
+      "position": {
+        "x": 962.6665953292111,
+        "y": 230.590459900268
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 355,
+        "name": "Вакуум-насос (для фильтров)",
+        "meta": {
+          "shapeKey": "pump_centrifugal",
+          "pidSymbol": {
+            "source": "library",
+            "libraryKey": "pump_centrifugal",
+            "standard": "ISA-5.1"
+          }
+        }
+      },
+      "properties": {}
+    },
+    {
+      "id": "node_1774859871008",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "3.4",
+      "label": "Мельница полусамоизмельчения (МПСИ / SAG)",
+      "tag": "",
+      "position": {
+        "x": 1211.5737463715925,
+        "y": 321.6591071501757
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 275,
+        "name": "Мельница полусамоизмельчения (МПСИ / SAG)",
+        "meta": {
+          "shapeKey": "mill_tumbling",
+          "pidSymbol": {
+            "source": "library",
+            "libraryKey": "mill_tumbling",
+            "standard": "ISA-5.1"
+          }
+        }
+      },
+      "properties": {}
+    },
+    {
+      "id": "node_1774859977297",
+      "type": "instrument",
+      "category": "instrument",
+      "symbolKey": "IT",
+      "label": "Датчик тока",
+      "tag": "",
+      "position": {
+        "x": 785.3809404039741,
+        "y": 110.57629705091705
+      },
+      "sourceRef": {
+        "source": "palette"
+      },
+      "properties": {}
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_1774859880673",
+      "source": "node_1774859835183",
+      "target": "node_1774859871008",
+      "edgeType": "process",
+      "label": "",
+      "style": {
+        "stroke": "#1f3b57",
+        "strokeWidth": 2.6
+      }
+    },
+    {
+      "id": "edge_1774859997899",
+      "source": "node_1774859977297",
+      "target": "node_1774859835183",
+      "edgeType": "control",
+      "label": "",
+      "style": {
+        "stroke": "#0a9a6a",
+        "strokeDasharray": "8 3",
+        "strokeWidth": 1.8
+      }
+    }
+  ]
+}

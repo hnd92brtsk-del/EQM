@@ -1,5 +1,6 @@
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -12,10 +13,8 @@ import ReactFlow, {
   Controls,
   MiniMap,
   MarkerType,
-  addEdge,
   applyEdgeChanges,
   applyNodeChanges,
-  type Connection,
   type Edge,
   type EdgeMouseHandler,
   type Node,
@@ -26,7 +25,8 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 
-import { EDGE_STYLES } from "../../constants/pidPalette";
+import { EDGE_STYLES, getPidNodeVisualSpec } from "../../constants/pidPalette";
+import { normalizePidSymbol } from "../../features/pid/symbols";
 import type { PidDiagram, PidEdge, PidNode, PidSourceRef } from "../../types/pid";
 import { PidNodeRenderer } from "./nodes/PidNodeRenderer";
 import { DND_MIME, type PidEditorMode, type PidNodeInsertPreset } from "./PidToolbox";
@@ -44,6 +44,8 @@ type Props = {
   onPendingPresetConsumed: () => void;
   onRequestHistoryCheckpoint: () => void;
   onDiagramChange: (next: PidDiagram) => void;
+  onViewportChange?: (viewport: PidDiagram["viewport"]) => void;
+  onInteractionMessage?: (message: { tone: "info" | "warning"; text: string } | null) => void;
 };
 
 export type PidCanvasHandle = {
@@ -51,7 +53,23 @@ export type PidCanvasHandle = {
   resetView: () => void;
   focusNode: (nodeId: string) => void;
   addPendingPresetAtViewportCenter: (preset?: PidNodeInsertPreset | null) => void;
+  cancelPendingConnection: () => void;
 };
+
+type HandleId = "top" | "right" | "bottom" | "left";
+
+type NodeData = {
+  label: string;
+  tag: string;
+  symbolKey: string;
+  shapeKey?: string;
+  pidSymbol?: ReturnType<typeof normalizePidSymbol> | null;
+  category: "main" | "instrument" | "external";
+  visual: { width: number; height: number; labelWidth: number };
+};
+
+type CanvasNode = Node<NodeData>;
+type CanvasEdge = Edge<{ edgeType: PidEdge["edgeType"] }>;
 
 const nodeTypes = {
   equipment: PidNodeRenderer,
@@ -60,17 +78,46 @@ const nodeTypes = {
 };
 
 const MAX_COORD = 20000;
+const MIN_COORD = -MAX_COORD;
 
 const clampPosition = (position: { x: number; y: number }) => ({
-  x: Math.max(0, Math.min(MAX_COORD, position.x)),
-  y: Math.max(0, Math.min(MAX_COORD, position.y)),
+  x: Math.max(MIN_COORD, Math.min(MAX_COORD, position.x)),
+  y: Math.max(MIN_COORD, Math.min(MAX_COORD, position.y)),
 });
 
-function toRfNode(node: PidNode, selectedNodeIds: string[]): Node {
-  const shapeKey =
-    (node.properties.meta && typeof node.properties.meta.shapeKey === "string" && node.properties.meta.shapeKey) ||
-    node.sourceRef?.meta?.shapeKey ||
-    "generic";
+function buildSourceLookup(
+  diagram: PidDiagram,
+  sourceOverrides?: Record<string, { sourceRef?: PidSourceRef | null; properties?: PidNode["properties"] }>
+) {
+  const sourceLookup = new Map(
+    diagram.nodes.map((item) => [item.id, { sourceRef: item.sourceRef || null, properties: item.properties || {} }])
+  );
+  if (!sourceOverrides) return sourceLookup;
+  Object.entries(sourceOverrides).forEach(([id, value]) => {
+    sourceLookup.set(id, {
+      sourceRef: value.sourceRef || null,
+      properties: value.properties || {},
+    });
+  });
+  return sourceLookup;
+}
+
+function getShapeKey(node: Pick<PidNode, "sourceRef" | "properties">) {
+  const ownShapeKey = node.properties.meta?.shapeKey;
+  if (typeof ownShapeKey === "string" && ownShapeKey.trim()) {
+    return ownShapeKey;
+  }
+  const sourceShapeKey = node.sourceRef?.meta?.shapeKey;
+  if (typeof sourceShapeKey === "string" && sourceShapeKey.trim()) {
+    return sourceShapeKey;
+  }
+  return "generic";
+}
+
+function toRfNode(node: PidNode, selectedNodeIds: string[]): CanvasNode {
+  const pidSymbol = normalizePidSymbol(node.properties.meta || node.sourceRef?.meta || null, getShapeKey(node));
+  const visual = getPidNodeVisualSpec(node.category, pidSymbol.libraryKey || getShapeKey(node));
+
   return {
     id: node.id,
     type: node.type,
@@ -80,28 +127,93 @@ function toRfNode(node: PidNode, selectedNodeIds: string[]): Node {
       label: node.label,
       tag: node.tag,
       symbolKey: node.symbolKey,
-      shapeKey,
+      shapeKey: pidSymbol.libraryKey || "generic",
+      pidSymbol,
       category: node.category,
+      visual,
     },
   };
 }
 
-function toRfEdge(edge: PidEdge, selectedEdgeId: string | null): Edge {
+function getNodeCenter(node: CanvasNode) {
+  return {
+    x: node.position.x + node.data.visual.width / 2,
+    y: node.position.y + node.data.visual.height / 2,
+  };
+}
+
+function inferHandlePair(sourceNode: CanvasNode, targetNode: CanvasNode): { sourceHandle: HandleId; targetHandle: HandleId } {
+  const sourceCenter = getNodeCenter(sourceNode);
+  const targetCenter = getNodeCenter(targetNode);
+  const dx = targetCenter.x - sourceCenter.x;
+  const dy = targetCenter.y - sourceCenter.y;
+
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0
+      ? { sourceHandle: "right", targetHandle: "left" }
+      : { sourceHandle: "left", targetHandle: "right" };
+  }
+
+  return dy >= 0
+    ? { sourceHandle: "bottom", targetHandle: "top" }
+    : { sourceHandle: "top", targetHandle: "bottom" };
+}
+
+function toRfEdge(edge: PidEdge, selectedEdgeId: string | null, nodeMap: Map<string, CanvasNode>): CanvasEdge {
   const style = EDGE_STYLES[edge.edgeType];
+  const sourceNode = nodeMap.get(edge.source);
+  const targetNode = nodeMap.get(edge.target);
+  const handles =
+    sourceNode && targetNode
+      ? inferHandlePair(sourceNode, targetNode)
+      : { sourceHandle: "right" as HandleId, targetHandle: "left" as HandleId };
+  const showArrow = edge.edgeType === "process" || edge.edgeType === "control";
+
   return {
     id: edge.id,
     source: edge.source,
     target: edge.target,
+    sourceHandle: handles.sourceHandle,
+    targetHandle: handles.targetHandle,
     label: edge.label,
     selected: selectedEdgeId === edge.id,
     data: { edgeType: edge.edgeType },
-    style: { stroke: style.stroke, strokeDasharray: style.strokeDasharray },
+    style: { stroke: style.stroke, strokeDasharray: style.strokeDasharray, strokeWidth: edge.edgeType === "process" ? 2.6 : 1.8 },
     animated: style.animated,
-    markerEnd: { type: MarkerType.ArrowClosed, color: style.stroke },
+    markerEnd: showArrow ? { type: MarkerType.ArrowClosed, color: style.stroke } : undefined,
   };
 }
 
-function toPidEdges(nextEdges: Edge[]): PidEdge[] {
+function syncEdgeHandles(nextNodes: CanvasNode[], nextEdges: CanvasEdge[], selectedEdgeId: string | null): CanvasEdge[] {
+  const nodeMap = new Map(nextNodes.map((node) => [node.id, node]));
+  return nextEdges.map((edge) => {
+    const sourceNode = nodeMap.get(edge.source);
+    const targetNode = nodeMap.get(edge.target);
+    if (!sourceNode || !targetNode) return edge;
+    const handles = inferHandlePair(sourceNode, targetNode);
+    const edgeType = (edge.data?.edgeType || "process") as PidEdge["edgeType"];
+    const style = EDGE_STYLES[edgeType];
+    const showArrow = edgeType === "process" || edgeType === "control";
+    return {
+      ...edge,
+      sourceHandle: handles.sourceHandle,
+      targetHandle: handles.targetHandle,
+      selected: selectedEdgeId === edge.id,
+      style: { stroke: style.stroke, strokeDasharray: style.strokeDasharray, strokeWidth: edgeType === "process" ? 2.6 : 1.8 },
+      animated: style.animated,
+      markerEnd: showArrow ? { type: MarkerType.ArrowClosed, color: style.stroke } : undefined,
+    };
+  });
+}
+
+function buildRfState(diagram: PidDiagram, selectedNodeIds: string[], selectedEdgeId: string | null) {
+  const rfNodes = diagram.nodes.map((node) => toRfNode(node, selectedNodeIds));
+  const nodeMap = new Map(rfNodes.map((node) => [node.id, node]));
+  const rfEdges = diagram.edges.map((edge) => toRfEdge(edge, selectedEdgeId, nodeMap));
+  return { rfNodes, rfEdges };
+}
+
+function toPidEdges(nextEdges: CanvasEdge[]): PidEdge[] {
   return nextEdges.map((item) => ({
     id: item.id,
     source: item.source,
@@ -126,95 +238,220 @@ export const PidCanvas = forwardRef<PidCanvasHandle, Props>(function PidCanvas(
     onPendingPresetConsumed,
     onRequestHistoryCheckpoint,
     onDiagramChange,
+    onViewportChange,
+    onInteractionMessage,
   },
   ref
 ) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const flowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const pendingDragCheckpointRef = useRef(false);
+  const lastDiagramSignatureRef = useRef("");
 
-  const [nodes, setNodes] = useState<Node[]>(() => diagram.nodes.map((node) => toRfNode(node, selectedNodeIds)));
-  const [edges, setEdges] = useState<Edge[]>(() => diagram.edges.map((edge) => toRfEdge(edge, selectedEdgeId)));
+  const initialState = useMemo(() => buildRfState(diagram, selectedNodeIds, selectedEdgeId), []);
+  const [nodes, setNodes] = useState<CanvasNode[]>(initialState.rfNodes);
+  const [edges, setEdges] = useState<CanvasEdge[]>(initialState.rfEdges);
+  const [pendingConnectionNodeId, setPendingConnectionNodeId] = useState<string | null>(null);
+
+  const nodesRef = useRef<CanvasNode[]>(initialState.rfNodes);
+  const edgesRef = useRef<CanvasEdge[]>(initialState.rfEdges);
+
+  const setCanvasNodes = useCallback((nextNodes: CanvasNode[]) => {
+    nodesRef.current = nextNodes;
+    setNodes(nextNodes);
+  }, []);
+
+  const setCanvasEdges = useCallback((nextEdges: CanvasEdge[]) => {
+    edgesRef.current = nextEdges;
+    setEdges(nextEdges);
+  }, []);
+
+  const syncSelectionState = useCallback(
+    (nextNodes: CanvasNode[], nextEdges: CanvasEdge[]) => {
+      const withSelectionNodes = nextNodes.map((node) => ({
+        ...node,
+        selected: selectedNodeIds.includes(node.id),
+      }));
+      const withSelectionEdges = nextEdges.map((edge) => ({
+        ...edge,
+        selected: selectedEdgeId === edge.id,
+      }));
+      setCanvasNodes(withSelectionNodes);
+      setCanvasEdges(withSelectionEdges);
+    },
+    [selectedEdgeId, selectedNodeIds, setCanvasEdges, setCanvasNodes]
+  );
 
   useEffect(() => {
-    setNodes(diagram.nodes.map((node) => toRfNode(node, selectedNodeIds)));
-    setEdges(diagram.edges.map((edge) => toRfEdge(edge, selectedEdgeId)));
-  }, [diagram, selectedNodeIds, selectedEdgeId]);
+    const signature = JSON.stringify({
+      updatedAt: diagram.updatedAt,
+      processId: diagram.processId,
+      nodeIds: diagram.nodes.map((node) => `${node.id}:${node.position.x}:${node.position.y}:${node.label}:${node.tag}`),
+      edgeIds: diagram.edges.map((edge) => `${edge.id}:${edge.source}:${edge.target}:${edge.edgeType}:${edge.label}`),
+    });
+
+    if (lastDiagramSignatureRef.current !== signature) {
+      const nextState = buildRfState(diagram, selectedNodeIds, selectedEdgeId);
+      lastDiagramSignatureRef.current = signature;
+      setCanvasNodes(nextState.rfNodes);
+      setCanvasEdges(nextState.rfEdges);
+    } else {
+      syncSelectionState(
+        nodesRef.current.map((node) => ({ ...node })),
+        syncEdgeHandles(nodesRef.current, edgesRef.current.map((edge) => ({ ...edge })), selectedEdgeId)
+      );
+    }
+  }, [diagram, selectedEdgeId, selectedNodeIds, setCanvasEdges, setCanvasNodes, syncSelectionState]);
 
   useEffect(() => {
     if (!flowInstanceRef.current) return;
-    flowInstanceRef.current.setViewport(diagram.viewport);
+    const viewport = flowInstanceRef.current.getViewport();
+    if (
+      Math.abs(viewport.x - diagram.viewport.x) < 0.5 &&
+      Math.abs(viewport.y - diagram.viewport.y) < 0.5 &&
+      Math.abs(viewport.zoom - diagram.viewport.zoom) < 0.001
+    ) {
+      return;
+    }
+    flowInstanceRef.current.setViewport(diagram.viewport, { duration: 120 });
   }, [diagram.viewport]);
 
-  const emitDiagram = (
-    nextNodes: Node[],
-    nextEdges: Edge[],
-    nextViewport = diagram.viewport,
-    sourceOverrides?: Record<string, { sourceRef?: PidSourceRef | null; properties?: PidNode["properties"] }>
-  ) => {
-    const sourceLookup = new Map(
-      diagram.nodes.map((item) => [item.id, { sourceRef: item.sourceRef || null, properties: item.properties || {} }])
-    );
-    const pidNodes: PidNode[] = nextNodes.map((item) => {
-      const source = sourceOverrides?.[item.id] || sourceLookup.get(item.id) || { sourceRef: null, properties: {} };
-      return {
-        id: item.id,
-        type: (item.type || "equipment") as PidNode["type"],
-        category: item.data.category as PidNode["category"],
-        symbolKey: String(item.data.symbolKey || ""),
-        label: String(item.data.label || ""),
-        tag: String(item.data.tag || ""),
-        position: clampPosition(item.position),
-        sourceRef: source.sourceRef || null,
-        properties: source.properties || {},
-      };
-    });
+  useEffect(() => {
+    if (mode === "add-edge") return;
+    setPendingConnectionNodeId(null);
+  }, [mode]);
 
-    onDiagramChange({
-      ...diagram,
-      nodes: pidNodes,
-      edges: toPidEdges(nextEdges),
-      viewport: { ...nextViewport, x: Math.max(0, nextViewport.x), y: Math.max(0, nextViewport.y) },
-      updatedAt: new Date().toISOString(),
-    });
-  };
+  useEffect(() => {
+    if (!pendingConnectionNodeId) return;
+    if (nodesRef.current.some((node) => node.id === pendingConnectionNodeId)) return;
+    setPendingConnectionNodeId(null);
+  }, [nodes, pendingConnectionNodeId]);
 
-  const addNodeAtPosition = (preset: PidNodeInsertPreset, position: { x: number; y: number }) => {
-    if (readOnly) return;
-    onRequestHistoryCheckpoint();
-    const clamped = clampPosition(position);
-    const id = `node_${Date.now()}`;
-    const shapeKey = preset.sourceRef?.meta?.shapeKey || "generic";
-    const newNode: Node = {
-      id,
-      type: preset.type,
-      position: clamped,
-      selected: true,
-      data: {
-        label: preset.label,
-        tag: "",
-        symbolKey: preset.symbolKey,
-        shapeKey,
-        category: preset.category,
-      },
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || mode !== "add-edge") return;
+      setPendingConnectionNodeId((current) => {
+        if (!current) return current;
+        onInteractionMessage?.({ tone: "info", text: "Режим связи отменён." });
+        onSelectionChange({ nodeIds: [], edgeId: null });
+        return null;
+      });
     };
-    const nextNodes = [...nodes, newNode];
-    setNodes(nextNodes);
-    onSelectionChange({ nodeIds: [id], edgeId: null });
-    emitDiagram(nextNodes, edges, diagram.viewport, {
-      [id]: { sourceRef: preset.sourceRef || null, properties: {} },
-    });
-    onPendingPresetConsumed();
-  };
 
-  const addPendingPresetAtViewportCenter = (presetOverride?: PidNodeInsertPreset | null) => {
-    const effectivePreset = presetOverride || pendingPreset;
-    if (!effectivePreset || !wrapperRef.current || !flowInstanceRef.current) return;
-    const rect = wrapperRef.current.getBoundingClientRect();
-    const center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-    const position = flowInstanceRef.current.screenToFlowPosition(center);
-    addNodeAtPosition(effectivePreset, position);
-  };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mode, onInteractionMessage, onSelectionChange]);
+
+  const emitDiagram = useCallback(
+    (
+      nextNodes: CanvasNode[],
+      nextEdges: CanvasEdge[],
+      nextViewport = diagram.viewport,
+      sourceOverrides?: Record<string, { sourceRef?: PidSourceRef | null; properties?: PidNode["properties"] }>
+    ) => {
+      const sourceLookup = buildSourceLookup(diagram, sourceOverrides);
+      const pidNodes: PidNode[] = nextNodes.map((item) => {
+        const source = sourceLookup.get(item.id) || { sourceRef: null, properties: {} };
+        return {
+          id: item.id,
+          type: (item.type || "equipment") as PidNode["type"],
+          category: item.data.category as PidNode["category"],
+          symbolKey: String(item.data.symbolKey || ""),
+          label: String(item.data.label || ""),
+          tag: String(item.data.tag || ""),
+          position: clampPosition(item.position),
+          sourceRef: source.sourceRef || null,
+          properties: source.properties || {},
+        };
+      });
+
+      onDiagramChange({
+        ...diagram,
+        nodes: pidNodes,
+        edges: toPidEdges(nextEdges),
+        viewport: nextViewport,
+        updatedAt: new Date().toISOString(),
+      });
+    },
+    [diagram, onDiagramChange]
+  );
+
+  const commitLocalState = useCallback(
+    (sourceOverrides?: Record<string, { sourceRef?: PidSourceRef | null; properties?: PidNode["properties"] }>) => {
+      const viewport = flowInstanceRef.current?.getViewport() || diagram.viewport;
+      emitDiagram(nodesRef.current, edgesRef.current, viewport, sourceOverrides);
+    },
+    [diagram.viewport, emitDiagram]
+  );
+
+  const addNodeAtPosition = useCallback(
+    (preset: PidNodeInsertPreset, position: { x: number; y: number }) => {
+      if (readOnly) return;
+      onRequestHistoryCheckpoint();
+
+      const pidSymbol = normalizePidSymbol(
+        preset.sourceRef?.meta || null,
+        preset.sourceRef?.meta?.shapeKey || (preset.category === "instrument" ? preset.symbolKey : "generic")
+      );
+      const visual = getPidNodeVisualSpec(preset.category, pidSymbol.libraryKey || "generic");
+      const id = `node_${Date.now()}`;
+      const newNode: CanvasNode = {
+        id,
+        type: preset.type,
+        position: clampPosition({
+          x: position.x - visual.width / 2,
+          y: position.y - visual.height / 2,
+        }),
+        selected: true,
+        data: {
+          label: preset.label,
+          tag: "",
+          symbolKey: preset.symbolKey,
+          shapeKey: pidSymbol.libraryKey || "generic",
+          pidSymbol,
+          category: preset.category,
+          visual,
+        },
+      };
+
+      const nextNodes = [...nodesRef.current, newNode];
+      const nextEdges = syncEdgeHandles(nextNodes, edgesRef.current, null);
+      setCanvasNodes(nextNodes);
+      setCanvasEdges(nextEdges);
+      onSelectionChange({ nodeIds: [id], edgeId: null });
+      emitDiagram(nextNodes, nextEdges, flowInstanceRef.current?.getViewport() || diagram.viewport, {
+        [id]: { sourceRef: preset.sourceRef || null, properties: {} },
+      });
+      onPendingPresetConsumed();
+    },
+    [
+      diagram.viewport,
+      emitDiagram,
+      onPendingPresetConsumed,
+      onRequestHistoryCheckpoint,
+      onSelectionChange,
+      readOnly,
+      setCanvasEdges,
+      setCanvasNodes,
+    ]
+  );
+
+  const addPendingPresetAtViewportCenter = useCallback(
+    (presetOverride?: PidNodeInsertPreset | null) => {
+      const effectivePreset = presetOverride || pendingPreset;
+      if (!effectivePreset || !wrapperRef.current || !flowInstanceRef.current) return;
+      const rect = wrapperRef.current.getBoundingClientRect();
+      const center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      const position = flowInstanceRef.current.screenToFlowPosition(center);
+      addNodeAtPosition(effectivePreset, position);
+    },
+    [addNodeAtPosition, pendingPreset]
+  );
+
+  const cancelPendingConnection = useCallback(() => {
+    setPendingConnectionNodeId(null);
+    onSelectionChange({ nodeIds: [], edgeId: null });
+  }, [onSelectionChange]);
 
   useImperativeHandle(
     ref,
@@ -226,46 +463,100 @@ export const PidCanvas = forwardRef<PidCanvasHandle, Props>(function PidCanvas(
         flowInstanceRef.current?.setViewport({ x: 0, y: 0, zoom: 1 }, { duration: 220 });
       },
       focusNode(nodeId: string) {
-        const target = diagram.nodes.find((item) => item.id === nodeId);
+        const target = nodesRef.current.find((item) => item.id === nodeId);
         if (!target || !flowInstanceRef.current) return;
-        flowInstanceRef.current.setCenter(target.position.x, target.position.y, { zoom: 1.25, duration: 220 });
+        const center = getNodeCenter(target);
+        flowInstanceRef.current.setCenter(center.x, center.y, { zoom: 1.2, duration: 220 });
       },
       addPendingPresetAtViewportCenter,
+      cancelPendingConnection,
     }),
-    [diagram.nodes, pendingPreset]
+    [addPendingPresetAtViewportCenter, cancelPendingConnection]
   );
 
-  const onConnect = (connection: Connection) => {
-    if (readOnly || mode !== "add-edge") return;
-    onRequestHistoryCheckpoint();
-    const edgeData = EDGE_STYLES[edgeType];
-    const nextEdges = addEdge(
-      {
-        ...connection,
+  const createEdgeBetween = useCallback(
+    (sourceId: string, targetId: string) => {
+      if (readOnly) return;
+      if (sourceId === targetId) {
+        onInteractionMessage?.({ tone: "warning", text: "Нельзя связать узел с самим собой." });
+        return;
+      }
+
+      const duplicate = edgesRef.current.some(
+        (edge) => edge.source === sourceId && edge.target === targetId && (edge.data?.edgeType || "process") === edgeType
+      );
+      if (duplicate) {
+        onInteractionMessage?.({ tone: "warning", text: "Такая связь уже существует." });
+        return;
+      }
+
+      onRequestHistoryCheckpoint();
+      const style = EDGE_STYLES[edgeType];
+      const showArrow = edgeType === "process" || edgeType === "control";
+      const nodeMap = new Map(nodesRef.current.map((node) => [node.id, node]));
+      const sourceNode = nodeMap.get(sourceId);
+      const targetNode = nodeMap.get(targetId);
+      const handles =
+        sourceNode && targetNode
+          ? inferHandlePair(sourceNode, targetNode)
+          : { sourceHandle: "right" as HandleId, targetHandle: "left" as HandleId };
+
+      const newEdge: CanvasEdge = {
         id: `edge_${Date.now()}`,
-        data: { edgeType },
+        source: sourceId,
+        target: targetId,
+        sourceHandle: handles.sourceHandle,
+        targetHandle: handles.targetHandle,
         label: "",
-        style: { stroke: edgeData.stroke, strokeDasharray: edgeData.strokeDasharray },
-        markerEnd: { type: MarkerType.ArrowClosed, color: edgeData.stroke },
-        animated: edgeData.animated,
-      },
-      edges
-    );
-    setEdges(nextEdges);
-    emitDiagram(nodes, nextEdges);
-  };
+        data: { edgeType },
+        style: { stroke: style.stroke, strokeDasharray: style.strokeDasharray, strokeWidth: edgeType === "process" ? 2.6 : 1.8 },
+        animated: style.animated,
+        markerEnd: showArrow ? { type: MarkerType.ArrowClosed, color: style.stroke } : undefined,
+      };
+
+      const nextEdges = syncEdgeHandles(nodesRef.current, [...edgesRef.current, newEdge], newEdge.id);
+      setCanvasEdges(nextEdges);
+      onSelectionChange({ nodeIds: [], edgeId: newEdge.id });
+      setPendingConnectionNodeId(null);
+      emitDiagram(nodesRef.current, nextEdges, flowInstanceRef.current?.getViewport() || diagram.viewport);
+      onInteractionMessage?.({ tone: "info", text: "Связь создана." });
+    },
+    [
+      diagram.viewport,
+      edgeType,
+      emitDiagram,
+      onInteractionMessage,
+      onRequestHistoryCheckpoint,
+      onSelectionChange,
+      readOnly,
+      setCanvasEdges,
+    ]
+  );
 
   const onNodeClick: NodeMouseHandler = (event, node) => {
     if (mode === "delete" && !readOnly) {
       onRequestHistoryCheckpoint();
-      const nextNodes = nodes.filter((item) => item.id !== node.id);
-      const nextEdges = edges.filter((item) => item.source !== node.id && item.target !== node.id);
-      setNodes(nextNodes);
-      setEdges(nextEdges);
+      const nextNodes = nodesRef.current.filter((item) => item.id !== node.id);
+      const nextEdges = edgesRef.current.filter((item) => item.source !== node.id && item.target !== node.id);
+      setCanvasNodes(nextNodes);
+      setCanvasEdges(nextEdges);
       onSelectionChange({ nodeIds: [], edgeId: null });
-      emitDiagram(nextNodes, nextEdges);
+      emitDiagram(nextNodes, nextEdges, flowInstanceRef.current?.getViewport() || diagram.viewport);
+      setPendingConnectionNodeId(null);
       return;
     }
+
+    if (mode === "add-edge" && !readOnly) {
+      if (!pendingConnectionNodeId) {
+        setPendingConnectionNodeId(node.id);
+        onSelectionChange({ nodeIds: [node.id], edgeId: null });
+        onInteractionMessage?.({ tone: "info", text: `Источник связи выбран. Теперь выберите второй узел.` });
+        return;
+      }
+      createEdgeBetween(pendingConnectionNodeId, node.id);
+      return;
+    }
+
     if (event.shiftKey) {
       const nextNodeIds = selectedNodeIds.includes(node.id)
         ? selectedNodeIds.filter((item) => item !== node.id)
@@ -279,17 +570,17 @@ export const PidCanvas = forwardRef<PidCanvasHandle, Props>(function PidCanvas(
   const onEdgeClick: EdgeMouseHandler = (_event, edge) => {
     if (mode === "delete" && !readOnly) {
       onRequestHistoryCheckpoint();
-      const nextEdges = edges.filter((item) => item.id !== edge.id);
-      setEdges(nextEdges);
+      const nextEdges = edgesRef.current.filter((item) => item.id !== edge.id);
+      setCanvasEdges(nextEdges);
       onSelectionChange({ nodeIds: [], edgeId: null });
-      emitDiagram(nodes, nextEdges);
+      emitDiagram(nodesRef.current, nextEdges, flowInstanceRef.current?.getViewport() || diagram.viewport);
       return;
     }
     onSelectionChange({ nodeIds: [], edgeId: edge.id });
   };
 
   const onMoveEnd: OnMove = (_event, viewport) => {
-    emitDiagram(nodes, edges, { ...viewport, x: Math.max(0, viewport.x), y: Math.max(0, viewport.y) });
+    onViewportChange?.(viewport);
   };
 
   const selectedElements = useMemo(
@@ -320,20 +611,19 @@ export const PidCanvas = forwardRef<PidCanvasHandle, Props>(function PidCanvas(
         edges={edges}
         nodeTypes={nodeTypes}
         onNodesChange={(changes) => {
-          const next = applyNodeChanges(changes, nodes).map((item) => ({
+          const nextNodes = applyNodeChanges(changes, nodesRef.current).map((item) => ({
             ...item,
             position: clampPosition(item.position),
-          }));
-          setNodes(next);
-          emitDiagram(next, edges);
+          })) as CanvasNode[];
+          setCanvasNodes(nextNodes);
+          setCanvasEdges(syncEdgeHandles(nextNodes, edgesRef.current, selectedEdgeId));
         }}
         onEdgesChange={(changes) => {
-          const next = applyEdgeChanges(changes, edges);
-          setEdges(next);
-          emitDiagram(nodes, next);
+          const nextEdges = applyEdgeChanges(changes, edgesRef.current) as CanvasEdge[];
+          setCanvasEdges(syncEdgeHandles(nodesRef.current, nextEdges, selectedEdgeId));
+          emitDiagram(nodesRef.current, syncEdgeHandles(nodesRef.current, nextEdges, selectedEdgeId), flowInstanceRef.current?.getViewport() || diagram.viewport);
         }}
         onNodeClick={onNodeClick}
-        onNodeDoubleClick={onNodeClick}
         onNodeDragStart={() => {
           if (!pendingDragCheckpointRef.current) {
             onRequestHistoryCheckpoint();
@@ -342,10 +632,18 @@ export const PidCanvas = forwardRef<PidCanvasHandle, Props>(function PidCanvas(
         }}
         onNodeDragStop={() => {
           pendingDragCheckpointRef.current = false;
+          commitLocalState();
         }}
         onEdgeClick={onEdgeClick}
-        onPaneClick={() => onSelectionChange({ nodeIds: [], edgeId: null })}
+        onPaneClick={() => {
+          onSelectionChange({ nodeIds: [], edgeId: null });
+          if (mode === "add-edge" && pendingConnectionNodeId) {
+            setPendingConnectionNodeId(null);
+            onInteractionMessage?.({ tone: "info", text: "Режим связи отменён." });
+          }
+        }}
         onSelectionChange={(params: OnSelectionChangeParams) => {
+          if (mode !== "select") return;
           const nextNodeIds = (params.nodes || []).map((item) => item.id);
           const nextEdges = params.edges || [];
           onSelectionChange({
@@ -359,10 +657,9 @@ export const PidCanvas = forwardRef<PidCanvasHandle, Props>(function PidCanvas(
             addPendingPresetAtViewportCenter();
           }
         }}
-        onConnect={onConnect}
         onMoveEnd={onMoveEnd}
         nodesDraggable={!readOnly}
-        nodesConnectable={!readOnly}
+        nodesConnectable={false}
         elementsSelectable
         deleteKeyCode={null}
         selectionKeyCode="Shift"
@@ -370,6 +667,10 @@ export const PidCanvas = forwardRef<PidCanvasHandle, Props>(function PidCanvas(
         selectionOnDrag={mode === "select"}
         panOnDrag={mode === "pan"}
         nodesFocusable
+        zoomOnScroll
+        zoomOnPinch
+        panOnScroll={false}
+        zoomOnDoubleClick={false}
         onDragOver={(event) => {
           if (readOnly) return;
           if (event.dataTransfer.types.includes(DND_MIME)) {
@@ -392,14 +693,14 @@ export const PidCanvas = forwardRef<PidCanvasHandle, Props>(function PidCanvas(
           addNodeAtPosition(preset, position);
         }}
         defaultViewport={diagram.viewport}
-        minZoom={0.35}
-        maxZoom={2}
+        minZoom={0.25}
+        maxZoom={2.5}
         translateExtent={[
-          [0, 0],
+          [MIN_COORD, MIN_COORD],
           [MAX_COORD, MAX_COORD],
         ]}
         nodeExtent={[
-          [0, 0],
+          [MIN_COORD, MIN_COORD],
           [MAX_COORD, MAX_COORD],
         ]}
         onInit={(instance) => {
@@ -418,9 +719,16 @@ export const PidCanvas = forwardRef<PidCanvasHandle, Props>(function PidCanvas(
         <Controls showInteractive={false} />
         <Background />
       </ReactFlow>
-      {mode === "add-edge" && selectedElements.nodes.length === 1 && !selectedElements.edge ? (
+      {mode === "add-edge" ? (
         <div className="pointer-events-none absolute left-4 top-4 z-20 border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-medium text-sky-800">
-          Выберите второй узел, чтобы создать связь типа "{EDGE_STYLES[edgeType] ? edgeType : "process"}".
+          {pendingConnectionNodeId
+            ? `Выберите второй узел, чтобы создать связь типа "${EDGE_STYLES[edgeType] ? edgeType : "process"}".`
+            : "Выберите первый узел, чтобы начать создание связи."}
+        </div>
+      ) : null}
+      {mode === "add-edge" && selectedElements.edge ? (
+        <div className="pointer-events-none absolute left-4 top-16 z-20 border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+          Выбрана связь. Для новой связи кликните по двум узлам.
         </div>
       ) : null}
     </Box>

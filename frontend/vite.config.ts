@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { defineConfig } from "vitest/config";
 
 const appVersion = readFileSync(fileURLToPath(new URL("../VERSION", import.meta.url)), "utf-8").trim();
 
@@ -35,5 +35,9 @@ export default defineConfig({
   server: {
     host: "localhost",
     port: 5173
+  },
+  test: {
+    environment: "jsdom",
+    globals: true
   }
 });

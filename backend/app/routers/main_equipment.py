@@ -1,7 +1,8 @@
 ﻿import re
 from datetime import datetime
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import select
 
 from app.core.audit import add_audit_log, model_to_dict
@@ -17,10 +18,13 @@ from app.schemas.main_equipment import (
     MainEquipmentTreeNode,
     MainEquipmentUpdate,
 )
+from app.services.pid_storage import delete_image, save_image
 
 router = APIRouter()
 
 CODE_RE = re.compile(r"^\d+(?:\.\d+)*$")
+PID_SYMBOL_STANDARD = "ISA-5.1"
+PID_IMAGE_URL_PREFIX = "/api/v1/pid-storage/images/"
 
 
 def build_tree(items: list[MainEquipment]) -> list[MainEquipmentTreeNode]:
@@ -30,7 +34,7 @@ def build_tree(items: list[MainEquipment]) -> list[MainEquipmentTreeNode]:
             name=item.name,
             level=item.level,
             code=item.code,
-            meta_data=item.meta_data,
+            meta_data=normalize_main_equipment_meta(item.meta_data),
             children=[],
         )
         for item in items
@@ -126,6 +130,96 @@ def generate_code(db, parent: MainEquipment | None, level: int, exclude_id: int 
     return f"{parent.code}.{next_suffix}"
 
 
+def as_dict(value) -> dict:
+    return value if isinstance(value, dict) else {}
+
+
+def extract_pid_symbol(meta_data: dict | None) -> dict | None:
+    raw_meta = as_dict(meta_data)
+    raw_symbol = as_dict(raw_meta.get("pidSymbol"))
+    legacy_shape_key = raw_meta.get("shapeKey") if isinstance(raw_meta.get("shapeKey"), str) else None
+    library_key = raw_symbol.get("libraryKey") if isinstance(raw_symbol.get("libraryKey"), str) else legacy_shape_key
+    asset_url = raw_symbol.get("assetUrl") if isinstance(raw_symbol.get("assetUrl"), str) else None
+    standard = raw_symbol.get("standard") if isinstance(raw_symbol.get("standard"), str) else PID_SYMBOL_STANDARD
+    source = raw_symbol.get("source") if isinstance(raw_symbol.get("source"), str) else None
+
+    if source == "upload" and asset_url:
+        return {
+            "source": "upload",
+            "libraryKey": library_key or "generic",
+            "assetUrl": asset_url,
+            "standard": standard,
+        }
+    if library_key:
+        return {
+            "source": "library",
+            "libraryKey": library_key,
+            "standard": standard,
+        }
+    return None
+
+
+def normalize_main_equipment_meta(meta_data: dict | None) -> dict | None:
+    if meta_data is None:
+        return None
+    normalized = dict(as_dict(meta_data))
+    pid_symbol = extract_pid_symbol(normalized)
+    if pid_symbol:
+        normalized["shapeKey"] = pid_symbol.get("libraryKey") or "generic"
+        normalized["pidSymbol"] = pid_symbol
+    return normalized
+
+
+def get_uploaded_pid_symbol_filename(meta_data: dict | None) -> str | None:
+    pid_symbol = extract_pid_symbol(meta_data)
+    if not pid_symbol or pid_symbol.get("source") != "upload":
+        return None
+    asset_url = pid_symbol.get("assetUrl")
+    if not isinstance(asset_url, str) or not asset_url.startswith(PID_IMAGE_URL_PREFIX):
+        return None
+    filename = Path(asset_url.removeprefix(PID_IMAGE_URL_PREFIX)).name
+    return filename or None
+
+
+def replace_uploaded_pid_symbol(item: MainEquipment, asset_url: str) -> None:
+    current_meta = normalize_main_equipment_meta(item.meta_data) or {}
+    current_symbol = extract_pid_symbol(current_meta) or {
+        "source": "library",
+        "libraryKey": current_meta.get("shapeKey") if isinstance(current_meta.get("shapeKey"), str) else "generic",
+        "standard": PID_SYMBOL_STANDARD,
+    }
+    current_meta["shapeKey"] = current_symbol.get("libraryKey") or "generic"
+    current_meta["pidSymbol"] = {
+        "source": "upload",
+        "libraryKey": current_meta["shapeKey"],
+        "assetUrl": asset_url,
+        "standard": PID_SYMBOL_STANDARD,
+    }
+    item.meta_data = current_meta
+
+
+def reset_pid_symbol_to_library(item: MainEquipment) -> None:
+    current_meta = normalize_main_equipment_meta(item.meta_data) or {}
+    current_symbol = extract_pid_symbol(current_meta)
+    library_key = (
+        current_symbol.get("libraryKey")
+        if current_symbol and isinstance(current_symbol.get("libraryKey"), str)
+        else current_meta.get("shapeKey")
+    )
+    current_meta["shapeKey"] = library_key or "generic"
+    current_meta["pidSymbol"] = {
+        "source": "library",
+        "libraryKey": current_meta["shapeKey"],
+        "standard": PID_SYMBOL_STANDARD,
+    }
+    item.meta_data = current_meta
+
+
+def hydrate_main_equipment_symbol(item: MainEquipment) -> MainEquipment:
+    item.meta_data = normalize_main_equipment_meta(item.meta_data)
+    return item
+
+
 def build_children_map(items: list[MainEquipment]) -> dict[int | None, list[MainEquipment]]:
     children: dict[int | None, list[MainEquipment]] = {}
     for item in items:
@@ -204,6 +298,7 @@ def list_main_equipment(
     query = apply_sort(query, MainEquipment, sort)
 
     total, items = paginate(query, db, page, page_size)
+    items = [hydrate_main_equipment_symbol(item) for item in items]
     return Pagination(items=items, page=page, page_size=page_size, total=total)
 
 
@@ -220,7 +315,7 @@ def get_main_equipment(
     item = db.scalar(query)
     if not item:
         raise HTTPException(status_code=404, detail="Main equipment not found")
-    return item
+    return hydrate_main_equipment_symbol(item)
 
 
 @router.post("/", response_model=MainEquipmentOut)
@@ -242,7 +337,7 @@ def create_main_equipment(
         parent_id=payload.parent_id,
         level=level,
         code=code,
-        meta_data=payload.meta_data,
+        meta_data=normalize_main_equipment_meta(payload.meta_data),
     )
     db.add(item)
     db.flush()
@@ -259,7 +354,7 @@ def create_main_equipment(
 
     db.commit()
     db.refresh(item)
-    return item
+    return hydrate_main_equipment_symbol(item)
 
 
 @router.patch("/{item_id}", response_model=MainEquipmentOut)
@@ -299,7 +394,7 @@ def update_main_equipment(
             item.code = normalized_code
 
     if payload.meta_data is not None or ("meta_data" in data and data["meta_data"] is None):
-        item.meta_data = data.get("meta_data")
+        item.meta_data = normalize_main_equipment_meta(data.get("meta_data"))
 
     ensure_unique_code(db, item.code, exclude_id=item_id)
 
@@ -318,7 +413,7 @@ def update_main_equipment(
 
     db.commit()
     db.refresh(item)
-    return item
+    return hydrate_main_equipment_symbol(item)
 
 
 @router.put("/{item_id}", response_model=MainEquipmentOut)
@@ -360,6 +455,74 @@ def delete_main_equipment(
     return {"status": "ok"}
 
 
+@router.post("/{item_id}/pid-symbol", response_model=MainEquipmentOut)
+def upload_main_equipment_pid_symbol(
+    item_id: int,
+    file: UploadFile = File(...),
+    db=Depends(get_db),
+    current_user: User = Depends(require_write_access()),
+):
+    item = db.scalar(select(MainEquipment).where(MainEquipment.id == item_id))
+    if not item:
+        raise HTTPException(status_code=404, detail="Main equipment not found")
+    original_name = file.filename or ""
+    if Path(original_name).suffix.lower() != ".svg":
+        raise HTTPException(status_code=415, detail="Only SVG pid symbols are supported")
+
+    before = model_to_dict(item)
+    old_filename = get_uploaded_pid_symbol_filename(item.meta_data)
+    stored_name, _ = save_image(file)
+    try:
+        replace_uploaded_pid_symbol(item, f"{PID_IMAGE_URL_PREFIX}{stored_name}")
+        add_audit_log(
+            db,
+            actor_id=current_user.id,
+            action="UPDATE",
+            entity="main_equipment",
+            entity_id=item.id,
+            before=before,
+            after=model_to_dict(item),
+        )
+        db.commit()
+        if old_filename and old_filename != stored_name:
+            delete_image(old_filename)
+    except Exception:
+        delete_image(stored_name)
+        db.rollback()
+        raise
+    db.refresh(item)
+    return hydrate_main_equipment_symbol(item)
+
+
+@router.delete("/{item_id}/pid-symbol", response_model=MainEquipmentOut)
+def delete_main_equipment_pid_symbol(
+    item_id: int,
+    db=Depends(get_db),
+    current_user: User = Depends(require_write_access()),
+):
+    item = db.scalar(select(MainEquipment).where(MainEquipment.id == item_id))
+    if not item:
+        raise HTTPException(status_code=404, detail="Main equipment not found")
+
+    before = model_to_dict(item)
+    old_filename = get_uploaded_pid_symbol_filename(item.meta_data)
+    reset_pid_symbol_to_library(item)
+    add_audit_log(
+        db,
+        actor_id=current_user.id,
+        action="UPDATE",
+        entity="main_equipment",
+        entity_id=item.id,
+        before=before,
+        after=model_to_dict(item),
+    )
+    db.commit()
+    if old_filename:
+        delete_image(old_filename)
+    db.refresh(item)
+    return hydrate_main_equipment_symbol(item)
+
+
 @router.post("/{item_id}/restore", response_model=MainEquipmentOut)
 def restore_main_equipment(
     item_id: int,
@@ -389,5 +552,5 @@ def restore_main_equipment(
 
     db.commit()
     db.refresh(item)
-    return item
+    return hydrate_main_equipment_symbol(item)
 

@@ -29,6 +29,29 @@ def build_location_tree(locations: list[Location]) -> tuple[dict[int, IOTreeLoca
     return nodes, roots
 
 
+def prune_io_locations(locations: list[IOTreeLocation]) -> list[IOTreeLocation]:
+    pruned_locations: list[IOTreeLocation] = []
+
+    for location in locations:
+        pruned_children = prune_io_locations(location.children)
+        relevant_cabinets = [
+            cabinet for cabinet in location.cabinets if cabinet.channel_devices
+        ]
+        if not pruned_children and not relevant_cabinets:
+            continue
+
+        pruned_locations.append(
+            IOTreeLocation(
+                id=location.id,
+                name=location.name,
+                children=pruned_children,
+                cabinets=relevant_cabinets,
+            )
+        )
+
+    return pruned_locations
+
+
 @router.get("/io-tree", response_model=IOTreeResponse)
 def get_io_tree(
     db=Depends(get_db),
@@ -87,14 +110,18 @@ def get_io_tree(
         devices_by_cabinet.setdefault(data["cabinet_id"], []).append(device)
 
     for cabinet in cabinets:
+        channel_devices = devices_by_cabinet.get(cabinet.id, [])
+        if not channel_devices:
+            continue
+
         cabinet_node = IOTreeCabinet(
             id=cabinet.id,
             name=cabinet.name,
             factory_number=cabinet.factory_number,
             inventory_number=cabinet.nomenclature_number,
-            channel_devices=devices_by_cabinet.get(cabinet.id, []),
+            channel_devices=channel_devices,
         )
         if cabinet.location_id and cabinet.location_id in nodes_map:
             nodes_map[cabinet.location_id].cabinets.append(cabinet_node)
 
-    return IOTreeResponse(locations=roots)
+    return IOTreeResponse(locations=prune_io_locations(roots))

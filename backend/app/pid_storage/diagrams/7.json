@@ -1,0 +1,55 @@
+{
+  "processId": 7,
+  "version": 1,
+  "updatedAt": "2026-03-30T06:57:21.297000Z",
+  "viewport": {
+    "x": 0.0,
+    "y": 0.0,
+    "zoom": 1.0
+  },
+  "nodes": [
+    {
+      "id": "node_1774853737083",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "12.4",
+      "label": "Вертикальный насос (sump pump)",
+      "tag": "",
+      "position": {
+        "x": 450.0078125,
+        "y": 516.796875
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 321,
+        "name": "Вертикальный насос (sump pump)",
+        "meta": {
+          "shapeKey": "pump_centrifugal"
+        }
+      },
+      "properties": {}
+    },
+    {
+      "id": "node_1774853801467",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "3.5",
+      "label": "Вертикальная мельница (IsaMill, Vertimill)",
+      "tag": "",
+      "position": {
+        "x": 1029.0078125,
+        "y": 511.5859375
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 276,
+        "name": "Вертикальная мельница (IsaMill, Vertimill)",
+        "meta": {
+          "shapeKey": "mill_tumbling"
+        }
+      },
+      "properties": {}
+    }
+  ],
+  "edges": []
+}

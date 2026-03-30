@@ -15,6 +15,8 @@ import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import { useTranslation } from "react-i18next";
 
 import { ISA_INSTRUMENTS, inferMainEquipmentShapeKey } from "../../constants/pidPalette";
+import { buildPidSymbolMeta, normalizePidSymbol } from "../../features/pid/symbols";
+import type { PidSourceRef } from "../../types/pid";
 import type { MainEquipmentTreeNode } from "../../utils/mainEquipment";
 import { annotateLiveTree, type LiveTreeAnnotation } from "../../utils/liveFilter";
 
@@ -25,12 +27,7 @@ export type PidNodeInsertPreset = {
   label: string;
   category: "main" | "instrument" | "external";
   type: "equipment" | "instrument" | "external";
-  sourceRef?: {
-    source: "main-equipment" | "field-equipment" | "equipment-in-operation" | "palette";
-    id?: number;
-    name?: string;
-    meta?: { shapeKey?: string };
-  };
+  sourceRef?: PidSourceRef;
 };
 
 type Props = {
@@ -54,10 +51,6 @@ type ToolboxTreeNode = {
 };
 
 const DND_MIME = "application/x-pid-preset";
-
-function hasShapeKey(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0;
-}
 
 function asToolboxNode(tree: MainEquipmentTreeNode[]): ToolboxTreeNode[] {
   return tree.map((node) => ({
@@ -111,10 +104,7 @@ export function PidToolbox({
     const node = entry.item;
     const hasChildren = entry.children.length > 0;
     const isExpanded = forceExpand ? entry.shouldForceExpand : expandedIds.has(node.id);
-    const shapeFromMeta = node.meta_data && hasShapeKey((node.meta_data as Record<string, unknown>).shapeKey)
-      ? (node.meta_data as Record<string, string>).shapeKey
-      : undefined;
-    const shapeKey = shapeFromMeta || inferMainEquipmentShapeKey(node.name);
+    const pidSymbol = normalizePidSymbol(node.meta_data, inferMainEquipmentShapeKey(node.name));
 
     if (hasChildren) {
       return (
@@ -146,7 +136,7 @@ export function PidToolbox({
       label: node.name,
       category: "main",
       type: "equipment",
-      sourceRef: { source: "main-equipment", id: node.id, name: node.name, meta: { shapeKey } },
+      sourceRef: { source: "main-equipment", id: node.id, name: node.name, meta: buildPidSymbolMeta(pidSymbol) },
     };
 
     return (

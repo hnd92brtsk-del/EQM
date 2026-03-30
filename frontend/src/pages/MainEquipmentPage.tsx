@@ -23,6 +23,7 @@ import { DictionariesTabs } from "../components/DictionariesTabs";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, updateEntity, restoreEntity, Pagination } from "../api/entities";
+import { deleteMainEquipmentPidSymbol, uploadMainEquipmentPidSymbol } from "../api/mainEquipment";
 import { apiFetch } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
@@ -30,6 +31,8 @@ import { AppButton } from "../components/ui/AppButton";
 import { buildMainEquipmentLookups } from "../utils/mainEquipment";
 import { MAIN_EQUIPMENT_SHAPE_OPTIONS, inferMainEquipmentShapeKey } from "../constants/pidPalette";
 import { EquipmentGlyph } from "../components/pid/nodes/EquipmentGlyph";
+import { mergePidSymbolIntoMetaData, normalizePidSymbol } from "../features/pid/symbols";
+import type { PidSymbol } from "../types/pid";
 import { annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
 
 type MainEquipment = {
@@ -106,15 +109,8 @@ function collectDescendantIds(node: MainEquipmentNode): Set<number> {
   return ids;
 }
 
-function getShapeKeyFromMeta(item: MainEquipment | null | undefined): string | null {
-  if (!item?.meta_data || typeof item.meta_data !== "object") {
-    return null;
-  }
-  const value = (item.meta_data as Record<string, unknown>).shapeKey;
-  if (typeof value !== "string" || !value) {
-    return null;
-  }
-  return value;
+function getPidSymbol(item: MainEquipment | null | undefined): PidSymbol {
+  return normalizePidSymbol(item?.meta_data, inferMainEquipmentShapeKey(item?.name || ""));
 }
 
 export default function MainEquipmentPage() {
@@ -128,6 +124,9 @@ export default function MainEquipmentPage() {
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [symbolUploadFile, setSymbolUploadFile] = useState<File | null>(null);
+  const [symbolUploadPreviewUrl, setSymbolUploadPreviewUrl] = useState<string | null>(null);
+  const [removeUploadedSymbol, setRemoveUploadedSymbol] = useState(false);
 
   const itemsQuery = useQuery({
     queryKey: ["main-equipment-tree", showDeleted],
@@ -143,6 +142,16 @@ export default function MainEquipmentPage() {
       );
     }
   }, [itemsQuery.error, t]);
+
+  useEffect(() => {
+    if (!symbolUploadFile) {
+      setSymbolUploadPreviewUrl(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(symbolUploadFile);
+    setSymbolUploadPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [symbolUploadFile]);
 
   const tree = useMemo(() => sortTree(buildTree(itemsQuery.data || [])), [itemsQuery.data]);
   const treeAnnotations = useMemo(
@@ -169,13 +178,20 @@ export default function MainEquipmentPage() {
     [t]
   );
 
+  const closeDialog = () => {
+    setDialog(null);
+    setSymbolUploadFile(null);
+    setSymbolUploadPreviewUrl(null);
+    setRemoveUploadedSymbol(false);
+  };
+
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["main-equipment-tree"] });
   };
 
   const createMutation = useMutation({
     mutationFn: (payload: { name: string; parent_id?: number | null; meta_data?: Record<string, unknown> | null }) =>
-      createEntity("/main-equipment", payload),
+      createEntity<MainEquipment>("/main-equipment", payload),
     onSuccess: refresh,
     onError: (error) =>
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.mainEquipment.errors.create"))
@@ -183,7 +199,7 @@ export default function MainEquipmentPage() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: Partial<MainEquipment> }) =>
-      updateEntity("/main-equipment", id, payload),
+      updateEntity<MainEquipment>("/main-equipment", id, payload),
     onSuccess: refresh,
     onError: (error) =>
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.mainEquipment.errors.update"))
@@ -222,6 +238,9 @@ export default function MainEquipmentPage() {
   };
 
   const openCreateDialog = (parentId?: number | null) => {
+    setSymbolUploadFile(null);
+    setSymbolUploadPreviewUrl(null);
+    setRemoveUploadedSymbol(false);
     setDialog({
       open: true,
       title: t("pagesUi.mainEquipment.dialogs.createTitle"),
@@ -243,22 +262,71 @@ export default function MainEquipmentPage() {
       values: { name: "", parent_id: parentId ?? "", shape_key: "generic" },
       renderExtra: (values) =>
         values.shape_key ? (
-          <Box sx={{ display: "grid", justifyItems: "center", gap: 0.5 }}>
-            <EquipmentGlyph shapeKey={String(values.shape_key)} />
-            <Typography variant="caption" color="text.secondary">
-              {t("pagesUi.mainEquipment.labels.preview")}
+          <Box sx={{ display: "grid", gap: 1.25 }}>
+            <Box sx={{ display: "grid", justifyItems: "center", gap: 0.5 }}>
+              <EquipmentGlyph
+                shapeKey={String(values.shape_key)}
+                symbol={
+                  symbolUploadPreviewUrl
+                    ? {
+                        source: "upload",
+                        libraryKey: String(values.shape_key),
+                        assetUrl: symbolUploadPreviewUrl,
+                        standard: "ISA-5.1",
+                      }
+                    : {
+                        source: "library",
+                        libraryKey: String(values.shape_key),
+                        standard: "ISA-5.1",
+                      }
+                }
+              />
+              <Typography variant="caption" color="text.secondary">
+                {t("pagesUi.mainEquipment.labels.preview")}
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 1 }}>
+              <AppButton component="label" size="small">
+                {t("actions.upload")}
+                <input
+                  hidden
+                  accept=".svg,image/svg+xml"
+                  type="file"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] || null;
+                    setSymbolUploadFile(file);
+                    setRemoveUploadedSymbol(false);
+                    event.target.value = "";
+                  }}
+                />
+              </AppButton>
+              {symbolUploadFile ? (
+                <AppButton size="small" color="inherit" onClick={() => setSymbolUploadFile(null)}>
+                  {t("actions.deleteFile")}
+                </AppButton>
+              ) : null}
+            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center" }}>
+              {symbolUploadFile ? symbolUploadFile.name : t("pagesUi.mainEquipment.labels.librarySymbol")}
             </Typography>
           </Box>
         ) : null,
-      onSave: (values) => {
+      onSave: async (values) => {
         const parentValue =
           values.parent_id === "" || values.parent_id === undefined ? null : Number(values.parent_id);
-        createMutation.mutate({
+        const created = await createMutation.mutateAsync({
           name: values.name,
           parent_id: parentValue,
-          meta_data: { shapeKey: values.shape_key || "generic" },
+          meta_data: mergePidSymbolIntoMetaData(null, {
+            source: "library",
+            libraryKey: String(values.shape_key || "generic"),
+            standard: "ISA-5.1",
+          }),
         });
-        setDialog(null);
+        if (symbolUploadFile) {
+          await uploadMainEquipmentPidSymbol(created.id, symbolUploadFile);
+          refresh();
+        }
       }
     });
   };
@@ -267,7 +335,12 @@ export default function MainEquipmentPage() {
     const disallowedIds = collectDescendantIds(node);
     disallowedIds.add(node.id);
     const isLeaf = node.children.length === 0;
-    const initialShapeKey = getShapeKeyFromMeta(node) || inferMainEquipmentShapeKey(node.name);
+    const initialSymbol = getPidSymbol(node);
+    const initialShapeKey = initialSymbol.libraryKey || inferMainEquipmentShapeKey(node.name);
+
+    setSymbolUploadFile(null);
+    setSymbolUploadPreviewUrl(null);
+    setRemoveUploadedSymbol(false);
 
     const fields: DialogState["fields"] = [
       { name: "name", label: t("common.fields.name"), type: "text" },
@@ -294,14 +367,77 @@ export default function MainEquipmentPage() {
       values: { name: node.name, parent_id: node.parent_id ?? "", shape_key: initialShapeKey },
       renderExtra: (values) =>
         isLeaf && values.shape_key ? (
-          <Box sx={{ display: "grid", justifyItems: "center", gap: 0.5 }}>
-            <EquipmentGlyph shapeKey={String(values.shape_key)} />
-            <Typography variant="caption" color="text.secondary">
-              {t("pagesUi.mainEquipment.labels.preview")}
+          <Box sx={{ display: "grid", gap: 1.25 }}>
+            <Box sx={{ display: "grid", justifyItems: "center", gap: 0.5 }}>
+              <EquipmentGlyph
+                shapeKey={String(values.shape_key)}
+                symbol={
+                  symbolUploadPreviewUrl
+                    ? {
+                        source: "upload",
+                        libraryKey: String(values.shape_key),
+                        assetUrl: symbolUploadPreviewUrl,
+                        standard: "ISA-5.1",
+                      }
+                    : removeUploadedSymbol
+                      ? {
+                          source: "library",
+                          libraryKey: String(values.shape_key),
+                          standard: "ISA-5.1",
+                        }
+                      : {
+                          ...initialSymbol,
+                          libraryKey: String(values.shape_key),
+                          standard: "ISA-5.1",
+                        }
+                }
+              />
+              <Typography variant="caption" color="text.secondary">
+                {t("pagesUi.mainEquipment.labels.preview")}
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 1 }}>
+              <AppButton component="label" size="small">
+                {t("actions.upload")}
+                <input
+                  hidden
+                  accept=".svg,image/svg+xml"
+                  type="file"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] || null;
+                    setSymbolUploadFile(file);
+                    setRemoveUploadedSymbol(false);
+                    event.target.value = "";
+                  }}
+                />
+              </AppButton>
+              {initialSymbol.source === "upload" && !symbolUploadFile ? (
+                <AppButton
+                  size="small"
+                  color={removeUploadedSymbol ? "success" : "inherit"}
+                  onClick={() => setRemoveUploadedSymbol((current) => !current)}
+                >
+                  {removeUploadedSymbol
+                    ? t("actions.restore")
+                    : t("pagesUi.mainEquipment.actions.removeUploadedSymbol")}
+                </AppButton>
+              ) : null}
+              {symbolUploadFile ? (
+                <AppButton size="small" color="inherit" onClick={() => setSymbolUploadFile(null)}>
+                  {t("actions.deleteFile")}
+                </AppButton>
+              ) : null}
+            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center" }}>
+              {symbolUploadFile
+                ? symbolUploadFile.name
+                : initialSymbol.source === "upload" && !removeUploadedSymbol
+                  ? t("pagesUi.mainEquipment.labels.uploadedSymbol")
+                  : t("pagesUi.mainEquipment.labels.librarySymbol")}
             </Typography>
           </Box>
         ) : null,
-      onSave: (values) => {
+      onSave: async (values) => {
         const parentValue =
           values.parent_id === "" || values.parent_id === undefined ? null : Number(values.parent_id);
         const payload: Partial<MainEquipment> = {
@@ -309,13 +445,29 @@ export default function MainEquipmentPage() {
           parent_id: parentValue,
         };
         if (isLeaf) {
-          payload.meta_data = { ...(node.meta_data || {}), shapeKey: values.shape_key || "generic" };
+          payload.meta_data = mergePidSymbolIntoMetaData(node.meta_data, {
+            source:
+              initialSymbol.source === "upload" && !removeUploadedSymbol && !symbolUploadFile ? "upload" : "library",
+            libraryKey: String(values.shape_key || "generic"),
+            assetUrl:
+              initialSymbol.source === "upload" && !removeUploadedSymbol && !symbolUploadFile
+                ? initialSymbol.assetUrl
+                : undefined,
+            standard: "ISA-5.1",
+          });
         }
-        updateMutation.mutate({
+        const updated = await updateMutation.mutateAsync({
           id: node.id,
           payload
         });
-        setDialog(null);
+        if (isLeaf && removeUploadedSymbol && initialSymbol.source === "upload" && !symbolUploadFile) {
+          await deleteMainEquipmentPidSymbol(updated.id);
+          refresh();
+        }
+        if (isLeaf && symbolUploadFile) {
+          await uploadMainEquipmentPidSymbol(updated.id, symbolUploadFile);
+          refresh();
+        }
       }
     });
   };
@@ -340,6 +492,7 @@ export default function MainEquipmentPage() {
     const expanded = expandedIds.has(node.id);
     const forceExpand = entry.shouldForceExpand;
     const breadcrumb = buildBreadcrumb(node.id);
+    const pidSymbol = getPidSymbol(node);
 
     return (
       <Box key={node.id} sx={{ display: "grid", gap: 0.5 }}>
@@ -351,6 +504,11 @@ export default function MainEquipmentPage() {
           ) : (
             <Box sx={{ width: 32 }} />
           )}
+          {!hasChildren ? (
+            <Box sx={{ width: 42, display: "grid", justifyItems: "center" }}>
+              <EquipmentGlyph shapeKey={pidSymbol.libraryKey} symbol={pidSymbol} width={42} height={28} />
+            </Box>
+          ) : null}
           <Box sx={{ display: "grid" }}>
             <Typography sx={{ fontWeight: 500 }}>
               {node.name}
@@ -447,7 +605,7 @@ export default function MainEquipmentPage() {
         </CardContent>
       </Card>
 
-      {dialog && <EntityDialog state={dialog} onClose={() => setDialog(null)} />}
+      {dialog && <EntityDialog state={dialog} onClose={closeDialog} />}
       <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage(null)} />
     </Box>
   );

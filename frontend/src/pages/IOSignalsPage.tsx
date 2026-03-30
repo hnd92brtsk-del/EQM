@@ -353,6 +353,7 @@ export default function IOSignalsPage() {
     const { location, id } = entry.item;
     const expanded = treeQuery.trim() ? entry.shouldForceExpand : expandedIds.has(id);
     const hasChildren = entry.children.length > 0;
+    const isNavigationLocation = (location.cabinets?.length || 0) === 0 && (location.children?.length || 0) > 0;
     return (
       <Box key={id}>
         <Box
@@ -370,7 +371,9 @@ export default function IOSignalsPage() {
           ) : (
             <Box sx={{ width: 36 }} />
           )}
-          <Typography sx={{ fontWeight: 700 }}>{location.name}</Typography>
+          <Typography sx={{ fontWeight: isNavigationLocation ? 800 : 700 }}>
+            {location.name}
+          </Typography>
         </Box>
         {hasChildren && (
           <Collapse in={expanded} timeout="auto" unmountOnExit>

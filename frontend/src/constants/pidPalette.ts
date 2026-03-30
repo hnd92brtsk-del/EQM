@@ -1,5 +1,11 @@
 import type { PidEdgeType, PidInstrumentType, PidNodeCategory } from "../types/pid";
 
+export type PidVisualSpec = {
+  width: number;
+  height: number;
+  labelWidth: number;
+};
+
 export type PidPaletteItem = {
   key: string;
   category: PidNodeCategory;
@@ -71,3 +77,32 @@ export const EDGE_STYLES: Record<
   control: { stroke: "#0a9a6a", strokeDasharray: "8 3", labelKey: "pid.edges.control" },
   electric: { stroke: "#f28f00", strokeDasharray: "3 3", labelKey: "pid.edges.electric", animated: true },
 };
+
+const MAIN_NODE_SPECS: Record<string, PidVisualSpec> = {
+  crusher_jaw: { width: 98, height: 76, labelWidth: 160 },
+  crusher_cone: { width: 92, height: 72, labelWidth: 160 },
+  screen_vibratory: { width: 102, height: 66, labelWidth: 168 },
+  conveyor_belt: { width: 150, height: 44, labelWidth: 180 },
+  mill_tumbling: { width: 116, height: 84, labelWidth: 170 },
+  pump_centrifugal: { width: 68, height: 68, labelWidth: 132 },
+  tank_vertical: { width: 78, height: 90, labelWidth: 148 },
+  valve_gate: { width: 48, height: 42, labelWidth: 120 },
+  motor: { width: 68, height: 68, labelWidth: 132 },
+  feeder: { width: 110, height: 50, labelWidth: 170 },
+  cyclone: { width: 84, height: 94, labelWidth: 150 },
+  mixer: { width: 86, height: 72, labelWidth: 152 },
+  generic: { width: 94, height: 58, labelWidth: 150 },
+};
+
+const INSTRUMENT_NODE_SPEC: PidVisualSpec = {
+  width: 56,
+  height: 56,
+  labelWidth: 120,
+};
+
+export function getPidNodeVisualSpec(category: PidNodeCategory, shapeKey?: string): PidVisualSpec {
+  if (category === "instrument") {
+    return INSTRUMENT_NODE_SPEC;
+  }
+  return MAIN_NODE_SPECS[shapeKey || "generic"] || MAIN_NODE_SPECS.generic;
+}

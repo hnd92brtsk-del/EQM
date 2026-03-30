@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 
 import { getToken } from "../api/client";
+import { fetchIOTree, type IOTreeLocation } from "../api/ioTree";
 import { usePidApi } from "../api/pid";
 import { SearchableTreeSelectField, type SearchableTreeSelectOption } from "../components/SearchableTreeSelectField";
 import { PidCanvas, type PidCanvasHandle } from "../components/pid/PidCanvas";
@@ -55,6 +56,12 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
 import { exportPidDiagramJson, validatePidDiagramImport } from "../features/pid/io";
+import {
+  getDiagramContentFingerprint,
+  resolveCanvasState,
+  resolveSidebarState,
+  shouldConfirmContextSwitch,
+} from "../features/pid/pageState";
 import { cn } from "../lib/utils";
 import type { PidDiagram, PidEdge, PidNode, PidProcess } from "../types/pid";
 import { fetchLocationsTree } from "../utils/locations";
@@ -141,6 +148,45 @@ function buildLocationOptions(nodes: TreeNode[]): SearchableTreeSelectOption[] {
     label: node.name,
     children: node.children ? buildLocationOptions(node.children) : undefined,
   }));
+}
+
+function findIoLocation(nodes: IOTreeLocation[], locationId: number): IOTreeLocation | null {
+  for (const node of nodes) {
+    if (node.id === locationId) return node;
+    const nested = findIoLocation(node.children || [], locationId);
+    if (nested) return nested;
+  }
+  return null;
+}
+
+function buildPlcOptions(nodes: IOTreeLocation[], locationId: number) {
+  const root = findIoLocation(nodes, locationId);
+  if (!root) return [];
+
+  const options: { value: number; label: string }[] = [];
+  const walk = (node: IOTreeLocation, path: string[]) => {
+    const nextPath = [...path, node.name];
+    for (const cabinet of node.cabinets || []) {
+      for (const device of cabinet.channel_devices || []) {
+        options.push({
+          value: device.equipment_in_operation_id,
+          label: [...nextPath, cabinet.name, device.equipment_name].join(" / "),
+        });
+      }
+    }
+    for (const child of node.children || []) {
+      walk(child, nextPath);
+    }
+  };
+
+  walk(root, []);
+  return options;
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string" && error.trim()) return error;
+  return fallback;
 }
 
 function DocumentPreviewCard({
@@ -346,40 +392,7 @@ export default function TechnologicalEquipmentPage() {
   const [showMiniMap, setShowMiniMap] = useState(true);
   const autoFitProcessRef = useRef<number | null>(null);
 
-  const getDiagramFingerprint = useCallback(
-    (value: PidDiagram) =>
-      JSON.stringify({
-        processId: value.processId,
-        viewport: {
-          x: Math.round(value.viewport.x * 1000) / 1000,
-          y: Math.round(value.viewport.y * 1000) / 1000,
-          zoom: Math.round(value.viewport.zoom * 1000) / 1000,
-        },
-        nodes: value.nodes.map((node) => ({
-          id: node.id,
-          type: node.type,
-          category: node.category,
-          symbolKey: node.symbolKey,
-          label: node.label,
-          tag: node.tag,
-          position: {
-            x: Math.round(node.position.x * 1000) / 1000,
-            y: Math.round(node.position.y * 1000) / 1000,
-          },
-          sourceRef: node.sourceRef || null,
-          properties: node.properties || {},
-        })),
-        edges: value.edges.map((edge) => ({
-          id: edge.id,
-          source: edge.source,
-          target: edge.target,
-          edgeType: edge.edgeType,
-          label: edge.label,
-          style: edge.style || {},
-        })),
-      }),
-    []
-  );
+  const getDiagramFingerprint = useCallback((value: PidDiagram) => getDiagramContentFingerprint(value), []);
 
   const updateStats = useCallback((processId: number, nextDiagram: PidDiagram) => {
     setStatsMap((current) => ({
@@ -447,6 +460,12 @@ export default function TechnologicalEquipmentPage() {
   const mainEquipmentQuery = useQuery({
     queryKey: ["pid-main-equipment-tree"],
     queryFn: () => fetchMainEquipmentTree(false),
+  });
+
+  const ioTreeQuery = useQuery({
+    queryKey: ["pid-io-tree"],
+    queryFn: fetchIOTree,
+    enabled: Boolean(locationId),
   });
 
   const processesQuery = useQuery({
@@ -719,12 +738,66 @@ export default function TechnologicalEquipmentPage() {
     diagram && selectedNodeIds.length === 1 ? diagram.nodes.find((node) => node.id === selectedNodeIds[0]) || null : null;
   const selectedEdge =
     diagram && selectedEdgeId ? diagram.edges.find((edge) => edge.id === selectedEdgeId) || null : null;
+  const resolveNodeLabel = useCallback(
+    (nodeId: string) => {
+      const node = diagram?.nodes.find((item) => item.id === nodeId);
+      if (!node) return nodeId;
+      return node.tag || node.label || node.symbolKey || node.id;
+    },
+    [diagram]
+  );
+  const plcOptions = useMemo(() => {
+    if (!locationId) return [];
+    const options = buildPlcOptions(ioTreeQuery.data?.locations || [], Number(locationId));
+    if (selectedNode?.category !== "instrument" || !selectedNode.properties.plc) {
+      return options;
+    }
+
+    const selectedPlcId =
+      typeof selectedNode.properties.meta?.plcEquipmentInOperationId === "number"
+        ? selectedNode.properties.meta.plcEquipmentInOperationId
+        : null;
+    const hasMatchingOption = options.some(
+      (item) => item.value === selectedPlcId || item.label === selectedNode.properties.plc
+    );
+    if (hasMatchingOption) {
+      return options;
+    }
+
+    return [
+      ...options,
+      {
+        value: `legacy:${selectedNode.properties.plc}`,
+        label: `${selectedNode.properties.plc} (сохранённое значение)`,
+      },
+    ];
+  }, [ioTreeQuery.data?.locations, locationId, selectedNode]);
+  const diagramMatchesActiveProcess = Boolean(diagram && activeProcessId !== null && diagram.processId === activeProcessId);
 
   const canCopySelection = Boolean(diagram && selectedNodeIds.length > 0);
   const canPasteSelection = Boolean(diagram && clipboard && !readOnly);
   const canDuplicateSelection = Boolean(diagram && selectedNodeIds.length > 0 && !readOnly);
   const canDeleteSelection = Boolean(diagram && (selectedNodeIds.length > 0 || selectedEdgeId) && !readOnly);
-  const hasOpenCanvas = Boolean(activeProcessId && diagram);
+  const hasOpenCanvas = Boolean(activeProcessId && diagramMatchesActiveProcess);
+  const sidebarState = resolveSidebarState({
+    locationId,
+    isLoading: processesQuery.isLoading,
+    hasError: processesQuery.isError,
+    processCount: activeProcesses.length,
+  });
+  const canvasState = resolveCanvasState({
+    locationId,
+    processesLoading: processesQuery.isLoading,
+    processesError: processesQuery.isError,
+    processCount: activeProcesses.length,
+    activeProcessId,
+    hasMatchingDiagram: diagramMatchesActiveProcess,
+    diagramLoading: activeDiagramQuery.isLoading,
+    diagramError: activeDiagramQuery.isError,
+  });
+  const locationsErrorText = getErrorMessage(locationsQuery.error, "Не удалось загрузить список локаций.");
+  const processesErrorText = getErrorMessage(processesQuery.error, "Не удалось загрузить список процессов.");
+  const diagramErrorText = getErrorMessage(activeDiagramQuery.error, "Не удалось открыть процесс.");
 
   const openCreateDialog = () => {
     setCreateNameDraft("Новая схема технологического оборудования");
@@ -732,8 +805,39 @@ export default function TechnologicalEquipmentPage() {
     setIsCreateDialogOpen(true);
   };
 
+  const confirmContextSwitch = (params: { nextProcessId?: number | null; locationChanged?: boolean }) => {
+    if (
+      !shouldConfirmContextSwitch({
+        hasUnsavedChanges,
+        activeProcessId,
+        nextProcessId: params.nextProcessId,
+        locationChanged: params.locationChanged,
+      })
+    ) {
+      return true;
+    }
+    return window.confirm("Есть несохранённые изменения. Переключиться и потерять их?");
+  };
+
+  const handleLocationChange = (next: number | "") => {
+    if (next === locationId) return;
+    if (!confirmContextSwitch({ locationChanged: true })) return;
+    setLocationId(next);
+  };
+
+  const handleViewportChange = useCallback((nextViewport: PidDiagram["viewport"]) => {
+    setDiagram((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        viewport: nextViewport,
+      };
+    });
+  }, []);
+
   const openSelectedProcess = () => {
     if (selectedProcessId === null) return;
+    if (!confirmContextSwitch({ nextProcessId: selectedProcessId })) return;
     setActiveProcessId(selectedProcessId);
     const cached = queryClient.getQueryData<PidDiagram>(["pid-diagram", selectedProcessId]);
     if (cached) {
@@ -741,8 +845,6 @@ export default function TechnologicalEquipmentPage() {
       setAutosaveBlocked(false);
       setSaveStatus("idle");
       loadDiagramIntoCanvas(cached);
-    } else {
-      loadDiagramIntoCanvas(null);
     }
   };
 
@@ -818,12 +920,14 @@ export default function TechnologicalEquipmentPage() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file || !locationId) return;
+    let createdProcessId: number | null = null;
     try {
       const text = await file.text();
       const imported = validatePidDiagramImport(JSON.parse(text));
       const created = await pidApi.createProcess(Number(locationId), {
         name: getFileBaseName(file.name),
       });
+      createdProcessId = created.id;
       const normalized = normalizeImportedDiagram(created.id, imported);
       const saved = await pidApi.saveDiagram(created.id, normalized);
       queryClient.invalidateQueries({ queryKey: ["pid-processes", locationId] });
@@ -836,6 +940,14 @@ export default function TechnologicalEquipmentPage() {
       loadDiagramIntoCanvas(saved);
       setMessage({ tone: "info", text: "JSON импортирован в новый процесс." });
     } catch (error) {
+      if (createdProcessId !== null) {
+        try {
+          await pidApi.deleteProcess(createdProcessId);
+          queryClient.invalidateQueries({ queryKey: ["pid-processes", locationId] });
+        } catch {
+          // Best effort cleanup after partial import failure.
+        }
+      }
       const text = error instanceof Error ? error.message : "Не удалось импортировать JSON.";
       setMessage({ tone: "warning", text });
     }
@@ -937,6 +1049,17 @@ export default function TechnologicalEquipmentPage() {
     applyDiagram(nextDiagram);
   };
 
+  const deleteEdgeById = (edgeId: string) => {
+    if (!diagram || readOnly) return;
+    checkpointCurrentDiagram();
+    applyDiagram({
+      ...diagram,
+      edges: diagram.edges.filter((edge) => edge.id !== edgeId),
+      updatedAt: new Date().toISOString(),
+    });
+    setSelectedEdgeId(null);
+  };
+
   const focusSearchResult = (nodeId: string) => {
     setSelectedNodeIds([nodeId]);
     setSelectedEdgeId(null);
@@ -960,6 +1083,38 @@ export default function TechnologicalEquipmentPage() {
   };
 
   const activeProcessStats = activeProcessId && diagram ? processStatsOf(diagram) : null;
+  const canvasStateTitle =
+    canvasState === "no-location"
+      ? "Сначала выберите локацию"
+      : canvasState === "loading-processes"
+        ? "Загрузка процессов"
+        : canvasState === "processes-error"
+          ? "Не удалось загрузить процессы"
+          : canvasState === "empty"
+            ? "Процессы не найдены"
+            : canvasState === "idle"
+              ? "Нет открытого процесса"
+              : canvasState === "loading-diagram"
+                ? "Открываем процесс"
+                : canvasState === "diagram-error"
+                  ? "Не удалось открыть процесс"
+                  : "";
+  const canvasStateDescription =
+    canvasState === "no-location"
+      ? "Выберите локацию, чтобы увидеть список процессов и открыть схему."
+      : canvasState === "loading-processes"
+        ? "Загружаем процессы для выбранной локации."
+        : canvasState === "processes-error"
+          ? processesErrorText
+          : canvasState === "empty"
+            ? "Для выбранной локации процессов пока нет. Создайте новый процесс или импортируйте JSON."
+            : canvasState === "idle"
+              ? "Выберите процесс в списке слева и нажмите \"Открыть\"."
+              : canvasState === "loading-diagram"
+                ? "Диаграмма загружается. Текущий холст будет обновлён автоматически."
+                : canvasState === "diagram-error"
+                  ? diagramErrorText
+                  : "";
   const previewUpdatedAt = selectedProcess?.updated_at ? new Date(selectedProcess.updated_at).toLocaleString() : "Нет данных";
 
   const handleMetadataDraftKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
@@ -988,12 +1143,17 @@ export default function TechnologicalEquipmentPage() {
             label="Локация"
             value={locationId}
             options={buildLocationOptions((locationsQuery.data || []) as TreeNode[])}
-            onChange={(next) => setLocationId(next === "" ? "" : Number(next))}
+            onChange={(next) => handleLocationChange(next === "" ? "" : Number(next))}
             placeholder="Выберите локацию"
             emptyOptionLabel="Выберите локацию"
             fullWidth
             size="small"
           />
+          {locationsQuery.isError ? (
+            <div className="mt-2 border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {locationsErrorText}
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -1064,7 +1224,30 @@ export default function TechnologicalEquipmentPage() {
           </div>
           <div className="max-h-[42vh] overflow-auto border-x border-b border-slate-200 bg-slate-50/30 pr-1">
             <div className="space-y-px bg-slate-200">
-              {filteredProcesses.map((item) => (
+              {sidebarState === "loading" ? (
+                <div className="border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">
+                  Загрузка процессов...
+                </div>
+              ) : null}
+              {sidebarState === "error" ? (
+                <div className="space-y-3 border border-dashed border-red-200 bg-white px-3 py-4 text-sm text-red-700">
+                  <div>{processesErrorText}</div>
+                  <Button size="sm" variant="outline" onClick={() => void processesQuery.refetch()}>
+                    Повторить
+                  </Button>
+                </div>
+              ) : null}
+              {sidebarState === "no-location" ? (
+                <div className="border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">
+                  Сначала выберите локацию.
+                </div>
+              ) : null}
+              {sidebarState === "empty" ? (
+                <div className="border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">
+                  Для выбранной локации процессов пока нет.
+                </div>
+              ) : null}
+              {sidebarState === "ready" ? filteredProcesses.map((item) => (
                 <CompactProcessRow
                   key={item.id}
                   item={item}
@@ -1080,8 +1263,8 @@ export default function TechnologicalEquipmentPage() {
                     void handleDeleteSelectedProcess();
                   }}
                 />
-              ))}
-              {filteredProcesses.length === 0 ? (
+              )) : null}
+              {sidebarState === "ready" && filteredProcesses.length === 0 ? (
                 <div className="border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">
                   Процессы не найдены.
                 </div>
@@ -1187,6 +1370,8 @@ export default function TechnologicalEquipmentPage() {
             selectedEdge={selectedEdge}
             readOnly={readOnly}
             bordered={false}
+            plcOptions={plcOptions}
+            resolveNodeLabel={resolveNodeLabel}
             onNodeChange={(nextNode) => {
               if (!diagram) return;
               ensurePropertyCheckpoint(`node:${nextNode.id}`);
@@ -1205,6 +1390,7 @@ export default function TechnologicalEquipmentPage() {
                 updatedAt: new Date().toISOString(),
               });
             }}
+            onDeleteEdge={deleteEdgeById}
           />
         ) : null}
 
@@ -1535,7 +1721,7 @@ export default function TechnologicalEquipmentPage() {
           </CardHeader>
           <CardContent className={cn("flex-1 p-5", isFullscreen && "min-h-0")}>
             <div className={cn("relative min-w-0", isFullscreen ? "h-full bg-white" : "h-[620px] min-h-[620px]")}>
-              {!hasOpenCanvas ? (
+              {canvasState !== "ready" ? (
                 <EmptyCanvasState
                   title={activeProcesses.length > 0 ? "Нет открытого процесса" : "Процессы не найдены"}
                   description={
@@ -1564,7 +1750,7 @@ export default function TechnologicalEquipmentPage() {
                 />
               ) : null}
 
-              {diagram ? (
+              {diagramMatchesActiveProcess && diagram ? (
                 <PidCanvas
                   ref={canvasRef}
                   diagram={diagram}
@@ -1579,13 +1765,18 @@ export default function TechnologicalEquipmentPage() {
                   onPendingPresetConsumed={() => setPendingPreset(null)}
                   onRequestHistoryCheckpoint={checkpointCurrentDiagram}
                   onDiagramChange={applyDiagram}
+                  onViewportChange={handleViewportChange}
+                  onInteractionMessage={setMessage}
                 />
               ) : (
                 <div className="flex min-h-[620px] items-center justify-center border border-slate-200 text-sm text-slate-500">
                   Загрузка диаграммы...
                 </div>
               )}
-
+              <div className="hidden" aria-hidden="true">
+                {canvasStateTitle}
+                {canvasStateDescription}
+              </div>
               {isFullscreen ? (
                 <div className="absolute right-4 top-4 z-20 w-[min(360px,calc(100vw-32px))]" onPointerDown={(event) => event.stopPropagation()}>
                   {inspectorPanel}

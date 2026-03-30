@@ -1066,13 +1066,16 @@
       },
       "actions": {
         "addChild": "Добавить дочерний",
-        "addRoot": "Добавить корневой"
+        "addRoot": "Добавить корневой",
+        "removeUploadedSymbol": "Убрать загруженный SVG"
       },
       "labels": {
         "category": "Категория",
         "equipment": "Оборудование",
         "subtype": "Подтип",
-        "preview": "Предпросмотр символа"
+        "preview": "Предпросмотр символа",
+        "librarySymbol": "ISA-символ из библиотеки",
+        "uploadedSymbol": "Загруженный SVG override"
       },
       "errors": {
         "load": "Не удалось загрузить основное оборудование",
@@ -1668,7 +1671,12 @@
       "signalType": "Тип сигнала",
       "params": "Параметры",
       "edgeLabel": "Подпись связи",
-      "edgeType": "Тип связи"
+      "edgeType": "Тип связи",
+      "empty": "Выберите объект или связь на схеме, чтобы открыть свойства.",
+      "edgeSection": "Связь",
+      "edgeFrom": "От",
+      "edgeTo": "До",
+      "deleteEdge": "Удалить связь"
     },
     "edges": {
       "process": "Технологическая",
