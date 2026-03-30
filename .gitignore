@@ -56,6 +56,9 @@ Thumbs.db
 !.postgres/
 !.postgres/README.md
 
+# --- Local runtime logs / browser profiles ---
+runtime-logs/
+
 # --- Database dumps you may commit ---
 backup/
 !backup/
