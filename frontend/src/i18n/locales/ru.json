@@ -1722,6 +1722,9 @@
       }
     },
     "shapes": {
+      "hopper_bin": "Бункер",
+      "weigh_hopper": "Бункерные весы",
+      "thickener": "Сгуститель",
       "crusher_jaw": "Дробилка (щековая)",
       "crusher_cone": "Дробилка (конусная)",
       "screen_vibratory": "Грохот (вибрационный)",

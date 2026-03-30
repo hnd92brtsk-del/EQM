@@ -592,6 +592,10 @@ export default function TechnologicalEquipmentPage() {
             setAutosaveBlocked(true);
           }
           setSaveStatus("error");
+          setMessage({
+            tone: "warning",
+            text: error.message || "Не удалось сохранить диаграмму.",
+          });
         })
         .finally(() => {
           saveInFlightRef.current = false;

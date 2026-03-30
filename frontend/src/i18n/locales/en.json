@@ -1722,6 +1722,9 @@
       }
     },
     "shapes": {
+      "hopper_bin": "Hopper / bin",
+      "weigh_hopper": "Weigh hopper",
+      "thickener": "Thickener",
       "crusher_jaw": "Crusher (jaw)",
       "crusher_cone": "Crusher (cone)",
       "screen_vibratory": "Screen (vibratory)",

@@ -1,11 +1,11 @@
 {
   "processId": 5,
   "version": 1,
-  "updatedAt": "2026-03-30T08:40:01.623000Z",
+  "updatedAt": "2026-03-30T10:00:21.779000Z",
   "viewport": {
-    "x": -840.6660429508631,
-    "y": -139.13134980032174,
-    "zoom": 1.649384908909315
+    "x": -881.895517750333,
+    "y": -146.0674564417593,
+    "zoom": 1.698107875259976
   },
   "nodes": [
     {
@@ -16,8 +16,8 @@
       "label": "Вакуум-насос (для фильтров)",
       "tag": "",
       "position": {
-        "x": 962.6665953292111,
-        "y": 230.590459900268
+        "x": 958.422588995584,
+        "y": 174.81209094402686
       },
       "sourceRef": {
         "source": "main-equipment",
@@ -73,6 +73,84 @@
       },
       "sourceRef": {
         "source": "palette"
+      },
+      "properties": {}
+    },
+    {
+      "id": "node_1774864799476",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "9.2",
+      "label": "Автоклав высокого давления (POX / PAL)",
+      "tag": "",
+      "position": {
+        "x": 1062.609406932761,
+        "y": 237.68826457634015
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 305,
+        "name": "Автоклав высокого давления (POX / PAL)",
+        "meta": {
+          "shapeKey": "generic",
+          "pidSymbol": {
+            "source": "library",
+            "libraryKey": "generic",
+            "standard": "ISA-5.1"
+          }
+        }
+      },
+      "properties": {}
+    },
+    {
+      "id": "node_1774864808643",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "6.4",
+      "label": "Гидроциклон сгущающий",
+      "tag": "",
+      "position": {
+        "x": 1205.2320581671424,
+        "y": 134.71021681677263
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 291,
+        "name": "Гидроциклон сгущающий",
+        "meta": {
+          "shapeKey": "cyclone",
+          "pidSymbol": {
+            "source": "library",
+            "libraryKey": "cyclone",
+            "standard": "ISA-5.1"
+          }
+        }
+      },
+      "properties": {}
+    },
+    {
+      "id": "node_1774864818707",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "16.5",
+      "label": "Дренажный насос (зумпфовый)",
+      "tag": "",
+      "position": {
+        "x": 1365.8769944962173,
+        "y": 186.34367774423947
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 346,
+        "name": "Дренажный насос (зумпфовый)",
+        "meta": {
+          "shapeKey": "pump_centrifugal",
+          "pidSymbol": {
+            "source": "library",
+            "libraryKey": "pump_centrifugal",
+            "standard": "ISA-5.1"
+          }
+        }
       },
       "properties": {}
     }

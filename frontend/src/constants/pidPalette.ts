@@ -1,4 +1,5 @@
 import type { PidEdgeType, PidInstrumentType, PidNodeCategory } from "../types/pid";
+import { getEquipmentSymbolSpec } from "../features/pid/equipmentSymbolRegistry";
 
 export type PidVisualSpec = {
   width: number;
@@ -18,6 +19,9 @@ export type MainEquipmentShapeOption = {
 };
 
 export const MAIN_EQUIPMENT_SHAPE_OPTIONS: MainEquipmentShapeOption[] = [
+  { key: "hopper_bin", labelKey: "pid.shapes.hopper_bin" },
+  { key: "weigh_hopper", labelKey: "pid.shapes.weigh_hopper" },
+  { key: "thickener", labelKey: "pid.shapes.thickener" },
   { key: "crusher_jaw", labelKey: "pid.shapes.crusher_jaw" },
   { key: "crusher_cone", labelKey: "pid.shapes.crusher_cone" },
   { key: "screen_vibratory", labelKey: "pid.shapes.screen_vibratory" },
@@ -35,19 +39,22 @@ export const MAIN_EQUIPMENT_SHAPE_OPTIONS: MainEquipmentShapeOption[] = [
 
 export function inferMainEquipmentShapeKey(name: string): string {
   const normalized = name.toLowerCase();
+  if (/бункерн.*вес|batch.*weigh|loss-in-weight|weigh/.test(normalized)) return "weigh_hopper";
+  if (/бункер|hopper|bin|ore bin/.test(normalized)) return "hopper_bin";
+  if (/сгустител|thickener|paste/.test(normalized)) return "thickener";
   if (/щек|jaw/.test(normalized)) return "crusher_jaw";
   if (/конус|cone/.test(normalized)) return "crusher_cone";
   if (/дробил|crusher/.test(normalized)) return "crusher_jaw";
-  if (/грохот|scre|siev/.test(normalized)) return "screen_vibratory";
+  if (/грохот|screen|siev|vibrat/.test(normalized)) return "screen_vibratory";
   if (/конвей|belt|conveyor/.test(normalized)) return "conveyor_belt";
-  if (/мельниц|mill|hpgr/.test(normalized)) return "mill_tumbling";
-  if (/насос|pump/.test(normalized)) return "pump_centrifugal";
-  if (/резерв|tank|емкост|silo/.test(normalized)) return "tank_vertical";
-  if (/задвиж|клапан|valve/.test(normalized)) return "valve_gate";
-  if (/двигат|motor/.test(normalized)) return "motor";
+  if (/мельниц|mill|hpgr|sag/.test(normalized)) return "mill_tumbling";
+  if (/насос|pump|vacuum/.test(normalized)) return "pump_centrifugal";
+  if (/резервуар|емкост|сило|silo|tank/.test(normalized)) return "tank_vertical";
+  if (/задвиж|клапан|valve|gate/.test(normalized)) return "valve_gate";
+  if (/двигат|motor|drive/.test(normalized)) return "motor";
   if (/питател|feeder/.test(normalized)) return "feeder";
   if (/циклон|cyclone/.test(normalized)) return "cyclone";
-  if (/смесител|mixer/.test(normalized)) return "mixer";
+  if (/смесител|mixer|agitator/.test(normalized)) return "mixer";
   return "generic";
 }
 
@@ -78,22 +85,6 @@ export const EDGE_STYLES: Record<
   electric: { stroke: "#f28f00", strokeDasharray: "3 3", labelKey: "pid.edges.electric", animated: true },
 };
 
-const MAIN_NODE_SPECS: Record<string, PidVisualSpec> = {
-  crusher_jaw: { width: 98, height: 76, labelWidth: 160 },
-  crusher_cone: { width: 92, height: 72, labelWidth: 160 },
-  screen_vibratory: { width: 102, height: 66, labelWidth: 168 },
-  conveyor_belt: { width: 150, height: 44, labelWidth: 180 },
-  mill_tumbling: { width: 116, height: 84, labelWidth: 170 },
-  pump_centrifugal: { width: 68, height: 68, labelWidth: 132 },
-  tank_vertical: { width: 78, height: 90, labelWidth: 148 },
-  valve_gate: { width: 48, height: 42, labelWidth: 120 },
-  motor: { width: 68, height: 68, labelWidth: 132 },
-  feeder: { width: 110, height: 50, labelWidth: 170 },
-  cyclone: { width: 84, height: 94, labelWidth: 150 },
-  mixer: { width: 86, height: 72, labelWidth: 152 },
-  generic: { width: 94, height: 58, labelWidth: 150 },
-};
-
 const INSTRUMENT_NODE_SPEC: PidVisualSpec = {
   width: 56,
   height: 56,
@@ -104,5 +95,5 @@ export function getPidNodeVisualSpec(category: PidNodeCategory, shapeKey?: strin
   if (category === "instrument") {
     return INSTRUMENT_NODE_SPEC;
   }
-  return MAIN_NODE_SPECS[shapeKey || "generic"] || MAIN_NODE_SPECS.generic;
+  return getEquipmentSymbolSpec(shapeKey).visual;
 }

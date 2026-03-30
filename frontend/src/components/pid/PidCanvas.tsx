@@ -25,7 +25,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 
-import { EDGE_STYLES, getPidNodeVisualSpec } from "../../constants/pidPalette";
+import { EDGE_STYLES, getPidNodeVisualSpec, inferMainEquipmentShapeKey } from "../../constants/pidPalette";
 import { normalizePidSymbol } from "../../features/pid/symbols";
 import type { PidDiagram, PidEdge, PidNode, PidSourceRef } from "../../types/pid";
 import { PidNodeRenderer } from "./nodes/PidNodeRenderer";
@@ -105,11 +105,18 @@ function buildSourceLookup(
 function getShapeKey(node: Pick<PidNode, "sourceRef" | "properties">) {
   const ownShapeKey = node.properties.meta?.shapeKey;
   if (typeof ownShapeKey === "string" && ownShapeKey.trim()) {
-    return ownShapeKey;
+    return ownShapeKey === "generic" && typeof node.sourceRef?.name === "string"
+      ? inferMainEquipmentShapeKey(node.sourceRef.name)
+      : ownShapeKey;
   }
   const sourceShapeKey = node.sourceRef?.meta?.shapeKey;
   if (typeof sourceShapeKey === "string" && sourceShapeKey.trim()) {
-    return sourceShapeKey;
+    return sourceShapeKey === "generic" && typeof node.sourceRef?.name === "string"
+      ? inferMainEquipmentShapeKey(node.sourceRef.name)
+      : sourceShapeKey;
+  }
+  if (typeof node.sourceRef?.name === "string" && node.sourceRef.name.trim()) {
+    return inferMainEquipmentShapeKey(node.sourceRef.name);
   }
   return "generic";
 }

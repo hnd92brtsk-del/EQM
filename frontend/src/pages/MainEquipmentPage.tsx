@@ -46,6 +46,7 @@ type MainEquipment = {
 };
 
 type MainEquipmentNode = MainEquipment & { children: MainEquipmentNode[] };
+const MAIN_EQUIPMENT_LIBRARY_STANDARD: PidSymbol["standard"] = "ISO-14617";
 
 async function fetchAllMainEquipment(includeDeleted: boolean) {
   const pageSize = 200;
@@ -272,12 +273,12 @@ export default function MainEquipmentPage() {
                         source: "upload",
                         libraryKey: String(values.shape_key),
                         assetUrl: symbolUploadPreviewUrl,
-                        standard: "ISA-5.1",
+                        standard: MAIN_EQUIPMENT_LIBRARY_STANDARD,
                       }
                     : {
                         source: "library",
                         libraryKey: String(values.shape_key),
-                        standard: "ISA-5.1",
+                        standard: MAIN_EQUIPMENT_LIBRARY_STANDARD,
                       }
                 }
               />
@@ -320,7 +321,7 @@ export default function MainEquipmentPage() {
           meta_data: mergePidSymbolIntoMetaData(null, {
             source: "library",
             libraryKey: String(values.shape_key || "generic"),
-            standard: "ISA-5.1",
+            standard: MAIN_EQUIPMENT_LIBRARY_STANDARD,
           }),
         });
         if (symbolUploadFile) {
@@ -377,18 +378,18 @@ export default function MainEquipmentPage() {
                         source: "upload",
                         libraryKey: String(values.shape_key),
                         assetUrl: symbolUploadPreviewUrl,
-                        standard: "ISA-5.1",
+                        standard: MAIN_EQUIPMENT_LIBRARY_STANDARD,
                       }
                     : removeUploadedSymbol
                       ? {
                           source: "library",
                           libraryKey: String(values.shape_key),
-                          standard: "ISA-5.1",
+                          standard: MAIN_EQUIPMENT_LIBRARY_STANDARD,
                         }
                       : {
                           ...initialSymbol,
                           libraryKey: String(values.shape_key),
-                          standard: "ISA-5.1",
+                          standard: MAIN_EQUIPMENT_LIBRARY_STANDARD,
                         }
                 }
               />
@@ -453,7 +454,7 @@ export default function MainEquipmentPage() {
               initialSymbol.source === "upload" && !removeUploadedSymbol && !symbolUploadFile
                 ? initialSymbol.assetUrl
                 : undefined,
-            standard: "ISA-5.1",
+            standard: MAIN_EQUIPMENT_LIBRARY_STANDARD,
           });
         }
         const updated = await updateMutation.mutateAsync({

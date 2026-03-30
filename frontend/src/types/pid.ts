@@ -1,7 +1,7 @@
 export type PidNodeCategory = "main" | "instrument" | "external";
 export type PidEdgeType = "process" | "signal" | "control" | "electric";
 export type PidSymbolSource = "library" | "upload";
-export type PidSymbolStandard = "ISA-5.1";
+export type PidSymbolStandard = "ISA-5.1" | "ISO-14617";
 
 export type PidSymbol = {
   source: PidSymbolSource;

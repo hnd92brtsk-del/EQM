@@ -16,7 +16,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 
-import { EDGE_STYLES, getPidNodeVisualSpec } from "../../constants/pidPalette";
+import { EDGE_STYLES, getPidNodeVisualSpec, inferMainEquipmentShapeKey } from "../../constants/pidPalette";
 import { normalizePidSymbol } from "../../features/pid/symbols";
 import type { PidDiagram, PidEdge, PidNode, PidSourceRef } from "../../types/pid";
 import type { MainEquipmentTreeNode } from "../../utils/mainEquipment";
@@ -57,7 +57,9 @@ const clampPosition = (position: { x: number; y: number }) => ({
 function toRfNode(node: PidNode): Node {
   const pidSymbol = normalizePidSymbol(
     node.properties.meta || node.sourceRef?.meta || null,
-    node.sourceRef?.meta?.shapeKey || "generic"
+    node.sourceRef?.meta?.shapeKey === "generic" && typeof node.sourceRef?.name === "string"
+      ? inferMainEquipmentShapeKey(node.sourceRef.name)
+      : node.sourceRef?.meta?.shapeKey || (typeof node.sourceRef?.name === "string" ? inferMainEquipmentShapeKey(node.sourceRef.name) : "generic")
   );
   const visual = getPidNodeVisualSpec(node.category, pidSymbol.libraryKey || "generic");
   return {
@@ -209,7 +211,12 @@ export function PidEditor({
   const addNodeAtPosition = (preset: PidNodeInsertPreset, position: { x: number; y: number }) => {
     const clamped = clampPosition(position);
     const id = `node_${Date.now()}`;
-    const pidSymbol = normalizePidSymbol(preset.sourceRef?.meta || null, preset.sourceRef?.meta?.shapeKey || "generic");
+    const pidSymbol = normalizePidSymbol(
+      preset.sourceRef?.meta || null,
+      preset.sourceRef?.meta?.shapeKey === "generic" && typeof preset.label === "string"
+        ? inferMainEquipmentShapeKey(preset.label)
+        : preset.sourceRef?.meta?.shapeKey || inferMainEquipmentShapeKey(preset.label)
+    );
     const visual = getPidNodeVisualSpec(preset.category, pidSymbol.libraryKey || "generic");
     const newNode: Node = {
       id,

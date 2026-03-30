@@ -1,0 +1,114 @@
+{
+  "processId": 8,
+  "version": 1,
+  "updatedAt": "2026-03-30T09:35:12.305000Z",
+  "viewport": {
+    "x": -132.00791310746047,
+    "y": -169.33263626086477,
+    "zoom": 1.5157165477239447
+  },
+  "nodes": [
+    {
+      "id": "node_1774863261221",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "1.1",
+      "label": "Щёковая дробилка",
+      "tag": "",
+      "position": {
+        "x": 382.0,
+        "y": 168.0
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 262,
+        "name": "Щёковая дробилка",
+        "meta": {
+          "shapeKey": "crusher_jaw",
+          "pidSymbol": {
+            "source": "library",
+            "libraryKey": "crusher_jaw",
+            "standard": "ISA-5.1"
+          }
+        }
+      },
+      "properties": {}
+    },
+    {
+      "id": "node_1774863276889",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "14.6",
+      "label": "Бункерные весы (loss-in-weight / batch)",
+      "tag": "",
+      "position": {
+        "x": 730.0390625,
+        "y": 179.49609375
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 333,
+        "name": "Бункерные весы (loss-in-weight / batch)",
+        "meta": {
+          "shapeKey": "generic",
+          "pidSymbol": {
+            "source": "library",
+            "libraryKey": "generic",
+            "standard": "ISA-5.1"
+          }
+        }
+      },
+      "properties": {}
+    },
+    {
+      "id": "node_1774863294715",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "2.1",
+      "label": "Инерционный грохот (вибрационный)",
+      "tag": "",
+      "position": {
+        "x": 945.0390625,
+        "y": 274.49609375
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 267,
+        "name": "Инерционный грохот (вибрационный)",
+        "meta": {
+          "shapeKey": "screen_vibratory",
+          "pidSymbol": {
+            "source": "library",
+            "libraryKey": "screen_vibratory",
+            "standard": "ISA-5.1"
+          }
+        }
+      },
+      "properties": {}
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_1774863305281",
+      "source": "node_1774863261221",
+      "target": "node_1774863276889",
+      "edgeType": "process",
+      "label": "",
+      "style": {
+        "stroke": "#1f3b57",
+        "strokeWidth": 2.6
+      }
+    },
+    {
+      "id": "edge_1774863312305",
+      "source": "node_1774863276889",
+      "target": "node_1774863294715",
+      "edgeType": "process",
+      "label": "",
+      "style": {
+        "stroke": "#1f3b57",
+        "strokeWidth": 2.6
+      }
+    }
+  ]
+}

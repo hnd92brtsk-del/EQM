@@ -24,6 +24,8 @@ router = APIRouter()
 
 CODE_RE = re.compile(r"^\d+(?:\.\d+)*$")
 PID_SYMBOL_STANDARD = "ISA-5.1"
+DEFAULT_LIBRARY_PID_SYMBOL_STANDARD = "ISO-14617"
+KNOWN_PID_SYMBOL_STANDARDS = {PID_SYMBOL_STANDARD, DEFAULT_LIBRARY_PID_SYMBOL_STANDARD}
 PID_IMAGE_URL_PREFIX = "/api/v1/pid-storage/images/"
 
 
@@ -141,6 +143,8 @@ def extract_pid_symbol(meta_data: dict | None) -> dict | None:
     library_key = raw_symbol.get("libraryKey") if isinstance(raw_symbol.get("libraryKey"), str) else legacy_shape_key
     asset_url = raw_symbol.get("assetUrl") if isinstance(raw_symbol.get("assetUrl"), str) else None
     standard = raw_symbol.get("standard") if isinstance(raw_symbol.get("standard"), str) else PID_SYMBOL_STANDARD
+    if standard not in KNOWN_PID_SYMBOL_STANDARDS:
+        standard = PID_SYMBOL_STANDARD
     source = raw_symbol.get("source") if isinstance(raw_symbol.get("source"), str) else None
 
     if source == "upload" and asset_url:
@@ -182,25 +186,35 @@ def get_uploaded_pid_symbol_filename(meta_data: dict | None) -> str | None:
 
 
 def replace_uploaded_pid_symbol(item: MainEquipment, asset_url: str) -> None:
+    raw_input_meta = as_dict(item.meta_data)
+    raw_input_symbol = as_dict(raw_input_meta.get("pidSymbol"))
     current_meta = normalize_main_equipment_meta(item.meta_data) or {}
     current_symbol = extract_pid_symbol(current_meta) or {
         "source": "library",
         "libraryKey": current_meta.get("shapeKey") if isinstance(current_meta.get("shapeKey"), str) else "generic",
-        "standard": PID_SYMBOL_STANDARD,
+        "standard": DEFAULT_LIBRARY_PID_SYMBOL_STANDARD,
     }
+    explicit_standard = raw_input_symbol.get("standard") if isinstance(raw_input_symbol.get("standard"), str) else None
     current_meta["shapeKey"] = current_symbol.get("libraryKey") or "generic"
     current_meta["pidSymbol"] = {
         "source": "upload",
         "libraryKey": current_meta["shapeKey"],
         "assetUrl": asset_url,
-        "standard": PID_SYMBOL_STANDARD,
+        "standard": (
+            explicit_standard
+            if isinstance(explicit_standard, str) and explicit_standard in KNOWN_PID_SYMBOL_STANDARDS
+            else DEFAULT_LIBRARY_PID_SYMBOL_STANDARD
+        ),
     }
     item.meta_data = current_meta
 
 
 def reset_pid_symbol_to_library(item: MainEquipment) -> None:
+    raw_input_meta = as_dict(item.meta_data)
+    raw_input_symbol = as_dict(raw_input_meta.get("pidSymbol"))
     current_meta = normalize_main_equipment_meta(item.meta_data) or {}
     current_symbol = extract_pid_symbol(current_meta)
+    explicit_standard = raw_input_symbol.get("standard") if isinstance(raw_input_symbol.get("standard"), str) else None
     library_key = (
         current_symbol.get("libraryKey")
         if current_symbol and isinstance(current_symbol.get("libraryKey"), str)
@@ -210,7 +224,11 @@ def reset_pid_symbol_to_library(item: MainEquipment) -> None:
     current_meta["pidSymbol"] = {
         "source": "library",
         "libraryKey": current_meta["shapeKey"],
-        "standard": PID_SYMBOL_STANDARD,
+        "standard": (
+            explicit_standard
+            if isinstance(explicit_standard, str) and explicit_standard in KNOWN_PID_SYMBOL_STANDARDS
+            else DEFAULT_LIBRARY_PID_SYMBOL_STANDARD
+        ),
     }
     item.meta_data = current_meta
 
