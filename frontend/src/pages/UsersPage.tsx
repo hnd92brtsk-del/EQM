@@ -28,6 +28,7 @@ import { useNavigate } from "react-router-dom";
 
 import { apiFetch } from "../api/client";
 import { type ColumnMeta, DataTable, type DataTableFiltersState } from "../components/DataTable";
+import { EntityImportExportIconActions } from "../components/EntityImportExportIconActions";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { SearchableSelectField } from "../components/SearchableSelectField";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
@@ -279,6 +280,19 @@ export default function UsersPage() {
               label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
+            <EntityImportExportIconActions
+              basePath="/users"
+              filenamePrefix="users"
+              exportParams={{
+                include_deleted: showDeleted || undefined,
+                sort: sort || undefined,
+                role: columnFilters.role || undefined,
+                username: columnFilters.username || undefined,
+                username_alphabet: columnFilters.username_alphabet || undefined
+              }}
+              canWrite={canWrite}
+              onCommitted={() => queryClient.invalidateQueries({ queryKey: ["users"] })}
+            />
             {canWrite && (
               <Box sx={{ display: "flex", gap: 1 }}>
                 <AppButton variant="outlined" onClick={() => navigate("/admin/role-permissions")}>

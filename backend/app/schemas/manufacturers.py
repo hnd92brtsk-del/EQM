@@ -1,5 +1,7 @@
-﻿from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field
+
 from app.schemas.common import EntityBase, SoftDeleteFields
+from app.schemas.import_export import ImportIssue, ImportReport
 
 
 class ManufacturerOut(EntityBase, SoftDeleteFields):
@@ -35,20 +37,6 @@ class ManufacturerUpdate(BaseModel):
     specialization: str | None = None
     website: str | None = Field(default=None, max_length=255)
     is_deleted: bool | None = None
-
-
-class ImportIssue(BaseModel):
-    row: int | None = None
-    field: str | None = None
-    message: str
-
-
-class ImportReport(BaseModel):
-    total_rows: int
-    created: int
-    skipped_duplicates: int
-    errors: list[ImportIssue]
-    warnings: list[ImportIssue]
 
 
 class ManufacturerTreeNode(BaseModel):

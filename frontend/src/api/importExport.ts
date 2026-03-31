@@ -10,6 +10,7 @@ export type ImportReportIssue = {
 export type ImportReport = {
   total_rows: number;
   created: number;
+  updated?: number;
   skipped_duplicates: number;
   errors: ImportReportIssue[];
   warnings: ImportReportIssue[];

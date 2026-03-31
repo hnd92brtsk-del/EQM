@@ -21,6 +21,7 @@ import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
+import { EntityImportExportIconActions } from "../components/EntityImportExportIconActions";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import {
   Personnel,
@@ -591,8 +592,14 @@ export default function PersonnelDetailsPage() {
       {tab === 1 && (
         <Card>
           <CardContent sx={{ display: "grid", gap: 2 }}>
-            {canWrite && (
-              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
+              <EntityImportExportIconActions
+                basePath={`/personnel/${personId}/competencies`}
+                filenamePrefix={`personnel-${personId}-competencies`}
+                canWrite={canWrite}
+                onCommitted={refresh}
+              />
+              {canWrite && (
                 <AppButton
                   variant="contained"
                   startIcon={<AddRoundedIcon />}
@@ -631,8 +638,8 @@ export default function PersonnelDetailsPage() {
                 >
                   {t("pagesUi.personnelDetails.actions.addCompetency")}
                 </AppButton>
-              </Box>
-            )}
+              )}
+            </Box>
             <DataTable data={personnelQuery.data.competencies || []} columns={competencyColumns} />
           </CardContent>
         </Card>
@@ -641,8 +648,14 @@ export default function PersonnelDetailsPage() {
       {tab === 2 && (
         <Card>
           <CardContent sx={{ display: "grid", gap: 2 }}>
-            {canWrite && (
-              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
+              <EntityImportExportIconActions
+                basePath={`/personnel/${personId}/trainings`}
+                filenamePrefix={`personnel-${personId}-trainings`}
+                canWrite={canWrite}
+                onCommitted={refresh}
+              />
+              {canWrite && (
                 <AppButton
                   variant="contained"
                   startIcon={<AddRoundedIcon />}
@@ -681,8 +694,8 @@ export default function PersonnelDetailsPage() {
                 >
                   {t("pagesUi.personnelDetails.actions.addTraining")}
                 </AppButton>
-              </Box>
-            )}
+              )}
+            </Box>
             <DataTable data={personnelQuery.data.trainings || []} columns={trainingColumns} />
           </CardContent>
         </Card>

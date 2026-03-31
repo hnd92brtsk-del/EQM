@@ -1,12 +1,8 @@
 from __future__ import annotations
 
-import csv
 from datetime import datetime
-from io import BytesIO, StringIO, TextIOWrapper
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import StreamingResponse
-from openpyxl import Workbook, load_workbook
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -17,13 +13,22 @@ from app.core.query import apply_date_filters, apply_search, apply_sort
 from app.models.core import Manufacturer
 from app.models.security import User
 from app.schemas.common import Pagination
+from app.schemas.import_export import ImportIssue, ImportReport
 from app.schemas.manufacturers import (
-    ImportIssue,
-    ImportReport,
     ManufacturerCreate,
     ManufacturerOut,
     ManufacturerTreeNode,
     ManufacturerUpdate,
+)
+from app.services.tabular_import_export import (
+    as_optional_int,
+    as_optional_str,
+    as_required_str,
+    build_export_response,
+    build_template_response,
+    is_blank_row,
+    read_tabular_rows,
+    row_to_mapping,
 )
 
 router = APIRouter()
@@ -160,101 +165,6 @@ def collect_subtree_ids(db, root_id: int) -> list[int]:
     return result
 
 
-def _build_template_xlsx() -> BytesIO:
-    workbook = Workbook()
-    workbook.active.title = "README"
-    readme = workbook.active
-    readme.append(["Manufacturers import template"])
-    readme.append(["Columns: name (required), country (required)"])
-    readme.append(["Brands are imported under a country root node."])
-
-    data = workbook.create_sheet("DATA")
-    data.append(["name", "country"])
-
-    buffer = BytesIO()
-    workbook.save(buffer)
-    buffer.seek(0)
-    return buffer
-
-
-def _build_export_xlsx(items: list[Manufacturer]) -> BytesIO:
-    workbook = Workbook()
-    sheet = workbook.active
-    sheet.title = "DATA"
-    sheet.append(["name", "country", "parent_id", "flag", "founded_year", "segment", "specialization", "website"])
-    for item in items:
-        sheet.append(
-            [
-                item.name,
-                item.country,
-                item.parent_id,
-                item.flag,
-                item.founded_year,
-                item.segment,
-                item.specialization,
-                item.website,
-            ]
-        )
-
-    buffer = BytesIO()
-    workbook.save(buffer)
-    buffer.seek(0)
-    return buffer
-
-
-def _build_export_csv(items: list[Manufacturer]) -> StringIO:
-    buffer = StringIO()
-    writer = csv.writer(buffer)
-    writer.writerow(["name", "country", "parent_id", "flag", "founded_year", "segment", "specialization", "website"])
-    for item in items:
-        writer.writerow(
-            [
-                item.name,
-                item.country,
-                item.parent_id,
-                item.flag,
-                item.founded_year,
-                item.segment,
-                item.specialization,
-                item.website,
-            ]
-        )
-    buffer.seek(0)
-    return buffer
-
-
-def _read_xlsx_rows(file: UploadFile) -> tuple[list[str], list[list[str | None]]]:
-    workbook = load_workbook(file.file, data_only=True)
-    sheet = workbook["DATA"] if "DATA" in workbook.sheetnames else workbook.active
-    rows = list(sheet.iter_rows(values_only=True))
-    if not rows:
-        return [], []
-    headers = [str(value).strip() if value is not None else "" for value in rows[0]]
-    data_rows = rows[1:]
-    return headers, data_rows
-
-
-def _read_csv_rows(file: UploadFile) -> tuple[list[str], list[list[str | None]]]:
-    text_stream = TextIOWrapper(file.file, encoding="utf-8-sig")
-    reader = csv.reader(text_stream)
-    rows = list(reader)
-    if not rows:
-        return [], []
-    headers = [value.strip() for value in rows[0]]
-    data_rows = rows[1:]
-    return headers, data_rows
-
-
-def _detect_format(file: UploadFile) -> str:
-    content_type = (file.content_type or "").lower()
-    filename = (file.filename or "").lower()
-    if "spreadsheetml" in content_type or filename.endswith(".xlsx"):
-        return "xlsx"
-    if content_type in {"text/csv", "application/csv", "text/plain"} or filename.endswith(".csv"):
-        return "csv"
-    raise HTTPException(status_code=400, detail="Unsupported file format")
-
-
 @router.get("/tree", response_model=list[ManufacturerTreeNode])
 def get_manufacturers_tree(
     include_deleted: bool = False,
@@ -313,29 +223,39 @@ def export_manufacturers(
     db=Depends(get_db),
     user: User = Depends(require_read_access()),
 ):
-    query = select(Manufacturer)
+    query = select(Manufacturer).options(selectinload(Manufacturer.parent))
     if is_deleted is None:
         if not include_deleted:
             query = query.where(Manufacturer.is_deleted == False)
     else:
         query = query.where(Manufacturer.is_deleted == is_deleted)
     items = db.scalars(query.order_by(Manufacturer.parent_id, Manufacturer.country, Manufacturer.name)).all()
-
-    if format == "csv":
-        buffer = _build_export_csv(items)
-        headers = {
-            "Content-Disposition": 'attachment; filename="manufacturers.csv"'
-        }
-        return StreamingResponse(buffer, media_type="text/csv", headers=headers)
-
-    buffer = _build_export_xlsx(items)
-    headers = {
-        "Content-Disposition": 'attachment; filename="manufacturers.xlsx"'
-    }
-    return StreamingResponse(
-        buffer,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers=headers,
+    return build_export_response(
+        filename_prefix="manufacturers",
+        file_format=format,
+        headers=[
+            "name",
+            "country",
+            "parent_full_path",
+            "flag",
+            "founded_year",
+            "segment",
+            "specialization",
+            "website",
+        ],
+        rows=[
+            [
+                item.name,
+                item.country,
+                item.parent.full_path if item.parent else "",
+                item.flag,
+                item.founded_year,
+                item.segment,
+                item.specialization,
+                item.website,
+            ]
+            for item in items
+        ],
     )
 
 
@@ -344,14 +264,24 @@ def download_template(
     format: str = Query(default="xlsx", pattern="^(xlsx)$"),
     user: User = Depends(require_read_access()),
 ):
-    buffer = _build_template_xlsx()
-    headers = {
-        "Content-Disposition": 'attachment; filename="manufacturers-template.xlsx"'
-    }
-    return StreamingResponse(
-        buffer,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers=headers,
+    return build_template_response(
+        filename_prefix="manufacturers-template",
+        headers=[
+            "name",
+            "country",
+            "parent_full_path",
+            "flag",
+            "founded_year",
+            "segment",
+            "specialization",
+            "website",
+        ],
+        readme_lines=[
+            "Manufacturers import template",
+            "Required columns: name, country.",
+            "Use parent_full_path for brand rows.",
+            "Leave parent_full_path empty for country root rows.",
+        ],
     )
 
 
@@ -363,71 +293,100 @@ def import_manufacturers(
     db=Depends(get_db),
     current_user: User = Depends(require_write_access()),
 ):
-    effective_format = format or _detect_format(file)
-    if effective_format == "csv":
-        headers, data_rows = _read_csv_rows(file)
-    else:
-        headers, data_rows = _read_xlsx_rows(file)
-
+    headers, data_rows = read_tabular_rows(file, format)
     if not headers:
         raise HTTPException(status_code=400, detail="Empty file")
 
-    header_map = {header.strip().lower(): idx for idx, header in enumerate(headers)}
-    if "name" not in header_map:
+    normalized_headers = {header.strip().lower() for header in headers}
+    if "name" not in normalized_headers:
         raise HTTPException(status_code=400, detail="Missing 'name' column")
-    if "country" not in header_map:
+    if "country" not in normalized_headers:
         raise HTTPException(status_code=400, detail="Missing 'country' column")
 
-    report = ImportReport(
-        total_rows=0,
-        created=0,
-        skipped_duplicates=0,
-        errors=[],
-        warnings=[],
-    )
+    report = ImportReport(total_rows=0, created=0, updated=0, skipped_duplicates=0, errors=[], warnings=[])
+    existing_items = db.scalars(select(Manufacturer).options(selectinload(Manufacturer.parent))).all()
+    active_paths = {_normalize_name(item.full_path): item for item in existing_items if not item.is_deleted}
+    seen_paths: set[str] = set()
+    to_create: list[dict[str, object | None]] = []
 
-    to_create: list[tuple[str, str]] = []
-    seen_pairs: set[tuple[str, str]] = set()
-    for index, row in enumerate(data_rows, start=2):
-        if row is None:
-            continue
-        row_values = list(row)
-        if not any(value not in (None, "") for value in row_values):
+    for row_index, row in enumerate(data_rows, start=2):
+        if is_blank_row(row):
             continue
         report.total_rows += 1
-
-        raw_name = row_values[header_map["name"]] if header_map["name"] < len(row_values) else None
-        raw_country = row_values[header_map["country"]] if header_map["country"] < len(row_values) else None
-        name = str(raw_name).strip() if raw_name is not None else ""
-        country = str(raw_country).strip() if raw_country is not None else ""
-
-        if not name:
-            report.errors.append(ImportIssue(row=index, field="name", message="Name is required"))
-            continue
-        if not country:
-            report.errors.append(ImportIssue(row=index, field="country", message="Country is required"))
+        values = row_to_mapping(headers, row)
+        try:
+            name = as_required_str(values.get("name"), field="name")
+            country = as_required_str(values.get("country"), field="country")
+        except ValueError as exc:
+            field = "name" if "name" in str(exc).lower() else "country"
+            report.errors.append(ImportIssue(row=row_index, field=field, message=str(exc)))
             continue
 
-        key = (_normalize_name(name), _normalize_name(country))
-        if key in seen_pairs:
+        parent_full_path = as_optional_str(values.get("parent_full_path"))
+        if parent_full_path:
+            parent = active_paths.get(_normalize_name(parent_full_path))
+            if not parent:
+                report.errors.append(
+                    ImportIssue(row=row_index, field="parent_full_path", message="Parent manufacturer not found")
+                )
+                continue
+            if parent.parent_id is not None:
+                report.errors.append(
+                    ImportIssue(row=row_index, field="parent_full_path", message="Parent must be a country root")
+                )
+                continue
+            full_path = f"{parent.full_path} / {name}"
+        else:
+            full_path = name
+
+        normalized_path = _normalize_name(full_path)
+        if normalized_path in active_paths or normalized_path in seen_paths:
             report.skipped_duplicates += 1
-            report.warnings.append(ImportIssue(row=index, field="name", message="Duplicate name skipped"))
+            report.warnings.append(ImportIssue(row=row_index, field="name", message="Duplicate manufacturer skipped"))
             continue
-        seen_pairs.add(key)
-        to_create.append((name, country))
+
+        seen_paths.add(normalized_path)
+        to_create.append(
+            {
+                "name": name,
+                "country": country,
+                "parent_full_path": parent_full_path,
+                "flag": as_optional_str(values.get("flag")),
+                "founded_year": as_optional_int(values.get("founded_year")),
+                "segment": as_optional_str(values.get("segment")),
+                "specialization": as_optional_str(values.get("specialization")),
+                "website": as_optional_str(values.get("website")),
+            }
+        )
 
     report.created = len(to_create)
     if not dry_run:
-        for name, country in to_create:
-            root = get_or_create_country_root(db, country)
-            ensure_unique_name(db, name, root.id)
-            manufacturer = Manufacturer(
-                name=name,
-                country=root.name,
-                parent_id=root.id,
-            )
+        for item_data in to_create:
+            parent_full_path = item_data["parent_full_path"]
+            if parent_full_path:
+                parent = active_paths[_normalize_name(str(parent_full_path))]
+                manufacturer = Manufacturer(
+                    name=str(item_data["name"]),
+                    country=parent.name,
+                    parent_id=parent.id,
+                    flag=item_data["flag"],
+                    founded_year=item_data["founded_year"],
+                    segment=item_data["segment"],
+                    specialization=item_data["specialization"],
+                    website=item_data["website"],
+                )
+            else:
+                manufacturer = Manufacturer(
+                    name=str(item_data["name"]),
+                    country=str(item_data["country"]),
+                )
+            if manufacturer.parent_id is None:
+                ensure_unique_name(db, manufacturer.name, None)
+            else:
+                ensure_unique_name(db, manufacturer.name, manufacturer.parent_id)
             db.add(manufacturer)
             db.flush()
+            active_paths[_normalize_name(manufacturer.full_path)] = manufacturer
             add_audit_log(
                 db,
                 actor_id=current_user.id,

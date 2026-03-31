@@ -24,6 +24,7 @@ import { createEntity, deleteEntity, Pagination, restoreEntity, updateEntity } f
 import { DictionariesTabs } from "../components/DictionariesTabs";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
+import { EntityImportExportIconActions } from "../components/EntityImportExportIconActions";
 import { AppButton } from "../components/ui/AppButton";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
@@ -318,6 +319,13 @@ export default function EquipmentCategoriesPage() {
               label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
+            <EntityImportExportIconActions
+              basePath="/equipment-categories"
+              filenamePrefix="equipment-categories"
+              exportParams={{ include_deleted: showDeleted || undefined, q: q || undefined }}
+              canWrite={canWrite}
+              onCommitted={refresh}
+            />
             {canWrite && (
               <AppButton variant="contained" startIcon={<AddRoundedIcon />} onClick={() => openCreateDialog(null)}>
                 {t("pagesUi.equipmentCategories.actions.addRoot")}

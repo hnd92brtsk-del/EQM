@@ -29,6 +29,7 @@ import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
 import { EntityDialog, DialogState, type FieldConfig, type TreeFieldOption } from "../components/EntityDialog";
+import { EntityImportExportIconActions } from "../components/EntityImportExportIconActions";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { uploadEquipmentTypeDatasheet, uploadEquipmentTypePhoto } from "../api/equipmentTypeMedia";
@@ -1172,6 +1173,18 @@ export default function EquipmentTypesPage() {
               label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
+            <EntityImportExportIconActions
+              basePath="/equipment-types"
+              filenamePrefix="equipment-types"
+              exportParams={{
+                include_deleted: showDeleted || undefined,
+                q: q || undefined,
+                sort: sort || undefined,
+                manufacturer_id: manufacturerFilter || undefined
+              }}
+              canWrite={canWrite}
+              onCommitted={refresh}
+            />
             {canWrite && (
               <AppButton
                 variant="contained"

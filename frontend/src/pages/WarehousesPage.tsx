@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 
 import { type ColumnMeta, DataTable, type DataTableFiltersState } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
+import { EntityImportExportIconActions } from "../components/EntityImportExportIconActions";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
@@ -281,6 +282,22 @@ export default function WarehousesPage() {
               label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
+            <EntityImportExportIconActions
+              basePath="/warehouses"
+              filenamePrefix="warehouses"
+              exportParams={{
+                include_deleted: showDeleted || undefined,
+                sort: sort || undefined,
+                name: columnFilters.name || undefined,
+                name_alphabet: columnFilters.name_alphabet || undefined,
+                location_id:
+                  columnFilters.location_id && !Number.isNaN(Number(columnFilters.location_id))
+                    ? Number(columnFilters.location_id)
+                    : undefined
+              }}
+              canWrite={canWrite}
+              onCommitted={refresh}
+            />
             {canWrite && (
               <AppButton
                 variant="contained"

@@ -31,6 +31,7 @@ import AutoFixHighRoundedIcon from "@mui/icons-material/AutoFixHighRounded";
 
 import { type ColumnMeta, DataTable, type DataTableFiltersState } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
+import { EntityImportExportIconActions } from "../components/EntityImportExportIconActions";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import {
@@ -540,6 +541,24 @@ export default function CabinetsPage() {
               label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
+            <EntityImportExportIconActions
+              basePath="/cabinets"
+              filenamePrefix="cabinets"
+              exportParams={{
+                include_deleted: showDeleted || undefined,
+                sort: sort || undefined,
+                name: columnFilters.name || undefined,
+                name_alphabet: columnFilters.name_alphabet || undefined,
+                factory_number: columnFilters.factory_number || undefined,
+                nomenclature_number: columnFilters.nomenclature_number || undefined,
+                location_id:
+                  columnFilters.location_id && !Number.isNaN(Number(columnFilters.location_id))
+                    ? Number(columnFilters.location_id)
+                    : undefined
+              }}
+              canWrite={canWrite}
+              onCommitted={refresh}
+            />
             {canWrite && (
               <AppButton
                 variant="contained"

@@ -25,6 +25,7 @@ import { LOOKUP_QUERY_STALE_TIME } from "../api/queryDefaults";
 import { syncDigitalTwinFromOperation } from "../api/digitalTwins";
 import { type ColumnMeta, DataTable, type DataTableFiltersState } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
+import { EntityImportExportIconActions } from "../components/EntityImportExportIconActions";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
@@ -353,6 +354,24 @@ export default function AssembliesPage() {
               label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
+            <EntityImportExportIconActions
+              basePath="/assemblies"
+              filenamePrefix="assemblies"
+              exportParams={{
+                include_deleted: showDeleted || undefined,
+                sort: sort || undefined,
+                name: debouncedColumnFilters.name || undefined,
+                name_alphabet: debouncedColumnFilters.name_alphabet || undefined,
+                factory_number: debouncedColumnFilters.factory_number || undefined,
+                nomenclature_number: debouncedColumnFilters.nomenclature_number || undefined,
+                location_id:
+                  debouncedColumnFilters.location_id && !Number.isNaN(Number(debouncedColumnFilters.location_id))
+                    ? Number(debouncedColumnFilters.location_id)
+                    : undefined
+              }}
+              canWrite={canWrite}
+              onCommitted={refresh}
+            />
             {canWrite && (
               <AppButton
                 variant="contained"

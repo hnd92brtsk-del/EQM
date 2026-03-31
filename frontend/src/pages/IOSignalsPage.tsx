@@ -17,6 +17,7 @@ import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
+import { EntityImportExportIconActions } from "../components/EntityImportExportIconActions";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { AppButton } from "../components/ui/AppButton";
 import { useAuth } from "../context/AuthContext";
@@ -498,6 +499,24 @@ export default function IOSignalsPage() {
                 ) : null}
               </Box>
               <Box sx={{ flexGrow: 1 }} />
+              <EntityImportExportIconActions
+                basePath="/io-signals"
+                filenamePrefix={
+                  selectedDevice
+                    ? `io-signals-${selectedDevice.equipment_in_operation_id}`
+                    : "io-signals"
+                }
+                exportParams={{
+                  equipment_in_operation_id: selectedDevice?.equipment_in_operation_id || undefined
+                }}
+                importParams={{
+                  equipment_in_operation_id: selectedDevice?.equipment_in_operation_id || undefined
+                }}
+                canWrite={canWrite}
+                disabled={!selectedDevice}
+                disabledReason={t("pagesUi.ioSignals.labels.selectEquipment")}
+                onCommitted={refreshSignals}
+              />
               {selectedDevice && (
                 <AppButton
                   startIcon={<SyncRoundedIcon />}

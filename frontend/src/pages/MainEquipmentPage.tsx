@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { DictionariesTabs } from "../components/DictionariesTabs";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
+import { EntityImportExportIconActions } from "../components/EntityImportExportIconActions";
 import { createEntity, deleteEntity, updateEntity, restoreEntity, Pagination } from "../api/entities";
 import { deleteMainEquipmentPidSymbol, uploadMainEquipmentPidSymbol } from "../api/mainEquipment";
 import { apiFetch } from "../api/client";
@@ -608,6 +609,13 @@ export default function MainEquipmentPage() {
               label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
+            <EntityImportExportIconActions
+              basePath="/main-equipment"
+              filenamePrefix="main-equipment"
+              exportParams={{ include_deleted: showDeleted || undefined, q: q || undefined }}
+              canWrite={canWrite}
+              onCommitted={refresh}
+            />
             {canWrite && (
               <AppButton variant="contained" startIcon={<AddRoundedIcon />} onClick={() => openCreateDialog(null)}>
                 {t("pagesUi.mainEquipment.actions.addRoot")}

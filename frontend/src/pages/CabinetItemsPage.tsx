@@ -40,6 +40,7 @@ import { useNavigate } from "react-router-dom";
 
 import { LOOKUP_QUERY_STALE_TIME } from "../api/queryDefaults";
 import { createDirectToCabinetBatch } from "../api/movements";
+import { EntityImportExportIconActions } from "../components/EntityImportExportIconActions";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import { apiFetch } from "../api/client";
@@ -1659,6 +1660,20 @@ export default function CabinetItemsPage() {
               label={t("common.showDeleted")}
             />
             <Box sx={{ flexGrow: 1 }} />
+            <EntityImportExportIconActions
+              basePath="/cabinet-items"
+              filenamePrefix="cabinet-items"
+              exportParams={{
+                include_deleted: showDeleted || undefined,
+                q: debouncedQuery || undefined,
+                sort: sort || undefined,
+                cabinet_id: containerType === "cabinet" ? containerId : undefined,
+                equipment_type_id: equipmentFilter || undefined,
+                manufacturer_id: manufacturerFilter || undefined
+              }}
+              canWrite={canWrite}
+              onCommitted={invalidateEquipmentQueries}
+            />
             <AppButton variant="outlined" size="small" onClick={expandAll} disabled={locationNodes.length === 0}>
               {t("pagesUi.cabinetItems.actions.expandAll")}
             </AppButton>

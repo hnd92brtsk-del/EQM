@@ -26,6 +26,7 @@ import { useTranslation } from "react-i18next";
 import { LOOKUP_QUERY_STALE_TIME } from "../api/queryDefaults";
 import { DataTable } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
+import { EntityImportExportIconActions } from "../components/EntityImportExportIconActions";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { AppButton } from "../components/ui/AppButton";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
@@ -764,6 +765,25 @@ export default function WarehouseItemsPage() {
                 />
               }
               label={t("common.showDeleted")}
+            />
+            <Box sx={{ flexGrow: 1 }} />
+            <EntityImportExportIconActions
+              basePath="/warehouse-items"
+              filenamePrefix="warehouse-items"
+              exportParams={{
+                include_deleted: showDeleted || undefined,
+                q: debouncedQuery || undefined,
+                sort: sort || undefined,
+                warehouse_id: warehouseFilter || undefined,
+                location_id: locationFilter || undefined,
+                equipment_type_id: equipmentFilter || undefined,
+                manufacturer_id: manufacturerFilter || undefined,
+                equipment_category_id: equipmentCategoryFilter || undefined,
+                unit_price_rub_min: priceMin ? Number(priceMin) : undefined,
+                unit_price_rub_max: priceMax ? Number(priceMax) : undefined
+              }}
+              canWrite={canWrite}
+              onCommitted={refresh}
             />
           </Box>
 

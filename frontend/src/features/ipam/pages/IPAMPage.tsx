@@ -3,19 +3,19 @@ import { Alert, Box, Card, CardContent, Chip, CircularProgress, Dialog, DialogAc
 import { alpha, useTheme } from "@mui/material/styles";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
-import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
+import { EntityImportExportIconActions } from "../../../components/EntityImportExportIconActions";
 import { ErrorSnackbar } from "../../../components/ErrorSnackbar";
 import { SearchableTreeSelectField, type SearchableTreeSelectOption } from "../../../components/SearchableTreeSelectField";
 import { AppButton } from "../../../components/ui/AppButton";
 import { useAuth } from "../../../context/AuthContext";
 import { hasPermission } from "../../../utils/permissions";
 import { buildLocationLookups, fetchLocationsTree } from "../../../utils/locations";
-import { assignAddress, createSubnetFromCalculator, createVlan, deleteSubnet, deleteVlan, exportSubnetCsv, getAddressDetails, getHostEquipmentTree, getSubnetAddresses, listSubnets, listVlans, patchAddress, releaseAddress, updateSubnet, updateVlan } from "../api/ipam";
+import { assignAddress, createSubnetFromCalculator, createVlan, deleteSubnet, deleteVlan, getAddressDetails, getHostEquipmentTree, getSubnetAddresses, listSubnets, listVlans, patchAddress, releaseAddress, updateSubnet, updateVlan } from "../api/ipam";
 import type { HostEquipmentTreeLeaf, HostEquipmentTreeNode, IPAddressDetails, Subnet, Vlan } from "../types";
 
 type StatusFilter = "all" | "free" | "used" | "reserved";
@@ -329,9 +329,6 @@ export default function IPAMPage() {
     <Box sx={{ display: "grid", gap: 2 }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
         <Typography variant="h4" sx={{ fontWeight: 800 }}>IPAM / Сеть</Typography>
-        <Stack direction="row" spacing={1}>
-          <AppButton startIcon={<DownloadRoundedIcon />} variant="outlined" onClick={() => selectedSubnet && exportSubnetCsv(selectedSubnet.id)} disabled={!selectedSubnet}>CSV</AppButton>
-        </Stack>
       </Box>
 
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", lg: "270px minmax(0,1fr) 300px" } }}>
@@ -346,18 +343,28 @@ export default function IPAMPage() {
               <Typography sx={{ fontSize: 12, fontWeight: 700, color: ui.muted, textTransform: "uppercase" }}>
                 {sidebarTab === "subnets" ? "Подсети" : "VLAN"}
               </Typography>
-              {canAdmin ? (
-                <IconButton
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <EntityImportExportIconActions
+                  basePath={sidebarTab === "subnets" ? "/ipam/subnets" : "/ipam/vlans"}
+                  filenamePrefix={sidebarTab === "subnets" ? "ipam-subnets" : "ipam-vlans"}
+                  exportParams={sidebarTab === "subnets" ? { sort: "network_address" } : { sort: "vlan_number" }}
+                  canWrite={canAdmin}
+                  onCommitted={refresh}
                   size="small"
-                  onClick={() => {
-                    if (sidebarTab === "subnets") setCalculatorOpen(true);
-                    else openCreateVlanDialog();
-                  }}
-                  sx={{ color: ui.icon, border: `1px solid ${alpha(isDark ? "#7ea2d6" : "#24406f", 0.2)}`, bgcolor: alpha(isDark ? "#7ea2d6" : "#24406f", isDark ? 0.08 : 0.05) }}
-                >
-                  <AddRoundedIcon fontSize="small" />
-                </IconButton>
-              ) : null}
+                />
+                {canAdmin ? (
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      if (sidebarTab === "subnets") setCalculatorOpen(true);
+                      else openCreateVlanDialog();
+                    }}
+                    sx={{ color: ui.icon, border: `1px solid ${alpha(isDark ? "#7ea2d6" : "#24406f", 0.2)}`, bgcolor: alpha(isDark ? "#7ea2d6" : "#24406f", isDark ? 0.08 : 0.05) }}
+                  >
+                    <AddRoundedIcon fontSize="small" />
+                  </IconButton>
+                ) : null}
+              </Stack>
             </Stack>
             <Box sx={{ maxHeight: 760, overflowY: "auto", display: "grid", gap: 1 }}>
               {subnetsQuery.isLoading || vlansQuery.isLoading ? <Box sx={{ py: 6, display: "grid", placeItems: "center" }}><CircularProgress size={28} /></Box> : null}

@@ -23,6 +23,7 @@ import { useTranslation } from "react-i18next";
 
 import { DataTable } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
+import { EntityImportExportIconActions } from "../components/EntityImportExportIconActions";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { listEntity } from "../api/entities";
 import {
@@ -336,6 +337,19 @@ export default function PersonnelPage() {
               />
             )}
             <Box sx={{ flexGrow: 1 }} />
+            <EntityImportExportIconActions
+              basePath="/personnel"
+              filenamePrefix="personnel"
+              exportParams={{
+                include_deleted: showDeleted || undefined,
+                q: q || undefined,
+                sort: sort || undefined,
+                department: departmentFilter || undefined,
+                service: serviceFilter || undefined
+              }}
+              canWrite={canWrite}
+              onCommitted={refresh}
+            />
             <AppButton variant="outlined" onClick={() => navigate("/personnel/schedule")}>
               {t("yearlySchedule.actions.openPlanner")}
             </AppButton>
