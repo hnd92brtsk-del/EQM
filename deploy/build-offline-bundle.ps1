@@ -15,6 +15,7 @@ $deployRoot = Split-Path -Parent $PSCommandPath
 $repoRoot = Split-Path -Parent $deployRoot
 $version = (Get-Content (Join-Path $repoRoot "VERSION") -TotalCount 1).Trim()
 $expectedRevision = "0043_add_io_signal_plc_range_fields"
+$deployJwtSecret = "eqm-offline-jwt-$($version.Trim())-server-2026-secure-key"
 
 if (-not $OutputDir) {
     $OutputDir = Join-Path $deployRoot "dist\\eqm-offline-bundle"
@@ -235,7 +236,7 @@ DB_USER=equipment_user
 DB_PASSWORD=$DeployDbPassword
 POSTGRES_SUPERUSER_PASSWORD=$DeployPostgresPassword
 
-JWT_SECRET=eqm-offline-jwt-$($version.Trim())
+JWT_SECRET=$deployJwtSecret
 JWT_ALGORITHM=HS256
 JWT_EXPIRE_MINUTES=60
 ENV=production

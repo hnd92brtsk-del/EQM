@@ -42,6 +42,13 @@ deploy\dist\eqm-offline-bundle
 
 - `http://192.168.110.18`
 
+Важно:
+
+- WSL-репетиция не потребовала изменений в серверной сетевой схеме
+- проблемы вида `localhost`, Windows proxy и удержание WSL в активном состоянии относятся только к локальной репетиции на ПК
+- для реального Ubuntu-сервера это не нужно
+- полезное улучшение после репетиции только одно: в bundle теперь нужно использовать более длинный `JWT_SECRET`
+
 ## 3. Что копировать на сервер
 
 На сервер копируется именно каталог:
@@ -94,6 +101,7 @@ deploy/app/.env
 По умолчанию он настроен на:
 
 - `PUBLIC_BASE_URL=http://192.168.110.18`
+- `JWT_SECRET` с длиной больше 32 символов
 - `POSTGRES_DATA_DIR=/srv/eqm/postgres`
 - `PHOTO_DIR=/srv/eqm/photo`
 - `DATASHEET_DIR=/srv/eqm/datasheets`
@@ -106,6 +114,12 @@ deploy/app/.env
 ```bash
 nano /opt/eqm/eqm-offline-bundle/deploy/app/.env
 ```
+
+Рекомендуется проверить, что:
+
+- `PUBLIC_BASE_URL`, `FRONTEND_PUBLIC_URL`, `BACKEND_PUBLIC_URL` указывают на `http://192.168.110.18`
+- `JWT_SECRET` не короче 32 символов
+- `SEED_ADMIN_PASSWORD` установлен в тот пароль, который вы реально хотите использовать для первого входа
 
 ## 7. Первый запуск стека
 
