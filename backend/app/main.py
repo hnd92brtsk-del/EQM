@@ -1,45 +1,45 @@
-﻿from fastapi import FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.core.config import BASE_DIR, get_settings
+from app.core.config import get_settings
 from app.core.versioning import read_version
 from app.routers import (
-    auth,
-    users,
-    manufacturers,
-    locations,
-    main_equipment,
-    entity_import_export,
-    measurement_units,
-    signal_types,
-    field_equipments,
-    data_types,
-    equipment_categories,
-    equipment_types,
-    warehouses,
-    cabinets,
     assemblies,
-    warehouse_items,
-    cabinet_items,
-    cabinet_files,
     assembly_items,
-    io_signals,
-    io_tree,
-    movements,
     audit_logs,
-    sessions,
-    dashboard,
-    role_permissions,
-    personnel,
+    auth,
+    cabinet_files,
+    cabinet_items,
+    cabinets,
     chat,
-    equipment_in_operation,
-    pid,
-    ipam,
-    network_topologies,
-    serial_map_documents,
+    dashboard,
+    data_types,
     diagnostics,
     digital_twins,
+    entity_import_export,
+    equipment_categories,
+    equipment_in_operation,
+    equipment_types,
+    field_equipments,
+    io_signals,
+    io_tree,
+    ipam,
+    locations,
+    main_equipment,
+    manufacturers,
+    measurement_units,
+    movements,
+    network_topologies,
+    personnel,
+    pid,
+    role_permissions,
+    serial_map_documents,
+    sessions,
+    signal_types,
+    users,
+    warehouse_items,
+    warehouses,
 )
 
 settings = get_settings()
@@ -48,9 +48,7 @@ app = FastAPI(title="EQM API", version=read_version())
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-    ],
+    allow_origins=settings.cors_origin_list or ["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -97,7 +95,7 @@ app.include_router(serial_map_documents.router, prefix="/api/v1/serial-map-docum
 app.include_router(diagnostics.router, prefix="/api/v1/admin/diagnostics", tags=["diagnostics"])
 app.include_router(digital_twins.router, prefix="/api/v1/digital-twins", tags=["digital-twins"])
 
-pid_images_dir = BASE_DIR / "app" / "pid_storage" / "images"
+pid_images_dir = settings.resolved_pid_images_dir
 pid_images_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/api/v1/pid-storage/images", StaticFiles(directory=str(pid_images_dir)), name="pid-images")
 
@@ -105,3 +103,8 @@ app.mount("/api/v1/pid-storage/images", StaticFiles(directory=str(pid_images_dir
 @app.get("/")
 def root():
     return {"status": "ok"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "version": read_version()}

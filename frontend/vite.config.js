@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 var appVersion = readFileSync(fileURLToPath(new URL("../VERSION", import.meta.url)), "utf-8").trim();
+var devApiProxyTarget = process.env.VITE_DEV_API_PROXY_TARGET || "http://localhost:8000";
 export default defineConfig({
     base: "/",
     plugins: [react()],
@@ -33,8 +34,14 @@ export default defineConfig({
         }
     },
     server: {
-        host: "localhost",
-        port: 5173
+        host: "0.0.0.0",
+        port: 5173,
+        proxy: {
+            "/api": {
+                target: devApiProxyTarget,
+                changeOrigin: true
+            }
+        }
     },
     test: {
         environment: "jsdom",
