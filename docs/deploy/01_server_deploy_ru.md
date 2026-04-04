@@ -67,13 +67,13 @@ eqm-offline-bundle
 
 ```bash
 sudo mkdir -p /opt/eqm
-sudo mkdir -p /srv/eqm/photo
-sudo mkdir -p /srv/eqm/datasheets
-sudo mkdir -p /srv/eqm/uploads
-sudo mkdir -p /srv/eqm/cabinet-files
-sudo mkdir -p /srv/eqm/pid-storage
-sudo mkdir -p /srv/eqm/postgres
-sudo chown -R $USER:$USER /opt/eqm /srv/eqm
+sudo mkdir -p /opt/eqm/data/photo
+sudo mkdir -p /opt/eqm/data/datasheets
+sudo mkdir -p /opt/eqm/data/uploads
+sudo mkdir -p /opt/eqm/data/cabinet-files
+sudo mkdir -p /opt/eqm/data/pid-storage
+sudo mkdir -p /opt/eqm/data/postgres
+sudo chown -R $USER:$USER /opt/eqm
 ```
 
 ## 5. Загрузка образов без интернета
@@ -102,12 +102,13 @@ deploy/app/.env
 
 - `PUBLIC_BASE_URL=http://192.168.110.18`
 - `JWT_SECRET` с длиной больше 32 символов
-- `POSTGRES_DATA_DIR=/srv/eqm/postgres`
-- `PHOTO_DIR=/srv/eqm/photo`
-- `DATASHEET_DIR=/srv/eqm/datasheets`
-- `UPLOAD_DIR=/srv/eqm/uploads`
-- `CABINET_FILES_DIR=/srv/eqm/cabinet-files`
-- `PID_STORAGE_ROOT=/srv/eqm/pid-storage`
+- `POSTGRES_DATA_DIR=/var/lib/postgresql/data`
+- `HOST_POSTGRES_DATA_DIR=/opt/eqm/data/postgres`
+- `HOST_PHOTO_DIR=/opt/eqm/data/photo`
+- `HOST_DATASHEET_DIR=/opt/eqm/data/datasheets`
+- `HOST_UPLOAD_DIR=/opt/eqm/data/uploads`
+- `HOST_CABINET_FILES_DIR=/opt/eqm/data/cabinet-files`
+- `HOST_PID_STORAGE_ROOT=/opt/eqm/data/pid-storage`
 
 При необходимости отредактируйте:
 

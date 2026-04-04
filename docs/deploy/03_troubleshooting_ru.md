@@ -20,7 +20,7 @@ cd /opt/eqm/eqm-offline-bundle/deploy/app
 
 Причины:
 
-- нет прав на `/srv/eqm/postgres`
+- нет прав на host data dir PostgreSQL
 - в `.env` занят порт `15432`
 - повреждён старый data dir
 
@@ -28,14 +28,16 @@ cd /opt/eqm/eqm-offline-bundle/deploy/app
 
 ```bash
 docker compose --env-file .env logs postgres --tail=200
-sudo chown -R $USER:$USER /srv/eqm/postgres
+grep HOST_POSTGRES_DATA_DIR .env
+sudo mkdir -p /opt/eqm/data/postgres
+sudo chown -R $USER:$USER /opt/eqm/data/postgres
 ss -ltnp | grep 15432 || true
 ```
 
 Если нужен чистый запуск:
 
 ```bash
-rm -rf /srv/eqm/postgres/*
+rm -rf /opt/eqm/data/postgres/*
 docker compose --env-file .env up -d postgres
 ```
 
@@ -111,19 +113,19 @@ docker compose --env-file .env exec -T postgres psql -U equipment_user -d equipm
 
 Причины:
 
-- пустые каталоги `/srv/eqm/...`
+- пустые host-каталоги данных
 - неверные пути в `.env`
 - права на файловые каталоги
 
 Решение:
 
 ```bash
-grep -E "PHOTO_DIR|DATASHEET_DIR|UPLOAD_DIR|CABINET_FILES_DIR|PID_STORAGE_ROOT" .env
-ls -la /srv/eqm/photo
-ls -la /srv/eqm/datasheets
-ls -la /srv/eqm/uploads
-ls -la /srv/eqm/cabinet-files
-ls -la /srv/eqm/pid-storage
+grep -E "HOST_PHOTO_DIR|HOST_DATASHEET_DIR|HOST_UPLOAD_DIR|HOST_CABINET_FILES_DIR|HOST_PID_STORAGE_ROOT" .env
+ls -la /opt/eqm/data/photo
+ls -la /opt/eqm/data/datasheets
+ls -la /opt/eqm/data/uploads
+ls -la /opt/eqm/data/cabinet-files
+ls -la /opt/eqm/data/pid-storage
 ```
 
 ## 8. Host nginx не проксирует приложение

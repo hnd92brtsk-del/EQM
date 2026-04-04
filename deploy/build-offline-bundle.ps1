@@ -255,18 +255,18 @@ BACKEND_RUNTIME_PORT=8000
 BACKEND_RUNTIME_URL=http://127.0.0.1:8000
 
 PHOTO_DIR=/srv/eqm/photo
-HOST_PHOTO_DIR=/srv/eqm/photo
+HOST_PHOTO_DIR=/opt/eqm/data/photo
 DATASHEET_DIR=/srv/eqm/datasheets
-HOST_DATASHEET_DIR=/srv/eqm/datasheets
+HOST_DATASHEET_DIR=/opt/eqm/data/datasheets
 UPLOAD_DIR=/srv/eqm/uploads
-HOST_UPLOAD_DIR=/srv/eqm/uploads
+HOST_UPLOAD_DIR=/opt/eqm/data/uploads
 CABINET_FILES_DIR=/srv/eqm/cabinet-files
-HOST_CABINET_FILES_DIR=/srv/eqm/cabinet-files
+HOST_CABINET_FILES_DIR=/opt/eqm/data/cabinet-files
 CABINET_FILES_MAX_SIZE=10737418240
 PID_STORAGE_ROOT=/srv/eqm/pid-storage
-HOST_PID_STORAGE_ROOT=/srv/eqm/pid-storage
-POSTGRES_DATA_DIR=/srv/eqm/postgres
-HOST_POSTGRES_DATA_DIR=/srv/eqm/postgres
+HOST_PID_STORAGE_ROOT=/opt/eqm/data/pid-storage
+POSTGRES_DATA_DIR=/var/lib/postgresql/data
+HOST_POSTGRES_DATA_DIR=/opt/eqm/data/postgres
 
 POSTGRES_BIND_PORT=15432
 BACKEND_BIND_PORT=18000
