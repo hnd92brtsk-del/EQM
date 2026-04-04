@@ -22,6 +22,7 @@ if (-not $OutputDir) {
 }
 
 $runtimeImagesDir = Join-Path $OutputDir "deploy\\runtime-images"
+$metadataDir = Join-Path $OutputDir "deploy\\metadata"
 $backupDir = Join-Path $repoRoot "backup"
 $dumpPath = Join-Path $backupDir "equipment_crm_deploy.sql"
 $countsPath = Join-Path $backupDir "equipment_crm_deploy_table_counts.tsv"
@@ -209,6 +210,7 @@ Get-ChildItem -LiteralPath $OutputDir -Recurse -Directory -Force |
     ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force }
 
 New-Item -ItemType Directory -Force -Path $runtimeImagesDir | Out-Null
+New-Item -ItemType Directory -Force -Path $metadataDir | Out-Null
 
 $backendImage = "eqm/backend:$version"
 $frontendImage = "eqm/frontend:$version"
@@ -285,6 +287,14 @@ SEED_ADMIN_PASSWORD=$DeployAdminPassword
 "@
 
 Write-Utf8LfFile -Path $bundleEnvPath -Content $envText
+
+$bundleBuildStamp = [ordered]@{
+    version = $version
+    build_completed_utc = [DateTime]::UtcNow.ToString("o")
+    bundle_root = $OutputDir
+    required_rebuild_rule = "Any project change that affects runtime, deploy, DB, docs, or artifacts requires rebuilding deploy/dist/eqm-offline-bundle."
+}
+Write-Utf8LfFile -Path (Join-Path $metadataDir "bundle-build-stamp.json") -Content (($bundleBuildStamp | ConvertTo-Json -Depth 4) + "`n")
 
 $sourceSizeBytes = Measure-DirectoryBytes -Path $repoRoot -ExcludePrefixes @(
     (Join-Path $repoRoot ".git"),

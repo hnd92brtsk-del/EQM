@@ -193,6 +193,21 @@ python tools\bump_version.py major
 ```
 - После любых правок Codex должен указать в финальном сообщении новую версию проекта.
 
+## Правило По Deploy Bundle
+- Любые изменения проекта считаются незавершёнными, пока не актуализирован `deploy/dist/eqm-offline-bundle`.
+- Это правило относится ко всем изменениям, которые влияют на backend, frontend, БД, Docker-образы, конфиги, runtime-пути, dump, справочники, enum-значения, инструкции по deploy или smoke-check.
+- После любых таких правок нужно:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\deploy\build-offline-bundle.ps1
+```
+- Если bundle уже существует, его нужно пересобрать заново, а не считать актуальным автоматически.
+- Если менялись deploy-конфиги, документация или серверные скрипты, эти изменения должны попасть и в исходные файлы проекта, и в итоговый bundle.
+- Для явной проверки свежести bundle используйте:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\check-deploy-bundle-freshness.ps1
+```
+- Релизный чеклист лежит в `docs/deploy/06_bundle_release_checklist_ru.md`.
+
 ## Критерии готовности
 - БД создается скриптом `create_database.py`
 - Alembic применяет миграции без ошибок

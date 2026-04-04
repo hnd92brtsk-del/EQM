@@ -45,32 +45,35 @@ MAX_STORED_LOG_LINES = 300
 MAX_LINES_PER_FILE = 1200
 settings = get_settings()
 
-SERVICE_DEFINITIONS = {
-    "postgres": {
-        "display_name": "PostgreSQL",
-        "port": 5432,
-        "host": "localhost",
-        "http_url": None,
-        "log_dir": RUNTIME_LOGS_DIR / "postgres",
-        "legacy_files": (PROJECT_ROOT / ".postgres" / "postgres.log",),
-    },
-    "backend": {
-        "display_name": "Backend",
-        "port": 8000,
-        "host": "localhost",
-        "http_url": "http://localhost:8000/docs",
-        "log_dir": RUNTIME_LOGS_DIR / "backend",
-        "legacy_files": (PROJECT_ROOT / "backend.log", PROJECT_ROOT / "backend.err.log"),
-    },
-    "frontend": {
-        "display_name": "Frontend",
-        "port": 5173,
-        "host": "localhost",
-        "http_url": "http://localhost:5173",
-        "log_dir": RUNTIME_LOGS_DIR / "frontend",
-        "legacy_files": (PROJECT_ROOT / "frontend.log", PROJECT_ROOT / "frontend.err.log"),
-    },
-}
+def get_service_definitions() -> dict[str, dict[str, object]]:
+    frontend_runtime_url = settings.frontend_runtime_base_url.rstrip("/")
+    backend_runtime_url = settings.backend_runtime_base_url.rstrip("/")
+    return {
+        "postgres": {
+            "display_name": "PostgreSQL",
+            "port": settings.db_port,
+            "host": settings.db_host,
+            "http_url": None,
+            "log_dir": RUNTIME_LOGS_DIR / "postgres",
+            "legacy_files": (PROJECT_ROOT / ".postgres" / "postgres.log",),
+        },
+        "backend": {
+            "display_name": "Backend",
+            "port": settings.backend_runtime_port,
+            "host": settings.backend_runtime_host,
+            "http_url": f"{backend_runtime_url}/health",
+            "log_dir": RUNTIME_LOGS_DIR / "backend",
+            "legacy_files": (PROJECT_ROOT / "backend.log", PROJECT_ROOT / "backend.err.log"),
+        },
+        "frontend": {
+            "display_name": "Frontend",
+            "port": settings.frontend_runtime_port,
+            "host": settings.frontend_runtime_host,
+            "http_url": frontend_runtime_url,
+            "log_dir": RUNTIME_LOGS_DIR / "frontend",
+            "legacy_files": (PROJECT_ROOT / "frontend.log", PROJECT_ROOT / "frontend.err.log"),
+        },
+    }
 
 TIMESTAMP_PATTERNS = (
     re.compile(r"^(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?)"),
@@ -169,6 +172,91 @@ PUBLIC_URL_ENV_KEYS = ("EQM_PUBLIC_URL", "PUBLIC_BASE_URL", "NGINX_PUBLIC_URL")
 BACKEND_URL_ENV_KEYS = ("EQM_BACKEND_PUBLIC_URL", "BACKEND_PUBLIC_URL", "API_PUBLIC_URL")
 FRONTEND_URL_ENV_KEYS = ("EQM_FRONTEND_URL", "FRONTEND_PUBLIC_URL")
 FRONTEND_API_ENV_KEYS = ("VITE_API_URL", "EQM_FRONTEND_API_URL")
+
+
+def is_local_host(host: str | None) -> bool:
+    return (host or "").strip().lower() in {"localhost", "127.0.0.1", "0.0.0.0"}
+
+
+def is_relative_url(value: str | None) -> bool:
+    return bool(value) and str(value).startswith("/")
+
+
+def normalize_url_path(value: str | None) -> str:
+    if not value:
+        return ""
+    parsed = urlparse(value)
+    path = parsed.path or "/"
+    return path.rstrip("/") or "/"
+
+
+def build_backend_public_base_url() -> str:
+    return (
+        get_first_env(BACKEND_URL_ENV_KEYS)
+        or settings.backend_public_url
+        or settings.public_base_url
+        or settings.backend_runtime_base_url
+    ).rstrip("/")
+
+
+def build_frontend_public_url(public_entrypoint: str | None) -> str:
+    return (
+        get_first_env(FRONTEND_URL_ENV_KEYS)
+        or settings.frontend_public_url
+        or public_entrypoint
+        or settings.public_base_url
+        or settings.frontend_runtime_base_url
+    ).rstrip("/")
+
+
+def build_frontend_api_public_base(frontend_api_base: str, backend_public_base_url: str) -> str:
+    if is_relative_url(frontend_api_base):
+        return frontend_api_base.rstrip("/") or "/"
+    return frontend_api_base.rstrip("/")
+
+
+def frontend_api_matches_backend(frontend_api_base: str, expected_api_base: str) -> bool:
+    if is_relative_url(frontend_api_base):
+        return normalize_url_path(frontend_api_base) == normalize_url_path(expected_api_base)
+    return frontend_api_base.rstrip("/") == expected_api_base.rstrip("/")
+
+
+def is_expected_database_runtime(docker_present: bool) -> bool:
+    if is_local_host(settings.db_host) and settings.db_port == 5432:
+        return True
+    if docker_present and not is_local_host(settings.db_host) and settings.db_port == 5432:
+        return True
+    return False
+
+
+def service_runs_via_container_peer(service: str, docker_present: bool) -> bool:
+    if not docker_present:
+        return False
+    if service == "frontend":
+        return not is_local_host(settings.frontend_runtime_host) or bool(settings.frontend_runtime_url)
+    if service == "postgres":
+        return not is_local_host(settings.db_host)
+    if service == "backend":
+        return Path("/.dockerenv").exists() or bool(os.getenv("RUNNING_IN_DOCKER"))
+    return False
+
+
+def resolve_runtime_source_kind(service: str, docker_present: bool, proxy_present: bool = False) -> str:
+    if proxy_present:
+        return "proxy"
+    if service == "frontend":
+        if docker_present and service_runs_via_container_peer("frontend", docker_present):
+            return "docker_container"
+        return "local_process"
+    if service == "backend":
+        if docker_present:
+            return "docker_container"
+        return "local_process"
+    if service == "postgres":
+        if docker_present and service_runs_via_container_peer("postgres", docker_present):
+            return "docker_container"
+        return "local_process"
+    return "config"
 
 
 def utc_now() -> datetime:
@@ -478,26 +566,30 @@ def collect_database_overview() -> DiagnosticsDatabaseOverviewOut:
     )
 
 
-def build_runtime_topology(services: list[DiagnosticsServiceOut], processes: list[DiagnosticsProcessOut] | None = None) -> DiagnosticsRuntimeTopologyOut:
+def build_runtime_topology(
+    services: list[DiagnosticsServiceOut],
+    processes: list[DiagnosticsProcessOut] | None = None,
+    database_overview: DiagnosticsDatabaseOverviewOut | None = None,
+) -> DiagnosticsRuntimeTopologyOut:
+    service_definitions = get_service_definitions()
     frontend_service = next((item for item in services if item.service == "frontend"), None)
     backend_service = next((item for item in services if item.service == "backend"), None)
     postgres_service = next((item for item in services if item.service == "postgres"), None)
 
     frontend_api_base = parse_frontend_api_base()
-    backend_base_url = get_first_env(BACKEND_URL_ENV_KEYS) or str(SERVICE_DEFINITIONS["backend"]["http_url"]).removesuffix("/docs")
+    backend_base_url = build_backend_public_base_url()
     backend_http_url = f"{backend_base_url.rstrip('/')}/docs"
 
-    docker_present, docker_details, docker_services = detect_docker_runtime()
+    docker_present, docker_details, _docker_services = detect_docker_runtime()
     nginx_present, public_entrypoint, nginx_details = detect_nginx_runtime()
 
-    frontend_url = get_first_env(FRONTEND_URL_ENV_KEYS)
-    if not frontend_url:
-        frontend_url = public_entrypoint if nginx_present and public_entrypoint else str(SERVICE_DEFINITIONS["frontend"]["http_url"])
+    frontend_url = build_frontend_public_url(public_entrypoint)
+    frontend_runtime_url = str(service_definitions["frontend"]["http_url"])
 
     mode_markers = {
         "docker": docker_present,
         "nginx": nginx_present,
-        "local": any(service.listener_pid for service in services),
+        "local": any(service.listener_pid for service in services) and not docker_present,
     }
     enabled_modes = [key for key, enabled in mode_markers.items() if enabled]
     if len(enabled_modes) > 1:
@@ -509,15 +601,16 @@ def build_runtime_topology(services: list[DiagnosticsServiceOut], processes: lis
 
     issues: list[str] = []
     expected_api_base = f"{backend_base_url.rstrip('/')}/api/v1"
-    is_frontend_backend_match = frontend_api_base.rstrip("/") == expected_api_base.rstrip("/")
+    resolved_frontend_api_base = build_frontend_api_public_base(frontend_api_base, backend_base_url)
+    is_frontend_backend_match = frontend_api_matches_backend(frontend_api_base, expected_api_base)
     if not is_frontend_backend_match:
         issues.append("Frontend настроен на другой backend API.")
 
-    is_backend_database_local = settings.db_host in {"localhost", "127.0.0.1"} and settings.db_port == 5432
+    is_backend_database_local = is_expected_database_runtime(docker_present)
     if not is_backend_database_local:
-        issues.append("Backend подключён не к локальной PostgreSQL БД по умолчанию.")
+        issues.append("Backend подключён к нестандартной БД.")
 
-    backend_http_ok = backend_service.http_ok if backend_service else safe_http_ok(backend_http_url)
+    backend_http_ok = backend_service.http_ok if backend_service else safe_http_ok(f"{build_backend_public_base_url()}/health")
     if backend_http_ok is False:
         issues.append("Backend HTTP probe не проходит.")
 
@@ -535,12 +628,13 @@ def build_runtime_topology(services: list[DiagnosticsServiceOut], processes: lis
         DiagnosticsRuntimeNodeOut(
             key="frontend",
             label="Frontend",
-            source_kind="proxy" if nginx_present else ("docker_container" if docker_services["frontend"] and not frontend_service else "local_process" if frontend_service else "config"),
+            source_kind=resolve_runtime_source_kind("frontend", docker_present, proxy_present=nginx_present),
             endpoint=frontend_url,
-            target=frontend_api_base,
+            target=resolved_frontend_api_base,
             status=frontend_service.status if frontend_service else ("healthy" if frontend_url else "unknown"),
             details=[
                 "Frontend dev server." if environment_mode == "local" and frontend_service else "Frontend served via configured endpoint.",
+                f"Runtime probe {frontend_runtime_url}",
                 *([f"PID {frontend_service.listener_pid}, порт {frontend_service.port}"] if frontend_service and frontend_service.listener_pid else []),
             ],
         )
@@ -561,7 +655,7 @@ def build_runtime_topology(services: list[DiagnosticsServiceOut], processes: lis
         DiagnosticsRuntimeNodeOut(
             key="backend",
             label="Backend",
-            source_kind="docker_container" if docker_services["backend"] and not backend_service else "local_process" if backend_service else "config",
+            source_kind=resolve_runtime_source_kind("backend", docker_present),
             endpoint=backend_http_url,
             target=build_database_dsn(),
             status=backend_service.status if backend_service else ("healthy" if backend_http_ok else "warning"),
@@ -575,9 +669,9 @@ def build_runtime_topology(services: list[DiagnosticsServiceOut], processes: lis
         DiagnosticsRuntimeNodeOut(
             key="database",
             label="Database",
-            source_kind="docker_container" if docker_services["postgres"] and not postgres_service else "local_process" if postgres_service else "config",
+            source_kind=resolve_runtime_source_kind("postgres", docker_present),
             endpoint=build_database_dsn(),
-            status=postgres_service.status if postgres_service else ("healthy" if settings.db_host else "unknown"),
+            status=postgres_service.status if postgres_service else ("healthy" if database_overview and not database_overview.issues else "unknown"),
             details=[
                 f"Host {settings.db_host}:{settings.db_port}",
                 f"Database {settings.db_name}",
@@ -591,7 +685,7 @@ def build_runtime_topology(services: list[DiagnosticsServiceOut], processes: lis
         environment_mode=environment_mode,
         public_entrypoint=resolved_public_entrypoint,
         frontend_url=frontend_url,
-        frontend_api_base=frontend_api_base,
+        frontend_api_base=resolved_frontend_api_base,
         backend_base_url=backend_base_url,
         backend_http_url=backend_http_url,
         backend_listener_pid=backend_service.listener_pid if backend_service else None,
@@ -767,6 +861,7 @@ def normalize_process(proc: psutil.Process, ports_by_pid: dict[int, list[int]]) 
 
 
 def collect_processes() -> list[DiagnosticsProcessOut]:
+    service_definitions = get_service_definitions()
     try:
         connections = psutil.net_connections(kind="inet")
     except (psutil.Error, OSError):
@@ -783,7 +878,7 @@ def collect_processes() -> list[DiagnosticsProcessOut]:
     processes = [item for item in (normalize_process(proc, ports_by_pid) for proc in raw_processes) if item]
     pid_to_process = {process.pid: process for process in processes}
     root_counts: dict[str, int] = defaultdict(int)
-    http_states = {service: safe_http_ok(config["http_url"]) if config["http_url"] else None for service, config in SERVICE_DEFINITIONS.items()}
+    http_states = {service: safe_http_ok(config["http_url"]) if config["http_url"] else None for service, config in service_definitions.items()}
 
     for process in processes:
         process.runtime_root_pid = derive_runtime_root_pid(process, pid_to_process)
@@ -804,7 +899,8 @@ def collect_processes() -> list[DiagnosticsProcessOut]:
 
 
 def collect_listening_ports(processes: list[DiagnosticsProcessOut] | None = None) -> list[DiagnosticsPortOut]:
-    expected_by_port = {config["port"]: service for service, config in SERVICE_DEFINITIONS.items()}
+    service_definitions = get_service_definitions()
+    expected_by_port = {config["port"]: service for service, config in service_definitions.items()}
     processes_by_pid = {item.pid: item for item in (processes or [])}
     results: list[DiagnosticsPortOut] = []
     seen: set[tuple[str | None, int, int | None]] = set()
@@ -869,6 +965,8 @@ def collect_listening_ports(processes: list[DiagnosticsProcessOut] | None = None
 
 
 def collect_services(ports: list[DiagnosticsPortOut], processes: list[DiagnosticsProcessOut]) -> list[DiagnosticsServiceOut]:
+    service_definitions = get_service_definitions()
+    docker_present, _docker_details, _docker_services = detect_docker_runtime()
     checked_at = utc_now()
     listener_by_service = {item.service: item for item in ports if item.service and item.is_primary_listener}
     processes_by_service: dict[str, list[DiagnosticsProcessOut]] = defaultdict(list)
@@ -877,14 +975,20 @@ def collect_services(ports: list[DiagnosticsPortOut], processes: list[Diagnostic
             processes_by_service[process.service].append(process)
 
     services: list[DiagnosticsServiceOut] = []
-    for service, config in SERVICE_DEFINITIONS.items():
+    for service, config in service_definitions.items():
         listener = listener_by_service.get(service)
         service_processes = processes_by_service.get(service, [])
         http_ok = safe_http_ok(config["http_url"]) if config["http_url"] else None
         issues: list[str] = []
-        if not listener:
+        missing_listener_is_expected = service_runs_via_container_peer(service, docker_present)
+        has_remote_health = (
+            (service == "frontend" and http_ok is True)
+            or (service == "backend" and http_ok is True)
+            or (service == "postgres" and not is_local_host(settings.db_host))
+        )
+        if not listener and not (missing_listener_is_expected and has_remote_health):
             issues.append("listener_missing")
-        else:
+        elif listener:
             for issue in listener.issues:
                 if issue not in issues:
                     issues.append(issue)
@@ -924,9 +1028,10 @@ def collect_services(ports: list[DiagnosticsPortOut], processes: list[Diagnostic
 
 
 def get_log_candidates(source: str) -> list[Path]:
+    service_definitions = get_service_definitions()
     if source == "server":
         return sorted(SERVER_LOG_DIR.glob("*.log"), key=lambda item: item.stat().st_mtime, reverse=True) if SERVER_LOG_DIR.exists() else []
-    config = SERVICE_DEFINITIONS.get(source)
+    config = service_definitions.get(source)
     if not config:
         return []
     candidates: list[Path] = []
@@ -1084,7 +1189,7 @@ def get_diagnostics_summary() -> DiagnosticsSummaryOut:
     ports = collect_listening_ports(processes)
     services = collect_services(ports, processes)
     database_overview = collect_database_overview()
-    runtime_topology = build_runtime_topology(services, processes)
+    runtime_topology = build_runtime_topology(services, processes, database_overview)
     return DiagnosticsSummaryOut(
         app_version=read_version(),
         checked_at=utc_now(),

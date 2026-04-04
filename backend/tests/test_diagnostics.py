@@ -10,6 +10,7 @@ from app.core.versioning import read_version
 from app.models.security import UserRole
 from app.routers import diagnostics as diagnostics_router
 from app.schemas.diagnostics import (
+    DiagnosticsPortOut,
     DiagnosticsDatabaseOverviewOut,
     DiagnosticsProcessOut,
     DiagnosticsRuntimeTopologyOut,
@@ -201,3 +202,72 @@ def test_kill_diagnostics_process_rejects_non_orphan(monkeypatch):
         assert False, "Expected HTTPException"
     except Exception as exc:  # noqa: BLE001
         assert getattr(exc, "status_code", None) == 409
+
+
+def test_frontend_relative_api_matches_public_backend():
+    assert diagnostics_service.frontend_api_matches_backend("/api/v1", "http://10.60.84.173/api/v1") is True
+
+
+def test_collect_services_accepts_container_peer_runtime(monkeypatch):
+    monkeypatch.setattr(diagnostics_service.settings, "frontend_runtime_host", "frontend")
+    monkeypatch.setattr(diagnostics_service.settings, "frontend_runtime_port", 80)
+    monkeypatch.setattr(diagnostics_service.settings, "frontend_runtime_url", "http://frontend")
+    monkeypatch.setattr(diagnostics_service.settings, "backend_runtime_host", "0.0.0.0")
+    monkeypatch.setattr(diagnostics_service.settings, "backend_runtime_port", 8000)
+    monkeypatch.setattr(diagnostics_service.settings, "backend_runtime_url", "http://127.0.0.1:8000")
+    monkeypatch.setattr(diagnostics_service.settings, "db_host", "postgres")
+    monkeypatch.setattr(diagnostics_service.settings, "db_port", 5432)
+    monkeypatch.setattr(diagnostics_service, "detect_docker_runtime", lambda: (True, ["docker"], {"frontend": True, "backend": True, "postgres": True}))
+    monkeypatch.setattr(
+        diagnostics_service,
+        "safe_http_ok",
+        lambda url: True if url in {"http://frontend", "http://127.0.0.1:8000/health"} else None,
+    )
+
+    ports = [
+        DiagnosticsPortOut(
+            port=8000,
+            host="0.0.0.0",
+            state="listen",
+            pid=10,
+            process_name="python",
+            command_line="python -m app",
+            service="backend",
+            detected_service="backend",
+            port_role="backend_primary",
+            owner_role="uvicorn_worker",
+            source_kind="local_process",
+            is_primary_listener=True,
+            issues=[],
+        )
+    ]
+    processes = [
+        DiagnosticsProcessOut(
+            pid=10,
+            parent_pid=1,
+            name="python",
+            service="backend",
+            status="running",
+            command_line="python -m app",
+            executable=None,
+            started_at=datetime(2026, 4, 4, 8, 0, tzinfo=UTC),
+            uptime_seconds=30,
+            ports=[8000],
+            role="uvicorn_worker",
+            source_kind="local_process",
+            runtime_root_pid=10,
+            is_primary_runtime=True,
+            is_auxiliary_runtime=False,
+            explanation="Backend worker",
+            suspicious_reasons=[],
+            can_kill=False,
+        )
+    ]
+
+    services = diagnostics_service.collect_services(ports, processes)
+    service_map = {item.service: item for item in services}
+
+    assert service_map["frontend"].status == "healthy"
+    assert "listener_missing" not in service_map["frontend"].issues
+    assert service_map["postgres"].status == "healthy"
+    assert "listener_missing" not in service_map["postgres"].issues

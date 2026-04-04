@@ -2,6 +2,23 @@
 
 ## 1. Что входит в offline bundle
 
+Важно:
+
+- Любые изменения проекта теперь обязаны сопровождаться актуализацией offline bundle.
+- Если изменились код, БД, dump, Docker-образы, env, deploy-скрипты, runtime-пути, nginx-конфиги или инструкция по развёртыванию, перед переносом на сервер нужно заново пересобрать:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\deploy\build-offline-bundle.ps1
+```
+
+- Перед переносом bundle на сервер дополнительно проверьте его свежесть:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\check-deploy-bundle-freshness.ps1
+```
+
+- Отдельный релизный чеклист лежит в `docs/deploy/06_bundle_release_checklist_ru.md`.
+
 После запуска:
 
 ```powershell
