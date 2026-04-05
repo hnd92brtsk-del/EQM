@@ -384,8 +384,29 @@ class Cabinet(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
         ForeignKey("locations.id", ondelete="SET NULL"), index=True
     )
     meta_data: Mapped[dict | None] = mapped_column(JSONB)
+    photo_filename: Mapped[str | None] = mapped_column(String(255))
+    photo_mime: Mapped[str | None] = mapped_column(String(100))
+    datasheet_filename: Mapped[str | None] = mapped_column(String(255))
+    datasheet_mime: Mapped[str | None] = mapped_column(String(100))
+    datasheet_original_name: Mapped[str | None] = mapped_column(String(255))
 
     location: Mapped[Location | None] = relationship()
+
+    @property
+    def photo_url(self) -> str | None:
+        if not self.photo_filename:
+            return None
+        return f"/cabinets/{self.id}/photo"
+
+    @property
+    def datasheet_url(self) -> str | None:
+        if not self.datasheet_filename:
+            return None
+        return f"/cabinets/{self.id}/datasheet"
+
+    @property
+    def datasheet_name(self) -> str | None:
+        return self.datasheet_original_name
 
 
 class PersonnelScheduleTemplate(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):

@@ -36,7 +36,6 @@ export const navTree: NavItem[] = [
     children: [
       { id: "nomenclature", labelKey: "menu.nomenclature", path: "/dictionaries/equipment-types", icon: IndexIcon, requiredSpace: "equipment" },
       { id: "warehouse-items", labelKey: "menu.warehouse_items", path: "/warehouse-items", icon: WarehouseIcon, requiredSpace: "equipment" },
-      { id: "technological-equipment", labelKey: "menu.technological_equipment", path: "/equipment/technological", icon: IndexIcon, requiredSpace: "equipment" },
       { id: "cabinet-items", labelKey: "menu.cabinet_items", path: "/cabinet-items", icon: CabinetIcon, requiredSpace: "equipment" },
       { id: "movements", labelKey: "menu.movements", path: "/movements", requiredSpace: "equipment", showInMenu: false }
     ]
@@ -57,10 +56,12 @@ export const navTree: NavItem[] = [
     labelKey: "menu.engineering",
     requiredSpace: "engineering",
     children: [
+      { id: "technological-equipment", labelKey: "menu.technological_equipment", path: "/equipment/technological", icon: IndexIcon, requiredSpace: "equipment" },
       { id: "io-signals", labelKey: "menu.io_signals", path: "/io-signals", icon: NumbersSignalIcon, requiredSpace: "engineering" },
       { id: "ipam", labelKey: "menu.ipam", path: "/ipam", icon: NumbersSignalIcon, requiredSpace: "engineering" },
       { id: "dcl", labelKey: "menu.dcl", path: "/engineering/dcl", icon: NumbersSignalIcon, requiredSpace: "engineering" },
       { id: "serial-map", labelKey: "menu.serial_map", path: "/engineering/serial-map", icon: NumbersSignalIcon, requiredSpace: "engineering" },
+      { id: "serial-map-v2", labelKey: "menu.serial_map_v2", path: "/engineering/serial-map-v2", icon: NumbersSignalIcon, requiredSpace: "engineering" },
       { id: "network-map", labelKey: "menu.network_map", path: "/engineering/network-map", icon: NumbersSignalIcon, requiredSpace: "engineering" }
     ]
   },

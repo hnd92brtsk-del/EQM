@@ -303,6 +303,9 @@
         "documentId": "Document #{{id}}",
         "newDraft": "New draft"
       },
+      "v2": {
+        "title": "Serial Interfaces 2"
+      },
       "sections": {
         "library": "Contours and library",
         "minimap": "Mini-map",
@@ -455,6 +458,7 @@
     "io_signals": "IO Signals",
     "dcl": "DCL",
     "serial_map": "Serial Protocol Map",
+    "serial_map_v2": "Serial Interfaces 2",
     "network_map": "Network topology",
     "dictionaries": "Dictionaries",
     "warehouses": "Warehouses",
@@ -916,20 +920,33 @@
         "update": "Failed to update cabinet",
         "delete": "Failed to delete cabinet",
         "restore": "Failed to restore cabinet",
+        "photoUpload": "Failed to upload cabinet photo",
+        "photoCompressionFailed": "Failed to automatically compress the cabinet photo",
+        "photoTooLargeAfterCompression": "The photo is still too large even after automatic compression",
+        "photoTooLargeLimit": "Photo is too large. Maximum allowed size: {{size}}",
+        "photoDelete": "Failed to delete cabinet photo",
+        "datasheetDelete": "Failed to delete cabinet datasheet",
         "filesLoad": "Failed to load cabinet files",
         "fileUpload": "Failed to upload file",
         "fileDownload": "Failed to download file",
         "fileDelete": "Failed to delete file"
       },
       "hints": {
-        "saveBeforeUpload": "Save the cabinet before uploading files."
+        "saveBeforeUpload": "Save the cabinet before uploading files.",
+        "compressingPhoto": "Compressing photo before upload..."
       },
       "dialogs": {
         "editTitle": "Edit cabinet",
         "createTitle": "New cabinet"
       },
       "actions": {
-        "openComposition": "Open composition"
+        "openComposition": "Open composition",
+        "uploadPhoto": "Upload photo",
+        "uploadDatasheet": "Upload datasheet"
+      },
+      "placeholders": {
+        "noPhoto": "No photo",
+        "noDatasheet": "No datasheet"
       }
     },
     "assemblies": {
@@ -1101,7 +1118,14 @@
         "load": "Failed to load cabinet items",
         "delete": "Failed to delete cabinet item",
         "restore": "Failed to restore cabinet item",
-        "updateQuantity": "Failed to update quantity"
+        "updateQuantity": "Failed to update quantity",
+        "uploadCabinetPhoto": "Failed to upload cabinet photo",
+        "photoCompressionFailed": "Failed to automatically compress the cabinet photo",
+        "photoTooLargeAfterCompression": "The photo is still too large even after automatic compression",
+        "photoTooLargeLimit": "Photo is too large. Maximum allowed size: {{size}}",
+        "uploadCabinetDatasheet": "Failed to upload cabinet datasheet",
+        "deleteCabinetPhoto": "Failed to delete cabinet photo",
+        "deleteCabinetDatasheet": "Failed to delete cabinet datasheet"
       },
       "dialogs": {
         "addFinishedTitle": "Add finished"
@@ -1109,7 +1133,9 @@
       "actions": {
         "addFinished": "Add finished",
         "expandAll": "Expand all",
-        "collapseAll": "Collapse all"
+        "collapseAll": "Collapse all",
+        "uploadCabinetPhoto": "Upload photo",
+        "uploadCabinetDatasheet": "Upload datasheet"
       },
       "inline": {
         "add": "Add",
@@ -1131,12 +1157,17 @@
       "placeholders": {
         "quantityLocked": "Quantity is fixed = 1",
         "details": "Details will be added later.",
-        "noPhoto": "No photo"
+        "noPhoto": "No photo",
+        "noDatasheet": "No datasheet"
       },
       "sections": {
         "fields": "Fields",
         "info": "Information",
-        "properties": "Properties"
+        "properties": "Properties",
+        "attachments": "Cabinet media"
+      },
+      "tooltips": {
+        "openComposition": "Open cabinet composition"
       },
       "ipam": {
         "title": "IPAM",

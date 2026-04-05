@@ -4,7 +4,6 @@ import {
   CardContent,
   FormControl,
   FormControlLabel,
-  IconButton,
   InputLabel,
   MenuItem,
   Select,
@@ -17,7 +16,6 @@ import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import UploadFileRoundedIcon from "@mui/icons-material/UploadFileRounded";
-import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
 import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 import TableChartOutlinedIcon from "@mui/icons-material/TableChartOutlined";
 import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
@@ -35,18 +33,20 @@ import { EntityImportExportIconActions } from "../components/EntityImportExportI
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
 import {
-  type CabinetFile,
-  deleteCabinetFile,
-  downloadCabinetFile,
-  listCabinetFiles,
-  uploadCabinetFile
-} from "../api/cabinetFiles";
+  deleteCabinetDatasheet,
+  deleteCabinetPhoto,
+  getCabinetPhotoUploadErrorMessage,
+  uploadCabinetDatasheet,
+  uploadCabinetPhoto
+} from "../api/cabinetMedia";
 import { syncDigitalTwinFromOperation } from "../api/digitalTwins";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
+import { ProtectedImage } from "../components/ProtectedImage";
+import { ProtectedDownloadLink } from "../components/ProtectedDownloadLink";
 
 type Cabinet = {
   id: number;
@@ -55,23 +55,16 @@ type Cabinet = {
   nomenclature_number?: string | null;
   location_id?: number | null;
   location_full_path?: string | null;
+  photo_url?: string | null;
+  datasheet_url?: string | null;
+  datasheet_name?: string | null;
   is_deleted: boolean;
   created_at?: string;
 };
 
 const pageSizeOptions = [10, 20, 50, 100];
-
-const allowedExtensions = [".pdf", ".xlsx", ".doc", ".vsdx"];
-
-const formatBytes = (value: number) => {
-  if (!Number.isFinite(value) || value <= 0) {
-    return "0 B";
-  }
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
-  const size = value / Math.pow(1024, index);
-  return `${size.toFixed(size < 10 && index > 0 ? 1 : 0)} ${units[index]}`;
-};
+const photoExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+const datasheetExtensions = [".pdf", ".xlsx", ".doc", ".docx"];
 
 const getFileIcon = (ext: string) => {
   switch (ext.toLowerCase()) {
@@ -80,6 +73,7 @@ const getFileIcon = (ext: string) => {
     case "xlsx":
       return <TableChartOutlinedIcon fontSize="small" />;
     case "doc":
+    case "docx":
       return <ArticleOutlinedIcon fontSize="small" />;
     case "vsdx":
       return <AccountTreeOutlinedIcon fontSize="small" />;
@@ -88,145 +82,199 @@ const getFileIcon = (ext: string) => {
   }
 };
 
-function CabinetFilesList({
-  cabinetId,
-  showActions = false,
+function CabinetMediaSection({
+  cabinet,
+  pendingPhoto,
+  pendingDatasheet,
+  onPickPhoto,
+  onPickDatasheet,
+  onDeletePhoto,
+  onDeleteDatasheet,
   onError
 }: {
-  cabinetId: number;
-  showActions?: boolean;
+  cabinet?: Cabinet | null;
+  pendingPhoto: File | null;
+  pendingDatasheet: File | null;
+  onPickPhoto: (file: File | null, cabinet?: Cabinet | null) => Promise<void> | void;
+  onPickDatasheet: (file: File | null, cabinet?: Cabinet | null) => Promise<void> | void;
+  onDeletePhoto: () => void;
+  onDeleteDatasheet: () => void;
   onError: (message: string) => void;
 }) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const filesQuery = useQuery({
-    queryKey: ["cabinet-files", cabinetId],
-    queryFn: () => listCabinetFiles(cabinetId)
-  });
-
-  useEffect(() => {
-    if (filesQuery.error) {
-      onError(
-        filesQuery.error instanceof Error ? filesQuery.error.message : t("pagesUi.cabinets.errors.filesLoad")
-      );
-    }
-  }, [filesQuery.error, onError, t]);
-
-  const deleteMutation = useMutation({
-    mutationFn: (fileId: number) => deleteCabinetFile(fileId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cabinet-files", cabinetId] });
-    },
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [datasheetUploading, setDatasheetUploading] = useState(false);
+  const photoDeleteMutation = useMutation({
+    mutationFn: () => deleteCabinetPhoto(cabinet?.id as number),
     onError: (error) =>
-      onError(error instanceof Error ? error.message : t("pagesUi.cabinets.errors.fileDelete"))
+      onError(error instanceof Error ? error.message : t("pagesUi.cabinets.errors.photoDelete"))
   });
-
-  const handleDownload = async (file: CabinetFile) => {
-    try {
-      const blob = await downloadCabinetFile(file.id);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = file.original_name;
-      link.click();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      onError(error instanceof Error ? error.message : t("pagesUi.cabinets.errors.fileDownload"));
-    }
-  };
-
-  if (filesQuery.isLoading) {
-    return <Typography variant="body2">...</Typography>;
-  }
-
-  const files = filesQuery.data || [];
-  if (!files.length) {
-    return <Typography variant="body2">-</Typography>;
-  }
-
-  return (
-    <Box sx={{ display: "grid", gap: 0.5 }}>
-      {files.map((file) => (
-        <Box key={file.id} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          {getFileIcon(file.ext)}
-          <Typography variant="body2">.{file.ext}</Typography>
-          <Typography variant="body2" color="text.secondary">
-            {formatBytes(file.size_bytes)}
-          </Typography>
-          {showActions && (
-            <Box sx={{ marginLeft: "auto", display: "flex", gap: 0.5 }}>
-              <IconButton size="small" onClick={() => handleDownload(file)}>
-                <DownloadRoundedIcon fontSize="small" />
-              </IconButton>
-              <IconButton
-                size="small"
-                color="error"
-                onClick={() => deleteMutation.mutate(file.id)}
-              >
-                <DeleteOutlineRoundedIcon fontSize="small" />
-              </IconButton>
-            </Box>
-          )}
-        </Box>
-      ))}
-    </Box>
-  );
-}
-
-function CabinetFilesSection({
-  cabinetId,
-  onError
-}: {
-  cabinetId?: number;
-  onError: (message: string) => void;
-}) {
-  const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const uploadMutation = useMutation({
-    mutationFn: (file: File) => uploadCabinetFile(cabinetId as number, file),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cabinet-files", cabinetId] });
-    },
+  const datasheetDeleteMutation = useMutation({
+    mutationFn: () => deleteCabinetDatasheet(cabinet?.id as number),
     onError: (error) =>
-      onError(error instanceof Error ? error.message : t("pagesUi.cabinets.errors.fileUpload"))
+      onError(error instanceof Error ? error.message : t("pagesUi.cabinets.errors.datasheetDelete"))
   });
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handlePickPhoto = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null;
     event.target.value = "";
-    if (!file || !cabinetId) {
+    if (!file) {
+      onPickPhoto(null, cabinet);
       return;
     }
-    uploadMutation.mutate(file);
+    setPhotoUploading(true);
+    try {
+      await onPickPhoto(file, cabinet);
+    } catch (error) {
+      onError(getCabinetPhotoUploadErrorMessage(error, t));
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
+  const handlePickDatasheet = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = "";
+    if (!file) {
+      onPickDatasheet(null, cabinet);
+      return;
+    }
+    setDatasheetUploading(true);
+    try {
+      await onPickDatasheet(file, cabinet);
+    } catch (error) {
+      onError(
+        error instanceof Error ? error.message : t("pagesUi.cabinets.errors.datasheetUpload")
+      );
+    } finally {
+      setDatasheetUploading(false);
+    }
   };
 
   return (
-    <Box sx={{ display: "grid", gap: 1 }}>
-      <Typography variant="subtitle2">{t("common.fields.files")}</Typography>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <AppButton
-          component="label"
-          startIcon={<UploadFileRoundedIcon />}
-          disabled={!cabinetId}
-        >
-          {t("actions.upload")}
-          <input hidden type="file" accept={allowedExtensions.join(",")} onChange={handleFileChange} />
-        </AppButton>
-        {!cabinetId && (
+    <Box sx={{ display: "grid", gap: 2.5 }}>
+      <Box sx={{ display: "grid", gap: 1 }}>
+        <Typography variant="subtitle2">{t("common.fields.photo")}</Typography>
+        <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+          <AppButton
+            component="label"
+            variant="outlined"
+            startIcon={<UploadFileRoundedIcon />}
+            disabled={photoUploading}
+          >
+            {photoUploading
+              ? t("pagesUi.cabinets.hints.compressingPhoto")
+              : t("pagesUi.cabinets.actions.uploadPhoto")}
+            <input
+              hidden
+              type="file"
+              accept={photoExtensions.join(",")}
+              onChange={handlePickPhoto}
+            />
+          </AppButton>
+          {(pendingPhoto || (cabinet?.id && cabinet.photo_url)) ? (
+            <AppButton
+              color="error"
+              variant="outlined"
+              onClick={() => {
+                onPickPhoto(null, cabinet);
+                if (cabinet?.id && cabinet.photo_url) {
+                  photoDeleteMutation.mutate();
+                }
+                onDeletePhoto();
+              }}
+              disabled={photoDeleteMutation.isPending || photoUploading}
+            >
+              {t("actions.delete")}
+            </AppButton>
+          ) : null}
+          {!cabinet?.id ? (
+            <Typography variant="body2" color="text.secondary">
+              {t("pagesUi.cabinets.hints.saveBeforeUpload")}
+            </Typography>
+          ) : null}
+        </Box>
+        {pendingPhoto?.name ? (
+          <Typography variant="caption" color="text.secondary">
+            {pendingPhoto.name}
+          </Typography>
+        ) : null}
+        <ProtectedImage
+          url={pendingPhoto ? null : cabinet?.photo_url || null}
+          alt={cabinet?.name || t("common.fields.photo")}
+          width={180}
+          height={140}
+          previewOnHover={true}
+          fallback={
+            <Typography variant="body2" color="text.secondary">
+              {t("pagesUi.cabinets.placeholders.noPhoto")}
+            </Typography>
+          }
+        />
+      </Box>
+      <Box sx={{ display: "grid", gap: 1 }}>
+        <Typography variant="subtitle2">{t("common.fields.datasheet")}</Typography>
+        <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+          <AppButton
+            component="label"
+            variant="outlined"
+            startIcon={<UploadFileRoundedIcon />}
+            disabled={datasheetUploading}
+          >
+            {t("pagesUi.cabinets.actions.uploadDatasheet")}
+            <input
+              hidden
+              type="file"
+              accept={datasheetExtensions.join(",")}
+              onChange={handlePickDatasheet}
+            />
+          </AppButton>
+          {(pendingDatasheet || (cabinet?.id && cabinet.datasheet_url)) ? (
+            <AppButton
+              color="error"
+              variant="outlined"
+              onClick={() => {
+                onPickDatasheet(null, cabinet);
+                if (cabinet?.id && cabinet.datasheet_url) {
+                  datasheetDeleteMutation.mutate();
+                }
+                onDeleteDatasheet();
+              }}
+              disabled={datasheetDeleteMutation.isPending || datasheetUploading}
+            >
+              {t("actions.delete")}
+            </AppButton>
+          ) : null}
+        </Box>
+        {pendingDatasheet?.name || cabinet?.datasheet_name ? (
+          <Typography variant="caption" color="text.secondary">
+            {pendingDatasheet?.name || cabinet?.datasheet_name}
+          </Typography>
+        ) : null}
+        {pendingDatasheet ? (
           <Typography variant="body2" color="text.secondary">
-            {t("pagesUi.cabinets.hints.saveBeforeUpload")}
+            {pendingDatasheet.name}
+          </Typography>
+        ) : cabinet?.datasheet_url ? (
+          <ProtectedDownloadLink
+            url={cabinet.datasheet_url}
+            filename={cabinet.datasheet_name}
+            icon={getFileIcon(cabinet.datasheet_name || "")}
+            label={cabinet.datasheet_name || t("actions.download")}
+            variant="outlined"
+          />
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            {t("pagesUi.cabinets.placeholders.noDatasheet")}
           </Typography>
         )}
       </Box>
-      {cabinetId ? (
-        <CabinetFilesList cabinetId={cabinetId} showActions onError={onError} />
-      ) : null}
     </Box>
   );
 }
 
 export default function CabinetsPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const canWrite = hasPermission(user, "cabinets", "write");
@@ -239,6 +287,8 @@ export default function CabinetsPage() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [datasheetFile, setDatasheetFile] = useState<File | null>(null);
 
   const generateTwinMutation = useMutation({
     mutationFn: (cabinetId: number) => syncDigitalTwinFromOperation("cabinet", cabinetId),
@@ -302,6 +352,20 @@ export default function CabinetsPage() {
     queryClient.invalidateQueries({ queryKey: ["cabinets"] });
   };
 
+  const updateOpenDialogCabinetMedia = (patch: Partial<Cabinet>) => {
+    setDialog((prev) =>
+      prev
+        ? {
+            ...prev,
+            values: {
+              ...prev.values,
+              ...patch
+            }
+          }
+        : prev
+    );
+  };
+
   const createMutation = useMutation({
     mutationFn: (payload: {
       name: string;
@@ -309,7 +373,7 @@ export default function CabinetsPage() {
       nomenclature_number?: string | null;
       location_id?: number | null;
     }) =>
-      createEntity("/cabinets", payload),
+      createEntity<Cabinet>("/cabinets", payload),
     onSuccess: refresh,
     onError: (error) =>
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.cabinets.errors.create"))
@@ -317,7 +381,7 @@ export default function CabinetsPage() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: Partial<Cabinet> }) =>
-      updateEntity("/cabinets", id, payload),
+      updateEntity<Cabinet>("/cabinets", id, payload),
     onSuccess: refresh,
     onError: (error) =>
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.cabinets.errors.update"))
@@ -336,6 +400,93 @@ export default function CabinetsPage() {
     onError: (error) =>
       setErrorMessage(error instanceof Error ? error.message : t("pagesUi.cabinets.errors.restore"))
   });
+
+  const saveCabinet = async (
+    values: Record<string, unknown>,
+    currentCabinet?: Cabinet
+  ): Promise<void> => {
+    const locationId =
+      values.location_id === "" || values.location_id === undefined
+        ? null
+        : Number(values.location_id);
+    const factoryNumber = values.factory_number ? String(values.factory_number).trim() : "";
+    const nomenclatureNumber = values.nomenclature_number ? String(values.nomenclature_number).trim() : "";
+    const payload = {
+      name: String(values.name || ""),
+      factory_number: factoryNumber || null,
+      nomenclature_number: nomenclatureNumber || null,
+      location_id: locationId
+    };
+
+    const cabinet = currentCabinet
+      ? await updateMutation.mutateAsync({ id: currentCabinet.id, payload })
+      : await createMutation.mutateAsync(payload);
+
+    if (photoFile) {
+      try {
+        await uploadCabinetPhoto(cabinet.id, photoFile);
+      } catch (error) {
+        throw new Error(getCabinetPhotoUploadErrorMessage(error, t));
+      }
+    }
+    if (datasheetFile) {
+      await uploadCabinetDatasheet(cabinet.id, datasheetFile);
+    }
+
+    setPhotoFile(null);
+    setDatasheetFile(null);
+    refresh();
+  };
+
+  const handleDialogPhotoPick = async (file: File | null, currentCabinet?: Cabinet | null) => {
+    if (!file) {
+      setPhotoFile(null);
+      return;
+    }
+    if (!currentCabinet?.id) {
+      setPhotoFile(file);
+      return;
+    }
+    try {
+      const updatedCabinet = await uploadCabinetPhoto(currentCabinet.id, file);
+      setPhotoFile(null);
+      updateOpenDialogCabinetMedia({
+        photo_url: updatedCabinet.photo_url ?? `/cabinets/${currentCabinet.id}/photo`
+      });
+      refresh();
+    } catch (error) {
+      const message = getCabinetPhotoUploadErrorMessage(error, t);
+      setErrorMessage(message);
+      throw new Error(message);
+    }
+  };
+
+  const handleDialogDatasheetPick = async (file: File | null, currentCabinet?: Cabinet | null) => {
+    if (!file) {
+      setDatasheetFile(null);
+      return;
+    }
+    if (!currentCabinet?.id) {
+      setDatasheetFile(file);
+      return;
+    }
+    try {
+      const updatedCabinet = await uploadCabinetDatasheet(currentCabinet.id, file);
+      setDatasheetFile(null);
+      updateOpenDialogCabinetMedia({
+        datasheet_url: updatedCabinet.datasheet_url ?? `/cabinets/${currentCabinet.id}/datasheet`,
+        datasheet_name: updatedCabinet.datasheet_name ?? file.name
+      });
+      refresh();
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : t("pagesUi.cabinets.errors.datasheetUpload");
+      setErrorMessage(message);
+      throw new Error(message);
+    }
+  };
 
   const columns = useMemo<ColumnDef<Cabinet>[]>(() => {
     const base: ColumnDef<Cabinet>[] = [
@@ -389,11 +540,26 @@ export default function CabinetsPage() {
         }
       },
       {
-        header: t("common.fields.files"),
+        header: t("common.fields.photo"),
         cell: ({ row }) => (
-          <CabinetFilesList
-            cabinetId={row.original.id}
-            onError={(message) => setErrorMessage(message)}
+          <ProtectedImage
+            url={row.original.photo_url || null}
+            alt={row.original.name}
+            width={44}
+            height={44}
+            previewOnHover={true}
+            fallback="-"
+          />
+        )
+      },
+      {
+        header: t("common.fields.datasheet"),
+        cell: ({ row }) => (
+          <ProtectedDownloadLink
+            url={row.original.datasheet_url || null}
+            filename={row.original.datasheet_name}
+            icon={getFileIcon(row.original.datasheet_name || "")}
+            size="small"
           />
         )
       }
@@ -423,6 +589,8 @@ export default function CabinetsPage() {
                 size="small"
                 startIcon={<EditRoundedIcon />}
                 onClick={() =>
+                  (setPhotoFile(null),
+                  setDatasheetFile(null),
                   setDialog({
                     open: true,
                     title: t("pagesUi.cabinets.dialogs.editTitle"),
@@ -438,33 +606,28 @@ export default function CabinetsPage() {
                       }
                     ],
                     values: row.original,
-                    onSave: (values) => {
-                      const locationId =
-                        values.location_id === "" || values.location_id === undefined
-                          ? null
-                          : Number(values.location_id);
-                      const factoryNumber = values.factory_number ? String(values.factory_number).trim() : "";
-                      const nomenclatureNumber = values.nomenclature_number
-                        ? String(values.nomenclature_number).trim()
-                        : "";
-                      updateMutation.mutate({
-                        id: row.original.id,
-                        payload: {
-                          name: values.name,
-                          factory_number: factoryNumber || null,
-                          nomenclature_number: nomenclatureNumber || null,
-                          location_id: locationId
-                        }
-                      });
-                      setDialog(null);
-                    },
-                    renderExtra: () => (
-                      <CabinetFilesSection
-                        cabinetId={row.original.id}
+                    onSave: (values) => saveCabinet(values, row.original),
+                    renderExtra: (values) => (
+                      <CabinetMediaSection
+                        cabinet={values as Cabinet}
+                        pendingPhoto={photoFile}
+                        pendingDatasheet={datasheetFile}
+                        onPickPhoto={handleDialogPhotoPick}
+                        onPickDatasheet={handleDialogDatasheetPick}
+                        onDeletePhoto={() => {
+                          setPhotoFile(null);
+                          updateOpenDialogCabinetMedia({ photo_url: null });
+                          refresh();
+                        }}
+                        onDeleteDatasheet={() => {
+                          setDatasheetFile(null);
+                          updateOpenDialogCabinetMedia({ datasheet_url: null, datasheet_name: null });
+                          refresh();
+                        }}
                         onError={(message) => setErrorMessage(message)}
                       />
                     )
-                  })
+                  }))
                 }
               >
                 {t("actions.edit")}
@@ -493,14 +656,18 @@ export default function CabinetsPage() {
     return base;
   }, [
     canWrite,
+    createMutation,
+    datasheetFile,
     deleteMutation,
+    generateTwinMutation,
     locationBreadcrumbs,
     locationOptions,
     navigate,
+    photoFile,
     restoreMutation,
     updateMutation,
     t,
-    i18n.language
+    refresh
   ]);
 
   return (
@@ -564,6 +731,8 @@ export default function CabinetsPage() {
                 variant="contained"
                 startIcon={<AddRoundedIcon />}
                 onClick={() =>
+                  (setPhotoFile(null),
+                  setDatasheetFile(null),
                   setDialog({
                     open: true,
                     title: t("pagesUi.cabinets.dialogs.createTitle"),
@@ -579,27 +748,20 @@ export default function CabinetsPage() {
                       }
                     ],
                     values: { name: "", factory_number: "", nomenclature_number: "", location_id: "" },
-                    onSave: (values) => {
-                      const locationId =
-                        values.location_id === "" || values.location_id === undefined
-                          ? null
-                          : Number(values.location_id);
-                      const factoryNumber = values.factory_number ? String(values.factory_number).trim() : "";
-                      const nomenclatureNumber = values.nomenclature_number
-                        ? String(values.nomenclature_number).trim()
-                        : "";
-                      createMutation.mutate({
-                        name: values.name,
-                        factory_number: factoryNumber || null,
-                        nomenclature_number: nomenclatureNumber || null,
-                        location_id: locationId
-                      });
-                      setDialog(null);
-                    },
-                    renderExtra: () => (
-                      <CabinetFilesSection onError={(message) => setErrorMessage(message)} />
+                    onSave: (values) => saveCabinet(values),
+                    renderExtra: (values) => (
+                      <CabinetMediaSection
+                        cabinet={values as Cabinet}
+                        pendingPhoto={photoFile}
+                        pendingDatasheet={datasheetFile}
+                        onPickPhoto={handleDialogPhotoPick}
+                        onPickDatasheet={handleDialogDatasheetPick}
+                        onDeletePhoto={() => setPhotoFile(null)}
+                        onDeleteDatasheet={() => setDatasheetFile(null)}
+                        onError={(message) => setErrorMessage(message)}
+                      />
                     )
-                  })
+                  }))
                 }
               >
                 {t("actions.add")}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import {
   Accordion,
   AccordionDetails,
@@ -23,13 +23,15 @@ import {
   Tooltip,
   Typography
 } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import RestoreRoundedIcon from "@mui/icons-material/RestoreRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
+import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
+import UnfoldMoreRoundedIcon from "@mui/icons-material/UnfoldMoreRounded";
+import UnfoldLessRoundedIcon from "@mui/icons-material/UnfoldLessRounded";
 import PictureAsPdfRoundedIcon from "@mui/icons-material/PictureAsPdfRounded";
 import TableChartRoundedIcon from "@mui/icons-material/TableChartRounded";
 import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
@@ -51,6 +53,13 @@ import { buildLocationLookups, fetchLocationsTree } from "../utils/locations";
 import { ProtectedImage } from "../components/ProtectedImage";
 import { ProtectedDownloadLink } from "../components/ProtectedDownloadLink";
 import { getCabinetItemIPAMSummary } from "../features/ipam/api/ipam";
+import {
+  deleteCabinetDatasheet,
+  deleteCabinetPhoto,
+  getCabinetPhotoUploadErrorMessage,
+  uploadCabinetDatasheet,
+  uploadCabinetPhoto
+} from "../api/cabinetMedia";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { SearchableSelectField } from "../components/SearchableSelectField";
 import { DigitalTwinIcon } from "../icons";
@@ -107,6 +116,20 @@ const getFileIcon = (filename?: string | null) => {
   }
 };
 
+const actionIconButtonSx = {
+  border: "1px solid",
+  borderColor: "divider",
+  borderRadius: 1.5,
+  backgroundColor: "background.paper",
+  "&:hover": {
+    backgroundColor: "action.hover",
+    borderColor: "text.secondary"
+  }
+} as const;
+
+const cabinetPhotoAccept = ".jpg,.jpeg,.png,.webp";
+const cabinetDatasheetAccept = ".pdf,.xlsx,.doc,.docx";
+
 type EquipmentInOperationItem = {
   id: number;
   source: "cabinet" | "assembly";
@@ -140,6 +163,9 @@ type EquipmentInOperationContainer = {
   container_factory_number?: string | null;
   container_inventory_number?: string | null;
   location_full_path?: string | null;
+  container_photo_url?: string | null;
+  container_datasheet_url?: string | null;
+  container_datasheet_name?: string | null;
   container_is_deleted: boolean;
   is_empty: boolean;
   quantity_sum: number;
@@ -539,7 +565,7 @@ function ContainerAccordion({
 }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const theme = useTheme();
+  const queryClient = useQueryClient();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addEntries, setAddEntries] = useState<AddToCabinetEntry[]>([createEmptyAddEntry()]);
 
@@ -592,6 +618,54 @@ function ContainerAccordion({
     return !Number.isFinite(entry.quantity) || entry.quantity < 1;
   });
   const canAdd = container.source === "cabinet" && hasValidAddEntries && !hasInvalidAddEntries;
+
+  const refreshCabinetMedia = () => {
+    queryClient.invalidateQueries({ queryKey: ["equipment-in-operation-tree"] });
+    queryClient.invalidateQueries({ queryKey: ["equipment-in-operation-container-items"] });
+    queryClient.invalidateQueries({ queryKey: ["cabinets"] });
+  };
+
+  const uploadPhotoMutation = useMutation({
+    mutationFn: (file: File) => uploadCabinetPhoto(container.container_id, file),
+    onSuccess: refreshCabinetMedia,
+    onError: (error) =>
+      onErrorMessage(
+        `${t("pagesUi.cabinetItems.errors.uploadCabinetPhoto")}: ${getCabinetPhotoUploadErrorMessage(error, t)}`
+      )
+  });
+
+  const uploadDatasheetMutation = useMutation({
+    mutationFn: (file: File) => uploadCabinetDatasheet(container.container_id, file),
+    onSuccess: refreshCabinetMedia,
+    onError: (error) =>
+      onErrorMessage(
+        `${t("pagesUi.cabinetItems.errors.uploadCabinetDatasheet")}: ${
+          error instanceof Error ? error.message : t("errors.saveFailed")
+        }`
+      )
+  });
+
+  const deletePhotoMutation = useMutation({
+    mutationFn: () => deleteCabinetPhoto(container.container_id),
+    onSuccess: refreshCabinetMedia,
+    onError: (error) =>
+      onErrorMessage(
+        `${t("pagesUi.cabinetItems.errors.deleteCabinetPhoto")}: ${
+          error instanceof Error ? error.message : t("errors.saveFailed")
+        }`
+      )
+  });
+
+  const deleteDatasheetMutation = useMutation({
+    mutationFn: () => deleteCabinetDatasheet(container.container_id),
+    onSuccess: refreshCabinetMedia,
+    onError: (error) =>
+      onErrorMessage(
+        `${t("pagesUi.cabinetItems.errors.deleteCabinetDatasheet")}: ${
+          error instanceof Error ? error.message : t("errors.saveFailed")
+        }`
+      )
+  });
 
   const handleAddDialogOpen = () => {
     setAddDialogOpen(true);
@@ -646,16 +720,45 @@ function ContainerAccordion({
     handleAddDialogClose();
   };
 
+  const handleCabinetPhotoChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    uploadPhotoMutation.mutate(file);
+  };
+
+  const handleCabinetDatasheetChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    uploadDatasheetMutation.mutate(file);
+  };
+
   return (
     <Accordion
       key={`${container.source}:${container.container_id}`}
       disableGutters
       expanded={expanded}
       onChange={(_, isExpanded) => onExpandedChange(isExpanded)}
+      sx={{
+        border: "1px solid",
+        borderColor: expanded ? "warning.light" : "divider",
+        borderRadius: 2,
+        overflow: "hidden",
+        backgroundColor: expanded ? "rgba(255, 167, 38, 0.06)" : "background.paper",
+        "&:before": { display: "none" }
+      }}
     >
       <AccordionSummary
         expandIcon={<ExpandMoreRoundedIcon />}
         sx={{
+          borderBottom: expanded ? "1px solid" : "none",
+          borderColor: "divider",
+          backgroundColor: expanded ? "rgba(255, 167, 38, 0.08)" : "background.paper",
           "& .MuiAccordionSummary-expandIconWrapper": {
             width: 36,
             justifyContent: "center"
@@ -670,7 +773,7 @@ function ContainerAccordion({
             display: "grid",
             gridTemplateColumns: {
               xs: "1fr",
-              lg: "minmax(220px, 1.2fr) minmax(140px, 0.7fr) minmax(160px, 0.8fr) minmax(220px, 1fr) auto"
+              lg: "minmax(220px, 1.2fr) minmax(140px, 0.7fr) minmax(160px, 0.8fr) minmax(220px, 1fr) auto auto"
             },
             gap: 1.5,
             alignItems: "center",
@@ -682,23 +785,11 @@ function ContainerAccordion({
               <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                 {container.container_name}
               </Typography>
-              <AppButton
-                size="small"
-                variant="outlined"
-                startIcon={<DigitalTwinIcon />}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  navigate(
-                    container.source === "assembly"
-                      ? `/assemblies/${container.container_id}/composition`
-                      : `/cabinets/${container.container_id}/composition`
-                  );
-                }}
-              >
-                Открыть состав
-              </AppButton>
               {container.container_is_deleted ? (
                 <Chip size="small" color="warning" label={t("common.status.deleted")} />
+              ) : null}
+              {expanded ? (
+                <Chip size="small" variant="outlined" color="warning" label={t("pagesUi.cabinetItems.sections.info")} />
               ) : null}
             </Box>
             <Typography variant="caption" color="text.secondary">
@@ -741,41 +832,34 @@ function ContainerAccordion({
             <StatCell label={t("common.status.deleted")} value={container.deleted_items_count} />
             <StatCell label={t("common.fields.quantity")} value={container.quantity_sum} />
           </Box>
-        </Box>
-      </AccordionSummary>
-      <AccordionDetails>
-        {detailQuery.isLoading ? (
-          <Typography variant="body2" color="text.secondary">
-            {t("common.loading")}
-          </Typography>
-        ) : null}
-
-        {!detailQuery.isLoading && (equipmentGroups.length > 0 || (container.source === "cabinet" && canWrite)) ? (
-          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mb: 1.5, flexWrap: "wrap" }}>
-            {equipmentGroups.length > 0 ? (
-              <>
-                <AppButton
-                  variant="outlined"
+          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.75, flexWrap: "wrap" }}>
+            <Tooltip title={t("pagesUi.cabinetItems.tooltips.openComposition")}>
+              <span>
+                <IconButton
                   size="small"
-                  onClick={() => onExpandedGroupKeysChange(equipmentGroups.map((group) => group.key))}
+                  sx={actionIconButtonSx}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    navigate(
+                      container.source === "assembly"
+                        ? `/assemblies/${container.container_id}/composition`
+                        : `/cabinets/${container.container_id}/composition`
+                    );
+                  }}
                 >
-                  {t("pagesUi.cabinetItems.actions.expandAll")}
-                </AppButton>
-                <AppButton variant="outlined" size="small" onClick={() => onExpandedGroupKeysChange([])}>
-                  {t("pagesUi.cabinetItems.actions.collapseAll")}
-                </AppButton>
-              </>
-            ) : null}
+                  <OpenInNewRoundedIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
             {container.source === "cabinet" && canWrite ? (
               <Tooltip title={t("pagesUi.cabinetItems.inline.addTooltip")}>
                 <span>
                   <IconButton
                     size="small"
-                    onClick={handleAddDialogOpen}
-                    sx={{
-                      color: theme.palette.mode === "light" ? "common.black" : "common.white",
-                      border: "1px solid",
-                      borderColor: "divider"
+                    sx={actionIconButtonSx}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleAddDialogOpen();
                     }}
                   >
                     <AddRoundedIcon fontSize="small" />
@@ -783,13 +867,187 @@ function ContainerAccordion({
                 </span>
               </Tooltip>
             ) : null}
+            {equipmentGroups.length > 0 ? (
+              <>
+                <Tooltip title={t("pagesUi.cabinetItems.actions.expandAll")}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      sx={actionIconButtonSx}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onExpandedGroupKeysChange(equipmentGroups.map((group) => group.key));
+                      }}
+                    >
+                      <UnfoldMoreRoundedIcon fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                <Tooltip title={t("pagesUi.cabinetItems.actions.collapseAll")}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      sx={actionIconButtonSx}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onExpandedGroupKeysChange([]);
+                      }}
+                    >
+                      <UnfoldLessRoundedIcon fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </>
+            ) : null}
           </Box>
+        </Box>
+      </AccordionSummary>
+      <AccordionDetails sx={{ p: 2 }}>
+        <Box
+          sx={{
+            display: "grid",
+            gap: 2,
+            p: { xs: 1.5, sm: 2 },
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 2,
+            backgroundColor: "background.paper"
+          }}
+        >
+        {detailQuery.isLoading ? (
+          <Typography variant="body2" color="text.secondary">
+            {t("common.loading")}
+          </Typography>
         ) : null}
 
         {!detailQuery.isLoading && equipmentGroups.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
             {t("pagesUi.cabinetItems.empty.container")}
           </Typography>
+        ) : null}
+
+        {container.source === "cabinet" ? (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "minmax(180px, 220px) minmax(0, 1fr)" },
+              gap: 2,
+              p: { xs: 1.5, md: 2 },
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: 2,
+              alignItems: "start",
+              backgroundColor: "rgba(255,255,255,0.02)"
+            }}
+          >
+            <Box
+              sx={{
+                display: "grid",
+                gap: 1,
+                justifyItems: { xs: "start", md: "center" },
+                "& .MuiAvatar-root": { borderRadius: "10px" },
+                "& .MuiAvatar-img": { objectFit: "contain" }
+              }}
+            >
+              <Typography variant="subtitle2">{t("common.fields.photo")}</Typography>
+              {canWrite ? (
+                <AppButton
+                  component="label"
+                  size="small"
+                  variant="outlined"
+                  startIcon={<AddRoundedIcon />}
+                  disabled={uploadPhotoMutation.isPending}
+                >
+                  {uploadPhotoMutation.isPending
+                    ? t("pagesUi.cabinets.hints.compressingPhoto")
+                    : t("pagesUi.cabinetItems.actions.uploadCabinetPhoto")}
+                  <input
+                    hidden
+                    type="file"
+                    accept={cabinetPhotoAccept}
+                    onChange={handleCabinetPhotoChange}
+                  />
+                </AppButton>
+              ) : null}
+              <ProtectedImage
+                url={container.container_photo_url || null}
+                alt={container.container_name}
+                width={180}
+                height={132}
+                previewOnHover={true}
+                previewMaxWidth={700}
+                previewMaxHeight={700}
+                fallback={
+                  <Typography variant="body2" color="text.secondary">
+                    {t("pagesUi.cabinetItems.placeholders.noPhoto")}
+                  </Typography>
+                }
+              />
+              {canWrite && container.container_photo_url ? (
+                <AppButton
+                  size="small"
+                  color="error"
+                  variant="outlined"
+                  onClick={() => deletePhotoMutation.mutate()}
+                  disabled={deletePhotoMutation.isPending}
+                >
+                  {t("actions.delete")}
+                </AppButton>
+              ) : null}
+            </Box>
+            <Box sx={{ display: "grid", gap: 1 }}>
+              <Typography variant="subtitle2">{t("pagesUi.cabinetItems.sections.attachments")}</Typography>
+              {canWrite ? (
+                <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                  <AppButton
+                    component="label"
+                    size="small"
+                    variant="outlined"
+                    startIcon={<AddRoundedIcon />}
+                    disabled={uploadDatasheetMutation.isPending}
+                  >
+                    {t("pagesUi.cabinetItems.actions.uploadCabinetDatasheet")}
+                    <input
+                      hidden
+                      type="file"
+                      accept={cabinetDatasheetAccept}
+                      onChange={handleCabinetDatasheetChange}
+                    />
+                  </AppButton>
+                  {container.container_datasheet_url ? (
+                    <AppButton
+                      size="small"
+                      color="error"
+                      variant="outlined"
+                      onClick={() => deleteDatasheetMutation.mutate()}
+                      disabled={deleteDatasheetMutation.isPending}
+                    >
+                      {t("actions.delete")}
+                    </AppButton>
+                  ) : null}
+                </Box>
+              ) : null}
+              <InfoRow
+                label={t("common.fields.datasheet")}
+                value={
+                  <ProtectedDownloadLink
+                    url={container.container_datasheet_url || null}
+                    filename={container.container_datasheet_name}
+                    icon={getFileIcon(container.container_datasheet_name)}
+                    size="small"
+                    variant="outlined"
+                    label={container.container_datasheet_name || t("pagesUi.cabinetItems.placeholders.noDatasheet")}
+                  />
+                }
+              />
+              <InfoRow label={t("common.fields.factoryNumber")} value={container.container_factory_number || "-"} />
+              <InfoRow
+                label={t("common.fields.nomenclatureNumber")}
+                value={container.container_inventory_number || "-"}
+              />
+              <InfoRow label={t("common.fields.location")} value={container.location_full_path || "-"} />
+            </Box>
+          </Box>
         ) : null}
 
         {!detailQuery.isLoading && equipmentGroups.length > 0 ? (
@@ -1132,6 +1390,7 @@ function ContainerAccordion({
             </DialogActions>
           </Dialog>
         ) : null}
+        </Box>
       </AccordionDetails>
     </Accordion>
   );

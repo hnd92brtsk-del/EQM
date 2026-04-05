@@ -38,6 +38,9 @@ class EquipmentInOperationContainerOut(BaseModel):
     container_factory_number: str | None = None
     container_inventory_number: str | None = None
     location_full_path: str | None = None
+    container_photo_url: str | None = None
+    container_datasheet_url: str | None = None
+    container_datasheet_name: str | None = None
     container_is_deleted: bool = False
     is_empty: bool
     quantity_sum: int

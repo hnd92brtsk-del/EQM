@@ -10,6 +10,9 @@ class CabinetOut(EntityBase, SoftDeleteFields):
     location_id: int | None = None
     location_full_path: str | None = None
     meta_data: Optional[Dict[str, Any]] = None
+    photo_url: str | None = None
+    datasheet_url: str | None = None
+    datasheet_name: str | None = None
 
 
 class CabinetCreate(BaseModel):

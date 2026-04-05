@@ -31,6 +31,7 @@ const AdminDiagnosticsPage = lazy(() => import("./pages/AdminDiagnosticsPage"));
 const RolePermissionsPage = lazy(() => import("./pages/RolePermissionsPage"));
 const DclPage = lazy(() => import("./pages/DclPage"));
 const SerialMapPage = lazy(() => import("./pages/SerialMapPage"));
+const SerialMapV2Page = lazy(() => import("./pages/SerialMapV2Page"));
 const NetworkMapPage = lazy(() => import("./pages/NetworkMapPage"));
 const CabinetCompositionPage = lazy(() => import("./pages/CabinetCompositionPage"));
 const HelpPage = lazy(() => import("./pages/HelpPage"));
@@ -128,6 +129,7 @@ export default function App() {
                   <Route path="/ipam" element={<RequireSpace space="engineering"><IPAMPage /></RequireSpace>} />
                   <Route path="/engineering/dcl" element={<RequireSpace space="engineering"><DclPage /></RequireSpace>} />
                   <Route path="/engineering/serial-map" element={<RequireSpace space="engineering"><SerialMapPage /></RequireSpace>} />
+                  <Route path="/engineering/serial-map-v2" element={<RequireSpace space="engineering"><SerialMapV2Page /></RequireSpace>} />
                   <Route path="/engineering/network-map" element={<RequireSpace space="engineering"><NetworkMapPage /></RequireSpace>} />
                   <Route path="/help" element={<HelpPage />} />
                   <Route path="/personnel" element={<RequireSpace space="personnel"><PersonnelPage /></RequireSpace>} />

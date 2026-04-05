@@ -9,7 +9,7 @@ from fastapi import HTTPException, UploadFile, status
 from app.core.config import PROJECT_ROOT, get_settings
 
 
-PHOTO_MAX_BYTES = 500 * 1024
+PHOTO_MAX_BYTES = 2 * 1024 * 1024
 DATASHEET_MAX_BYTES = 5 * 1024 * 1024
 PHOTO_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
 PHOTO_MIMES = {"image/jpeg", "image/png", "image/webp"}
@@ -92,9 +92,10 @@ def save_upload(file: UploadFile, kind: str) -> StoredFile:
                 if size > max_size:
                     target.close()
                     destination.unlink(missing_ok=True)
+                    limit_mb = max_size / (1024 * 1024)
                     raise HTTPException(
                         status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail="File is too large",
+                        detail=f"File is too large. Maximum allowed size is {limit_mb:.0f} MB",
                     )
                 target.write(chunk)
     except HTTPException:

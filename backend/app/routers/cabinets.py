@@ -1,7 +1,9 @@
 ﻿from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 
+from app.core.file_storage import get_storage_dir, save_upload
 from app.core.dependencies import get_db, require_read_access, require_write_access
 from app.core.pagination import paginate
 from app.core.query import apply_alphabet_filter, apply_date_filters, apply_search, apply_sort, apply_text_filter
@@ -13,6 +15,12 @@ from app.schemas.cabinets import CabinetOut, CabinetCreate, CabinetUpdate
 from app.services.location_paths import attach_location_full_path
 
 router = APIRouter()
+
+
+def remove_existing_file(kind: str, filename: str | None) -> None:
+    if not filename:
+        return
+    (get_storage_dir(kind) / filename).unlink(missing_ok=True)
 
 
 @router.get("/", response_model=Pagination[CabinetOut])
@@ -70,6 +78,127 @@ def get_cabinet(
     cabinet = db.scalar(query)
     if not cabinet:
         raise HTTPException(status_code=404, detail="Cabinet not found")
+    attach_location_full_path([cabinet], db=db, location_getter=lambda item: item.location_id)
+    return cabinet
+
+
+@router.post("/{cabinet_id}/photo", response_model=CabinetOut)
+def upload_cabinet_photo(
+    cabinet_id: int,
+    file: UploadFile = File(...),
+    db=Depends(get_db),
+    current_user: User = Depends(require_write_access()),
+):
+    cabinet = db.scalar(select(Cabinet).where(Cabinet.id == cabinet_id))
+    if not cabinet:
+        raise HTTPException(status_code=404, detail="Cabinet not found")
+
+    stored = save_upload(file, "photo")
+    remove_existing_file("photo", cabinet.photo_filename)
+    cabinet.photo_filename = stored.filename
+    cabinet.photo_mime = stored.mime
+    db.commit()
+    db.refresh(cabinet)
+    attach_location_full_path([cabinet], db=db, location_getter=lambda item: item.location_id)
+    return cabinet
+
+
+@router.get("/{cabinet_id}/photo")
+def download_cabinet_photo(
+    cabinet_id: int,
+    db=Depends(get_db),
+    user: User = Depends(require_read_access()),
+):
+    cabinet = db.scalar(select(Cabinet).where(Cabinet.id == cabinet_id))
+    if not cabinet or not cabinet.photo_filename:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    file_path = get_storage_dir("photo") / cabinet.photo_filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Photo not found")
+    return FileResponse(
+        path=str(file_path),
+        media_type=cabinet.photo_mime or "application/octet-stream",
+        headers={"Content-Disposition": f'inline; filename="{cabinet.photo_filename}"'},
+    )
+
+
+@router.delete("/{cabinet_id}/photo", response_model=CabinetOut)
+def delete_cabinet_photo(
+    cabinet_id: int,
+    db=Depends(get_db),
+    current_user: User = Depends(require_write_access()),
+):
+    cabinet = db.scalar(select(Cabinet).where(Cabinet.id == cabinet_id))
+    if not cabinet:
+        raise HTTPException(status_code=404, detail="Cabinet not found")
+
+    remove_existing_file("photo", cabinet.photo_filename)
+    cabinet.photo_filename = None
+    cabinet.photo_mime = None
+    db.commit()
+    db.refresh(cabinet)
+    attach_location_full_path([cabinet], db=db, location_getter=lambda item: item.location_id)
+    return cabinet
+
+
+@router.post("/{cabinet_id}/datasheet", response_model=CabinetOut)
+def upload_cabinet_datasheet(
+    cabinet_id: int,
+    file: UploadFile = File(...),
+    db=Depends(get_db),
+    current_user: User = Depends(require_write_access()),
+):
+    cabinet = db.scalar(select(Cabinet).where(Cabinet.id == cabinet_id))
+    if not cabinet:
+        raise HTTPException(status_code=404, detail="Cabinet not found")
+
+    stored = save_upload(file, "datasheet")
+    remove_existing_file("datasheet", cabinet.datasheet_filename)
+    cabinet.datasheet_filename = stored.filename
+    cabinet.datasheet_mime = stored.mime
+    cabinet.datasheet_original_name = stored.original_name
+    db.commit()
+    db.refresh(cabinet)
+    attach_location_full_path([cabinet], db=db, location_getter=lambda item: item.location_id)
+    return cabinet
+
+
+@router.get("/{cabinet_id}/datasheet")
+def download_cabinet_datasheet(
+    cabinet_id: int,
+    db=Depends(get_db),
+    user: User = Depends(require_read_access()),
+):
+    cabinet = db.scalar(select(Cabinet).where(Cabinet.id == cabinet_id))
+    if not cabinet or not cabinet.datasheet_filename:
+        raise HTTPException(status_code=404, detail="Datasheet not found")
+    file_path = get_storage_dir("datasheet") / cabinet.datasheet_filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Datasheet not found")
+    filename = cabinet.datasheet_original_name or "datasheet"
+    return FileResponse(
+        path=str(file_path),
+        media_type=cabinet.datasheet_mime or "application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.delete("/{cabinet_id}/datasheet", response_model=CabinetOut)
+def delete_cabinet_datasheet(
+    cabinet_id: int,
+    db=Depends(get_db),
+    current_user: User = Depends(require_write_access()),
+):
+    cabinet = db.scalar(select(Cabinet).where(Cabinet.id == cabinet_id))
+    if not cabinet:
+        raise HTTPException(status_code=404, detail="Cabinet not found")
+
+    remove_existing_file("datasheet", cabinet.datasheet_filename)
+    cabinet.datasheet_filename = None
+    cabinet.datasheet_mime = None
+    cabinet.datasheet_original_name = None
+    db.commit()
+    db.refresh(cabinet)
     attach_location_full_path([cabinet], db=db, location_getter=lambda item: item.location_id)
     return cabinet
 
