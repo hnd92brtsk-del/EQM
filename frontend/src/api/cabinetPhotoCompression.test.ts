@@ -65,7 +65,7 @@ describe("compressCabinetPhotoForUpload", () => {
         renderJpeg: vi.fn().mockResolvedValue(new Blob([new Uint8Array(2_600_000)], { type: "image/jpeg" }))
       })
     ).rejects.toMatchObject({
-      name: "CabinetPhotoCompressionError",
+      name: "PhotoCompressionError",
       reason: "too_large_after_compression"
     } satisfies Partial<CabinetPhotoCompressionError>);
   });

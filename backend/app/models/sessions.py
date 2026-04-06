@@ -13,6 +13,7 @@ class UserSession(Base, TimestampMixin):
     started_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    last_seen_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), index=True)
     ended_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
     end_reason: Mapped[str | None] = mapped_column(String(32))
     ip_address: Mapped[str | None] = mapped_column(String(64))

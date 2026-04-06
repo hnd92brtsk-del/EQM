@@ -19,3 +19,11 @@ class SessionOut(BaseModel):
     end_reason: str | None = None
     ip_address: str | None = None
     user_agent: str | None = None
+
+
+class OnlineSessionOut(BaseModel):
+    user_id: int
+    system_role: str | None = None
+    personnel_full_name: str | None = None
+    display_user_label: str
+    last_seen_at: datetime

@@ -32,7 +32,11 @@ import { EntityDialog, DialogState, type FieldConfig, type TreeFieldOption } fro
 import { EntityImportExportIconActions } from "../components/EntityImportExportIconActions";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
-import { uploadEquipmentTypeDatasheet, uploadEquipmentTypePhoto } from "../api/equipmentTypeMedia";
+import {
+  getEquipmentTypePhotoUploadErrorMessage,
+  uploadEquipmentTypeDatasheet,
+  uploadEquipmentTypePhoto
+} from "../api/equipmentTypeMedia";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
 import { AppButton } from "../components/ui/AppButton";
@@ -202,7 +206,6 @@ const powerRoleOptions = [
 const legacyNetworkPortValues = new Set(["RS-485", "RS-232"]);
 const photoExtensions = [".jpg", ".jpeg", ".png", ".webp"];
 const datasheetExtensions = [".pdf", ".xlsx", ".doc", ".docx"];
-const maxPhotoSize = 500 * 1024;
 const maxDatasheetSize = 5 * 1024 * 1024;
 
 const getPowerRoleLabel = (role?: string | null) =>
@@ -369,6 +372,7 @@ export default function EquipmentTypesPage() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isPhotoUploadPending, setIsPhotoUploadPending] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [datasheetFile, setDatasheetFile] = useState<File | null>(null);
   const photoFileRef = useRef<File | null>(null);
@@ -400,7 +404,7 @@ export default function EquipmentTypesPage() {
   const onPickPhoto = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     console.log("[ET] picked photo", file?.name, file?.size);
-    if (file && validateFile(file, maxPhotoSize, photoExtensions)) {
+    if (file && validateFile(file, photoExtensions)) {
       photoFileRef.current = file;
       setPhotoFile(file);
     } else {
@@ -413,7 +417,7 @@ export default function EquipmentTypesPage() {
   const onPickDatasheet = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     console.log("[ET] picked datasheet", file?.name, file?.size);
-    if (file && validateFile(file, maxDatasheetSize, datasheetExtensions)) {
+    if (file && validateFile(file, datasheetExtensions, maxDatasheetSize)) {
       datasheetFileRef.current = file;
       setDatasheetFile(file);
     } else {
@@ -423,13 +427,13 @@ export default function EquipmentTypesPage() {
     event.currentTarget.value = "";
   };
 
-  const validateFile = (file: File, maxSize: number, allowedExts: string[]) => {
+  const validateFile = (file: File, allowedExts: string[], maxSize?: number) => {
     const extension = `.${file.name.split(".").pop()?.toLowerCase() || ""}`;
     if (!allowedExts.includes(extension)) {
       setErrorMessage(t("errors.invalidFormat"));
       return false;
     }
-    if (file.size > maxSize) {
+    if (maxSize && file.size > maxSize) {
       setErrorMessage(t("errors.fileTooLarge"));
       return false;
     }
@@ -839,6 +843,7 @@ export default function EquipmentTypesPage() {
             name: photo?.name,
             size: photo?.size
           });
+          setIsPhotoUploadPending(true);
           await uploadEquipmentTypePhoto(targetId, photo);
           console.log("[ET] uploaded photo OK");
         }
@@ -856,9 +861,16 @@ export default function EquipmentTypesPage() {
       return result;
     } catch (error) {
       console.error(error);
-      const message = error instanceof Error ? error.message : fallbackMessage;
-      setErrorMessage(`Upload failed: ${message}`);
+      const message =
+        photoFileRef.current && !datasheetFileRef.current
+          ? getEquipmentTypePhotoUploadErrorMessage(error, t)
+          : error instanceof Error
+            ? error.message
+            : fallbackMessage;
+      setErrorMessage(message);
       throw error;
+    } finally {
+      setIsPhotoUploadPending(false);
     }
   };
 
@@ -866,7 +878,9 @@ export default function EquipmentTypesPage() {
     <Box sx={{ display: "grid", gap: 1 }}>
       <Typography variant="subtitle2">{t("common.fields.photo")}</Typography>
       <Button component="label" variant="outlined" size="small">
-        {t("pagesUi.equipmentTypes.actions.uploadPhoto")}
+        {isPhotoUploadPending
+          ? t("pagesUi.equipmentTypes.hints.compressingPhoto")
+          : t("pagesUi.equipmentTypes.actions.uploadPhoto")}
         <input
           hidden
           type="file"
@@ -898,7 +912,7 @@ export default function EquipmentTypesPage() {
       return;
     }
     setDialog((prev) => (prev ? { ...prev, renderExtra: renderMediaInputs } : prev));
-  }, [datasheetFile, dialog?.open, photoFile]);
+  }, [datasheetFile, dialog?.open, isPhotoUploadPending, photoFile]);
 
   const createMutation = useMutation({
     mutationFn: (payload: Partial<EquipmentType>) => createEntity<EquipmentType>("/equipment-types", payload)

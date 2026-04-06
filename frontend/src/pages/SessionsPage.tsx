@@ -3,8 +3,12 @@ import {
   Box,
   Card,
   CardContent,
+  Button,
   FormControl,
   InputLabel,
+  List,
+  ListItem,
+  ListItemText,
   MenuItem,
   Select,
   TablePagination,
@@ -16,6 +20,7 @@ import { useTranslation } from "react-i18next";
 
 import { type ColumnMeta, DataTable, type DataTableFiltersState } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
+import { listOnlineSessions, type OnlineSession } from "../api/sessions";
 import { listEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
@@ -71,15 +76,24 @@ export default function SessionsPage() {
     enabled: canView
   });
 
+  const onlineQuery = useQuery({
+    queryKey: ["sessions-online"],
+    queryFn: () => listOnlineSessions(),
+    enabled: canView,
+    refetchInterval: 30_000
+  });
+
   useEffect(() => {
-    if (sessionsQuery.error) {
+    if (sessionsQuery.error || onlineQuery.error) {
       setErrorMessage(
         sessionsQuery.error instanceof Error
           ? sessionsQuery.error.message
+          : onlineQuery.error instanceof Error
+            ? onlineQuery.error.message
           : t("pagesUi.sessions.errors.load")
       );
     }
-  }, [sessionsQuery.error, t]);
+  }, [onlineQuery.error, sessionsQuery.error, t]);
 
   const columns = useMemo<ColumnDef<Session>[]>(
     () => [
@@ -117,6 +131,21 @@ export default function SessionsPage() {
     [t]
   );
 
+  const onlineColumns = useMemo<ColumnDef<OnlineSession>[]>(
+    () => [
+      { header: t("pagesUi.sessions.online.columns.id"), accessorKey: "user_id" },
+      {
+        header: t("pagesUi.sessions.online.columns.role"),
+        accessorFn: (row) => row.system_role || "-"
+      },
+      {
+        header: t("pagesUi.sessions.online.columns.name"),
+        accessorFn: (row) => row.personnel_full_name || row.display_user_label
+      }
+    ],
+    [t]
+  );
+
   if (!canView) {
     return <Typography>{t("common.noAccess")}</Typography>;
   }
@@ -126,6 +155,31 @@ export default function SessionsPage() {
       <Typography variant="h4">{t("pages.sessions")}</Typography>
       <Card>
         <CardContent sx={{ display: "grid", gap: 2 }}>
+          <Box
+            sx={{
+              display: "grid",
+              gap: 1.5,
+              border: (theme) => `1px solid ${theme.palette.divider}`,
+              borderRadius: 1,
+              p: 2
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+              <Typography variant="h6">{t("pagesUi.sessions.online.title")}</Typography>
+              <Button variant="outlined" size="small" onClick={() => void onlineQuery.refetch()}>
+                {t("pagesUi.sessions.online.actions.refresh")}
+              </Button>
+            </Box>
+            {onlineQuery.data && onlineQuery.data.length > 0 ? (
+              <DataTable data={onlineQuery.data} columns={onlineColumns} />
+            ) : (
+              <List disablePadding>
+                <ListItem disablePadding>
+                  <ListItemText primary={t("pagesUi.sessions.online.empty")} />
+                </ListItem>
+              </List>
+            )}
+          </Box>
           <Box
             sx={{
               display: "grid",

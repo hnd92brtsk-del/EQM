@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import { sendHeartbeat } from "./sessions";
 
 export type SpacePermission = {
   space_key: string;
@@ -34,4 +35,8 @@ export async function logout(): Promise<void> {
 
 export async function getMe() {
   return apiFetch<AuthUser>("/auth/me");
+}
+
+export async function heartbeat() {
+  return sendHeartbeat();
 }

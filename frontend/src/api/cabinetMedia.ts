@@ -1,5 +1,5 @@
 import { apiFetch, getApiUrl, getToken } from "./client";
-import { CabinetPhotoCompressionError, compressCabinetPhotoForUpload } from "./cabinetPhotoCompression";
+import { compressPhotoForUpload, getPhotoUploadErrorMessage } from "./photoCompression";
 
 type CabinetMediaUploadError = Error & {
   status?: number;
@@ -7,7 +7,7 @@ type CabinetMediaUploadError = Error & {
 };
 
 async function uploadCabinetMedia(cabinetId: number, path: "photo" | "datasheet", file: File) {
-  const uploadFile = path === "photo" ? await compressCabinetPhotoForUpload(file) : file;
+  const uploadFile = path === "photo" ? await compressPhotoForUpload(file) : file;
   const form = new FormData();
   form.append("file", uploadFile);
 
@@ -60,17 +60,5 @@ export function getCabinetPhotoUploadErrorMessage(
   error: unknown,
   t: (key: string, options?: Record<string, unknown>) => string
 ) {
-  if (error instanceof CabinetPhotoCompressionError) {
-    if (error.reason === "compress_failed") {
-      return t("pagesUi.cabinets.errors.photoCompressionFailed");
-    }
-    return t("pagesUi.cabinets.errors.photoTooLargeAfterCompression");
-  }
-
-  const uploadError = error as CabinetMediaUploadError | null;
-  if (uploadError?.status === 413) {
-    return t("pagesUi.cabinets.errors.photoTooLargeLimit", { size: "2 MB" });
-  }
-
-  return error instanceof Error ? error.message : t("pagesUi.cabinets.errors.photoUpload");
+  return getPhotoUploadErrorMessage(error, t, "pagesUi.cabinets.errors");
 }

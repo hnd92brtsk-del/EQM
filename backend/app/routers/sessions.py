@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, or_, select
@@ -10,9 +10,10 @@ from app.models.security import SpaceKey, User
 from app.models.sessions import UserSession
 from app.models.security import User as SecurityUser
 from app.schemas.common import Pagination
-from app.schemas.sessions import SessionOut
+from app.schemas.sessions import OnlineSessionOut, SessionOut
 
 router = APIRouter()
+ONLINE_TTL = timedelta(minutes=2)
 
 
 @router.get("/", response_model=Pagination[SessionOut])
@@ -98,3 +99,53 @@ def list_sessions(
             )
         )
     return Pagination(items=items, page=page, page_size=page_size, total=total)
+
+
+@router.get("/online", response_model=list[OnlineSessionOut])
+def list_online_sessions(
+    db=Depends(get_db),
+    current_user: User = Depends(require_space_access(SpaceKey.admin_sessions, "read")),
+):
+    del current_user
+    personnel_identity = build_personnel_identity_subquery()
+    threshold = datetime.utcnow() - ONLINE_TTL
+    query = (
+        select(
+            UserSession.user_id,
+            UserSession.last_seen_at,
+            SecurityUser.username.label("username"),
+            SecurityUser.role.label("system_role"),
+            personnel_identity.c.first_name,
+            personnel_identity.c.last_name,
+            personnel_identity.c.middle_name,
+            personnel_identity.c.personnel_role,
+        )
+        .join(SecurityUser, SecurityUser.id == UserSession.user_id)
+        .outerjoin(personnel_identity, personnel_identity.c.user_id == SecurityUser.id)
+        .where(
+            UserSession.ended_at.is_(None),
+            UserSession.last_seen_at.is_not(None),
+            UserSession.last_seen_at >= threshold,
+        )
+        .order_by(UserSession.last_seen_at.desc(), UserSession.id.desc())
+    )
+
+    rows = db.execute(query).all()
+    items: list[OnlineSessionOut] = []
+    seen_user_ids: set[int] = set()
+    for user_id, last_seen_at, username, system_role, first_name, last_name, middle_name, personnel_role in rows:
+        if user_id in seen_user_ids or last_seen_at is None:
+            continue
+        seen_user_ids.add(user_id)
+        personnel_full_name = build_full_name(last_name, first_name, middle_name)
+        identity = make_identity(user_id, username, personnel_full_name, personnel_role, system_role)
+        items.append(
+            OnlineSessionOut(
+                user_id=user_id,
+                system_role=identity.system_role,
+                personnel_full_name=personnel_full_name,
+                display_user_label=identity.display_user_label,
+                last_seen_at=last_seen_at,
+            )
+        )
+    return items

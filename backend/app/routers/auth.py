@@ -27,6 +27,7 @@ def login(payload: LoginIn, request: Request, db=Depends(get_db)):
     session = UserSession(
         user_id=user.id,
         session_token_hash="pending",
+        last_seen_at=datetime.utcnow(),
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
     )
@@ -85,6 +86,26 @@ def logout(
     )
     db.commit()
     return {"status": "ok"}
+
+
+@router.post("/heartbeat")
+def heartbeat(
+    token: str = Depends(oauth2_scheme),
+    user: User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    payload = decode_token(token)
+    session_id = payload.get("session_id")
+    if not session_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+    session = db.scalar(select(UserSession).where(UserSession.id == session_id, UserSession.user_id == user.id))
+    if not session or session.ended_at:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session is no longer active")
+
+    session.last_seen_at = datetime.utcnow()
+    db.commit()
+    return {"status": "ok", "last_seen_at": session.last_seen_at}
 
 
 @router.get("/me")

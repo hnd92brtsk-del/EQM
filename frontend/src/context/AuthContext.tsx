@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-import { type AuthUser, getMe, login as apiLogin, logout as apiLogout } from "../api/auth";
+import { type AuthUser, getMe, heartbeat, login as apiLogin, logout as apiLogout } from "../api/auth";
 import { getToken, setToken } from "../api/client";
 
 type AuthContextValue = {
@@ -37,6 +37,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const intervalMs = 60 * 1000;
+
+    const tick = async () => {
+      try {
+        await heartbeat();
+      } catch {
+        if (!cancelled) {
+          setToken(null);
+          setUser(null);
+          setAuthFailureReason("expired");
+        }
+      }
+    };
+
+    const timerId = window.setInterval(tick, intervalMs);
+    void tick();
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timerId);
+    };
+  }, [user]);
 
   const login = async (username: string, password: string) => {
     const result = await apiLogin(username, password);
