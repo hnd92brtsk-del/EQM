@@ -229,8 +229,12 @@ export default function MntWorkOrdersPage() {
   const d = query.data;
 
   return (
-    <Box>
-      <Card sx={{ mb: 2 }}>
+    <Box sx={{ display: "grid", gap: 2.5 }}>
+      <Box className="page-title-block">
+        <Box className="page-title-kicker">{t("menu.maintenance")}</Box>
+        <Typography variant="h4">{t("mnt.work_orders.title")}</Typography>
+      </Box>
+      <Card className="crud-panel" sx={{ mb: 2 }}>
         <CardContent>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
             <Typography variant="h6">{t("mnt.work_orders.title")}</Typography>

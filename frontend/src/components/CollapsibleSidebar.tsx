@@ -47,12 +47,12 @@ export function CollapsibleSidebar({
           borderRight: "none",
           overflowX: "hidden",
           overflowY: "hidden",
-          backgroundColor: "#111923",
+          background: "linear-gradient(180deg, var(--eqm-shell-accent) 0%, var(--eqm-shell) 100%)",
           transform: `translateX(${isOpen ? 0 : -offset}px)`,
           transition: "transform 200ms ease, box-shadow 200ms ease",
           boxSizing: "border-box",
           pointerEvents: "auto",
-          boxShadow: isOpen ? "0 10px 30px rgba(15, 23, 42, 0.28)" : "none",
+          boxShadow: isOpen ? "var(--eqm-shadow-panel)" : "none",
           "&::after": !isOpen
             ? {
                 content: '""',
@@ -64,8 +64,7 @@ export function CollapsibleSidebar({
                 background:
                   "linear-gradient(180deg, rgba(33,47,66,1) 0%, rgba(20,30,44,1) 52%, rgba(14,21,31,1) 100%)",
                 borderLeft: "1px solid rgba(255,255,255,0.16)",
-                boxShadow:
-                  "inset 1px 0 0 rgba(255,255,255,0.05), inset 4px 0 0 rgba(244,163,0,0.75)"
+                boxShadow: "inset 1px 0 0 rgba(255,255,255,0.05), inset 4px 0 0 rgba(244,163,0,0.75)"
               }
             : undefined
         }

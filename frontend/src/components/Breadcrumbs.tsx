@@ -72,7 +72,7 @@ export function Breadcrumbs() {
     resolvedCrumbs.length > 4 ? resolvedCrumbs.slice(1, -2) : [];
 
   return (
-    <Breadcrumb>
+    <Breadcrumb className="surface-panel" style={{ padding: "8px 12px" }}>
       <BreadcrumbList>
         {visibleCrumbs.map((crumb, index) => {
           const isLast = index === visibleCrumbs.length - 1;

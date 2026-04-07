@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Alert, Box, Stack, TextField, Typography } from "@mui/material";
 import { alpha, styled } from "@mui/material/styles";
@@ -81,7 +81,7 @@ export default function LoginPage() {
     try {
       await login(username, password);
       navigate(redirectTo, { replace: true });
-    } catch (err) {
+    } catch {
       setError(t("auth.invalidCredentials"));
     } finally {
       setLoading(false);

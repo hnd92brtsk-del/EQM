@@ -243,9 +243,12 @@ export default function UsersPage() {
   }, [canWrite, deleteMutation, restoreMutation, t, i18n.language, roleOptions, roleLabelMap]);
 
   return (
-    <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">{t("pages.users")}</Typography>
-      <Card>
+    <Box sx={{ display: "grid", gap: 2.5 }}>
+      <Box className="page-title-block">
+        <Box className="page-title-kicker">{t("menu.admin")}</Box>
+        <Typography variant="h4">{t("pages.users")}</Typography>
+      </Box>
+      <Card className="crud-panel">
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Box
             sx={{

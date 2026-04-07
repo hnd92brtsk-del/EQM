@@ -445,8 +445,11 @@ export default function IOSignalsPage() {
     updateMutation
   ]);
   return (
-    <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">{t("pages.ioSignals")}</Typography>
+    <Box sx={{ display: "grid", gap: 2.5 }}>
+      <Box className="page-title-block">
+        <Box className="page-title-kicker">{t("menu.engineering")}</Box>
+        <Typography variant="h4">{t("pages.ioSignals")}</Typography>
+      </Box>
 
       <Box
         sx={{
@@ -456,7 +459,7 @@ export default function IOSignalsPage() {
           alignItems: "start"
         }}
       >
-        <Card>
+        <Card className="crud-panel">
           <CardContent sx={{ display: "grid", gap: 1 }}>
             <Typography variant="h6">{t("pagesUi.ioSignals.labels.locations")}</Typography>
             <TextField

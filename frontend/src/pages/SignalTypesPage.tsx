@@ -323,11 +323,14 @@ export default function SignalTypesPage() {
   };
 
   return (
-    <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">{t("pagesUi.signalTypes.title")}</Typography>
+    <Box sx={{ display: "grid", gap: 2.5 }}>
+      <Box className="page-title-block">
+        <Box className="page-title-kicker">{t("menu.dictionaries")}</Box>
+        <Typography variant="h4">{t("pagesUi.signalTypes.title")}</Typography>
+      </Box>
       <DictionariesTabs />
 
-      <Card>
+      <Card className="crud-panel">
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Box
             sx={{

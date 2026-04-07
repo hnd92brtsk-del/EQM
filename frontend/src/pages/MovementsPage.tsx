@@ -411,10 +411,13 @@ export default function MovementsPage() {
   };
 
   return (
-    <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">{t("pages.movements")}</Typography>
+    <Box sx={{ display: "grid", gap: 2.5 }}>
+      <Box className="page-title-block">
+        <Box className="page-title-kicker">{t("menu.equipment")}</Box>
+        <Typography variant="h4">{t("pages.movements")}</Typography>
+      </Box>
 
-      <Card>
+      <Card className="crud-panel">
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Typography variant="h6">{t("pagesUi.movements.newTitle")}</Typography>
           {formError && <Alert severity="error">{formError}</Alert>}

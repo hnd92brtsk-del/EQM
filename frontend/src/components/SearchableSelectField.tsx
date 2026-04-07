@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
+  InputAdornment,
   MenuItem,
   MenuList,
   Popover,
   TextField,
   Typography
 } from "@mui/material";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import { useTranslation } from "react-i18next";
 
 import { annotateLiveFlatOptions } from "../utils/liveFilter";
@@ -104,6 +106,11 @@ export function SearchableSelectField({
         disabled={disabled}
         fullWidth={fullWidth}
         size={size}
+        sx={{
+          "& .MuiOutlinedInput-input": {
+            cursor: disabled ? "not-allowed" : "pointer"
+          }
+        }}
       />
       <Popover
         open={open}
@@ -117,7 +124,7 @@ export function SearchableSelectField({
             maxWidth: "min(560px, calc(100vw - 32px))",
             maxHeight: 420,
             p: 1,
-            borderRadius: 2
+            borderRadius: 0
           }
         }}
       >
@@ -128,6 +135,13 @@ export function SearchableSelectField({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t("common.liveFilter.searchPlaceholder")}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchRoundedIcon fontSize="small" color="action" />
+                </InputAdornment>
+              )
+            }}
             onKeyDown={(event) => {
               if (event.key === "Escape") {
                 event.preventDefault();
@@ -143,7 +157,7 @@ export function SearchableSelectField({
                   onChange("");
                   setAnchorEl(null);
                 }}
-                sx={{ borderRadius: 1, mb: 0.5 }}
+                sx={{ borderRadius: 0, mb: 0.5 }}
               >
                 {resolvedEmptyLabel}
               </MenuItem>
@@ -166,7 +180,7 @@ export function SearchableSelectField({
                       setAnchorEl(null);
                     }}
                     sx={{
-                      borderRadius: 1,
+                      borderRadius: 0,
                       whiteSpace: "normal",
                       overflowWrap: "anywhere",
                       wordBreak: "break-word"

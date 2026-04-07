@@ -12,7 +12,7 @@ import ExpandLessRoundedIcon from "@mui/icons-material/ExpandLessRounded";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import type { AuthUser } from "../api/auth";
@@ -35,21 +35,21 @@ const matchPathPattern = (pattern: string, pathname: string) => {
   return patternParts.every((part, index) => (part.startsWith(":") ? pathParts[index].length > 0 : part === pathParts[index]));
 };
 
-const isActivePath = (item: NavItem, pathname: string) => Boolean(item.path) && matchPathPattern(item.path!, pathname);
+const isActivePath = (item: NavItem, pathname: string) =>
+  typeof item.path === "string" && matchPathPattern(item.path, pathname);
 const getItemLabel = (item: NavItem, t: (key: string) => string) => t(item.labelKey);
 
 const renderIcon = (item: NavItem, fallback: React.ElementType, color: string) => {
   const Icon = item.icon ?? fallback;
-  return <Icon sx={{ color }} />;
+  return <Icon sx={{ color, fontSize: 20 }} />;
 };
 
 export function SidebarNavTree({ items, user, level = 0, openGroups, setOpenGroups }: SidebarNavTreeProps) {
   const { pathname } = useLocation();
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const theme = useTheme();
   const sidebarTextColor = "rgba(245, 247, 251, 0.96)";
-  const sidebarMutedColor = "rgba(245, 247, 251, 0.78)";
+  const sidebarMutedColor = "rgba(200, 214, 231, 0.72)";
   const sidebarDisabledColor = "rgba(245, 247, 251, 0.88)";
 
   const filteredItems = useMemo(
@@ -66,7 +66,7 @@ export function SidebarNavTree({ items, user, level = 0, openGroups, setOpenGrou
   const handleToggle = (id: string) => setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
 
   return (
-    <List sx={{ pl: level ? 1.5 : 0 }}>
+    <List sx={{ pl: level ? 1.5 : 0, display: "grid", gap: level ? 0.4 : 0.6 }}>
       {filteredItems.map((item) => {
         const hasChildren = Boolean(item.children && item.children.length > 0);
         const isActive = isActivePath(item, pathname);
@@ -84,21 +84,38 @@ export function SidebarNavTree({ items, user, level = 0, openGroups, setOpenGrou
                 aria-expanded={isOpen}
                 aria-controls={contentId}
                 sx={{
-                  borderRadius: 2,
-                  mb: 0.5,
+                  borderRadius: 3,
                   pl: level * 2 + 2,
+                  py: 1,
                   color: sidebarTextColor,
-                  "&:hover": { backgroundColor: alpha(theme.palette.common.white, 0.04) },
-                  "& .MuiListItemText-primary": { color: sidebarTextColor, fontWeight: isOpen ? 700 : 600 },
-                  "& .MuiSvgIcon-root": { color: isOpen ? sidebarTextColor : sidebarMutedColor }
+                  border: "1px solid transparent",
+                  "&:hover": { backgroundColor: alpha(theme.palette.common.white, 0.05) },
+                  "& .MuiListItemText-primary": {
+                    color: sidebarTextColor,
+                    fontWeight: isOpen ? 700 : 600,
+                    fontSize: level === 0 ? 14 : 13
+                  },
+                  "& .MuiSvgIcon-root": { color: isOpen ? sidebarTextColor : sidebarMutedColor },
+                  ...(isOpen
+                    ? {
+                        backgroundColor: alpha(theme.palette.primary.main, 0.12),
+                        borderColor: alpha(theme.palette.primary.main, 0.18)
+                      }
+                    : null)
                 }}
               >
-                <ListItemIcon>{renderIcon(item, DashboardRoundedIcon, iconColor)}</ListItemIcon>
+                <ListItemIcon sx={{ minWidth: 36 }}>{renderIcon(item, DashboardRoundedIcon, iconColor)}</ListItemIcon>
                 <ListItemText primary={itemLabel} />
                 {isOpen ? <ExpandLessRoundedIcon /> : <ExpandMoreRoundedIcon />}
               </ListItemButton>
               <Collapse id={contentId} in={isOpen} timeout="auto" unmountOnExit>
-                <SidebarNavTree items={item.children || []} user={user} level={level + 1} openGroups={openGroups} setOpenGroups={setOpenGroups} />
+                <SidebarNavTree
+                  items={item.children || []}
+                  user={user}
+                  level={level + 1}
+                  openGroups={openGroups}
+                  setOpenGroups={setOpenGroups}
+                />
               </Collapse>
             </Box>
           );
@@ -113,19 +130,25 @@ export function SidebarNavTree({ items, user, level = 0, openGroups, setOpenGrou
             key={item.id}
             component={NavLink}
             to={item.path}
-            onClick={() => navigate(item.path as string)}
             sx={{
-              borderRadius: 2,
-              mb: 0.5,
+              borderRadius: 3,
               pl: level * 2 + 2,
-              borderLeft: "3px solid transparent",
-              "&:hover": { backgroundColor: alpha(theme.palette.common.white, 0.04) },
-              "& .MuiListItemText-primary": { fontWeight: isActive ? 600 : 500, color: labelColor },
-              "&.active": { backgroundColor: alpha(theme.palette.primary.main, 0.16), borderLeftColor: theme.palette.primary.main }
+              py: 1,
+              border: "1px solid transparent",
+              "&:hover": { backgroundColor: alpha(theme.palette.common.white, 0.05) },
+              "& .MuiListItemText-primary": {
+                fontWeight: isActive ? 700 : 500,
+                color: labelColor,
+                fontSize: level === 0 ? 14 : 13
+              },
+              "&.active": {
+                backgroundColor: alpha(theme.palette.primary.main, 0.16),
+                borderColor: alpha(theme.palette.primary.main, 0.2)
+              }
             }}
             selected={isActive}
           >
-            <ListItemIcon>{renderIcon(item, Inventory2RoundedIcon, iconColor)}</ListItemIcon>
+            <ListItemIcon sx={{ minWidth: 36 }}>{renderIcon(item, Inventory2RoundedIcon, iconColor)}</ListItemIcon>
             <ListItemText primary={itemLabel} />
           </ListItemButton>
         );

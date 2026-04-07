@@ -263,10 +263,13 @@ export default function PersonnelPage() {
   }, [canWrite, deleteMutation, navigate, restoreMutation, scheduleTemplateOptions, t, updateMutation, userOptions]);
 
   return (
-    <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">{t("pages.personnel")}</Typography>
+    <Box sx={{ display: "grid", gap: 2.5 }}>
+      <Box className="page-title-block">
+        <Box className="page-title-kicker">{t("menu.personnel")}</Box>
+        <Typography variant="h4">{t("pages.personnel")}</Typography>
+      </Box>
 
-      <Card>
+      <Card className="crud-panel">
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Box
             sx={{

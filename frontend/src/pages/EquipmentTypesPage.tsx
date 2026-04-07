@@ -1110,9 +1110,12 @@ export default function EquipmentTypesPage() {
   ]);
 
   return (
-    <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">{t("pagesUi.equipmentTypes.title")}</Typography>
-      <Card>
+    <Box sx={{ display: "grid", gap: 2.5 }}>
+      <Box className="page-title-block">
+        <Box className="page-title-kicker">{t("menu.equipment")}</Box>
+        <Typography variant="h4">{t("pagesUi.equipmentTypes.title")}</Typography>
+      </Box>
+      <Card className="crud-panel">
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Box
             sx={{

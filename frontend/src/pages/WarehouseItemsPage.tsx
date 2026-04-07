@@ -617,15 +617,27 @@ export default function WarehouseItemsPage() {
   }, [canWrite, deleteMutation, equipmentMap, restoreMutation, t, updateMutation, warehouseMap]);
 
   return (
-    <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">{t("pages.warehouseItems")}</Typography>
+    <Box sx={{ display: "grid", gap: 2.5 }}>
+      <Box className="page-hero">
+        <Box sx={{ position: "relative", zIndex: 1, display: "grid", gap: 1.25 }}>
+          <Box className="section-kicker">{t("menu.equipment")}</Box>
+          <Typography variant="h4">{t("pages.warehouseItems")}</Typography>
+          <Typography sx={{ maxWidth: 760, color: "rgba(243,247,252,0.76)" }}>
+            {t("common.fields.warehouse")} / {t("common.fields.equipment")} / {t("actions.search")}
+          </Typography>
+        </Box>
+      </Box>
       <Card>
-        <CardContent sx={{ display: "grid", gap: 2 }}>
+        <CardContent sx={{ display: "grid", gap: 2.5 }}>
           <Box
             sx={{
               display: "grid",
               gap: 2,
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))"
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              p: 2,
+              borderRadius: 4,
+              backgroundColor: "var(--eqm-panel-alt)",
+              border: "1px solid var(--eqm-panel-border)"
             }}
           >
             <TextField
@@ -753,7 +765,18 @@ export default function WarehouseItemsPage() {
 
           </Box>
 
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+              flexWrap: "wrap",
+              p: 2,
+              borderRadius: 4,
+              backgroundColor: "var(--eqm-panel-alt)",
+              border: "1px solid var(--eqm-panel-border)"
+            }}
+          >
             <FormControlLabel
               control={
                 <Switch
@@ -787,7 +810,7 @@ export default function WarehouseItemsPage() {
             />
           </Box>
 
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.25 }}>
             <AppButton variant="contained" onClick={openToWarehouseDialog}>
               {t("pagesUi.warehouseItems.actions.toWarehouse")}
             </AppButton>
@@ -796,7 +819,11 @@ export default function WarehouseItemsPage() {
             </AppButton>
           </Box>
 
-          <DataTable data={itemsQuery.data?.items || []} columns={columns} />
+          <DataTable
+            data={itemsQuery.data?.items || []}
+            columns={columns}
+            emptyMessage={t("dashboard.common.no_data")}
+          />
           <TablePagination
             component="div"
             {...getTablePaginationProps(t)}

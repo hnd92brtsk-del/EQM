@@ -457,12 +457,20 @@ export default function PersonnelDetailsPage() {
   }
 
   return (
-    <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">
-        {[personnelQuery.data.last_name, personnelQuery.data.first_name, personnelQuery.data.middle_name]
-          .filter(Boolean)
-          .join(" ")}
-      </Typography>
+    <Box sx={{ display: "grid", gap: 2.5 }}>
+      <Box className="page-hero">
+        <Box sx={{ position: "relative", zIndex: 1, display: "grid", gap: 1.25 }}>
+          <Box className="section-kicker">{t("menu.personnel")}</Box>
+          <Typography variant="h4">
+            {[personnelQuery.data.last_name, personnelQuery.data.first_name, personnelQuery.data.middle_name]
+              .filter(Boolean)
+              .join(" ")}
+          </Typography>
+          <Typography sx={{ maxWidth: 760, color: "rgba(243,247,252,0.76)" }}>
+            {t("pagesUi.personnelDetails.tabs.profile")} / {t("pagesUi.personnelDetails.tabs.competencies")} / {t("pagesUi.personnelDetails.tabs.training")}
+          </Typography>
+        </Box>
+      </Box>
 
       <Tabs value={tab} onChange={(_, value) => setTab(value)}>
         <Tab label={t("pagesUi.personnelDetails.tabs.profile")} />
@@ -473,9 +481,19 @@ export default function PersonnelDetailsPage() {
 
       {tab === 0 && (
         <Card>
-          <CardContent sx={{ display: "grid", gap: 2 }}>
-            <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: "160px 1fr" }}>
-              <Box sx={{ display: "grid", gap: 1, justifyItems: "center" }}>
+          <CardContent sx={{ display: "grid", gap: 2.5 }}>
+            <Box
+              sx={{
+                display: "grid",
+                gap: 3,
+                gridTemplateColumns: { xs: "1fr", lg: "180px 1fr" },
+                p: 2,
+                borderRadius: 4,
+                backgroundColor: "var(--eqm-panel-alt)",
+                border: "1px solid var(--eqm-panel-border)"
+              }}
+            >
+              <Box sx={{ display: "grid", gap: 1.5, justifyItems: "center", alignContent: "start" }}>
                 <Box
                   className="keep-rounded"
                   sx={{
@@ -641,7 +659,11 @@ export default function PersonnelDetailsPage() {
                 </AppButton>
               )}
             </Box>
-            <DataTable data={personnelQuery.data.competencies || []} columns={competencyColumns} />
+            <DataTable
+              data={personnelQuery.data.competencies || []}
+              columns={competencyColumns}
+              emptyMessage={t("dashboard.common.no_data")}
+            />
           </CardContent>
         </Card>
       )}
@@ -697,7 +719,11 @@ export default function PersonnelDetailsPage() {
                 </AppButton>
               )}
             </Box>
-            <DataTable data={personnelQuery.data.trainings || []} columns={trainingColumns} />
+            <DataTable
+              data={personnelQuery.data.trainings || []}
+              columns={trainingColumns}
+              emptyMessage={t("dashboard.common.no_data")}
+            />
           </CardContent>
         </Card>
       )}

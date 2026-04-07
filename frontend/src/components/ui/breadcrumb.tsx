@@ -24,9 +24,10 @@ export function BreadcrumbList({
   return (
     <ol
       className={cn(
-        "flex flex-wrap items-center gap-1.5 text-sm text-slate-500",
+        "flex flex-wrap items-center gap-1.5 text-sm",
         className
       )}
+      style={{ color: "var(--ink-muted)" }}
       {...props}
     />
   );
@@ -46,7 +47,7 @@ export function BreadcrumbLink({
   ...props
 }: React.ComponentPropsWithoutRef<"a"> & { render?: RenderProp }) {
   const linkClassName = cn(
-    "inline-flex items-center rounded-none px-1 py-0.5 text-slate-600 transition-colors hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300",
+    "inline-flex items-center rounded-none px-1 py-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300",
     className
   );
 
@@ -69,7 +70,7 @@ export function BreadcrumbPage({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"span">) {
-  return <span className={cn("font-medium text-slate-950", className)} aria-current="page" {...props} />;
+  return <span className={cn("font-medium", className)} style={{ color: "var(--ink-strong)" }} aria-current="page" {...props} />;
 }
 
 export function BreadcrumbSeparator({
@@ -80,7 +81,8 @@ export function BreadcrumbSeparator({
   return (
     <li
       aria-hidden="true"
-      className={cn("inline-flex items-center text-slate-400", className)}
+      className={cn("inline-flex items-center", className)}
+      style={{ color: "var(--ink-muted)" }}
       {...props}
     >
       {children ?? <ChevronRightRoundedIcon sx={{ fontSize: 18 }} />}

@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-table";
 import {
   Box,
+  Typography,
   Table,
   TableBody,
   TableCell,
@@ -69,7 +70,8 @@ export function DataTable<T>({
   tableSx,
   columnFilters,
   onColumnFiltersChange,
-  showColumnFilters = false
+  showColumnFilters = false,
+  emptyMessage
 }: {
   data: T[];
   columns: ColumnDef<T>[];
@@ -77,6 +79,7 @@ export function DataTable<T>({
   columnFilters?: DataTableFiltersState;
   onColumnFiltersChange?: (nextFilters: DataTableFiltersState) => void;
   showColumnFilters?: boolean;
+  emptyMessage?: string;
 }) {
   const [internalFilters, setInternalFilters] = useState<DataTableFiltersState>({});
   const activeFilters = columnFilters ?? internalFilters;
@@ -315,27 +318,37 @@ export function DataTable<T>({
           ) : null}
         </TableHead>
         <TableBody>
-          {table.getRowModel().rows.map((row) => (
-            <TableRow key={row.id}>
-              {row.getVisibleCells().map((cell) => {
-                const meta = (cell.column.columnDef.meta as ColumnMeta | undefined) || undefined;
-                return (
-                  <TableCell
-                    key={cell.id}
-                    sx={{
-                      whiteSpace: "normal",
-                      overflowWrap: "anywhere",
-                      wordBreak: "break-word",
-                      verticalAlign: "top",
-                      ...meta?.cellSx
-                    }}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                );
-              })}
+          {table.getRowModel().rows.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={columns.length} sx={{ py: 6, textAlign: "center" }}>
+                <Typography variant="body2" color="text.secondary">
+                  {emptyMessage || "No data"}
+                </Typography>
+              </TableCell>
             </TableRow>
-          ))}
+          ) : (
+            table.getRowModel().rows.map((row) => (
+              <TableRow key={row.id}>
+                {row.getVisibleCells().map((cell) => {
+                  const meta = (cell.column.columnDef.meta as ColumnMeta | undefined) || undefined;
+                  return (
+                    <TableCell
+                      key={cell.id}
+                      sx={{
+                        whiteSpace: "normal",
+                        overflowWrap: "anywhere",
+                        wordBreak: "break-word",
+                        verticalAlign: "top",
+                        ...meta?.cellSx
+                      }}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
     </TableContainer>

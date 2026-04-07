@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Box,
+  Chip,
   Card,
   CardContent,
   CircularProgress,
@@ -148,17 +149,24 @@ type KpiCardProps = {
 function KpiCard({ label, value, color, loading }: KpiCardProps) {
   return (
     <Card>
-      <CardContent sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
+      <CardContent sx={{ display: "flex", gap: 2, alignItems: "center" }}>
         <Box
           sx={{
-            width: 6,
-            height: 44,
-            borderRadius: 8,
-            backgroundColor: color
+            width: 54,
+            height: 54,
+            borderRadius: 3.5,
+            display: "grid",
+            placeItems: "center",
+            backgroundColor: `${color}18`,
+            color
           }}
-        />
+        >
+          <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: color }} />
+        </Box>
         <Box sx={{ display: "grid", gap: 0.5 }}>
-          <Typography color="text.secondary">{label}</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            {label}
+          </Typography>
           {loading ? (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.5 }}>
               <CircularProgress size={20} />
@@ -207,16 +215,22 @@ function ChannelTotalsCard({ label, labels, color, totals, loading, formatter }:
 
   return (
     <Card>
-      <CardContent sx={{ display: "flex", gap: 1.5, alignItems: "stretch" }}>
+      <CardContent sx={{ display: "flex", gap: 2, alignItems: "stretch" }}>
         <Box
           sx={{
-            width: 6,
-            borderRadius: 8,
-            backgroundColor: color
+            width: 54,
+            borderRadius: 3.5,
+            backgroundColor: `${color}18`,
+            display: "grid",
+            placeItems: "center"
           }}
-        />
+        >
+          <Box sx={{ width: 14, height: 14, borderRadius: "50%", backgroundColor: color }} />
+        </Box>
         <Box sx={{ display: "grid", gap: 1.5, flex: 1 }}>
-          <Typography color="text.secondary">{label}</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            {label}
+          </Typography>
           <Box
             sx={{
               display: "grid",
@@ -480,7 +494,20 @@ export default function DashboardPage() {
   return (
     <Box sx={{ display: "grid", gap: 3 }}>
       <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage(null)} />
-      <Typography variant="h4">{t("pages.dashboard")}</Typography>
+      <Box className="page-hero">
+        <Box sx={{ position: "relative", zIndex: 1, display: "grid", gap: 1.5 }}>
+          <Box className="section-kicker">{t("menu.overview")}</Box>
+          <Typography variant="h4">{t("pages.dashboard")}</Typography>
+          <Typography sx={{ maxWidth: 760, color: "rgba(243,247,252,0.76)" }}>
+            {t("dashboard.kpis.total_cabinets")} / {t("dashboard.kpis.total_channels")} / {t("dashboard.titles.recent_actions")}
+          </Typography>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+            <Chip label={t("dashboard.titles.by_type")} sx={{ color: "#f3f7fc", backgroundColor: "rgba(255,255,255,0.08)" }} />
+            <Chip label={t("dashboard.titles.by_warehouse_qty")} sx={{ color: "#f3f7fc", backgroundColor: "rgba(255,255,255,0.08)" }} />
+            <Chip label={t("dashboard.titles.recent_logins")} sx={{ color: "#f3f7fc", backgroundColor: "rgba(255,255,255,0.08)" }} />
+          </Box>
+        </Box>
+      </Box>
 
       <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 2 }}>
         <KpiCard
@@ -691,7 +718,7 @@ export default function DashboardPage() {
             ) : actionRows.length === 0 ? (
               <Typography color="text.secondary">{t("dashboard.common.no_data")}</Typography>
             ) : (
-              <DataTable data={actionRows} columns={actionColumns} />
+              <DataTable data={actionRows} columns={actionColumns} emptyMessage={t("dashboard.common.no_data")} />
             )}
             <Typography variant="caption" color="text.secondary">
               {t("dashboard.common.last_rows", { count: MAX_TABLE_ROWS })}
@@ -722,7 +749,7 @@ export default function DashboardPage() {
             ) : loginRows.length === 0 ? (
               <Typography color="text.secondary">{t("dashboard.common.no_data")}</Typography>
             ) : (
-              <DataTable data={loginRows} columns={loginColumns} />
+              <DataTable data={loginRows} columns={loginColumns} emptyMessage={t("dashboard.common.no_data")} />
             )}
             <Typography variant="caption" color="text.secondary">
               {t("dashboard.common.last_rows", { count: MAX_TABLE_ROWS })}

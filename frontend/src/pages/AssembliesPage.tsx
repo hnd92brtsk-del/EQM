@@ -317,9 +317,12 @@ export default function AssembliesPage() {
   ]);
 
   return (
-    <Box sx={{ display: "grid", gap: 2 }}>
-      <Typography variant="h4">{t("pages.assemblies")}</Typography>
-      <Card>
+    <Box sx={{ display: "grid", gap: 2.5 }}>
+      <Box className="page-title-block">
+        <Box className="page-title-kicker">{t("menu.cabinets_group")}</Box>
+        <Typography variant="h4">{t("pages.assemblies")}</Typography>
+      </Box>
+      <Card className="crud-panel">
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <Box
             sx={{
