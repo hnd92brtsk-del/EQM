@@ -2,6 +2,7 @@ import { useMemo } from "react";
 
 import { apiFetch, getApiUrl, getToken } from "./client";
 import type { PidDiagram, PidProcess } from "../types/pid";
+import { buildHttpError } from "../utils/errorMessage";
 
 export function usePidApi() {
   return useMemo(
@@ -51,7 +52,12 @@ export function usePidApi() {
           body: form,
         });
         if (!response.ok) {
-          throw new Error(await response.text());
+          throw buildHttpError({
+            status: response.status,
+            statusText: response.statusText || "Upload failed",
+            body: await response.text(),
+            fallbackMessage: "Upload failed",
+          });
         }
         return (await response.json()) as { filename: string; original_name: string; url: string };
       },

@@ -1,5 +1,6 @@
 ﻿import { getApiUrl, getToken } from "./client";
 import { buildQuery } from "./entities";
+import { buildHttpError } from "../utils/errorMessage";
 
 export type ImportReportIssue = {
   row?: number | null;
@@ -31,7 +32,12 @@ export async function downloadFile(
   const response = await fetch(getApiUrl(`${path}${qs}`), { headers });
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || "Request failed");
+    throw buildHttpError({
+      status: response.status,
+      statusText: response.statusText || "Request failed",
+      body: message,
+      fallbackMessage: "Request failed"
+    });
   }
 
   const blob = await response.blob();
@@ -66,7 +72,12 @@ export async function importFile(
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || "Request failed");
+    throw buildHttpError({
+      status: response.status,
+      statusText: response.statusText || "Request failed",
+      body: message,
+      fallbackMessage: "Request failed"
+    });
   }
 
   return (await response.json()) as ImportReport;

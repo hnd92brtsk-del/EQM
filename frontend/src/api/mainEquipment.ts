@@ -1,4 +1,5 @@
 import { getApiUrl, getToken } from "./client";
+import { buildHttpError } from "../utils/errorMessage";
 
 export async function uploadMainEquipmentPidSymbol(itemId: number, file: File) {
   const form = new FormData();
@@ -11,7 +12,12 @@ export async function uploadMainEquipmentPidSymbol(itemId: number, file: File) {
   });
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || "Upload failed");
+    throw buildHttpError({
+      status: response.status,
+      statusText: response.statusText || "Upload failed",
+      body: message,
+      fallbackMessage: "Upload failed"
+    });
   }
   return response.json();
 }
@@ -24,7 +30,12 @@ export async function deleteMainEquipmentPidSymbol(itemId: number) {
   });
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || "Delete failed");
+    throw buildHttpError({
+      status: response.status,
+      statusText: response.statusText || "Delete failed",
+      body: message,
+      fallbackMessage: "Delete failed"
+    });
   }
   return response.json();
 }

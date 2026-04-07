@@ -77,6 +77,24 @@
     "exportDeletedCsv": "Export deleted (CSV)",
     "exportDeletedXlsx": "Export deleted (XLSX)"
   },
+  "notifications": {
+    "success": {
+      "default": "Action completed successfully."
+    },
+    "errors": {
+      "generic": "Something went wrong. Please try again.",
+      "network": "Unable to reach the server. Check your connection and try again.",
+      "request": "The request could not be completed.",
+      "validation": "Please check the form and try again.",
+      "unauthorized": "Your session has expired or sign-in is required.",
+      "forbidden": "You do not have permission to perform this action.",
+      "notFound": "The requested data was not found.",
+      "server": "A server error occurred. Please try again later.",
+      "upload": "The file could not be uploaded.",
+      "download": "The file could not be downloaded.",
+      "delete": "The delete operation could not be completed."
+    }
+  },
   "pages": {
     "dashboard": "Overview",
     "users": "Users",

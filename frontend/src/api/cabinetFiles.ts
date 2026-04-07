@@ -1,4 +1,5 @@
 import { apiFetch, getApiUrl, getToken } from "./client";
+import { buildHttpError } from "../utils/errorMessage";
 
 export type CabinetFile = {
   id: number;
@@ -27,7 +28,12 @@ export async function uploadCabinetFile(cabinetId: number, file: File) {
   });
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || "Upload failed");
+    throw buildHttpError({
+      status: response.status,
+      statusText: response.statusText || "Upload failed",
+      body: message,
+      fallbackMessage: "Upload failed"
+    });
   }
   return response.json() as Promise<CabinetFile>;
 }
@@ -39,7 +45,12 @@ export async function downloadCabinetFile(fileId: number) {
   });
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || "Download failed");
+    throw buildHttpError({
+      status: response.status,
+      statusText: response.statusText || "Download failed",
+      body: message,
+      fallbackMessage: "Download failed"
+    });
   }
   return response.blob();
 }

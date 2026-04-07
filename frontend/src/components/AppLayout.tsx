@@ -63,6 +63,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [sidebarPinned]);
 
+  const desktopContentInset = sidebarPinned ? drawerWidth : drawerHandleWidth;
+
   const drawer = (
     <Box
       sx={{
@@ -175,7 +177,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </CollapsibleSidebar>
         </Box>
 
-        <Box component="main" sx={{ flexGrow: 1 }}>
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            ml: { xs: 0, md: `${desktopContentInset}px` },
+            transition: "margin-left 200ms ease"
+          }}
+        >
           <Toolbar />
           <Box className="app-content">
             <Breadcrumbs />

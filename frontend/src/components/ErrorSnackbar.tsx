@@ -1,4 +1,5 @@
-import { Alert, Snackbar } from "@mui/material";
+import { useEffect, useRef } from "react";
+import { notifyError } from "./AppNotifications";
 
 export function ErrorSnackbar({
   message,
@@ -7,11 +8,20 @@ export function ErrorSnackbar({
   message: string | null;
   onClose: () => void;
 }) {
-  return (
-    <Snackbar open={Boolean(message)} autoHideDuration={6000} onClose={onClose}>
-      <Alert severity="error" onClose={onClose} variant="filled">
-        {message}
-      </Alert>
-    </Snackbar>
-  );
+  const lastMessageRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!message || message === lastMessageRef.current) return;
+    lastMessageRef.current = message;
+    notifyError(message);
+    onClose();
+  }, [message, onClose]);
+
+  useEffect(() => {
+    if (!message) {
+      lastMessageRef.current = null;
+    }
+  }, [message]);
+
+  return null;
 }

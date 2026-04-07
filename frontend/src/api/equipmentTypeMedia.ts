@@ -1,10 +1,6 @@
 import { getApiUrl, getToken } from "./client";
 import { compressPhotoForUpload, getPhotoUploadErrorMessage } from "./photoCompression";
-
-type EquipmentTypeMediaUploadError = Error & {
-  status?: number;
-  detail?: string;
-};
+import { buildHttpError } from "../utils/errorMessage";
 
 export async function uploadEquipmentTypePhoto(equipmentTypeId: number, file: File) {
   const uploadFile = await compressPhotoForUpload(file);
@@ -31,10 +27,12 @@ export async function uploadEquipmentTypePhoto(equipmentTypeId: number, file: Fi
         message = text;
       }
     }
-    const error = new Error(message) as EquipmentTypeMediaUploadError;
-    error.status = response.status;
-    error.detail = message;
-    throw error;
+    throw buildHttpError({
+      status: response.status,
+      statusText: response.statusText || "Upload failed",
+      body: message,
+      fallbackMessage: "Upload failed"
+    });
   }
   return response.json();
 }
@@ -50,7 +48,12 @@ export async function uploadEquipmentTypeDatasheet(equipmentTypeId: number, file
   });
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || "Upload failed");
+    throw buildHttpError({
+      status: response.status,
+      statusText: response.statusText || "Upload failed",
+      body: message,
+      fallbackMessage: "Upload failed"
+    });
   }
   return response.json();
 }

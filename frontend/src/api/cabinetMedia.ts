@@ -1,10 +1,6 @@
 import { apiFetch, getApiUrl, getToken } from "./client";
 import { compressPhotoForUpload, getPhotoUploadErrorMessage } from "./photoCompression";
-
-type CabinetMediaUploadError = Error & {
-  status?: number;
-  detail?: string;
-};
+import { buildHttpError } from "../utils/errorMessage";
 
 async function uploadCabinetMedia(cabinetId: number, path: "photo" | "datasheet", file: File) {
   const uploadFile = path === "photo" ? await compressPhotoForUpload(file) : file;
@@ -32,10 +28,12 @@ async function uploadCabinetMedia(cabinetId: number, path: "photo" | "datasheet"
         message = text;
       }
     }
-    const error = new Error(message) as CabinetMediaUploadError;
-    error.status = response.status;
-    error.detail = message;
-    throw error;
+    throw buildHttpError({
+      status: response.status,
+      statusText: response.statusText || "Upload failed",
+      body: message,
+      fallbackMessage: "Upload failed"
+    });
   }
   return response.json();
 }

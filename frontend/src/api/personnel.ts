@@ -1,5 +1,6 @@
 import { apiFetch, getApiUrl, getToken } from "./client";
 import { createEntity, deleteEntity, listEntity } from "./entities";
+import { buildHttpError } from "../utils/errorMessage";
 
 export type Personnel = {
   id: number;
@@ -177,7 +178,7 @@ export async function uploadAttachment(
   file: File
 ) {
   if (file.size > 5 * 1024 * 1024) {
-    throw new Error("File too large (max 5 MB)");
+    throw new Error("Файл слишком большой. Максимальный размер: 5 МБ.");
   }
   const form = new FormData();
   form.append("file", file);
@@ -193,14 +194,19 @@ export async function uploadAttachment(
   );
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || "Upload failed");
+    throw buildHttpError({
+      status: response.status,
+      statusText: response.statusText || "Upload failed",
+      body: message,
+      fallbackMessage: "Upload failed"
+    });
   }
   return response.json() as Promise<Attachment>;
 }
 
 export async function uploadPersonnelPhoto(personId: number, file: File) {
   if (file.size > 5 * 1024 * 1024) {
-    throw new Error("File too large (max 5 MB)");
+    throw new Error("Файл слишком большой. Максимальный размер: 5 МБ.");
   }
   const form = new FormData();
   form.append("file", file);
@@ -213,7 +219,12 @@ export async function uploadPersonnelPhoto(personId: number, file: File) {
   });
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || "Upload failed");
+    throw buildHttpError({
+      status: response.status,
+      statusText: response.statusText || "Upload failed",
+      body: message,
+      fallbackMessage: "Upload failed"
+    });
   }
   return response.json() as Promise<Attachment>;
 }
@@ -225,7 +236,12 @@ export async function downloadAttachment(attachmentId: number) {
   });
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || "Download failed");
+    throw buildHttpError({
+      status: response.status,
+      statusText: response.statusText || "Download failed",
+      body: message,
+      fallbackMessage: "Download failed"
+    });
   }
   return response.blob();
 }
