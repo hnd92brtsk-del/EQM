@@ -31,6 +31,19 @@ from app.models.ipam import Vlan, Subnet, EquipmentNetworkInterface, IPAddress, 
 from app.models.network_topology import NetworkTopologyDocument
 from app.models.digital_twins import DigitalTwinDocument
 from app.models.serial_map import SerialMapDocument
+from app.models.maintenance import (
+    MntFailureMode,
+    MntFailureMechanism,
+    MntFailureCause,
+    MntDetectionMethod,
+    MntActivityType,
+    MntIncident,
+    MntIncidentComponent,
+    MntWorkOrder,
+    MntWorkOrderItem,
+    MntPlan,
+    MntOperatingTime,
+)
 
 __all__ = [
     "User",
@@ -77,4 +90,15 @@ __all__ = [
     "NetworkTopologyDocument",
     "SerialMapDocument",
     "DigitalTwinDocument",
+    "MntFailureMode",
+    "MntFailureMechanism",
+    "MntFailureCause",
+    "MntDetectionMethod",
+    "MntActivityType",
+    "MntIncident",
+    "MntIncidentComponent",
+    "MntWorkOrder",
+    "MntWorkOrderItem",
+    "MntPlan",
+    "MntOperatingTime",
 ]

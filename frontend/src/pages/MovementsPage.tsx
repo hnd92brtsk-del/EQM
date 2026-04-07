@@ -23,6 +23,7 @@ import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
 import { AppButton } from "../components/ui/AppButton";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
+import { formatDateTime } from "../utils/dateFormat";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { SearchableSelectField } from "../components/SearchableSelectField";
 
@@ -328,6 +329,7 @@ export default function MovementsPage() {
       {
         header: t("pagesUi.movements.columns.createdAt"),
         accessorKey: "created_at",
+        cell: ({ row }) => formatDateTime(row.original.created_at),
         meta: {
           filterType: "date",
           filterKey: "created_at_from"

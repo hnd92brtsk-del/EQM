@@ -20,6 +20,7 @@ import { listEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { hasPermission } from "../utils/permissions";
+import { formatDateTime } from "../utils/dateFormat";
 
 const pageSizeOptions = [10, 20, 50, 100];
 
@@ -123,7 +124,7 @@ export default function AuditLogsPage() {
           filterPlaceholder: t("pagesUi.auditLogs.columns.entityId")
         } as ColumnMeta<AuditLog>
       },
-      { header: t("pagesUi.auditLogs.columns.time"), accessorKey: "created_at" }
+      { header: t("pagesUi.auditLogs.columns.time"), accessorKey: "created_at", cell: ({ row }) => formatDateTime(row.original.created_at) }
     ],
     [t]
   );

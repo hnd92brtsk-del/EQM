@@ -46,6 +46,7 @@ import {
 } from "../api/personnel";
 import { useAuth } from "../context/AuthContext";
 import { AppButton } from "../components/ui/AppButton";
+import { formatDate, withDateInputHint } from "../utils/dateFormat";
 import { SearchableSelectField } from "../components/SearchableSelectField";
 import { hasPermission } from "../utils/permissions";
 
@@ -213,7 +214,7 @@ export default function PersonnelDetailsPage() {
       { header: t("pagesUi.personnelDetails.columns.name"), accessorKey: "name" },
       { header: t("pagesUi.personnelDetails.columns.organisation"), accessorKey: "organisation" },
       { header: t("pagesUi.personnelDetails.columns.city"), accessorKey: "city" },
-      { header: t("pagesUi.personnelDetails.columns.completionDate"), accessorKey: "completion_date" },
+      { header: t("pagesUi.personnelDetails.columns.completionDate"), accessorKey: "completion_date", cell: ({ row }) => formatDate(row.original.completion_date) },
       {
         header: t("pagesUi.personnelDetails.columns.age"),
         cell: ({ row }) => daysToAge(row.original.completion_age_days)
@@ -304,8 +305,8 @@ export default function PersonnelDetailsPage() {
   const trainingColumns = useMemo<ColumnDef<PersonnelTraining>[]>(() => {
     const base: ColumnDef<PersonnelTraining>[] = [
       { header: t("pagesUi.personnelDetails.columns.name"), accessorKey: "name" },
-      { header: t("pagesUi.personnelDetails.columns.completionDate"), accessorKey: "completion_date" },
-      { header: t("pagesUi.personnelDetails.columns.nextDueDate"), accessorKey: "next_due_date" },
+      { header: t("pagesUi.personnelDetails.columns.completionDate"), accessorKey: "completion_date", cell: ({ row }) => formatDate(row.original.completion_date) },
+      { header: t("pagesUi.personnelDetails.columns.nextDueDate"), accessorKey: "next_due_date", cell: ({ row }) => formatDate(row.original.next_due_date) },
       {
         header: t("pagesUi.personnelDetails.columns.daysUntilDue"),
         cell: ({ row }) => {
@@ -759,9 +760,10 @@ export default function PersonnelDetailsPage() {
               }
             />
             <TextField
-              label={t("pagesUi.personnelDetails.fields.completionDate")}
+              label={withDateInputHint(t("pagesUi.personnelDetails.fields.completionDate"))}
               type="date"
               InputLabelProps={{ shrink: true }}
+              helperText="ДД.ММ.ГГГГ"
               value={competencyDialog.values.completion_date || ""}
               onChange={(event) =>
                 setCompetencyDialog((prev) =>
@@ -819,9 +821,10 @@ export default function PersonnelDetailsPage() {
               }
             />
             <TextField
-              label={t("pagesUi.personnelDetails.fields.nextDueDate")}
+              label={withDateInputHint(t("pagesUi.personnelDetails.fields.nextDueDate"))}
               type="date"
               InputLabelProps={{ shrink: true }}
+              helperText="ДД.ММ.ГГГГ"
               value={trainingDialog.values.next_due_date || ""}
               onChange={(event) =>
                 setTrainingDialog((prev) =>

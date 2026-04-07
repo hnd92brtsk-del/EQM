@@ -25,6 +25,7 @@ import { listEntity } from "../api/entities";
 import { useAuth } from "../context/AuthContext";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { hasPermission } from "../utils/permissions";
+import { formatDateTime } from "../utils/dateFormat";
 
 const pageSizeOptions = [10, 20, 50, 100];
 
@@ -107,8 +108,8 @@ export default function SessionsPage() {
           filterPlaceholder: "ID / ФИО / роль"
         } as ColumnMeta<Session>
       },
-      { header: t("pagesUi.sessions.columns.startedAt"), accessorKey: "started_at" },
-      { header: t("pagesUi.sessions.columns.endedAt"), accessorKey: "ended_at" },
+      { header: t("pagesUi.sessions.columns.startedAt"), accessorKey: "started_at", cell: ({ row }) => formatDateTime(row.original.started_at) },
+      { header: t("pagesUi.sessions.columns.endedAt"), accessorKey: "ended_at", cell: ({ row }) => formatDateTime(row.original.ended_at) },
       {
         header: t("pagesUi.sessions.columns.endReason"),
         accessorKey: "end_reason",

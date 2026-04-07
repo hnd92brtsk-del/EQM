@@ -501,7 +501,13 @@
     "main_equipment": "Основное оборудование",
     "data_types": "Типы данных",
     "technological_equipment": "Технологическое оборудование",
-    "ipam": "IPAM / Сеть"
+    "ipam": "IPAM / Сеть",
+    "maintenance": "Обслуживание",
+    "mnt_incidents": "Инциденты",
+    "mnt_work_orders": "Наряды",
+    "mnt_plans": "Регламенты",
+    "mnt_operating_time": "Наработка",
+    "mnt_reliability": "Надёжность"
   },
   "sidebar": {
     "pin": "Закрепить меню",
@@ -1841,6 +1847,47 @@
     "errors": {
       "loadFailed": "Не удалось загрузить годовое расписание.",
       "eventLabelRequired": "Укажите название события."
+    }
+  },
+  "mnt": {
+    "incidents": {
+      "title": "Инциденты",
+      "sort": { "newest": "Сначала новые", "oldest": "Сначала старые", "severity": "По критичности", "title": "По названию" },
+      "cols": { "number": "Номер", "title": "Название", "cabinet": "Шкаф", "severity": "Критичность", "status": "Статус", "occurred_at": "Дата аварии", "downtime": "Простой", "reported_by": "Автор" },
+      "fields": { "title": "Название", "cabinet": "Шкаф", "severity": "Критичность", "status": "Статус", "occurred_at": "Дата аварии", "detected_at": "Дата обнаружения", "failure_mode": "Режим отказа", "failure_mechanism": "Механизм отказа", "failure_cause": "Причина отказа", "detection_method": "Метод обнаружения", "operational_impact": "Воздействие", "downtime_hours": "Простой (ч)", "man_hours": "Трудозатраты (ч)", "description": "Описание", "rca": "Анализ причин", "resolution_notes": "Примечания к устранению" },
+      "dialog": { "create": "Новый инцидент", "edit": "Редактирование инцидента" }
+    },
+    "work_orders": {
+      "title": "Наряды на обслуживание",
+      "sort": { "newest": "Сначала новые", "planned": "По плановой дате", "priority": "По приоритету", "title": "По названию" },
+      "cols": { "number": "Номер", "title": "Название", "type": "Тип", "priority": "Приоритет", "status": "Статус", "cabinet": "Шкаф", "planned_start": "Начало", "planned_end": "Окончание", "activity_type": "Вид работ" },
+      "fields": { "title": "Название", "type": "Тип наряда", "priority": "Приоритет", "status": "Статус", "cabinet": "Шкаф", "activity_type": "Вид работ", "planned_start": "Плановое начало", "planned_end": "Плановое окончание", "estimated_hours": "Плановые часы", "actual_hours": "Фактические часы", "description": "Описание", "completion_notes": "Примечания" },
+      "types": { "corrective": "Корректирующий", "preventive": "Превентивный", "condition_based": "По состоянию", "replacement": "Замена", "modification": "Модификация", "inspection": "Инспекция" },
+      "dialog": { "create": "Новый наряд", "edit": "Редактирование наряда" }
+    },
+    "plans": {
+      "title": "Регламенты обслуживания",
+      "cols": { "name": "Название", "code": "Код", "interval": "Интервал", "cabinet": "Шкаф", "activity_type": "Вид работ", "est_hours": "Часы", "next_due": "Следующая дата", "last_gen": "Последнее ТО" },
+      "fields": { "name": "Название", "code": "Код", "interval_days": "Интервал (дни)", "cabinet": "Шкаф", "activity_type": "Вид работ", "est_hours": "Оценка часов", "next_due": "Следующая дата", "description": "Описание" },
+      "dialog": { "create": "Новый регламент", "edit": "Редактирование регламента" }
+    },
+    "operating_time": {
+      "title": "Учёт наработки",
+      "sort": { "newest": "Сначала новые", "oldest": "Сначала старые" },
+      "cols": { "cabinet": "Шкаф", "date": "Дата", "operating": "Работа", "standby": "Резерв", "downtime": "Простой", "notes": "Примечания" },
+      "fields": { "cabinet": "Шкаф", "date": "Дата", "operating": "Часы работы", "standby": "Часы резерва", "downtime": "Часы простоя", "notes": "Примечания" },
+      "dialog": { "create": "Новая запись", "edit": "Редактирование записи" }
+    },
+    "reliability": {
+      "title": "Аналитика надёжности",
+      "filter_cabinet": "Фильтр по шкафу",
+      "all_cabinets": "Все шкафы",
+      "kpi": { "incidents": "Инциденты", "operating_hours": "Часы работы", "downtime_hours": "Часы простоя", "availability": "Готовность" },
+      "trend_title": "Тренд инцидентов по месяцам",
+      "top_failures_title": "Топ отказавшего оборудования",
+      "incidents": "Инциденты",
+      "per_cabinet": "Надёжность по шкафам",
+      "cols": { "cabinet": "Шкаф", "incidents": "Инциденты", "op_hours": "Наработка (ч)", "downtime": "Простой (ч)", "availability": "Готовность" }
     }
   }
 }

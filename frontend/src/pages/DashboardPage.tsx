@@ -16,6 +16,7 @@ import { apiFetch } from "../api/client";
 import { listEntity } from "../api/entities";
 import { DataTable } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
+import { formatDateTime } from "../utils/dateFormat";
 
 type DonutQtyItem = {
   name: string;
@@ -429,7 +430,7 @@ export default function DashboardPage() {
       },
       {
         header: t("dashboard.columns.date"),
-        cell: ({ row }) => row.original.created_at || "-"
+        cell: ({ row }) => formatDateTime(row.original.created_at, { invalidFallback: "-" })
       }
     ],
     [t]
@@ -443,11 +444,11 @@ export default function DashboardPage() {
       },
       {
         header: t("dashboard.columns.login"),
-        cell: ({ row }) => row.original.started_at || "-"
+        cell: ({ row }) => formatDateTime(row.original.started_at, { invalidFallback: "-" })
       },
       {
         header: t("dashboard.columns.logout"),
-        cell: ({ row }) => row.original.ended_at || "-"
+        cell: ({ row }) => formatDateTime(row.original.ended_at, { invalidFallback: "-" })
       },
       {
         header: t("dashboard.columns.reason"),

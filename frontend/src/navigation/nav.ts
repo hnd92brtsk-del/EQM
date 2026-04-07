@@ -1,4 +1,5 @@
 import type { SvgIconComponent } from "@mui/icons-material";
+import BuildRoundedIcon from "@mui/icons-material/BuildRounded";
 import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
 import PeopleOutlineRoundedIcon from "@mui/icons-material/PeopleOutlineRounded";
 
@@ -63,6 +64,18 @@ export const navTree: NavItem[] = [
       { id: "serial-map", labelKey: "menu.serial_map", path: "/engineering/serial-map", icon: NumbersSignalIcon, requiredSpace: "engineering" },
       { id: "serial-map-v2", labelKey: "menu.serial_map_v2", path: "/engineering/serial-map-v2", icon: NumbersSignalIcon, requiredSpace: "engineering" },
       { id: "network-map", labelKey: "menu.network_map", path: "/engineering/network-map", icon: NumbersSignalIcon, requiredSpace: "engineering" }
+    ]
+  },
+  {
+    id: "maintenance",
+    labelKey: "menu.maintenance",
+    requiredSpace: "maintenance",
+    children: [
+      { id: "mnt-incidents", labelKey: "menu.mnt_incidents", path: "/maintenance/incidents", icon: BuildRoundedIcon, requiredSpace: "maintenance" },
+      { id: "mnt-work-orders", labelKey: "menu.mnt_work_orders", path: "/maintenance/work-orders", icon: BuildRoundedIcon, requiredSpace: "maintenance" },
+      { id: "mnt-plans", labelKey: "menu.mnt_plans", path: "/maintenance/plans", icon: BuildRoundedIcon, requiredSpace: "maintenance" },
+      { id: "mnt-operating-time", labelKey: "menu.mnt_operating_time", path: "/maintenance/operating-time", icon: BuildRoundedIcon, requiredSpace: "maintenance" },
+      { id: "mnt-reliability", labelKey: "menu.mnt_reliability", path: "/maintenance/reliability", icon: BuildRoundedIcon, requiredSpace: "maintenance" },
     ]
   },
   {

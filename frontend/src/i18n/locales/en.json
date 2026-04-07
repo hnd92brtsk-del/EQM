@@ -501,7 +501,13 @@
     "main_equipment": "Main equipment",
     "data_types": "Data types",
     "technological_equipment": "Technological equipment",
-    "ipam": "IPAM / Network"
+    "ipam": "IPAM / Network",
+    "maintenance": "Maintenance",
+    "mnt_incidents": "Incidents",
+    "mnt_work_orders": "Work Orders",
+    "mnt_plans": "Plans",
+    "mnt_operating_time": "Operating Time",
+    "mnt_reliability": "Reliability"
   },
   "sidebar": {
     "pin": "Pin sidebar",
@@ -1841,6 +1847,47 @@
     "errors": {
       "loadFailed": "Failed to load yearly schedule.",
       "eventLabelRequired": "Provide an event label."
+    }
+  },
+  "mnt": {
+    "incidents": {
+      "title": "Incidents",
+      "sort": { "newest": "Newest first", "oldest": "Oldest first", "severity": "By severity", "title": "By title" },
+      "cols": { "number": "Number", "title": "Title", "cabinet": "Cabinet", "severity": "Severity", "status": "Status", "occurred_at": "Occurred at", "downtime": "Downtime", "reported_by": "Reported by" },
+      "fields": { "title": "Title", "cabinet": "Cabinet", "severity": "Severity", "status": "Status", "occurred_at": "Occurred at", "detected_at": "Detected at", "failure_mode": "Failure mode", "failure_mechanism": "Failure mechanism", "failure_cause": "Failure cause", "detection_method": "Detection method", "operational_impact": "Operational impact", "downtime_hours": "Downtime (h)", "man_hours": "Man-hours", "description": "Description", "rca": "Root cause analysis", "resolution_notes": "Resolution notes" },
+      "dialog": { "create": "New incident", "edit": "Edit incident" }
+    },
+    "work_orders": {
+      "title": "Work Orders",
+      "sort": { "newest": "Newest first", "planned": "By planned date", "priority": "By priority", "title": "By title" },
+      "cols": { "number": "Number", "title": "Title", "type": "Type", "priority": "Priority", "status": "Status", "cabinet": "Cabinet", "planned_start": "Start", "planned_end": "End", "activity_type": "Activity type" },
+      "fields": { "title": "Title", "type": "Order type", "priority": "Priority", "status": "Status", "cabinet": "Cabinet", "activity_type": "Activity type", "planned_start": "Planned start", "planned_end": "Planned end", "estimated_hours": "Estimated hours", "actual_hours": "Actual hours", "description": "Description", "completion_notes": "Completion notes" },
+      "types": { "corrective": "Corrective", "preventive": "Preventive", "condition_based": "Condition-based", "replacement": "Replacement", "modification": "Modification", "inspection": "Inspection" },
+      "dialog": { "create": "New work order", "edit": "Edit work order" }
+    },
+    "plans": {
+      "title": "Maintenance Plans",
+      "cols": { "name": "Name", "code": "Code", "interval": "Interval", "cabinet": "Cabinet", "activity_type": "Activity type", "est_hours": "Hours", "next_due": "Next due", "last_gen": "Last performed" },
+      "fields": { "name": "Name", "code": "Code", "interval_days": "Interval (days)", "cabinet": "Cabinet", "activity_type": "Activity type", "est_hours": "Estimated hours", "next_due": "Next due date", "description": "Description" },
+      "dialog": { "create": "New plan", "edit": "Edit plan" }
+    },
+    "operating_time": {
+      "title": "Operating Time",
+      "sort": { "newest": "Newest first", "oldest": "Oldest first" },
+      "cols": { "cabinet": "Cabinet", "date": "Date", "operating": "Operating", "standby": "Standby", "downtime": "Downtime", "notes": "Notes" },
+      "fields": { "cabinet": "Cabinet", "date": "Date", "operating": "Operating hours", "standby": "Standby hours", "downtime": "Downtime hours", "notes": "Notes" },
+      "dialog": { "create": "New record", "edit": "Edit record" }
+    },
+    "reliability": {
+      "title": "Reliability Analytics",
+      "filter_cabinet": "Filter by cabinet",
+      "all_cabinets": "All cabinets",
+      "kpi": { "incidents": "Incidents", "operating_hours": "Operating hours", "downtime_hours": "Downtime hours", "availability": "Availability" },
+      "trend_title": "Monthly incident trend",
+      "top_failures_title": "Top failing equipment",
+      "incidents": "Incidents",
+      "per_cabinet": "Reliability by cabinet",
+      "cols": { "cabinet": "Cabinet", "incidents": "Incidents", "op_hours": "Operating (h)", "downtime": "Downtime (h)", "availability": "Availability" }
     }
   }
 }

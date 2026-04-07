@@ -38,6 +38,7 @@ import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
 import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { formatDateTime } from "../utils/dateFormat";
 import { useNavigate } from "react-router-dom";
 
 import { LOOKUP_QUERY_STALE_TIME } from "../api/queryDefaults";
@@ -1127,7 +1128,7 @@ function ContainerAccordion({
                             </Typography>
                             {item.created_at ? (
                               <Typography variant="caption" color="text.secondary">
-                                {new Date(item.created_at).toLocaleString(i18n.language)}
+                                {formatDateTime(item.created_at)}
                               </Typography>
                             ) : null}
                           </Box>

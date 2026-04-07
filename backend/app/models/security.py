@@ -18,6 +18,7 @@ class SpaceKey(enum.Enum):
     equipment = "equipment"
     cabinets = "cabinets"
     engineering = "engineering"
+    maintenance = "maintenance"
     dictionaries = "dictionaries"
     admin_users = "admin_users"
     admin_sessions = "admin_sessions"

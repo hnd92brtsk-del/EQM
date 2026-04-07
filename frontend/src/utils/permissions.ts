@@ -6,6 +6,7 @@ export type SpaceKey =
   | "equipment"
   | "cabinets"
   | "engineering"
+  | "maintenance"
   | "dictionaries"
   | "admin_users"
   | "admin_sessions"

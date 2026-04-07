@@ -40,6 +40,12 @@ from app.routers import (
     users,
     warehouse_items,
     warehouses,
+    mnt_dictionaries,
+    mnt_incidents,
+    mnt_work_orders,
+    mnt_plans,
+    mnt_operating_time,
+    mnt_reliability,
 )
 
 settings = get_settings()
@@ -94,6 +100,12 @@ app.include_router(network_topologies.router, prefix="/api/v1/network-topologies
 app.include_router(serial_map_documents.router, prefix="/api/v1/serial-map-documents", tags=["serial-map-documents"])
 app.include_router(diagnostics.router, prefix="/api/v1/admin/diagnostics", tags=["diagnostics"])
 app.include_router(digital_twins.router, prefix="/api/v1/digital-twins", tags=["digital-twins"])
+app.include_router(mnt_dictionaries.router, prefix="/api/v1/maintenance", tags=["maintenance-dictionaries"])
+app.include_router(mnt_incidents.router, prefix="/api/v1/maintenance/incidents", tags=["maintenance-incidents"])
+app.include_router(mnt_work_orders.router, prefix="/api/v1/maintenance/work-orders", tags=["maintenance-work-orders"])
+app.include_router(mnt_plans.router, prefix="/api/v1/maintenance/plans", tags=["maintenance-plans"])
+app.include_router(mnt_operating_time.router, prefix="/api/v1/maintenance/operating-time", tags=["maintenance-operating-time"])
+app.include_router(mnt_reliability.router, prefix="/api/v1/maintenance/reliability", tags=["maintenance-reliability"])
 
 pid_images_dir = settings.resolved_pid_images_dir
 pid_images_dir.mkdir(parents=True, exist_ok=True)

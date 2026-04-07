@@ -30,6 +30,7 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
+import { formatDateTime } from "../../utils/dateFormat";
 import {
   Menubar,
   MenubarCheckboxItem,
@@ -339,7 +340,7 @@ function EmptyCanvasState({ title, description, primaryAction, secondaryAction }
 }
 
 export default function NetworkMapPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const canWrite = hasPermission(user, "engineering", "write");
@@ -541,7 +542,7 @@ export default function NetworkMapPage() {
   const previewDocument = selectedDocument?.document ? normalizeDocument(selectedDocument.document) : topology;
   const previewTitle = selectedDocument?.name || documentName;
   const previewDescription = selectedDocument?.description || documentDescription || t("pages.networkMap.documents.noDescription");
-  const previewUpdatedAt = selectedDocument ? new Date(selectedDocument.updated_at).toLocaleString(i18n.language) : saveState === "saved" ? t("pages.networkMap.states.saved") : saveState === "saving" ? t("pages.networkMap.states.saving") : saveState === "error" ? t("pages.networkMap.states.error") : "Есть изменения";
+  const previewUpdatedAt = selectedDocument ? formatDateTime(selectedDocument.updated_at) : saveState === "saved" ? t("pages.networkMap.states.saved") : saveState === "saving" ? t("pages.networkMap.states.saving") : saveState === "error" ? t("pages.networkMap.states.error") : "Есть изменения";
   const previewStats = { nodes: previewDocument.nodes.length, edges: previewDocument.edges.length, warnings: warningCountOfDocument(previewDocument) };
   const selectedSubnet = availableSubnets.find((item) => item.id === selectedSubnetId) || null;
   const selectableAddresses = useMemo(() => {

@@ -40,6 +40,11 @@ const PersonnelSchedulePage = lazy(() => import("./pages/PersonnelSchedulePage")
 const PersonnelDetailsPage = lazy(() => import("./pages/PersonnelDetailsPage"));
 const TechnologicalEquipmentPage = lazy(() => import("./pages/TechnologicalEquipmentPage"));
 const IPAMPage = lazy(() => import("./features/ipam/pages/IPAMPage"));
+const MntIncidentsPage = lazy(() => import("./pages/maintenance/MntIncidentsPage"));
+const MntWorkOrdersPage = lazy(() => import("./pages/maintenance/MntWorkOrdersPage"));
+const MntPlansPage = lazy(() => import("./pages/maintenance/MntPlansPage"));
+const MntOperatingTimePage = lazy(() => import("./pages/maintenance/MntOperatingTimePage"));
+const MntReliabilityPage = lazy(() => import("./pages/maintenance/MntReliabilityPage"));
 
 function RouteLoadingFallback() {
   return (
@@ -131,6 +136,11 @@ export default function App() {
                   <Route path="/engineering/serial-map" element={<RequireSpace space="engineering"><SerialMapPage /></RequireSpace>} />
                   <Route path="/engineering/serial-map-v2" element={<RequireSpace space="engineering"><SerialMapV2Page /></RequireSpace>} />
                   <Route path="/engineering/network-map" element={<RequireSpace space="engineering"><NetworkMapPage /></RequireSpace>} />
+                  <Route path="/maintenance/incidents" element={<RequireSpace space="maintenance"><MntIncidentsPage /></RequireSpace>} />
+                  <Route path="/maintenance/work-orders" element={<RequireSpace space="maintenance"><MntWorkOrdersPage /></RequireSpace>} />
+                  <Route path="/maintenance/plans" element={<RequireSpace space="maintenance"><MntPlansPage /></RequireSpace>} />
+                  <Route path="/maintenance/operating-time" element={<RequireSpace space="maintenance"><MntOperatingTimePage /></RequireSpace>} />
+                  <Route path="/maintenance/reliability" element={<RequireSpace space="maintenance"><MntReliabilityPage /></RequireSpace>} />
                   <Route path="/help" element={<HelpPage />} />
                   <Route path="/personnel" element={<RequireSpace space="personnel"><PersonnelPage /></RequireSpace>} />
                   <Route path="/personnel/schedule" element={<RequireSpace space="personnel"><PersonnelSchedulePage /></RequireSpace>} />

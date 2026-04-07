@@ -53,6 +53,7 @@ import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { getTablePaginationProps } from "../components/tablePaginationI18n";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
+import { formatDateTime as formatDateTimeValue } from "../utils/dateFormat";
 
 const pageSizeOptions = [10, 20, 50, 100];
 const refreshIntervalMs = 3_600_000;
@@ -916,5 +917,6 @@ function formatDateTime(value: string | null | undefined, language: string) {
   if (Number.isNaN(parsed.getTime())) {
     return value;
   }
-  return new Intl.DateTimeFormat(language === "ru" ? "ru-RU" : "en-US", { dateStyle: "medium", timeStyle: "short" }).format(parsed);
+  void language;
+  return formatDateTimeValue(value, { invalidFallback: value });
 }

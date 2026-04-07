@@ -14,6 +14,7 @@ WORK_SPACES = {
     SpaceKey.equipment,
     SpaceKey.cabinets,
     SpaceKey.engineering,
+    SpaceKey.maintenance,
     SpaceKey.dictionaries,
 }
 
@@ -23,6 +24,7 @@ DEFAULT_SPACE_CATALOG: list[tuple[SpaceKey, str, bool]] = [
     (SpaceKey.equipment, "Equipment", False),
     (SpaceKey.cabinets, "Cabinets", False),
     (SpaceKey.engineering, "Engineering", False),
+    (SpaceKey.maintenance, "Maintenance", False),
     (SpaceKey.dictionaries, "Dictionaries", False),
     (SpaceKey.admin_users, "Admin Users", True),
     (SpaceKey.admin_sessions, "Admin Sessions", True),

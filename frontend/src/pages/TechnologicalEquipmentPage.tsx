@@ -38,6 +38,7 @@ import { SearchableTreeSelectField, type SearchableTreeSelectOption } from "../c
 import { PidCanvas, type PidCanvasHandle } from "../components/pid/PidCanvas";
 import { PidEquipmentListTab } from "../components/pid/PidEquipmentListTab";
 import { PidPropertiesPanel } from "../components/pid/PidPropertiesPanel";
+import { formatDateTime } from "../utils/dateFormat";
 import { PidToolbox, type PidEditorMode, type PidNodeInsertPreset } from "../components/pid/PidToolbox";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -1119,7 +1120,7 @@ export default function TechnologicalEquipmentPage() {
                 : canvasState === "diagram-error"
                   ? diagramErrorText
                   : "";
-  const previewUpdatedAt = selectedProcess?.updated_at ? new Date(selectedProcess.updated_at).toLocaleString() : "Нет данных";
+  const previewUpdatedAt = selectedProcess?.updated_at ? formatDateTime(selectedProcess.updated_at) : "Нет данных";
 
   const handleMetadataDraftKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -1319,7 +1320,7 @@ export default function TechnologicalEquipmentPage() {
               active={selectedProcessId === activeProcessId}
               title={selectedProcess.name}
               subtitle={selectedProcess.description || "Без описания"}
-              updatedAt={previewStats ? new Date(previewStats.updatedAt).toLocaleString() : previewUpdatedAt}
+              updatedAt={previewStats ? formatDateTime(previewStats.updatedAt) : previewUpdatedAt}
               stats={{
                 nodes: previewStats?.nodes || 0,
                 edges: previewStats?.edges || 0,

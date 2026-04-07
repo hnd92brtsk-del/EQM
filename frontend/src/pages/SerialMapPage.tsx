@@ -55,6 +55,7 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
+import { formatDateTime } from "../utils/dateFormat";
 import {
   Menubar,
   MenubarCheckboxItem,
@@ -231,7 +232,7 @@ function EmptyCanvasState({ title, description, primaryAction, secondaryAction }
 }
 
 export default function SerialMapPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const canWrite = hasPermission(user, "engineering", "write");
@@ -431,7 +432,7 @@ export default function SerialMapPage() {
   const previewTitle = selectedDocument?.name || documentName;
   const previewDescription = selectedDocument?.description || documentDescription || "Без описания";
   const previewDocument = selectedDocument?.document || document;
-  const previewUpdatedAt = selectedDocument ? new Date(selectedDocument.updated_at).toLocaleString(i18n.language) : saveStateLabel;
+  const previewUpdatedAt = selectedDocument ? formatDateTime(selectedDocument.updated_at) : saveStateLabel;
   const previewStats = { nodes: previewDocument.nodes.length, edges: previewDocument.edges.length, warnings: computeDiagnostics(previewDocument).filter((entry) => entry.level !== "info").length };
   const miniMapViewportRect = useMemo(() => {
     const bounds = wrapperRef.current?.getBoundingClientRect();
