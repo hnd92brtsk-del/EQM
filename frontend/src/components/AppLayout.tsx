@@ -30,8 +30,8 @@ import { AppButton } from "./ui/AppButton";
 import ChatDialog from "./ChatDialog";
 import { CollapsibleSidebar } from "./CollapsibleSidebar";
 
-const drawerWidth = 260;
-const drawerHandleWidth = 12;
+const drawerWidth = 286;
+const drawerHandleWidth = 40;
 const sidebarPinnedKey = "eqm.sidebar.pinned.v2";
 const desktopAppBarOffset = 64;
 

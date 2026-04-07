@@ -13,8 +13,8 @@ type CollapsibleSidebarProps = {
 export function CollapsibleSidebar({
   children,
   pinned,
-  drawerWidth = 260,
-  handleWidth = 12,
+  drawerWidth = 286,
+  handleWidth = 40,
   topOffset = 64
 }: CollapsibleSidebarProps) {
   const [hovered, setHovered] = React.useState(false);
@@ -62,8 +62,10 @@ export function CollapsibleSidebar({
                 width: handleWidth,
                 height: "100%",
                 background:
-                  "linear-gradient(180deg, rgba(17,25,35,1) 0%, rgba(12,19,29,1) 100%)",
-                borderLeft: "1px solid rgba(255,255,255,0.08)"
+                  "linear-gradient(180deg, rgba(33,47,66,1) 0%, rgba(20,30,44,1) 52%, rgba(14,21,31,1) 100%)",
+                borderLeft: "1px solid rgba(255,255,255,0.16)",
+                boxShadow:
+                  "inset 1px 0 0 rgba(255,255,255,0.05), inset 4px 0 0 rgba(244,163,0,0.75)"
               }
             : undefined
         }
@@ -85,18 +87,49 @@ export function CollapsibleSidebar({
       }}
     >
       {!isOpen ? (
-        <ChevronRightRoundedIcon
-          sx={{
-            position: "absolute",
-            top: 20,
-            right: 0,
-            zIndex: 1,
-            width: handleWidth,
-            fontSize: 14,
-            color: "rgba(255,255,255,0.55)",
-            pointerEvents: "none"
-          }}
-        />
+        <>
+          <ChevronRightRoundedIcon
+            sx={{
+              position: "absolute",
+              top: 10,
+              right: 4,
+              zIndex: 2,
+              fontSize: 18,
+              color: "rgba(255,255,255,0.72)",
+              pointerEvents: "none"
+            }}
+          />
+          <ChevronRightRoundedIcon
+            sx={{
+              position: "absolute",
+              bottom: 10,
+              right: 4,
+              zIndex: 2,
+              fontSize: 18,
+              color: "rgba(255,255,255,0.38)",
+              pointerEvents: "none"
+            }}
+          />
+          <span
+            style={{
+              position: "absolute",
+              top: 52,
+              right: 8,
+              zIndex: 2,
+              writingMode: "vertical-rl",
+              transform: "rotate(180deg)",
+              color: "rgba(245,247,251,0.96)",
+              fontSize: "12px",
+              fontWeight: 700,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              pointerEvents: "none",
+              userSelect: "none"
+            }}
+          >
+            Меню
+          </span>
+        </>
       ) : null}
       {children}
     </Drawer>
