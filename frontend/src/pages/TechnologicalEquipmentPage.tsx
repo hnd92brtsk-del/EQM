@@ -329,10 +329,10 @@ function EmptyCanvasState({
   secondaryAction?: React.ReactNode;
 }) {
   return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80 backdrop-blur-[1px]">
-      <div className="w-full max-w-md border border-slate-200 bg-white p-6 text-center shadow-lg">
-        <div className="text-lg font-semibold text-slate-900">{title}</div>
-        <div className="mt-2 text-sm text-slate-500">{description}</div>
+    <div className="eqm-canvas-overlay absolute inset-0 z-10 flex items-center justify-center">
+      <div className="eqm-canvas-panel w-full max-w-md p-6 text-center">
+        <div className="text-lg font-semibold text-[var(--eqm-ui-text)]">{title}</div>
+        <div className="mt-2 text-sm text-[var(--eqm-ui-muted)]">{description}</div>
         <div className="mt-4 flex flex-wrap justify-center gap-2">
           {primaryAction}
           {secondaryAction}
@@ -1216,26 +1216,26 @@ export default function TechnologicalEquipmentPage() {
         <Input value={processSearch} onChange={(event) => setProcessSearch(event.target.value)} placeholder="Поиск по процессам" />
         <div className="space-y-2 min-w-0">
           <div className="flex items-center justify-between gap-3">
-            <div className="text-sm font-semibold text-slate-900">Список процессов</div>
-            <div className="text-xs text-slate-500">
+            <div className="text-sm font-semibold text-[var(--eqm-ui-text)]">Список процессов</div>
+            <div className="text-xs text-[var(--eqm-ui-muted)]">
               {filteredProcesses.length} / {activeProcesses.length}
             </div>
           </div>
-          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_36px_36px_32px] items-center gap-1.5 border border-slate-200 bg-slate-50 px-2.5 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_36px_36px_32px] items-center gap-1.5 border border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel-alt)] px-2.5 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--eqm-ui-muted)]">
             <div>Процесс</div>
             <div className="text-center">Узлы</div>
             <div className="text-center">Связи</div>
             <div className="text-center">X</div>
           </div>
-          <div className="max-h-[42vh] overflow-auto border-x border-b border-slate-200 bg-slate-50/30 pr-1">
-            <div className="space-y-px bg-slate-200">
+          <div className="max-h-[42vh] overflow-auto border-x border-b border-[var(--eqm-ui-border)] bg-[color-mix(in_srgb,var(--eqm-ui-panel-alt)_72%,transparent)] pr-1">
+            <div className="space-y-px bg-[var(--eqm-ui-border)]">
               {sidebarState === "loading" ? (
-                <div className="border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">
+                <div className="border border-dashed border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel)] px-3 py-4 text-sm text-[var(--eqm-ui-muted)]">
                   Загрузка процессов...
                 </div>
               ) : null}
               {sidebarState === "error" ? (
-                <div className="space-y-3 border border-dashed border-red-200 bg-white px-3 py-4 text-sm text-red-700">
+                <div className="space-y-3 border border-dashed border-red-300/70 bg-[color-mix(in_srgb,#7f1d1d_18%,var(--eqm-ui-panel)_82%)] px-3 py-4 text-sm text-red-200">
                   <div>{processesErrorText}</div>
                   <Button size="sm" variant="outline" onClick={() => void processesQuery.refetch()}>
                     Повторить
@@ -1243,12 +1243,12 @@ export default function TechnologicalEquipmentPage() {
                 </div>
               ) : null}
               {sidebarState === "no-location" ? (
-                <div className="border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">
+                <div className="border border-dashed border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel)] px-3 py-4 text-sm text-[var(--eqm-ui-muted)]">
                   Сначала выберите локацию.
                 </div>
               ) : null}
               {sidebarState === "empty" ? (
-                <div className="border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">
+                <div className="border border-dashed border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel)] px-3 py-4 text-sm text-[var(--eqm-ui-muted)]">
                   Для выбранной локации процессов пока нет.
                 </div>
               ) : null}
@@ -1270,7 +1270,7 @@ export default function TechnologicalEquipmentPage() {
                 />
               )) : null}
               {sidebarState === "ready" && filteredProcesses.length === 0 ? (
-                <div className="border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">
+                <div className="border border-dashed border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel)] px-3 py-4 text-sm text-[var(--eqm-ui-muted)]">
                   Процессы не найдены.
                 </div>
               ) : null}
@@ -1278,11 +1278,11 @@ export default function TechnologicalEquipmentPage() {
           </div>
         </div>
 
-        <div className="space-y-3 border-t border-slate-200 pt-4">
+        <div className="space-y-3 border-t border-[var(--eqm-ui-border)] pt-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="text-sm font-semibold text-slate-900">Предпросмотр</div>
-              <div className="text-xs text-slate-500">
+              <div className="text-sm font-semibold text-[var(--eqm-ui-text)]">Предпросмотр</div>
+              <div className="text-xs text-[var(--eqm-ui-muted)]">
                 {selectedProcessId !== null && activeProcessId === selectedProcessId ? "Открыто на холсте" : "Выбрано в списке процессов"}
               </div>
             </div>
@@ -1290,7 +1290,7 @@ export default function TechnologicalEquipmentPage() {
           </div>
 
           {isEditingSelectedProcess ? (
-            <div className="space-y-3 border border-slate-200 p-3">
+            <div className="space-y-3 border border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel-alt)] p-3">
               <Input
                 value={selectedProcessName}
                 onChange={(event) => setSelectedProcessName(event.target.value)}
@@ -1327,7 +1327,7 @@ export default function TechnologicalEquipmentPage() {
               }}
             />
           ) : (
-            <div className="border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+            <div className="border border-dashed border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel)] p-4 text-sm text-[var(--eqm-ui-muted)]">
               Выберите процесс, чтобы увидеть предпросмотр.
             </div>
           )}
@@ -1442,7 +1442,7 @@ export default function TechnologicalEquipmentPage() {
   );
 
   return (
-    <div className="grid gap-4">
+    <div className="eqm-canvas-page grid gap-4">
       <input
         ref={fileInputRef}
         type="file"
@@ -1627,7 +1627,7 @@ export default function TechnologicalEquipmentPage() {
                   Добавить узел
                 </Button>
                 <select
-                  className="h-10 border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none"
+                  className="h-10 border border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel-alt)] px-3 text-sm text-[var(--eqm-ui-text)] outline-none"
                   value={edgeType}
                   onChange={(event) => setEdgeType(event.target.value as PidEdge["edgeType"])}
                   disabled={!hasOpenCanvas}
@@ -1698,23 +1698,23 @@ export default function TechnologicalEquipmentPage() {
                     disabled={!hasOpenCanvas}
                   />
                   {canvasSearch.trim() && isSearchResultsOpen ? (
-                    <div className="absolute left-0 top-full z-20 mt-2 max-h-72 w-full overflow-auto border border-slate-200 bg-white shadow-lg">
+                    <div className="absolute left-0 top-full z-20 mt-2 max-h-72 w-full overflow-auto border border-[var(--eqm-ui-border-strong)] bg-[var(--eqm-ui-panel)] shadow-xl">
                       {searchResults.length ? (
                         searchResults.map((node) => (
                           <button
                             key={node.id}
                             type="button"
-                            className="block w-full border-b border-slate-100 px-3 py-2 text-left hover:bg-slate-50 last:border-b-0"
+                            className="block w-full border-b border-[var(--eqm-ui-border)] px-3 py-2 text-left transition hover:bg-[var(--eqm-ui-panel-alt)] last:border-b-0"
                             onClick={() => focusSearchResult(node.id)}
                           >
-                            <div className="truncate text-sm font-semibold text-slate-900">{node.label || node.symbolKey}</div>
-                            <div className="mt-1 text-xs text-slate-500">
+                            <div className="truncate text-sm font-semibold text-[var(--eqm-ui-text)]">{node.label || node.symbolKey}</div>
+                            <div className="mt-1 text-xs text-[var(--eqm-ui-muted)]">
                               {node.tag || "Без тега"} • {node.symbolKey}
                             </div>
                           </button>
                         ))
                       ) : (
-                        <div className="px-3 py-3 text-sm text-slate-500">Совпадений не найдено.</div>
+                        <div className="px-3 py-3 text-sm text-[var(--eqm-ui-muted)]">Совпадений не найдено.</div>
                       )}
                     </div>
                   ) : null}
@@ -1725,7 +1725,7 @@ export default function TechnologicalEquipmentPage() {
             </div>
           </CardHeader>
           <CardContent className={cn("flex-1 p-5", isFullscreen && "min-h-0")}>
-            <div className={cn("relative min-w-0", isFullscreen ? "h-full bg-white" : "h-[620px] min-h-[620px]")}>
+            <div className={cn("relative min-w-0 eqm-canvas-shell", isFullscreen ? "h-full" : "h-[620px] min-h-[620px]")}>
               {canvasState !== "ready" ? (
                 <EmptyCanvasState
                   title={activeProcesses.length > 0 ? "Нет открытого процесса" : "Процессы не найдены"}
@@ -1774,7 +1774,7 @@ export default function TechnologicalEquipmentPage() {
                   onInteractionMessage={setMessage}
                 />
               ) : (
-                <div className="flex min-h-[620px] items-center justify-center border border-slate-200 text-sm text-slate-500">
+                <div className="eqm-canvas-panel flex min-h-[620px] items-center justify-center text-sm text-[var(--eqm-ui-muted)]">
                   Загрузка диаграммы...
                 </div>
               )}
@@ -1796,7 +1796,7 @@ export default function TechnologicalEquipmentPage() {
 
       {isSidebarDrawerOpen ? (
         <div className="fixed inset-0 z-50 bg-slate-900/35 xl:hidden" onClick={() => setIsSidebarDrawerOpen(false)}>
-          <div className="h-full w-[min(92vw,360px)] bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+          <div className="eqm-canvas-panel h-full w-[min(92vw,360px)] p-4" onClick={(event) => event.stopPropagation()}>
             <div className="mb-3 flex items-center justify-between">
               <div className="text-sm font-semibold text-slate-900">Процессы</div>
               <Button size="sm" variant="outline" onClick={() => setIsSidebarDrawerOpen(false)}>
@@ -1810,7 +1810,7 @@ export default function TechnologicalEquipmentPage() {
 
       {isInspectorDrawerOpen ? (
         <div className="fixed inset-0 z-50 bg-slate-900/35 xl:hidden" onClick={() => setIsInspectorDrawerOpen(false)}>
-          <div className="ml-auto h-full w-[min(94vw,420px)] bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+          <div className="eqm-canvas-panel ml-auto h-full w-[min(94vw,420px)] p-4" onClick={(event) => event.stopPropagation()}>
             <div className="mb-3 flex items-center justify-between">
               <div className="text-sm font-semibold text-slate-900">Инспектор</div>
               <Button size="sm" variant="outline" onClick={() => setIsInspectorDrawerOpen(false)}>
@@ -1824,7 +1824,7 @@ export default function TechnologicalEquipmentPage() {
 
       {isCreateDialogOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/35 p-4" onClick={() => setIsCreateDialogOpen(false)}>
-          <div className="w-full max-w-md border border-slate-200 bg-white p-5 shadow-xl" onClick={(event) => event.stopPropagation()}>
+          <div className="eqm-canvas-panel w-full max-w-md p-5" onClick={(event) => event.stopPropagation()}>
             <div className="text-lg font-semibold text-slate-900">Новый процесс</div>
             <div className="mt-1 text-sm text-slate-500">
               Укажите имя и описание нового PID process перед созданием серверного документа.

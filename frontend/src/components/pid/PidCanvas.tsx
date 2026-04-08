@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { Box } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import ReactFlow, {
   Background,
   Controls,
@@ -254,6 +255,8 @@ export const PidCanvas = forwardRef<PidCanvasHandle, Props>(function PidCanvas(
   },
   ref
 ) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const wrapperRef = useRef<HTMLDivElement>(null);
   const flowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const pendingDragCheckpointRef = useRef(false);
@@ -616,12 +619,18 @@ export const PidCanvas = forwardRef<PidCanvasHandle, Props>(function PidCanvas(
         position: "relative",
         border: "1px solid",
         borderColor: "divider",
-        bgcolor: "background.paper",
+        bgcolor: "transparent",
       }}
     >
       <ReactFlow
         key={`pid-rf-${diagram.processId}`}
-        style={{ width: "100%", height: "100%" }}
+        style={{
+          width: "100%",
+          height: "100%",
+          background: isDark
+            ? "radial-gradient(circle at top, rgba(23,36,52,0.98) 0%, rgba(16,26,38,0.97) 58%, rgba(10,18,27,1) 100%)"
+            : "radial-gradient(circle at top, rgba(255,255,255,0.98) 0%, rgba(239,246,255,0.95) 62%, rgba(226,232,240,1) 100%)",
+        }}
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
@@ -726,23 +735,47 @@ export const PidCanvas = forwardRef<PidCanvasHandle, Props>(function PidCanvas(
           <MiniMap
             pannable
             zoomable
-            nodeColor={(node) => (selectedNodeIds.includes(node.id) ? "#2563eb" : "#cbd5e1")}
-            nodeStrokeColor={() => "#475569"}
-            style={{ backgroundColor: "rgba(255,255,255,0.96)", border: "1px solid #e2e8f0" }}
+            nodeColor={(node) => (selectedNodeIds.includes(node.id) ? "#2563eb" : isDark ? "#5c7086" : "#cbd5e1")}
+            nodeStrokeColor={() => (isDark ? "#c9d5e3" : "#475569")}
+            style={{
+              backgroundColor: isDark ? "rgba(18,29,42,0.96)" : "rgba(255,255,255,0.96)",
+              border: `1px solid ${isDark ? "rgba(211,223,237,0.18)" : "#e2e8f0"}`,
+            }}
           />
         ) : null}
-        <Controls showInteractive={false} />
-        <Background />
+        <Controls
+          showInteractive={false}
+          style={{
+            backgroundColor: isDark ? "rgba(18,29,42,0.96)" : "rgba(255,255,255,0.96)",
+            border: `1px solid ${isDark ? "rgba(211,223,237,0.18)" : "#e2e8f0"}`,
+            color: isDark ? "#edf4ff" : "#152235",
+          }}
+        />
+        <Background color={isDark ? "rgba(150,168,192,0.24)" : "#cbd5e1"} />
       </ReactFlow>
       {mode === "add-edge" ? (
-        <div className="pointer-events-none absolute left-4 top-4 z-20 border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-medium text-sky-800">
+        <div
+          className="pointer-events-none absolute left-4 top-4 z-20 border px-3 py-2 text-xs font-medium"
+          style={{
+            borderColor: isDark ? "rgba(125,211,252,0.28)" : "#bae6fd",
+            background: isDark ? "rgba(12,74,110,0.34)" : "#f0f9ff",
+            color: isDark ? "#d8f0ff" : "#075985",
+          }}
+        >
           {pendingConnectionNodeId
             ? `Выберите второй узел, чтобы создать связь типа "${EDGE_STYLES[edgeType] ? edgeType : "process"}".`
             : "Выберите первый узел, чтобы начать создание связи."}
         </div>
       ) : null}
       {mode === "add-edge" && selectedElements.edge ? (
-        <div className="pointer-events-none absolute left-4 top-16 z-20 border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+        <div
+          className="pointer-events-none absolute left-4 top-16 z-20 border px-3 py-2 text-xs"
+          style={{
+            borderColor: isDark ? "rgba(211,223,237,0.18)" : "#e2e8f0",
+            background: isDark ? "rgba(18,29,42,0.96)" : "#ffffff",
+            color: isDark ? "#96a8c0" : "#475569",
+          }}
+        >
           Выбрана связь. Для новой связи кликните по двум узлам.
         </div>
       ) : null}

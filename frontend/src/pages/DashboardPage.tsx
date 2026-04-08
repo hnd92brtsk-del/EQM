@@ -498,13 +498,13 @@ export default function DashboardPage() {
         <Box sx={{ position: "relative", zIndex: 1, display: "grid", gap: 1.5 }}>
           <Box className="section-kicker">{t("menu.overview")}</Box>
           <Typography variant="h4">{t("pages.dashboard")}</Typography>
-          <Typography sx={{ maxWidth: 760, color: "rgba(243,247,252,0.76)" }}>
+          <Typography sx={{ maxWidth: 760, color: "var(--hero-muted)" }}>
             {t("dashboard.kpis.total_cabinets")} / {t("dashboard.kpis.total_channels")} / {t("dashboard.titles.recent_actions")}
           </Typography>
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-            <Chip label={t("dashboard.titles.by_type")} sx={{ color: "#f3f7fc", backgroundColor: "rgba(255,255,255,0.08)" }} />
-            <Chip label={t("dashboard.titles.by_warehouse_qty")} sx={{ color: "#f3f7fc", backgroundColor: "rgba(255,255,255,0.08)" }} />
-            <Chip label={t("dashboard.titles.recent_logins")} sx={{ color: "#f3f7fc", backgroundColor: "rgba(255,255,255,0.08)" }} />
+            <Chip label={t("dashboard.titles.by_type")} sx={{ color: "var(--hero-text)", backgroundColor: "var(--hero-kicker-bg)", border: "1px solid var(--hero-kicker-border)" }} />
+            <Chip label={t("dashboard.titles.by_warehouse_qty")} sx={{ color: "var(--hero-text)", backgroundColor: "var(--hero-kicker-bg)", border: "1px solid var(--hero-kicker-border)" }} />
+            <Chip label={t("dashboard.titles.recent_logins")} sx={{ color: "var(--hero-text)", backgroundColor: "var(--hero-kicker-bg)", border: "1px solid var(--hero-kicker-border)" }} />
           </Box>
         </Box>
       </Box>

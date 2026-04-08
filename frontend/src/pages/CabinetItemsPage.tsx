@@ -774,7 +774,7 @@ function ContainerAccordion({
             display: "grid",
             gridTemplateColumns: {
               xs: "1fr",
-              lg: "minmax(220px, 1.2fr) minmax(140px, 0.7fr) minmax(160px, 0.8fr) minmax(220px, 1fr) auto auto"
+              lg: "minmax(280px, 1.4fr) auto auto"
             },
             gap: 1.5,
             alignItems: "center",
@@ -797,43 +797,19 @@ function ContainerAccordion({
               {container.source === "assembly" ? t("common.fields.assembly") : t("common.fields.cabinet")}
             </Typography>
           </Box>
-          <Box sx={{ display: "grid" }}>
-            <Typography variant="caption" color="text.secondary">
-              {t("common.fields.factoryNumber")}
-            </Typography>
-            <Typography variant="body2">{container.container_factory_number || "-"}</Typography>
-          </Box>
-          <Box sx={{ display: "grid" }}>
-            <Typography variant="caption" color="text.secondary">
-              {t("common.fields.nomenclatureNumber")}
-            </Typography>
-            <Typography variant="body2">{container.container_inventory_number || "-"}</Typography>
-          </Box>
-          <Box sx={{ display: "grid" }}>
-            <Typography variant="caption" color="text.secondary">
-              {t("common.fields.location")}
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
-            >
-              {container.location_full_path || "-"}
-            </Typography>
-          </Box>
           <Box
             sx={{
               display: "grid",
               gridTemplateColumns: { xs: "repeat(3, minmax(88px, 1fr))", lg: "repeat(3, minmax(88px, auto))" },
               gap: 1.5,
-              justifyContent: "end"
+              justifyContent: "start"
             }}
           >
             <StatCell label={t("common.status.active")} value={container.active_items_count} />
             <StatCell label={t("common.status.deleted")} value={container.deleted_items_count} />
             <StatCell label={t("common.fields.quantity")} value={container.quantity_sum} />
           </Box>
-          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.75, flexWrap: "wrap" }}>
+          <Box sx={{ display: "flex", justifyContent: "flex-start", gap: 0.75, flexWrap: "wrap" }}>
             <Tooltip title={t("pagesUi.cabinetItems.tooltips.openComposition")}>
               <span>
                 <IconButton
@@ -1445,7 +1421,7 @@ function LocationTreeNodeCard({
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "auto 1fr", lg: "auto minmax(260px, 1fr) minmax(220px, 1fr) auto" },
+          gridTemplateColumns: { xs: "auto 1fr", lg: "auto minmax(260px, 1fr) auto" },
           gap: 1.5,
           alignItems: "center",
           p: 1.5,
@@ -1475,15 +1451,12 @@ function LocationTreeNodeCard({
             {node.location_full_path}
           </Typography>
         </Box>
-        <Typography variant="body2" color="text.secondary" sx={{ display: { xs: "none", lg: "block" } }}>
-          {t("common.fields.location")}
-        </Typography>
         <Box
           sx={{
             display: "grid",
             gridTemplateColumns: "repeat(3, minmax(96px, auto))",
             gap: 1.5,
-            justifyContent: "end"
+            justifyContent: "start"
           }}
         >
           <StatCell label={t("common.status.active")} value={node.active_containers_count} />

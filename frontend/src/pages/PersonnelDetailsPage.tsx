@@ -466,7 +466,7 @@ export default function PersonnelDetailsPage() {
               .filter(Boolean)
               .join(" ")}
           </Typography>
-          <Typography sx={{ maxWidth: 760, color: "rgba(243,247,252,0.76)" }}>
+          <Typography sx={{ maxWidth: 760, color: "var(--hero-muted)" }}>
             {t("pagesUi.personnelDetails.tabs.profile")} / {t("pagesUi.personnelDetails.tabs.competencies")} / {t("pagesUi.personnelDetails.tabs.training")}
           </Typography>
         </Box>

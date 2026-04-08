@@ -6,9 +6,9 @@ import { cn } from "../../lib/utils";
 const badgeVariants = cva("inline-flex items-center rounded-none px-2.5 py-1 text-[11px] font-semibold", {
   variants: {
     variant: {
-      default: "bg-slate-950 text-white",
-      secondary: "bg-slate-100 text-slate-700",
-      outline: "border border-slate-200 bg-white text-slate-700",
+      default: "bg-[var(--eqm-ui-accent)] text-[var(--eqm-ui-accent-text)]",
+      secondary: "bg-[var(--eqm-ui-panel-muted)] text-[var(--eqm-ui-text)]",
+      outline: "border border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel)] text-[var(--eqm-ui-text)]",
       destructive: "bg-red-500 text-white",
       success: "bg-emerald-100 text-emerald-700",
       warning: "bg-amber-100 text-amber-700",

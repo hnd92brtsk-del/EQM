@@ -4,14 +4,14 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../../lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--eqm-ui-border-strong)] disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-slate-950 text-white hover:bg-slate-800",
-        secondary: "bg-slate-100 text-slate-900 hover:bg-slate-200",
-        outline: "border border-slate-200 bg-white text-slate-900 hover:bg-slate-50",
-        ghost: "text-slate-700 hover:bg-slate-100",
+        default: "bg-[var(--eqm-ui-accent)] text-[var(--eqm-ui-accent-text)] hover:brightness-110",
+        secondary: "bg-[var(--eqm-ui-panel-muted)] text-[var(--eqm-ui-text)] hover:brightness-105",
+        outline: "border border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel)] text-[var(--eqm-ui-text)] hover:bg-[var(--eqm-ui-panel-alt)]",
+        ghost: "text-[var(--eqm-ui-text)] hover:bg-[var(--eqm-ui-panel-muted)]",
         destructive: "bg-red-500 text-white hover:bg-red-600",
       },
       size: {

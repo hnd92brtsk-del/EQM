@@ -622,7 +622,7 @@ export default function WarehouseItemsPage() {
         <Box sx={{ position: "relative", zIndex: 1, display: "grid", gap: 1.25 }}>
           <Box className="section-kicker">{t("menu.equipment")}</Box>
           <Typography variant="h4">{t("pages.warehouseItems")}</Typography>
-          <Typography sx={{ maxWidth: 760, color: "rgba(243,247,252,0.76)" }}>
+          <Typography sx={{ maxWidth: 760, color: "var(--hero-muted)" }}>
             {t("common.fields.warehouse")} / {t("common.fields.equipment")} / {t("actions.search")}
           </Typography>
         </Box>

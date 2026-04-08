@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useTheme } from "@mui/material/styles";
 import { useTranslation } from "react-i18next";
 import {
   Background,
@@ -129,6 +130,8 @@ function DocumentRow({
 
 function SerialMapV2PageInner() {
   const { t } = useTranslation();
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const { user } = useAuth();
   const readOnly = !hasPermission(user, "engineering", "write");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -212,8 +215,8 @@ function SerialMapV2PageInner() {
   };
 
   const shellClassName = fullscreen
-    ? "fixed inset-4 z-[120] grid grid-cols-[320px_minmax(0,1fr)_340px] gap-4 bg-slate-100 p-4 shadow-2xl"
-    : "grid h-[calc(100vh-7rem)] grid-cols-[320px_minmax(0,1fr)_340px] gap-4";
+    ? "eqm-canvas-page fixed inset-4 z-[120] grid grid-cols-[320px_minmax(0,1fr)_340px] gap-4 p-4 shadow-2xl eqm-canvas-shell"
+    : "eqm-canvas-page grid h-[calc(100vh-7rem)] grid-cols-[320px_minmax(0,1fr)_340px] gap-4";
 
   return (
     <div className={shellClassName}>
@@ -266,34 +269,34 @@ function SerialMapV2PageInner() {
             ))}
           </div>
 
-          <div className="space-y-2 border-t border-slate-200 pt-4">
-            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Метаданные</div>
+          <div className="space-y-2 border-t border-[var(--eqm-ui-border)] pt-4">
+            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--eqm-ui-muted)]">Метаданные</div>
             <Input value={actions.documentName} onChange={(event) => actions.setDocumentName(event.target.value)} placeholder="Название схемы" className="rounded-none" />
             <textarea
               value={actions.documentDescription}
               onChange={(event) => actions.setDocumentDescription(event.target.value)}
               placeholder="Описание"
-              className="min-h-[90px] w-full rounded-none border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
+              className="min-h-[90px] w-full rounded-none border border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel-alt)] px-3 py-2 text-sm text-[var(--eqm-ui-text)] outline-none transition focus:border-[var(--eqm-ui-border-strong)]"
             />
             <Button className="w-full rounded-none" variant="outline" onClick={() => actions.activeDocumentId !== null && void actions.updateDocumentMetadata(actions.activeDocumentId, actions.documentName, actions.documentDescription)} disabled={readOnly || !actions.hasOpenCanvas}>
               Обновить метаданные
             </Button>
           </div>
 
-          <div className="space-y-2 border-t border-slate-200 pt-4">
-            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Оборудование</div>
+          <div className="space-y-2 border-t border-[var(--eqm-ui-border)] pt-4">
+            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--eqm-ui-muted)]">Оборудование</div>
             <Input value={equipmentSearch} onChange={(event) => setEquipmentSearch(event.target.value)} placeholder="Поиск оборудования..." className="rounded-none" />
             <div className="max-h-[260px] space-y-2 overflow-auto pr-1">
               {filteredEquipment.slice(0, 16).map((item) => (
                 <button
                   key={item.key}
                   type="button"
-                  className="w-full border border-slate-200 bg-white px-3 py-2 text-left text-sm transition hover:bg-slate-50"
+                  className="w-full border border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel)] px-3 py-2 text-left text-sm text-[var(--eqm-ui-text)] transition hover:border-[var(--eqm-ui-border-strong)] hover:bg-[var(--eqm-ui-panel-alt)]"
                   onClick={() => void actions.addEquipmentNode(item)}
                   disabled={readOnly || !actions.hasOpenCanvas}
                 >
                   <div className="font-medium">{item.displayName}</div>
-                  <div className="text-[11px] text-slate-500">{item.containerName}{item.locationFullPath ? ` • ${item.locationFullPath}` : ""}</div>
+                  <div className="text-[11px] text-[var(--eqm-ui-muted)]">{item.containerName}{item.locationFullPath ? ` • ${item.locationFullPath}` : ""}</div>
                 </button>
               ))}
             </div>
@@ -302,8 +305,11 @@ function SerialMapV2PageInner() {
         </CardContent>
       </Card>
 
-      <Card className="relative overflow-hidden rounded-none border-slate-300">
-        <CardHeader className="border-b border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] pb-3">
+      <Card className="relative overflow-hidden rounded-none border-[var(--eqm-ui-border-strong)]">
+        <CardHeader
+          className="border-b border-[var(--eqm-ui-border)] pb-3"
+          style={{ background: "linear-gradient(180deg, color-mix(in srgb, var(--eqm-ui-panel) 96%, transparent) 0%, var(--eqm-ui-panel-alt) 100%)" }}
+        >
           <div className="flex items-center justify-between gap-3">
             <div>
               <CardTitle className="text-base">{t("pages.serialMap.v2.title")}</CardTitle>
@@ -317,7 +323,7 @@ function SerialMapV2PageInner() {
           </div>
         </CardHeader>
         <CardContent className="relative h-full min-h-0 p-0">
-          <div ref={canvasRef} className="relative h-full min-h-[720px] bg-[#eef2f7]">
+          <div ref={canvasRef} className="relative h-full min-h-[720px] eqm-canvas-shell">
             <div className="pointer-events-none absolute inset-x-0 top-0 z-[80] p-3">
               <div className="pointer-events-auto space-y-2">
                 <Menubar className="rounded-none border-slate-300 shadow-[0_10px_30px_rgba(15,23,42,0.12)]">
@@ -380,14 +386,14 @@ function SerialMapV2PageInner() {
                   </MenubarMenu>
                 </Menubar>
 
-                <div className="flex items-center gap-1 border border-slate-300 bg-white px-1.5 py-1 shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
+                <div className="flex items-center gap-1 border border-[var(--eqm-ui-border-strong)] bg-[var(--eqm-ui-panel)] px-1.5 py-1 text-[var(--eqm-ui-text)] shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
                   <Button size="sm" variant={actions.toolMode === "select" ? "default" : "ghost"} className="rounded-none" onClick={() => actions.setToolMode("select")}>
                     <MousePointer2 className="h-4 w-4" />
                   </Button>
                   <Button size="sm" variant={actions.toolMode === "pan" ? "default" : "ghost"} className="rounded-none" onClick={() => actions.setToolMode("pan")}>
                     <Hand className="h-4 w-4" />
                   </Button>
-                  <div className="mx-1 h-6 w-px bg-slate-200" />
+                  <div className="mx-1 h-6 w-px bg-[var(--eqm-ui-border)]" />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button size="sm" variant="ghost" className="rounded-none">
@@ -414,7 +420,7 @@ function SerialMapV2PageInner() {
                   <Button size="sm" variant="ghost" className="rounded-none" onClick={() => setFullscreen((value) => !value)}>
                     {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                   </Button>
-                  <div className="mx-1 h-6 w-px bg-slate-200" />
+                  <div className="mx-1 h-6 w-px bg-[var(--eqm-ui-border)]" />
                   <Button size="sm" variant="ghost" className="rounded-none" onClick={actions.undo} disabled={readOnly}>
                     <Undo2 className="h-4 w-4" />
                   </Button>
@@ -430,13 +436,13 @@ function SerialMapV2PageInner() {
                   <Button size="sm" variant="ghost" className="rounded-none" onClick={actions.deleteSelection} disabled={readOnly || (!actions.selectedNodeIds.length && !actions.selectedEdgeId)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
-                  <div className="ml-auto flex w-[240px] items-center border border-slate-200 bg-slate-50 px-2">
-                    <Search className="mr-2 h-4 w-4 text-slate-400" />
+                  <div className="ml-auto flex w-[240px] items-center border border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel-alt)] px-2">
+                    <Search className="mr-2 h-4 w-4 text-[var(--eqm-ui-muted)]" />
                     <input
                       value={canvasSearch}
                       onChange={(event) => setCanvasSearch(event.target.value)}
                       placeholder="Найти узел на схеме..."
-                      className="h-8 w-full bg-transparent text-sm outline-none"
+                      className="h-8 w-full bg-transparent text-sm text-[var(--eqm-ui-text)] outline-none placeholder:text-[var(--eqm-ui-muted)]"
                     />
                   </div>
                 </div>
@@ -444,16 +450,16 @@ function SerialMapV2PageInner() {
             </div>
 
             {canvasSearch && searchedNodes.length ? (
-              <div className="absolute right-3 top-24 z-[85] w-[280px] border border-slate-300 bg-white shadow-xl">
+              <div className="absolute right-3 top-24 z-[85] w-[280px] border border-[var(--eqm-ui-border-strong)] bg-[var(--eqm-ui-panel)] shadow-xl">
                 {searchedNodes.slice(0, 8).map((item) => (
                   <button
                     key={item.id}
                     type="button"
-                    className="block w-full border-b border-slate-100 px-3 py-2 text-left text-sm transition last:border-b-0 hover:bg-slate-50"
+                    className="block w-full border-b border-[var(--eqm-ui-border)] px-3 py-2 text-left text-sm transition last:border-b-0 hover:bg-[var(--eqm-ui-panel-alt)]"
                     onClick={() => actions.focusNode(item.id)}
                   >
                     <div className="font-medium">{item.name}</div>
-                    <div className="text-[11px] text-slate-500">{item.protocol}</div>
+                    <div className="text-[11px] text-[var(--eqm-ui-muted)]">{item.protocol}</div>
                   </button>
                 ))}
               </div>
@@ -489,26 +495,42 @@ function SerialMapV2PageInner() {
               nodesConnectable={!readOnly && actions.toolMode === "connect"}
               elementsSelectable={actions.toolMode !== "pan"}
               deleteKeyCode={null}
-              className="bg-[radial-gradient(circle_at_top,#ffffff_0%,#eef2f7_62%,#e2e8f0_100%)]"
+              style={{
+                background: isDark
+                  ? "radial-gradient(circle at top, rgba(23,36,52,0.98) 0%, rgba(16,26,38,0.97) 58%, rgba(10,18,27,1) 100%)"
+                  : "radial-gradient(circle at top, rgba(255,255,255,0.98) 0%, rgba(239,246,255,0.95) 62%, rgba(226,232,240,1) 100%)",
+              }}
             >
-              {actions.showGrid ? <Background gap={20} size={1} color="#cbd5e1" /> : null}
-              <Controls position="bottom-left" className="!bottom-4 !left-4 !rounded-none !border !border-slate-300 !bg-white" />
+              {actions.showGrid ? <Background gap={20} size={1} color={isDark ? "rgba(150,168,192,0.24)" : "#cbd5e1"} /> : null}
+              <Controls
+                position="bottom-left"
+                className="!bottom-4 !left-4 !rounded-none"
+                style={{
+                  backgroundColor: isDark ? "rgba(18,29,42,0.96)" : "rgba(255,255,255,0.96)",
+                  border: `1px solid ${isDark ? "rgba(211,223,237,0.18)" : "#cbd5e1"}`,
+                  color: isDark ? "#edf4ff" : "#152235",
+                }}
+              />
               {actions.showMiniMap ? (
                 <MiniMap
                   position="bottom-right"
-                  className="!bottom-4 !right-4 !rounded-none !border !border-slate-300 !bg-white"
-                  nodeColor={(node) => (actions.selectedNodeIds.includes(node.id) ? "#0f172a" : "#94a3b8")}
+                  className="!bottom-4 !right-4 !rounded-none"
+                  style={{
+                    backgroundColor: isDark ? "rgba(18,29,42,0.96)" : "rgba(255,255,255,0.96)",
+                    border: `1px solid ${isDark ? "rgba(211,223,237,0.18)" : "#cbd5e1"}`,
+                  }}
+                  nodeColor={(node) => (actions.selectedNodeIds.includes(node.id) ? "#0f172a" : isDark ? "#5c7086" : "#94a3b8")}
                 />
               ) : null}
             </ReactFlow>
 
-            <div className="absolute bottom-4 left-24 z-[70] flex items-center gap-2 border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-600 shadow-sm">
+            <div className="absolute bottom-4 left-24 z-[70] flex items-center gap-2 border border-[var(--eqm-ui-border-strong)] bg-[var(--eqm-ui-panel)] px-3 py-1.5 text-xs text-[var(--eqm-ui-muted)] shadow-sm">
               {actions.toolMode === "pan" ? <Grab className="h-3.5 w-3.5" /> : actions.toolMode === "connect" ? <Link2 className="h-3.5 w-3.5" /> : <MousePointer2 className="h-3.5 w-3.5" />}
               <span>Mode: {actions.toolMode}</span>
             </div>
 
             {actions.message ? (
-              <div className={cn("absolute bottom-4 right-40 z-[70] flex items-center gap-2 border px-3 py-2 text-sm shadow-lg", actions.message.tone === "warning" ? "border-amber-300 bg-amber-50 text-amber-900" : "border-slate-300 bg-white text-slate-700")}>
+              <div className={cn("absolute bottom-4 right-40 z-[70] flex items-center gap-2 border px-3 py-2 text-sm shadow-lg", actions.message.tone === "warning" ? "border-amber-300 bg-amber-50 text-amber-900" : "border-[var(--eqm-ui-border-strong)] bg-[var(--eqm-ui-panel)] text-[var(--eqm-ui-text)]")}>
                 <AlertCircle className="h-4 w-4" />
                 <span>{actions.message.text}</span>
               </div>
@@ -538,23 +560,23 @@ function SerialMapV2PageInner() {
                 <Input value={actions.selectedNode.baudRate} onChange={(event) => actions.updateSelectedNode({ baudRate: Number(event.target.value || 0) })} placeholder="Baud" className="rounded-none" disabled={readOnly} />
               </div>
               <div className="grid grid-cols-3 gap-2">
-                <select className="h-10 rounded-none border border-slate-200 bg-white px-3 text-sm" value={actions.selectedNode.parity} onChange={(event) => actions.updateSelectedNode({ parity: event.target.value as typeof parityOptions[number] })} disabled={readOnly}>
+                <select className="h-10 rounded-none border border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel-alt)] px-3 text-sm text-[var(--eqm-ui-text)]" value={actions.selectedNode.parity} onChange={(event) => actions.updateSelectedNode({ parity: event.target.value as typeof parityOptions[number] })} disabled={readOnly}>
                   {parityOptions.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
                 <Input value={actions.selectedNode.dataBits} onChange={(event) => actions.updateSelectedNode({ dataBits: Number(event.target.value || 0) })} placeholder="Bits" className="rounded-none" disabled={readOnly} />
                 <Input value={actions.selectedNode.stopBits} onChange={(event) => actions.updateSelectedNode({ stopBits: Number(event.target.value || 0) })} placeholder="Stop" className="rounded-none" disabled={readOnly} />
               </div>
-              <textarea value={actions.selectedNode.note} onChange={(event) => actions.updateSelectedNode({ note: event.target.value })} placeholder="Комментарий" className="min-h-[96px] w-full rounded-none border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-900" disabled={readOnly} />
+              <textarea value={actions.selectedNode.note} onChange={(event) => actions.updateSelectedNode({ note: event.target.value })} placeholder="Комментарий" className="min-h-[96px] w-full rounded-none border border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel-alt)] px-3 py-2 text-sm text-[var(--eqm-ui-text)] outline-none transition focus:border-[var(--eqm-ui-border-strong)]" disabled={readOnly} />
             </div>
           ) : null}
 
           {actions.selectedEdge ? (
-            <div className="space-y-3 border-t border-slate-200 pt-5">
-              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Связь</div>
+            <div className="space-y-3 border-t border-[var(--eqm-ui-border)] pt-5">
+              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--eqm-ui-muted)]">Связь</div>
               <Input value={actions.selectedEdge.label} onChange={(event) => actions.updateSelectedEdge({ label: event.target.value })} placeholder="Label" className="rounded-none" disabled={readOnly} />
               <Input value={actions.selectedEdge.cableMark} onChange={(event) => actions.updateSelectedEdge({ cableMark: event.target.value })} placeholder="Cable mark" className="rounded-none" disabled={readOnly} />
               <div className="grid grid-cols-2 gap-2">
-                <select className="h-10 rounded-none border border-slate-200 bg-white px-3 text-sm" value={actions.selectedEdge.protocol} onChange={(event) => actions.updateSelectedEdge({ protocol: event.target.value as SerialMapProtocol })} disabled={readOnly}>
+                <select className="h-10 rounded-none border border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel-alt)] px-3 text-sm text-[var(--eqm-ui-text)]" value={actions.selectedEdge.protocol} onChange={(event) => actions.updateSelectedEdge({ protocol: event.target.value as SerialMapProtocol })} disabled={readOnly}>
                   {protocolOptions.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
                 <Input value={actions.selectedEdge.baudRate} onChange={(event) => actions.updateSelectedEdge({ baudRate: Number(event.target.value || 0) })} placeholder="Baud" className="rounded-none" disabled={readOnly} />
@@ -563,14 +585,14 @@ function SerialMapV2PageInner() {
           ) : null}
 
           {actions.selectedNode ? (
-            <div className="space-y-3 border-t border-slate-200 pt-5">
+            <div className="space-y-3 border-t border-[var(--eqm-ui-border)] pt-5">
               <div className="flex items-center justify-between gap-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Data Pool</div>
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--eqm-ui-muted)]">Data Pool</div>
                 <Button size="sm" variant="outline" className="rounded-none" onClick={actions.addDataPoolEntry} disabled={readOnly}>Добавить</Button>
               </div>
               <div className="space-y-2">
                 {actions.selectedNode.dataPool.map((entry: SerialMapDataPoolEntry) => (
-                  <div key={entry.id} className="space-y-2 border border-slate-200 p-3">
+                  <div key={entry.id} className="space-y-2 border border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel-alt)] p-3">
                     <div className="grid grid-cols-2 gap-2">
                       <Input value={entry.name} onChange={(event) => actions.updateDataPoolEntry(entry.id, { name: event.target.value })} placeholder="Name" className="rounded-none" disabled={readOnly} />
                       <Input value={entry.address} onChange={(event) => actions.updateDataPoolEntry(entry.id, { address: event.target.value })} placeholder="Address" className="rounded-none" disabled={readOnly} />
@@ -587,13 +609,13 @@ function SerialMapV2PageInner() {
           ) : null}
 
           {actions.selectedNode?.kind === "gateway" ? (
-            <div className="space-y-3 border-t border-slate-200 pt-5">
+            <div className="space-y-3 border-t border-[var(--eqm-ui-border)] pt-5">
               <div className="flex items-center justify-between gap-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Gateway</div>
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--eqm-ui-muted)]">Gateway</div>
                 <Button size="sm" variant="outline" className="rounded-none" onClick={actions.addGatewayMapping} disabled={readOnly}>Добавить mapping</Button>
               </div>
               {(actions.selectedNode.converterMappings || []).map((mapping) => (
-                <div key={mapping.id} className="space-y-2 border border-slate-200 p-3">
+                <div key={mapping.id} className="space-y-2 border border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel-alt)] p-3">
                   <Input value={mapping.srcAddress} onChange={(event) => actions.updateGatewayMapping(mapping.id, { srcAddress: event.target.value })} placeholder="Source address" className="rounded-none" disabled={readOnly} />
                   <Input value={mapping.dstAddress} onChange={(event) => actions.updateGatewayMapping(mapping.id, { dstAddress: event.target.value })} placeholder="Destination address" className="rounded-none" disabled={readOnly} />
                   <Button size="sm" variant="outline" className="rounded-none" onClick={() => actions.removeGatewayMapping(mapping.id)} disabled={readOnly}>Удалить mapping</Button>
@@ -602,15 +624,15 @@ function SerialMapV2PageInner() {
             </div>
           ) : null}
 
-          <div className="space-y-3 border-t border-slate-200 pt-5">
-            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Диагностика</div>
+          <div className="space-y-3 border-t border-[var(--eqm-ui-border)] pt-5">
+            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--eqm-ui-muted)]">Диагностика</div>
             <div className="space-y-2">
               {actions.diagnostics.map((item, index) => (
-                <div key={`${item.message}-${index}`} className={cn("border px-3 py-2 text-sm", item.level === "error" ? "border-red-200 bg-red-50 text-red-900" : item.level === "warning" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-slate-200 bg-slate-50 text-slate-700")}>
+                <div key={`${item.message}-${index}`} className={cn("border px-3 py-2 text-sm", item.level === "error" ? "border-red-300/80 bg-[color-mix(in_srgb,#7f1d1d_18%,var(--eqm-ui-panel)_82%)] text-red-200" : item.level === "warning" ? "border-amber-300/80 bg-[color-mix(in_srgb,#78350f_16%,var(--eqm-ui-panel)_84%)] text-amber-100" : "border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel-alt)] text-[var(--eqm-ui-text)]")}>
                   {item.message}
                 </div>
               ))}
-              {!actions.diagnostics.length ? <div className="border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">Диагностических сообщений нет.</div> : null}
+              {!actions.diagnostics.length ? <div className="border border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel-alt)] px-3 py-2 text-sm text-[var(--eqm-ui-muted)]">Диагностических сообщений нет.</div> : null}
             </div>
           </div>
         </CardContent>

@@ -64,7 +64,7 @@ export function SerialMapFlowEdge({
       />
       <EdgeLabelRenderer>
         <div
-          className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 shadow-sm"
+          className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 border border-[var(--eqm-ui-border)] bg-[var(--eqm-ui-panel)] px-2 py-1 text-[10px] font-semibold text-[var(--eqm-ui-muted)] shadow-sm"
           style={{ transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)` }}
         >
           {edge.label || edge.cableMark || edge.protocol}

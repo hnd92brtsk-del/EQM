@@ -1,8 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import {
   Box,Card,
   CardContent,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControl,
   FormControlLabel,
   InputLabel,
@@ -286,6 +290,19 @@ const buildPowerTooltipContent = (electrical: ElectricalFields) => {
   ].join("\n");
 };
 
+const formatChannelsDetailed = (equipment: EquipmentType, noLabel: string) => {
+  if (!equipment.is_channel_forming) {
+    return noLabel;
+  }
+  const ai = equipment.ai_count || 0;
+  const di = equipment.di_count || 0;
+  const ao = equipment.ao_count || 0;
+  const doCount = equipment.do_count || 0;
+  const total = ai + di + ao + doCount;
+  const fallbackAi = total === 0 && equipment.channel_count > 0 ? equipment.channel_count : ai;
+  return `AI ${fallbackAi} / DI ${di} / AO ${ao} / DO ${doCount}`;
+};
+
 const buildPowerDialogFields = (
   currentTypeOptions: { value: string; label: string }[],
   supplyVoltageOptions: { value: string; label: string }[]
@@ -371,6 +388,7 @@ export default function EquipmentTypesPage() {
   const [channelFormingFilter, setChannelFormingFilter] = useState<"" | "true" | "false">("");
   const [showDeleted, setShowDeleted] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
+  const [infoEquipment, setInfoEquipment] = useState<EquipmentType | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPhotoUploadPending, setIsPhotoUploadPending] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -907,6 +925,18 @@ export default function EquipmentTypesPage() {
     </Box>
   );
 
+  const handleInfoDialogClose = () => setInfoEquipment(null);
+  const getOptionLabel = (value: string | null | undefined, options: { value: string; label: string }[]) =>
+    options.find((option) => option.value === value)?.label || "-";
+  const renderInfoRow = (label: string, content: ReactNode) => (
+    <Box sx={{ display: "grid", gap: 0.5 }}>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      <Box>{content}</Box>
+    </Box>
+  );
+
   useEffect(() => {
     if (!dialog?.open) {
       return;
@@ -940,32 +970,6 @@ export default function EquipmentTypesPage() {
   const columns = useMemo<ColumnDef<EquipmentType>[]>(() => {
     const base: ColumnDef<EquipmentType>[] = [
       { header: t("common.fields.name"), accessorKey: "name" },
-      {
-        header: t("common.fields.photo"),
-        cell: ({ row }) => (
-          <ProtectedImage
-            url={row.original.photo_url || null}
-            alt={row.original.name}
-            width={44}
-            height={44}
-            previewOnHover={true}
-            previewMaxWidth={700}
-            previewMaxHeight={700}
-            fallback="-"
-          />
-        )
-      },
-      {
-        header: t("common.fields.datasheet"),
-        cell: ({ row }) => (
-          <ProtectedDownloadLink
-            url={row.original.datasheet_url || null}
-            filename={row.original.datasheet_name}
-            icon={getFileIcon(row.original.datasheet_name)}
-            size="small"
-          />
-        )
-      },
       {
         header: t("pagesUi.equipmentTypes.fields.article"),
         cell: ({ row }) => row.original.article || "-"
@@ -1035,6 +1039,122 @@ export default function EquipmentTypesPage() {
           row.original.unit_price_rub === null || row.original.unit_price_rub === undefined
             ? "-"
             : row.original.unit_price_rub
+      }
+    ];
+
+    if (canWrite) {
+      base.push({
+        header: t("actions.actions"),
+        cell: ({ row }) => (
+          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+            <AppButton
+              size="small"
+              startIcon={<EditRoundedIcon />}
+              onClick={() => {
+                resetMediaFiles();
+                setDialog({
+                  open: true,
+                  title: t("pagesUi.equipmentTypes.dialogs.editTitle"),
+                  fields: buildDialogFields(row.original.network_ports),
+                  values: buildDialogValues(row.original),
+                  renderExtra: renderMediaInputs,
+                  onSave: async (values) => {
+                    try {
+                      await saveEquipmentType(buildEquipmentTypePayload(values), row.original.id);
+                    } catch (error) {
+                      setErrorMessage(
+                        error instanceof Error ? error.message : t("pagesUi.equipmentTypes.errors.update")
+                      );
+                      throw error;
+                    }
+                  }
+                });
+              }}
+            >
+              {t("actions.edit")}
+            </AppButton>
+            <AppButton
+              size="small"
+              color={row.original.is_deleted ? "success" : "error"}
+              startIcon={
+                row.original.is_deleted ? <RestoreRoundedIcon /> : <DeleteOutlineRoundedIcon />
+              }
+              onClick={() =>
+                row.original.is_deleted
+                  ? restoreMutation.mutate(row.original.id)
+                  : deleteMutation.mutate(row.original.id)
+              }
+            >
+              {row.original.is_deleted ? t("actions.restore") : t("actions.delete")}
+            </AppButton>
+          </Box>
+        )
+      });
+    }
+
+    return base;
+  }, [
+    canWrite,
+    deleteMutation,
+    equipmentCategoryMap,
+    equipmentCategoryOptions,
+    equipmentCategoryTreeOptions,
+    manufacturerMap,
+    manufacturerOptions,
+    manufacturerTreeOptions,
+    restoreMutation,
+    buildDialogFields,
+    buildDialogValues,
+    buildEquipmentTypePayload,
+    renderMediaInputs,
+    resetMediaFiles,
+    saveEquipmentType,
+    t,
+    updateMutation
+  ]);
+
+  void columns;
+
+  const compactColumns = useMemo<ColumnDef<EquipmentType>[]>(() => {
+    const base: ColumnDef<EquipmentType>[] = [
+      { header: t("common.fields.name"), accessorKey: "name" },
+      {
+        header: t("pagesUi.equipmentTypes.fields.article"),
+        cell: ({ row }) => row.original.article || "-"
+      },
+      { header: t("common.fields.nomenclature"), accessorKey: "nomenclature_number" },
+      {
+        header: t("common.fields.manufacturer"),
+        cell: ({ row }) =>
+          manufacturerMap.get(row.original.manufacturer_id) || row.original.manufacturer_id
+      },
+      {
+        header: t("common.fields.equipmentCategory"),
+        cell: ({ row }) => {
+          const currentId = row.original.equipment_category_id;
+          return currentId ? equipmentCategoryMap.get(currentId) || currentId : "-";
+        }
+      },
+      {
+        header: t("common.fields.priceRub"),
+        cell: ({ row }) =>
+          row.original.unit_price_rub === null || row.original.unit_price_rub === undefined
+            ? "-"
+            : row.original.unit_price_rub
+      },
+      {
+        header: "Инфо",
+        cell: ({ row }) => (
+          <AppButton
+            size="small"
+            variant="outlined"
+            startIcon={<InfoOutlinedIcon />}
+            sx={{ whiteSpace: "nowrap", minWidth: "max-content" }}
+            onClick={() => setInfoEquipment(row.original)}
+          >
+            Инфо
+          </AppButton>
+        )
       }
     ];
 
@@ -1232,7 +1352,7 @@ export default function EquipmentTypesPage() {
             )}
           </Box>
 
-          <DataTable data={equipmentQuery.data?.items || []} columns={columns} />
+          <DataTable data={equipmentQuery.data?.items || []} columns={compactColumns} />
           <TablePagination
             component="div"
             {...getTablePaginationProps(t)}
@@ -1250,6 +1370,143 @@ export default function EquipmentTypesPage() {
       </Card>
 
       {dialog && <EntityDialog state={dialog} onClose={handleDialogClose} />}
+      <Dialog open={Boolean(infoEquipment)} onClose={handleInfoDialogClose} fullWidth maxWidth="md">
+        <DialogTitle>Доп. информация</DialogTitle>
+        <DialogContent sx={{ display: "grid", gap: 2, mt: 1 }}>
+          {infoEquipment ? (
+            <Box sx={{ display: "grid", gap: 2 }}>
+              <Typography variant="subtitle1">{infoEquipment.name}</Typography>
+              {renderInfoRow(t("common.fields.nomenclature"), infoEquipment.nomenclature_number || "-")}
+              {renderInfoRow(
+                t("pagesUi.equipmentTypes.fields.article"),
+                infoEquipment.article || "-"
+              )}
+              {renderInfoRow(
+                "Роль в цепи питания",
+                getPowerRoleLabel(getEquipmentElectricalFields(infoEquipment).role_in_power_chain)
+              )}
+              {renderInfoRow(
+                "Род тока",
+                getOptionLabel(getEquipmentElectricalFields(infoEquipment).current_type ?? null, currentTypeOptions)
+              )}
+              {renderInfoRow(
+                "Напряжение питания, В",
+                getOptionLabel(getEquipmentElectricalFields(infoEquipment).supply_voltage ?? null, supplyVoltageOptions)
+              )}
+              {renderInfoRow(
+                "Потребление / ток, А",
+                getEquipmentElectricalFields(infoEquipment).current_value_a ?? "-"
+              )}
+              {renderInfoRow(
+                "Род тока верхняя сторона",
+                getOptionLabel(getEquipmentElectricalFields(infoEquipment).top_current_type ?? null, currentTypeOptions)
+              )}
+              {renderInfoRow(
+                "Напряжение верхняя сторона, В",
+                getOptionLabel(getEquipmentElectricalFields(infoEquipment).top_supply_voltage ?? null, supplyVoltageOptions)
+              )}
+              {renderInfoRow(
+                "Род тока нижняя сторона",
+                getOptionLabel(getEquipmentElectricalFields(infoEquipment).bottom_current_type ?? null, currentTypeOptions)
+              )}
+              {renderInfoRow(
+                "Напряжение нижняя сторона, В",
+                getOptionLabel(
+                  getEquipmentElectricalFields(infoEquipment).bottom_supply_voltage ?? null,
+                  supplyVoltageOptions
+                )
+              )}
+              {renderInfoRow(
+                "Тип монтажа",
+                getOptionLabel(infoEquipment.mount_type ?? null, mountTypeOptions)
+              )}
+              {renderInfoRow(
+                "Ширина монтажа, мм",
+                infoEquipment.mount_width_mm === null || infoEquipment.mount_width_mm === undefined
+                  ? "-"
+                  : infoEquipment.mount_width_mm
+              )}
+              {renderInfoRow(
+                t("common.fields.manufacturer"),
+                manufacturerMap.get(infoEquipment.manufacturer_id) || infoEquipment.manufacturer_id
+              )}
+              {renderInfoRow(
+                t("common.fields.equipmentCategory"),
+                infoEquipment.equipment_category_id
+                  ? equipmentCategoryMap.get(infoEquipment.equipment_category_id) ||
+                      infoEquipment.equipment_category_id
+                  : "-"
+              )}
+              {renderInfoRow(
+                t("common.fields.channelForming"),
+                infoEquipment.is_channel_forming ? t("common.yes") : t("common.no")
+              )}
+              {renderInfoRow(
+                t("common.fields.isNetwork"),
+                infoEquipment.is_network ? t("common.yes") : t("common.no")
+              )}
+              {renderInfoRow(
+                t("pagesUi.equipmentTypes.fields.hasSerialInterfaces"),
+                infoEquipment.has_serial_interfaces ? t("common.yes") : t("common.no")
+              )}
+              {renderInfoRow(
+                t("common.fields.photo"),
+                <ProtectedImage
+                  url={infoEquipment.photo_url || null}
+                  alt={infoEquipment.name}
+                  width={120}
+                  height={120}
+                  previewOnHover={true}
+                  previewMaxWidth={900}
+                  previewMaxHeight={900}
+                  fallback="-"
+                />
+              )}
+              {renderInfoRow(
+                t("common.fields.datasheet"),
+                <ProtectedDownloadLink
+                  url={infoEquipment.datasheet_url || null}
+                  filename={infoEquipment.datasheet_name}
+                  icon={getFileIcon(infoEquipment.datasheet_name)}
+                  size="small"
+                />
+              )}
+              {renderInfoRow(
+                t("pagesUi.equipmentTypes.columns.channelsDetailed"),
+                <Typography variant="body2">
+                  {formatChannelsDetailed(infoEquipment, t("common.no"))}
+                </Typography>
+              )}
+              {renderInfoRow(
+                t("common.fields.portsInterfaces"),
+                <Typography variant="body2">
+                  {!infoEquipment.is_network || !infoEquipment.network_ports?.length
+                    ? "-"
+                    : infoEquipment.network_ports
+                        .filter((item) => item.type)
+                        .map((item) => `${item.type}[${item.count ?? 0}]`)
+                        .join(", ")}
+                </Typography>
+              )}
+              {renderInfoRow(
+                t("pagesUi.equipmentTypes.fields.hasSerialInterfaces"),
+                <Typography variant="body2">
+                  {formatSerialPorts(infoEquipment.serial_ports, infoEquipment.has_serial_interfaces)}
+                </Typography>
+              )}
+              {renderInfoRow(
+                t("common.fields.priceRub"),
+                infoEquipment.unit_price_rub === null || infoEquipment.unit_price_rub === undefined
+                  ? "-"
+                  : infoEquipment.unit_price_rub
+              )}
+            </Box>
+          ) : null}
+        </DialogContent>
+        <DialogActions>
+          <AppButton onClick={handleInfoDialogClose}>{t("actions.close")}</AppButton>
+        </DialogActions>
+      </Dialog>
       <ErrorSnackbar message={errorMessage} onClose={() => setErrorMessage(null)} />
     </Box>
   );
