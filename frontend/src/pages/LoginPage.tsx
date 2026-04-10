@@ -32,18 +32,5 @@ export default function LoginPage() {
     }
   };
 
-  return (
-    <EQMLogin
-      onLogin={handleLogin}
-      sessionExpired={authReason === "expired"}
-      version={APP_VERSION}
-      assetCount=""
-      uptime=""
-      developer=""
-      object=""
-      date=""
-      sheet=""
-      drawingNo=""
-    />
-  );
+  return <EQMLogin onLogin={handleLogin} sessionExpired={authReason === "expired"} version={APP_VERSION} />;
 }
