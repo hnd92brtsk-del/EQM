@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 
+import { APP_VERSION } from "../../appVersion";
+
 const DEFAULTS = {
-  version: "v1.1.4",
+  version: APP_VERSION,
   sessionExpired: false
 };
 
