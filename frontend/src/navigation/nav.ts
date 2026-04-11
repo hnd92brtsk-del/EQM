@@ -36,6 +36,7 @@ export const navTree: NavItem[] = [
     requiredSpace: "equipment",
     children: [
       { id: "nomenclature", labelKey: "menu.nomenclature", path: "/dictionaries/equipment-types", icon: IndexIcon, requiredSpace: "equipment" },
+      { id: "technological-equipment", labelKey: "menu.technological_equipment", path: "/equipment/technological", icon: IndexIcon, requiredSpace: "equipment" },
       { id: "warehouse-items", labelKey: "menu.warehouse_items", path: "/warehouse-items", icon: WarehouseIcon, requiredSpace: "equipment" },
       { id: "cabinet-items", labelKey: "menu.cabinet_items", path: "/cabinet-items", icon: CabinetIcon, requiredSpace: "equipment" },
       { id: "movements", labelKey: "menu.movements", path: "/movements", requiredSpace: "equipment", showInMenu: false }
@@ -57,7 +58,7 @@ export const navTree: NavItem[] = [
     labelKey: "menu.engineering",
     requiredSpace: "engineering",
     children: [
-      { id: "technological-equipment", labelKey: "menu.technological_equipment", path: "/equipment/technological", icon: IndexIcon, requiredSpace: "equipment" },
+      { id: "technological-scheme", labelKey: "menu.technological_scheme", path: "/engineering/technological-scheme", icon: IndexIcon, requiredSpace: "engineering" },
       { id: "io-signals", labelKey: "menu.io_signals", path: "/io-signals", icon: NumbersSignalIcon, requiredSpace: "engineering" },
       { id: "ipam", labelKey: "menu.ipam", path: "/ipam", icon: NumbersSignalIcon, requiredSpace: "engineering" },
       { id: "dcl", labelKey: "menu.dcl", path: "/engineering/dcl", icon: NumbersSignalIcon, requiredSpace: "engineering" },
@@ -86,7 +87,6 @@ export const navTree: NavItem[] = [
       { id: "warehouses", labelKey: "menu.warehouses", path: "/warehouses", icon: WarehouseIcon, requiredSpace: "dictionaries" },
       { id: "manufacturers", labelKey: "menu.manufacturers", path: "/dictionaries/manufacturers", icon: IndexIcon, requiredSpace: "dictionaries" },
       { id: "locations", labelKey: "menu.locations", path: "/dictionaries/locations", icon: IndexIcon, requiredSpace: "dictionaries" },
-      { id: "field-equipments", labelKey: "menu.field_equipments", path: "/dictionaries/field-equipments", icon: IndexIcon, requiredSpace: "dictionaries" },
       { id: "main-equipment", labelKey: "menu.main_equipment", path: "/dictionaries/main-equipment", icon: IndexIcon, requiredSpace: "dictionaries" },
       { id: "data-types", labelKey: "menu.data_types", path: "/dictionaries/data-types", icon: IndexIcon, requiredSpace: "dictionaries" },
       { id: "measurement-units", labelKey: "menu.measurement_units", path: "/dictionaries/measurement-units", icon: IndexIcon, requiredSpace: "dictionaries" },

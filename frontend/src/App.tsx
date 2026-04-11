@@ -13,7 +13,6 @@ const EquipmentCategoriesPage = lazy(() => import("./pages/EquipmentCategoriesPa
 const MainEquipmentPage = lazy(() => import("./pages/MainEquipmentPage"));
 const DataTypesPage = lazy(() => import("./pages/DataTypesPage"));
 const LocationsPage = lazy(() => import("./pages/LocationsPage"));
-const FieldEquipmentsPage = lazy(() => import("./pages/FieldEquipmentsPage"));
 const MeasurementUnitsPage = lazy(() => import("./pages/MeasurementUnitsPage"));
 const SignalTypesPage = lazy(() => import("./pages/SignalTypesPage"));
 const EquipmentTypesPage = lazy(() => import("./pages/EquipmentTypesPage"));
@@ -39,6 +38,7 @@ const PersonnelPage = lazy(() => import("./pages/PersonnelPage"));
 const PersonnelSchedulePage = lazy(() => import("./pages/PersonnelSchedulePage"));
 const PersonnelDetailsPage = lazy(() => import("./pages/PersonnelDetailsPage"));
 const TechnologicalEquipmentPage = lazy(() => import("./pages/TechnologicalEquipmentPage"));
+const TechnologicalEquipmentRegistryPage = lazy(() => import("./pages/TechnologicalEquipmentRegistryPage"));
 const IPAMPage = lazy(() => import("./features/ipam/pages/IPAMPage"));
 const MntIncidentsPage = lazy(() => import("./pages/maintenance/MntIncidentsPage"));
 const MntWorkOrdersPage = lazy(() => import("./pages/maintenance/MntWorkOrdersPage"));
@@ -114,7 +114,7 @@ export default function App() {
                   <Route path="/dictionaries" element={<Navigate to="/dictionaries/manufacturers" replace />} />
                   <Route path="/dictionaries/manufacturers" element={<RequireSpace space="dictionaries"><ManufacturersPage /></RequireSpace>} />
                   <Route path="/dictionaries/locations" element={<RequireSpace space="dictionaries"><LocationsPage /></RequireSpace>} />
-                  <Route path="/dictionaries/field-equipments" element={<RequireSpace space="dictionaries"><FieldEquipmentsPage /></RequireSpace>} />
+                  <Route path="/dictionaries/field-equipments" element={<Navigate to="/dictionaries/main-equipment" replace />} />
                   <Route path="/dictionaries/main-equipment" element={<RequireSpace space="dictionaries"><MainEquipmentPage /></RequireSpace>} />
                   <Route path="/dictionaries/data-types" element={<RequireSpace space="dictionaries"><DataTypesPage /></RequireSpace>} />
                   <Route path="/dictionaries/measurement-units" element={<RequireSpace space="dictionaries"><MeasurementUnitsPage /></RequireSpace>} />
@@ -126,13 +126,14 @@ export default function App() {
                   <Route path="/cabinets" element={<RequireSpace space="cabinets"><CabinetsPage /></RequireSpace>} />
                   <Route path="/assemblies" element={<RequireSpace space="cabinets"><AssembliesPage /></RequireSpace>} />
                   <Route path="/cabinet-items" element={<RequireSpace space="equipment"><CabinetItemsPage /></RequireSpace>} />
-                  <Route path="/equipment/technological" element={<RequireSpace space="equipment"><TechnologicalEquipmentPage /></RequireSpace>} />
+                  <Route path="/equipment/technological" element={<RequireSpace space="equipment"><TechnologicalEquipmentRegistryPage /></RequireSpace>} />
                   <Route path="/cabinets/:id/composition" element={<RequireSpace space="cabinets"><CabinetCompositionPage /></RequireSpace>} />
                   <Route path="/assemblies/:id/composition" element={<RequireSpace space="cabinets"><CabinetCompositionPage /></RequireSpace>} />
                   <Route path="/movements" element={<RequireSpace space="equipment"><MovementsPage /></RequireSpace>} />
                   <Route path="/io-signals" element={<RequireSpace space="engineering"><IOSignalsPage /></RequireSpace>} />
                   <Route path="/ipam" element={<RequireSpace space="engineering"><IPAMPage /></RequireSpace>} />
                   <Route path="/engineering/dcl" element={<RequireSpace space="engineering"><DclPage /></RequireSpace>} />
+                  <Route path="/engineering/technological-scheme" element={<RequireSpace space="engineering"><TechnologicalEquipmentPage /></RequireSpace>} />
                   <Route path="/engineering/serial-map" element={<RequireSpace space="engineering"><SerialMapPage /></RequireSpace>} />
                   <Route path="/engineering/serial-map-v2" element={<RequireSpace space="engineering"><SerialMapV2Page /></RequireSpace>} />
                   <Route path="/engineering/network-map" element={<RequireSpace space="engineering"><NetworkMapPage /></RequireSpace>} />

@@ -3,6 +3,7 @@ from app.routers import users
 from app.routers import manufacturers
 from app.routers import locations
 from app.routers import main_equipment
+from app.routers import technological_equipment
 from app.routers import entity_import_export
 from app.routers import measurement_units
 from app.routers import signal_types
@@ -40,6 +41,7 @@ __all__ = [
     "manufacturers",
     "locations",
     "main_equipment",
+    "technological_equipment",
     "entity_import_export",
     "measurement_units",
     "signal_types",

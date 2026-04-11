@@ -224,7 +224,7 @@ export function getEquipmentHelpSection(language: HelpLanguage, title: string): 
       {
         id: "equipment-technological",
         title: { ru: "Технологическое оборудование / PID", en: "Technological equipment / PID" },
-        route: "/equipment/technological",
+        route: "/engineering/technological-scheme",
         summary: {
           ru: "Экран технологического оборудования работает как редактор PID-процессов: слева выбираются процессы по локации, в центре открыт холст PID, а справа живёт инспектор свойств выбранных узлов и связей.",
           en: "The technological equipment screen is a PID process editor with a sidebar, canvas, and inspector."

@@ -937,6 +937,22 @@ def download_attachment(
     return FileResponse(path=str(file_path), filename=attachment.filename, media_type=attachment.content_type)
 
 
+@router.delete("/attachments/{attachment_id}")
+def delete_attachment(
+    attachment_id: int,
+    db=Depends(get_db),
+    current_user: User = Depends(require_space_access(SpaceKey.personnel, "write")),
+):
+    attachment = db.scalar(select(Attachment).where(Attachment.id == attachment_id))
+    if not attachment or attachment.is_deleted:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+
+    attachment.is_deleted = True
+    attachment.deleted_at = datetime.utcnow()
+    attachment.deleted_by_id = current_user.id
+    db.commit()
+    return {"status": "ok"}
+
 @router.post("/{person_id}/attachments")
 def upload_attachment(
     person_id: int,

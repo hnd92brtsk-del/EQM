@@ -32,6 +32,7 @@ import {
   createTraining,
   deleteCompetency,
   deleteTraining,
+  deleteAttachment,
   downloadAttachment,
   getPersonnel,
   listPersonnelScheduleTemplates,
@@ -80,6 +81,7 @@ export default function PersonnelDetailsPage() {
   const [competencyDialog, setCompetencyDialog] = useState<DialogState | null>(null);
   const [trainingDialog, setTrainingDialog] = useState<DialogState | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoAttachmentId, setPhotoAttachmentId] = useState<number | null>(null);
   const [attachmentDialog, setAttachmentDialog] = useState<{
     title: string;
     entity: string;
@@ -126,8 +128,10 @@ export default function PersonnelDetailsPage() {
       );
       if (!image) {
         setPhotoUrl(null);
+        setPhotoAttachmentId(null);
         return;
       }
+      setPhotoAttachmentId(image.id);
       downloadAttachment(image.id)
         .then((blob) => {
           const url = URL.createObjectURL(blob);
@@ -200,6 +204,13 @@ export default function PersonnelDetailsPage() {
     onSuccess: refresh,
     onError: (error) =>
       setErrorMessage(error instanceof Error ? error.message : t("errors.delete_training_failed"))
+  });
+
+  const deletePhotoMutation = useMutation({
+    mutationFn: (attachmentId: number) => deleteAttachment(attachmentId),
+    onSuccess: refresh,
+    onError: (error) =>
+      setErrorMessage(error instanceof Error ? error.message : t("errors.photo_delete_failed"))
   });
 
   const restoreTrainingMutation = useMutation({
@@ -517,28 +528,46 @@ export default function PersonnelDetailsPage() {
                   )}
                 </Box>
                 {canWrite && (
-                  <AppButton
-                    variant="outlined"
-                    component="label"
-                  >
-                    {t("pagesUi.personnelDetails.actions.uploadPhoto")}
-                    <input
-                      hidden
-                      type="file"
-                      accept="image/png,image/jpeg"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (!file) {
-                          return;
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1, width: "100%" }}>
+                    <AppButton variant="outlined" component="label" disabled={deletePhotoMutation.isPending}>
+                      {t("pagesUi.personnelDetails.actions.uploadPhoto")}
+                      <input
+                        hidden
+                        type="file"
+                        accept="image/png,image/jpeg"
+                        onChange={async (event) => {
+                          const file = event.target.files?.[0];
+                          event.target.value = "";
+                          if (!file) {
+                            return;
+                          }
+                          try {
+                            if (photoAttachmentId) {
+                              await deletePhotoMutation.mutateAsync(photoAttachmentId);
+                            }
+                            await uploadPersonnelPhoto(personId, file);
+                            refresh();
+                          } catch (error) {
+                            setErrorMessage(
+                              error instanceof Error ? error.message : t("errors.photo_upload_failed")
+                            );
+                          }
+                        }}
+                      />
+                    </AppButton>
+                    <AppButton
+                      variant="outlined"
+                      color="error"
+                      disabled={!photoAttachmentId || deletePhotoMutation.isPending}
+                      onClick={() => {
+                        if (photoAttachmentId) {
+                          deletePhotoMutation.mutate(photoAttachmentId);
                         }
-                        uploadPersonnelPhoto(personId, file)
-                          .then(() => refresh())
-                          .catch((error) =>
-                            setErrorMessage(error instanceof Error ? error.message : t("errors.photo_upload_failed"))
-                          );
                       }}
-                    />
-                  </AppButton>
+                    >
+                      {t("pagesUi.personnelDetails.actions.deletePhoto")}
+                    </AppButton>
+                  </Box>
                 )}
               </Box>
               <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>

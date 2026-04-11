@@ -498,9 +498,10 @@
     "measurement_units": "Measurement units",
     "signal_types": "Signal types",
     "field_equipments": "Field equipment",
-    "main_equipment": "Main equipment",
+    "main_equipment": "Technological equipment types",
     "data_types": "Data types",
     "technological_equipment": "Technological equipment",
+    "technological_scheme": "Technological scheme",
     "ipam": "IPAM / Network",
     "maintenance": "Maintenance",
     "mnt_incidents": "Incidents",
@@ -532,10 +533,10 @@
     "engineeringSecondary": "I/O Signals now includes Data type, Equipment, and Connection point fields. Data types and field equipment are selected from dictionary trees, and Measurement type is no longer used.",
     "networkMap": "Network Topology is a graphical React Flow editor for building and reviewing the network landscape with inventory-backed nodes, custom links, validation, and path tracing.",
     "networkMapSecondary": "The screen supports read-only and edit modes based on role, loads installed network-capable equipment from EQM/IPAM, and stores the topology document on the server.",
-    "main_equipment": "The Main equipment dictionary is a hierarchical tree with unlimited depth. Node level is calculated automatically from the selected parent.",
+    "main_equipment": "The Technological equipment types dictionary is a hierarchical tree with unlimited depth. Node level is calculated automatically from the selected parent.",
     "field_equipments": "The Field equipment dictionary is a hierarchical tree. It supports creating root and child nodes, editing, soft delete, and restore.",
     "data_types": "The Data types dictionary is a tree. You can create root and child nodes, edit name, parent, and tooltip. Tooltip is shown on hover over the node name and may be empty.",
-    "dictionaries": "Dictionaries include Warehouses, Manufacturers, Nomenclature, Locations, Main equipment, and Equipment Categories. Records can be viewed, added, edited, deleted, and restored. Main equipment is stored as a tree.",
+    "dictionaries": "Dictionaries include Warehouses, Manufacturers, Nomenclature, Locations, Technological equipment types, and Equipment Categories. Records can be viewed, added, edited, deleted, and restored. Technological equipment types are stored as a tree.",
     "admin": "Admin contains Users, Sessions, and Audit Logs. Access is limited to the admin role."
   },
   "common": {
@@ -617,6 +618,11 @@
     "update_personnel_failed": "Failed to update personnel.",
     "delete_personnel_failed": "Failed to delete personnel.",
     "restore_personnel_failed": "Failed to restore personnel.",
+    "load_technological_equipment_failed": "Failed to load technological equipment.",
+    "create_technological_equipment_failed": "Failed to create technological equipment record.",
+    "update_technological_equipment_failed": "Failed to update technological equipment record.",
+    "delete_technological_equipment_failed": "Failed to delete technological equipment record.",
+    "restore_technological_equipment_failed": "Failed to restore technological equipment record.",
     "create_competency_failed": "Failed to create competency.",
     "update_competency_failed": "Failed to update competency.",
     "create_training_failed": "Failed to create training.",
@@ -629,6 +635,7 @@
     "attachment_upload_failed": "Failed to upload attachment.",
     "attachment_download_failed": "Failed to download attachment.",
     "photo_upload_failed": "Failed to upload photo.",
+    "photo_delete_failed": "Failed to delete photo.",
     "fileTooLarge": "File is too large.",
     "invalidFormat": "Invalid file format.",
     "downloadFailed": "Failed to download.",
@@ -1503,6 +1510,7 @@
         "uploadAttachment": "Upload attachment",
         "download": "Download",
         "uploadPhoto": "Upload photo",
+        "deletePhoto": "Delete photo",
         "attachment": "Attachment"
       },
       "fields": {
@@ -1546,6 +1554,20 @@
         "editTrainingTitle": "Edit training",
         "competencyAttachmentsTitle": "Competency attachments",
         "trainingAttachmentsTitle": "Training attachments"
+      }
+    },
+    "technologicalEquipment": {
+      "dialogs": {
+        "createTitle": "Add technological equipment",
+        "editTitle": "Edit technological equipment"
+      },
+      "actions": {
+        "add": "Add equipment"
+      },
+      "fields": {
+        "type": "Type",
+        "tag": "Tag",
+        "description": "Description"
       }
     },
     "measurementUnits": {

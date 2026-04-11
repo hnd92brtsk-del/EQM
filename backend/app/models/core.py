@@ -122,6 +122,34 @@ class MainEquipment(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     )
 
 
+class TechnologicalEquipment(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
+    __tablename__ = "technological_equipment"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
+    main_equipment_id: Mapped[int] = mapped_column(
+        ForeignKey("main_equipment.id"), index=True, nullable=False
+    )
+    tag: Mapped[str | None] = mapped_column(String(120), index=True)
+    location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id"), index=True)
+    description: Mapped[str | None] = mapped_column(Text)
+
+    main_equipment: Mapped["MainEquipment"] = relationship()
+    location: Mapped["Location | None"] = relationship()
+
+    @property
+    def main_equipment_name(self) -> str | None:
+        return self.main_equipment.name if self.main_equipment else None
+
+    @property
+    def location_name(self) -> str | None:
+        return self.location.name if self.location else None
+
+    @property
+    def location_path(self) -> str | None:
+        return self.location.full_path() if self.location else None
+
+
 Index(
     "ix_main_equipment_code_active_unique",
     MainEquipment.code,

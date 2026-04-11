@@ -245,3 +245,7 @@ export async function downloadAttachment(attachmentId: number) {
   }
   return response.blob();
 }
+
+export async function deleteAttachment(attachmentId: number) {
+  return apiFetch<void>(`/personnel/attachments/${attachmentId}`, { method: "DELETE" });
+}
