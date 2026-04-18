@@ -17,7 +17,6 @@ from app.models.core import (
     DataType,
     EquipmentCategory,
     EquipmentType,
-    FieldEquipment,
     Location,
     MainEquipment,
     Manufacturer,
@@ -40,7 +39,6 @@ from app.routers import (
     data_types as data_types_router,
     equipment_categories as equipment_categories_router,
     equipment_types as equipment_types_router,
-    field_equipments as field_equipments_router,
     io_signals as io_signals_router,
     ipam as ipam_router,
     locations as locations_router,
@@ -58,7 +56,6 @@ from app.schemas.cabinets import CabinetCreate
 from app.schemas.data_types import DataTypeCreate
 from app.schemas.equipment_categories import EquipmentCategoryCreate
 from app.schemas.equipment_types import EquipmentTypeCreate
-from app.schemas.field_equipments import FieldEquipmentCreate
 from app.schemas.import_export import ImportIssue, ImportReport
 from app.schemas.io_signals import IOSignalUpdate
 from app.schemas.ipam import SubnetCreate, VlanCreate
@@ -335,66 +332,6 @@ def import_locations(
         parser=lambda values, lookup: {
             "name": as_required_str(values.get("name"), field="name"),
             "parent_id": _require_lookup_id(lookup, values.get("parent_full_path"), message="Parent location not found"),
-        },
-    )
-
-
-@router.get("/field-equipments/export")
-def export_field_equipments(
-    format: str = Query(default="csv", pattern="^(csv|xlsx)$"),
-    include_deleted: bool = False,
-    q: str | None = None,
-    db=Depends(get_db),
-    user: User = Depends(require_read_access()),
-):
-    query = select(FieldEquipment).options(selectinload(FieldEquipment.parent))
-    if not include_deleted:
-        query = query.where(FieldEquipment.is_deleted == False)
-    items = db.scalars(query.order_by(FieldEquipment.parent_id, FieldEquipment.name, FieldEquipment.id)).all()
-    if q:
-        items = [item for item in items if q.casefold() in item.name.casefold()]
-    return build_export_response(
-        filename_prefix="field-equipments",
-        file_format=format,
-        headers=["name", "parent_full_path"],
-        rows=_tree_export_rows(items),
-    )
-
-
-@router.get("/field-equipments/template")
-def template_field_equipments(user: User = Depends(require_read_access())):
-    return build_template_response(
-        filename_prefix="field-equipments-template",
-        headers=["name", "parent_full_path"],
-        readme_lines=[
-            "Field equipments import template",
-            "Required columns: name.",
-            "Use parent_full_path to reference an existing parent node.",
-        ],
-    )
-
-
-@router.post("/field-equipments/import", response_model=ImportReport)
-def import_field_equipments(
-    file: UploadFile = File(...),
-    format: str | None = Query(default=None, pattern="^(csv|xlsx)$"),
-    dry_run: bool = True,
-    db=Depends(get_db),
-    current_user: User = Depends(require_write_access()),
-):
-    return _tree_import(
-        file=file,
-        format=format,
-        dry_run=dry_run,
-        db=db,
-        current_user=current_user,
-        items_query=select(FieldEquipment).options(selectinload(FieldEquipment.parent)),
-        create_schema=FieldEquipmentCreate,
-        create_callback=field_equipments_router.create_field_equipment,
-        required_headers=["name"],
-        parser=lambda values, lookup: {
-            "name": as_required_str(values.get("name"), field="name"),
-            "parent_id": _require_lookup_id(lookup, values.get("parent_full_path"), message="Parent field equipment not found"),
         },
     )
 
@@ -2351,7 +2288,7 @@ def export_io_signals(
             "plc_absolute_address",
             "data_type_full_path",
             "signal_kind_full_path",
-            "field_equipment_full_path",
+            "equipment_category_full_path",
             "connection_point",
             "range_from",
             "range_to",
@@ -2368,7 +2305,7 @@ def export_io_signals(
                 item.plc_absolute_address,
                 item.data_type_full_path,
                 signal_kind_paths.get(item.signal_kind_id, ""),
-                item.field_equipment_full_path,
+                item.equipment_category_full_path,
                 item.connection_point,
                 item.range_from,
                 item.range_to,
@@ -2396,7 +2333,7 @@ def template_io_signals(
             "plc_absolute_address",
             "data_type_full_path",
             "signal_kind_full_path",
-            "field_equipment_full_path",
+            "equipment_category_full_path",
             "connection_point",
             "range_from",
             "range_to",
@@ -2433,7 +2370,7 @@ def import_io_signals(
     }
     data_type_lookup = _build_tree_lookup(db.scalars(select(DataType).options(selectinload(DataType.parent))).all())
     signal_kind_lookup = _build_tree_lookup(db.scalars(select(SignalTypeDictionary).options(selectinload(SignalTypeDictionary.parent))).all())
-    field_equipment_lookup = _build_tree_lookup(db.scalars(select(FieldEquipment).options(selectinload(FieldEquipment.parent))).all())
+    equipment_category_lookup = _build_tree_lookup(db.scalars(select(EquipmentCategory).options(selectinload(EquipmentCategory.parent))).all())
     measurement_lookup = _build_tree_lookup(db.scalars(select(MeasurementUnit).options(selectinload(MeasurementUnit.parent))).all())
     seen: set[str] = set()
     pending: list[tuple[IOSignal, dict[str, Any]]] = []
@@ -2467,7 +2404,7 @@ def import_io_signals(
                         "plc_absolute_address": as_optional_str(values.get("plc_absolute_address")),
                         "data_type_id": _require_lookup_id(data_type_lookup, values.get("data_type_full_path"), message="Data type not found"),
                         "signal_kind_id": _require_lookup_id(signal_kind_lookup, values.get("signal_kind_full_path"), message="Signal kind not found"),
-                        "field_equipment_id": _require_lookup_id(field_equipment_lookup, values.get("field_equipment_full_path"), message="Field equipment not found"),
+                        "equipment_category_id": _require_lookup_id(equipment_category_lookup, values.get("equipment_category_full_path"), message="Equipment category not found"),
                         "connection_point": as_optional_str(values.get("connection_point")),
                         "range_from": as_optional_str(values.get("range_from")),
                         "range_to": as_optional_str(values.get("range_to")),

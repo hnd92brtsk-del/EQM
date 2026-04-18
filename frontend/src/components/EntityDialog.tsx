@@ -57,6 +57,7 @@ export type DialogState = {
   values: Record<string, any>;
   onSave: (values: Record<string, any>) => Promise<void> | void;
   renderExtra?: (values: Record<string, any>) => ReactNode;
+  disableSaveWhen?: (values: Record<string, any>) => boolean;
 };
 
 export function EntityDialog({ state, onClose }: { state: DialogState; onClose: () => void }) {
@@ -281,7 +282,7 @@ export function EntityDialog({ state, onClose }: { state: DialogState; onClose: 
             }
           }}
           variant="contained"
-          disabled={saving}
+          disabled={saving || Boolean(state.disableSaveWhen?.(values))}
         >
           {t("actions.save")}
         </AppButton>

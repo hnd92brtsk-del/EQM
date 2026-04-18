@@ -497,7 +497,6 @@
     "chat": "Chatbot",
     "measurement_units": "Measurement units",
     "signal_types": "Signal types",
-    "field_equipments": "Field equipment",
     "main_equipment": "Technological equipment types",
     "data_types": "Data types",
     "technological_equipment": "Technological equipment",
@@ -534,7 +533,6 @@
     "networkMap": "Network Topology is a graphical React Flow editor for building and reviewing the network landscape with inventory-backed nodes, custom links, validation, and path tracing.",
     "networkMapSecondary": "The screen supports read-only and edit modes based on role, loads installed network-capable equipment from EQM/IPAM, and stores the topology document on the server.",
     "main_equipment": "The Technological equipment types dictionary is a hierarchical tree with unlimited depth. Node level is calculated automatically from the selected parent.",
-    "field_equipments": "The Field equipment dictionary is a hierarchical tree. It supports creating root and child nodes, editing, soft delete, and restore.",
     "data_types": "The Data types dictionary is a tree. You can create root and child nodes, edit name, parent, and tooltip. Tooltip is shown on hover over the node name and may be empty.",
     "dictionaries": "Dictionaries include Warehouses, Manufacturers, Nomenclature, Locations, Technological equipment types, and Equipment Categories. Records can be viewed, added, edited, deleted, and restored. Technological equipment types are stored as a tree.",
     "admin": "Admin contains Users, Sessions, and Audit Logs. Access is limited to the admin role."
@@ -1104,24 +1102,6 @@
         "restore": "Failed to restore location"
       }
     },
-    "fieldEquipments": {
-      "title": "Field equipment",
-      "dialogs": {
-        "createTitle": "New field equipment node",
-        "editTitle": "Edit field equipment node"
-      },
-      "actions": {
-        "addChild": "Add child",
-        "addRoot": "Add root"
-      },
-      "errors": {
-        "load": "Failed to load field equipment",
-        "create": "Failed to create record",
-        "update": "Failed to update record",
-        "delete": "Failed to delete record",
-        "restore": "Failed to restore record"
-      }
-    },
     "mainEquipment": {
       "title": "Main equipment",
       "dialogs": {
@@ -1429,7 +1409,7 @@
         "plcAbsoluteAddress": "PLC absolute address",
         "signalType": "Signal type",
         "signalKind": "Signal kind",
-        "fieldEquipment": "Equipment",
+        "fieldEquipment": "Equipment category",
         "connectionPoint": "Connection point",
         "rangeFrom": "Range from",
         "rangeTo": "Range to",
@@ -1444,7 +1424,7 @@
         "plcAbsoluteAddress": "PLC absolute address",
         "signalType": "Signal type",
         "signalKind": "Signal kind",
-        "fieldEquipment": "Equipment",
+        "fieldEquipment": "Equipment category",
         "connectionPoint": "Connection point",
         "rangeFrom": "Range from",
         "rangeTo": "Range to",
@@ -1566,8 +1546,16 @@
       },
       "fields": {
         "type": "Type",
+        "driveType": "Drive type",
         "tag": "Tag",
         "description": "Description"
+      },
+      "messages": {
+        "typeRequired": "Select a technological equipment type.",
+        "driveRequired": "A drive type is required for control and shut-off valves.",
+        "driveOnlyForValve": "Drive type can only be set for control and shut-off valves.",
+        "valveStepFlow": "For control and shut-off valves, first select the construction type, then select the drive type. Save stays disabled until both selections are made.",
+        "valveConfigurationMissing": "The \"Technological equipment types\" dictionary is incomplete for the \"Запорно-регулирующая арматура\" branch: both \"По конструкции\" and \"По типу привода\" branches are required."
       }
     },
     "measurementUnits": {

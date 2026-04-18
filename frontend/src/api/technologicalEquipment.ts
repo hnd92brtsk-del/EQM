@@ -5,6 +5,10 @@ export type TechnologicalEquipment = {
   name: string;
   main_equipment_id: number;
   main_equipment_name?: string | null;
+  main_equipment_drive_id?: number | null;
+  main_equipment_full_path?: string | null;
+  main_equipment_drive_full_path?: string | null;
+  type_display?: string | null;
   tag?: string | null;
   location_id?: number | null;
   location_name?: string | null;

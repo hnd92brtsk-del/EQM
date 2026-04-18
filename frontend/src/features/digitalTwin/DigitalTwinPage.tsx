@@ -59,7 +59,7 @@ import { AppButton } from "../../components/ui/AppButton";
 import { useAuth } from "../../context/AuthContext";
 import { hasPermission } from "../../utils/permissions";
 import { buildDataTypeLookups, fetchDataTypesTree } from "../../utils/dataTypes";
-import { buildFieldEquipmentLookups, fetchFieldEquipmentsTree } from "../../utils/fieldEquipments";
+import { buildEquipmentCategoryLookups, fetchEquipmentCategoriesTree } from "../../utils/equipmentCategories";
 import { buildMeasurementUnitLookups, fetchMeasurementUnitsTree } from "../../utils/measurementUnits";
 import { assignAddress, getCabinetItemIPAMSummary, getSubnetAddresses, listEligibleEquipment, listSubnets, releaseAddress } from "../ipam/api/ipam";
 import {
@@ -278,7 +278,7 @@ function isSignalConfigured(signal: IOSignal) {
     || signal.signal?.trim()
     || signal.data_type_id
     || signal.signal_kind_id
-    || signal.field_equipment_id
+    || signal.equipment_category_id
     || signal.connection_point?.trim()
     || signal.measurement_unit_id,
   );
@@ -481,9 +481,9 @@ function SignalListDialog({
     queryKey: ["data-types-tree-options", false],
     queryFn: () => fetchDataTypesTree(false),
   });
-  const fieldEquipmentsTreeQuery = useQuery({
-    queryKey: ["field-equipments-tree-options", false],
-    queryFn: () => fetchFieldEquipmentsTree(false),
+  const equipmentCategoriesTreeQuery = useQuery({
+    queryKey: ["equipment-categories-tree-options", false],
+    queryFn: () => fetchEquipmentCategoriesTree(false),
   });
 
   const { options: measurementUnitOptions, breadcrumbMap: measurementUnitBreadcrumbs, leafIds } =
@@ -519,17 +519,17 @@ function SignalListDialog({
     () => buildDataTypeLookups(dataTypesTreeQuery.data || []),
     [dataTypesTreeQuery.data]
   );
-  const { breadcrumbMap: fieldEquipmentBreadcrumbs } = useMemo(
-    () => buildFieldEquipmentLookups(fieldEquipmentsTreeQuery.data || []),
-    [fieldEquipmentsTreeQuery.data]
+  const { breadcrumbMap: equipmentCategoryBreadcrumbs } = useMemo(
+    () => buildEquipmentCategoryLookups(equipmentCategoriesTreeQuery.data || []),
+    [equipmentCategoriesTreeQuery.data]
   );
   const dataTypeTreeOptions = useMemo(
     () => buildTreeSelectOptions((dataTypesTreeQuery.data || []) as TreeSelectNode[]),
     [dataTypesTreeQuery.data]
   );
-  const fieldEquipmentTreeOptions = useMemo(
-    () => buildTreeSelectOptions((fieldEquipmentsTreeQuery.data || []) as TreeSelectNode[]),
-    [fieldEquipmentsTreeQuery.data]
+  const equipmentCategoryTreeOptions = useMemo(
+    () => buildTreeSelectOptions((equipmentCategoriesTreeQuery.data || []) as TreeSelectNode[]),
+    [equipmentCategoriesTreeQuery.data]
   );
 
   useEffect(() => {
@@ -565,7 +565,7 @@ function SignalListDialog({
         lookupMaps: {
           dataTypeBreadcrumbs,
           signalKindBreadcrumbs,
-          fieldEquipmentBreadcrumbs,
+          equipmentCategoryBreadcrumbs,
           measurementUnitBreadcrumbs,
         },
         onEdit: (signal) =>
@@ -578,7 +578,7 @@ function SignalListDialog({
                 signalKindLeafOptions,
                 measurementUnitLeafOptions,
                 dataTypeTreeOptions,
-                fieldEquipmentTreeOptions,
+                equipmentCategoryTreeOptions,
               },
               onSave: (values) =>
                 updateMutation
@@ -594,8 +594,8 @@ function SignalListDialog({
       canWrite,
       dataTypeBreadcrumbs,
       dataTypeTreeOptions,
-      fieldEquipmentBreadcrumbs,
-      fieldEquipmentTreeOptions,
+      equipmentCategoryBreadcrumbs,
+      equipmentCategoryTreeOptions,
       measurementUnitBreadcrumbs,
       measurementUnitLeafOptions,
       signalKindBreadcrumbs,

@@ -24,10 +24,14 @@ EQM/
 ├─ Architecture.md          # Подробная архитектура/ТЗ
 ├─ Checklist.md             # Чек-лист проверки
 ├─ backend/                 # FastAPI + SQLAlchemy + Alembic
+├─ docs/                    # Документация и developer notes
 ├─ frontend/                # Vite + React + MUI
 ├─ README.md                # Этот файл
 └─ START_PROMPT_FOR_CODEX v1.0.md
 ```
+
+## Developer Notes
+- [Nomenclature Selects Rule](docs/DeveloperNote_NomenclatureSelects.md) — обязательное правило для всех UI-списков и фильтров, использующих номенклатуру `equipment_types`.
 
 ## Быстрый старт (Windows PowerShell)
 

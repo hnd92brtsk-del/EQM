@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Box,
   Card,
   CardContent,
@@ -20,7 +21,6 @@ import { useTranslation } from "react-i18next";
 import { DataTable } from "../components/DataTable";
 import { EntityDialog, type DialogState } from "../components/EntityDialog";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
-import { SearchableSelectField } from "../components/SearchableSelectField";
 import {
   SearchableTreeSelectField,
   type SearchableTreeSelectOption,
@@ -36,11 +36,19 @@ import {
   updateTechnologicalEquipment,
 } from "../api/technologicalEquipment";
 import { useAuth } from "../context/AuthContext";
-import { hasPermission } from "../utils/permissions";
 import { fetchLocationsTree, buildLocationLookups } from "../utils/locations";
 import { buildMainEquipmentLookups, fetchMainEquipmentTree } from "../utils/mainEquipment";
+import { hasPermission } from "../utils/permissions";
 
 const pageSizeOptions = [10, 20, 50, 100];
+
+function toOptionalNumber(value: number | string | null | undefined): number | null {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+  const numeric = Number(value);
+  return Number.isNaN(numeric) ? null : numeric;
+}
 
 export default function TechnologicalEquipmentRegistryPage() {
   const { t } = useTranslation();
@@ -125,6 +133,37 @@ export default function TechnologicalEquipmentRegistryPage() {
     return (locationsQuery.data || []).map((node) => mapNode(node));
   }, [locationsQuery.data]);
 
+  const isValveTypeSelection = (value: number | string | null | undefined) => {
+    const numeric = toOptionalNumber(value);
+    return numeric !== null && mainEquipmentLookups.valveTypeIds.has(numeric);
+  };
+
+  const isMisconfiguredValveSelection = (value: number | string | null | undefined) => {
+    const numeric = toOptionalNumber(value);
+    return numeric !== null && mainEquipmentLookups.misconfiguredValveLeafIds.has(numeric);
+  };
+
+  const isDialogSaveBlocked = (values: Record<string, unknown>) => {
+    const mainEquipmentId = toOptionalNumber(values.main_equipment_id as number | string | null | undefined);
+    const mainEquipmentDriveId = toOptionalNumber(
+      values.main_equipment_drive_id as number | string | null | undefined,
+    );
+
+    if (mainEquipmentId === null) {
+      return true;
+    }
+    if (isMisconfiguredValveSelection(mainEquipmentId)) {
+      return true;
+    }
+    if (isValveTypeSelection(mainEquipmentId) && mainEquipmentDriveId === null) {
+      return true;
+    }
+    if (!isValveTypeSelection(mainEquipmentId) && mainEquipmentDriveId !== null) {
+      return true;
+    }
+    return false;
+  };
+
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["technological-equipment"] });
   };
@@ -166,102 +205,134 @@ export default function TechnologicalEquipmentRegistryPage() {
       ),
   });
 
-  const openCreateDialog = () => {
-    setDialog({
-      open: true,
-      title: t("pagesUi.technologicalEquipment.dialogs.createTitle"),
-      fields: [
-        { name: "name", label: t("common.fields.name"), type: "text" },
-        {
-          name: "main_equipment_id",
-          label: t("pagesUi.technologicalEquipment.fields.type"),
-          type: "select",
-          options: mainEquipmentLookups.options,
+  const buildDialogState = (item?: TechnologicalEquipment): DialogState => ({
+    open: true,
+    title: item
+      ? t("pagesUi.technologicalEquipment.dialogs.editTitle")
+      : t("pagesUi.technologicalEquipment.dialogs.createTitle"),
+    fields: [
+      { name: "name", label: t("common.fields.name"), type: "text" },
+      {
+        name: "main_equipment_id",
+        label: t("pagesUi.technologicalEquipment.fields.type"),
+        type: "treeSelect",
+        treeOptions: mainEquipmentLookups.primaryTreeOptions,
+        leafOnly: true,
+        onChange: (value) => {
+          if (!isValveTypeSelection(value)) {
+            return { main_equipment_drive_id: "" };
+          }
+          return undefined;
         },
-        { name: "tag", label: t("pagesUi.technologicalEquipment.fields.tag"), type: "text" },
-        {
-          name: "location_id",
-          label: t("common.fields.location"),
-          type: "treeSelect",
-          treeOptions: locationTreeOptions,
-        },
-        {
-          name: "description",
-          label: t("pagesUi.technologicalEquipment.fields.description"),
-          type: "text",
-          multiline: true,
-          rows: 4,
-        },
-      ],
-      values: {
-        name: "",
-        main_equipment_id: "",
-        tag: "",
-        location_id: "",
-        description: "",
       },
-      onSave: async (values) => {
-        await createMutation.mutateAsync({
-          name: values.name,
-          main_equipment_id: Number(values.main_equipment_id),
-          tag: values.tag || null,
-          location_id: values.location_id === "" ? null : Number(values.location_id),
-          description: values.description || null,
-        });
-        setDialog(null);
+      {
+        name: "main_equipment_drive_id",
+        label: t("pagesUi.technologicalEquipment.fields.driveType"),
+        type: "treeSelect",
+        treeOptions: mainEquipmentLookups.driveTreeOptions,
+        leafOnly: true,
+        visibleWhen: (values) => isValveTypeSelection(values.main_equipment_id),
       },
-    });
-  };
+      { name: "tag", label: t("pagesUi.technologicalEquipment.fields.tag"), type: "text" },
+      {
+        name: "location_id",
+        label: t("common.fields.location"),
+        type: "treeSelect",
+        treeOptions: locationTreeOptions,
+      },
+      {
+        name: "description",
+        label: t("pagesUi.technologicalEquipment.fields.description"),
+        type: "text",
+        multiline: true,
+        rows: 4,
+      },
+    ],
+    values: {
+      name: item?.name || "",
+      main_equipment_id: item?.main_equipment_id || "",
+      main_equipment_drive_id: item?.main_equipment_drive_id || "",
+      tag: item?.tag || "",
+      location_id: item?.location_id || "",
+      description: item?.description || "",
+    },
+    renderExtra: (values) => {
+      const showValveConfigWarning =
+        Boolean(mainEquipmentLookups.valveRootId) &&
+        !mainEquipmentLookups.valveConfigurationValid &&
+        (isMisconfiguredValveSelection(values.main_equipment_id) || !values.main_equipment_id);
 
-  const openEditDialog = (item: TechnologicalEquipment) => {
-    setDialog({
-      open: true,
-      title: t("pagesUi.technologicalEquipment.dialogs.editTitle"),
-      fields: [
-        { name: "name", label: t("common.fields.name"), type: "text" },
-        {
-          name: "main_equipment_id",
-          label: t("pagesUi.technologicalEquipment.fields.type"),
-          type: "select",
-          options: mainEquipmentLookups.options,
-        },
-        { name: "tag", label: t("pagesUi.technologicalEquipment.fields.tag"), type: "text" },
-        {
-          name: "location_id",
-          label: t("common.fields.location"),
-          type: "treeSelect",
-          treeOptions: locationTreeOptions,
-        },
-        {
-          name: "description",
-          label: t("pagesUi.technologicalEquipment.fields.description"),
-          type: "text",
-          multiline: true,
-          rows: 4,
-        },
-      ],
-      values: {
-        name: item.name,
-        main_equipment_id: item.main_equipment_id,
-        tag: item.tag || "",
-        location_id: item.location_id || "",
-        description: item.description || "",
-      },
-      onSave: async (values) => {
-        await updateMutation.mutateAsync({
-          id: item.id,
-          payload: {
-            name: values.name,
-            main_equipment_id: Number(values.main_equipment_id),
-            tag: values.tag || null,
-            location_id: values.location_id === "" ? null : Number(values.location_id),
-            description: values.description || null,
-          },
-        });
-        setDialog(null);
-      },
-    });
-  };
+      const showDriveHint =
+        isValveTypeSelection(values.main_equipment_id) &&
+        values.main_equipment_drive_id === "";
+
+      if (!showValveConfigWarning && !showDriveHint) {
+        return null;
+      }
+
+      return (
+        <Box sx={{ display: "grid", gap: 1 }}>
+          {isValveTypeSelection(values.main_equipment_id) ? (
+            <Alert severity="info">
+              {t("pagesUi.technologicalEquipment.messages.valveStepFlow")}
+            </Alert>
+          ) : null}
+          {showValveConfigWarning ? (
+            <Alert severity="warning">
+              {t("pagesUi.technologicalEquipment.messages.valveConfigurationMissing")}
+            </Alert>
+          ) : null}
+          {showDriveHint ? (
+            <Alert severity="info">
+              {t("pagesUi.technologicalEquipment.messages.driveRequired")}
+            </Alert>
+          ) : null}
+        </Box>
+      );
+    },
+    disableSaveWhen: isDialogSaveBlocked,
+    onSave: async (values) => {
+      const mainEquipmentId = toOptionalNumber(values.main_equipment_id);
+      const mainEquipmentDriveId = toOptionalNumber(values.main_equipment_drive_id);
+      const locationId = toOptionalNumber(values.location_id);
+
+      if (mainEquipmentId === null) {
+        throw new Error(t("pagesUi.technologicalEquipment.messages.typeRequired"));
+      }
+      if (isMisconfiguredValveSelection(mainEquipmentId)) {
+        throw new Error(t("pagesUi.technologicalEquipment.messages.valveConfigurationMissing"));
+      }
+      if (isValveTypeSelection(mainEquipmentId) && mainEquipmentDriveId === null) {
+        throw new Error(t("pagesUi.technologicalEquipment.messages.driveRequired"));
+      }
+      if (!isValveTypeSelection(mainEquipmentId) && mainEquipmentDriveId !== null) {
+        throw new Error(t("pagesUi.technologicalEquipment.messages.driveOnlyForValve"));
+      }
+
+      const payload: Partial<TechnologicalEquipment> = {
+        name: values.name,
+        tag: values.tag || null,
+        location_id: locationId,
+        description: values.description || null,
+      };
+
+      if (item) {
+        if (item.main_equipment_id !== mainEquipmentId) {
+          payload.main_equipment_id = mainEquipmentId;
+        }
+        const normalizedDriveId = isValveTypeSelection(mainEquipmentId) ? mainEquipmentDriveId : null;
+        if ((item.main_equipment_drive_id || null) !== normalizedDriveId) {
+          payload.main_equipment_drive_id = normalizedDriveId;
+        }
+        await updateMutation.mutateAsync({ id: item.id, payload });
+      } else {
+        payload.main_equipment_id = mainEquipmentId;
+        payload.main_equipment_drive_id = isValveTypeSelection(mainEquipmentId) ? mainEquipmentDriveId : null;
+        await createMutation.mutateAsync(payload);
+      }
+      setDialog(null);
+    },
+  });
 
   const columns = useMemo<ColumnDef<TechnologicalEquipment>[]>(() => {
     const base: ColumnDef<TechnologicalEquipment>[] = [
@@ -269,6 +340,8 @@ export default function TechnologicalEquipmentRegistryPage() {
       {
         header: t("pagesUi.technologicalEquipment.fields.type"),
         cell: ({ row }) =>
+          row.original.type_display ||
+          row.original.main_equipment_full_path ||
           row.original.main_equipment_name ||
           mainEquipmentLookups.breadcrumbMap.get(row.original.main_equipment_id) ||
           "-",
@@ -304,7 +377,7 @@ export default function TechnologicalEquipmentRegistryPage() {
         header: t("actions.actions"),
         cell: ({ row }) => (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <AppButton size="small" startIcon={<EditRoundedIcon />} onClick={() => openEditDialog(row.original)}>
+            <AppButton size="small" startIcon={<EditRoundedIcon />} onClick={() => setDialog(buildDialogState(row.original))}>
               {t("actions.edit")}
             </AppButton>
             {row.original.is_deleted ? (
@@ -336,7 +409,6 @@ export default function TechnologicalEquipmentRegistryPage() {
     canWrite,
     deleteMutation,
     locationLookups.breadcrumbMap,
-    locationTreeOptions,
     mainEquipmentLookups.breadcrumbMap,
     restoreMutation,
     t,
@@ -357,17 +429,19 @@ export default function TechnologicalEquipmentRegistryPage() {
               }}
               sx={{ minWidth: 320 }}
             />
-            <Box sx={{ minWidth: 280, flex: "1 1 280px" }}>
-              <SearchableSelectField
+            <Box sx={{ minWidth: 320, flex: "1 1 320px" }}>
+              <SearchableTreeSelectField
                 label={t("pagesUi.technologicalEquipment.fields.type")}
                 value={mainEquipmentFilter}
-                options={mainEquipmentLookups.options}
+                options={mainEquipmentLookups.primaryTreeOptions}
                 onChange={(value) => {
                   setMainEquipmentFilter(value);
                   setPage(1);
                 }}
                 placeholder={t("actions.notSelected")}
                 emptyOptionLabel={t("actions.notSelected")}
+                leafOnly
+                groupOnlyLabel={t("common.treeSelect.groupOnly")}
               />
             </Box>
             <Box sx={{ minWidth: 320, flex: "1 1 320px" }}>
@@ -396,11 +470,16 @@ export default function TechnologicalEquipmentRegistryPage() {
               label={t("common.showDeleted")}
             />
             {canWrite ? (
-              <AppButton variant="contained" startIcon={<AddRoundedIcon />} onClick={openCreateDialog}>
+              <AppButton variant="contained" startIcon={<AddRoundedIcon />} onClick={() => setDialog(buildDialogState())}>
                 {t("pagesUi.technologicalEquipment.actions.add")}
               </AppButton>
             ) : null}
           </Box>
+          {!mainEquipmentLookups.valveConfigurationValid && mainEquipmentLookups.valveRootId ? (
+            <Alert severity="warning">
+              {t("pagesUi.technologicalEquipment.messages.valveConfigurationMissing")}
+            </Alert>
+          ) : null}
           <DataTable
             data={technologicalEquipmentQuery.data?.items || []}
             columns={columns}

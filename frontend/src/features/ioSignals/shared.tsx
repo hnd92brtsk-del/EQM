@@ -27,7 +27,7 @@ export type TreeSelectNode = {
 export type IOSignalLookupMaps = {
   dataTypeBreadcrumbs: Map<number | string, string>;
   signalKindBreadcrumbs: Map<number | string, string>;
-  fieldEquipmentBreadcrumbs: Map<number | string, string>;
+  equipmentCategoryBreadcrumbs: Map<number | string, string>;
   measurementUnitBreadcrumbs: Map<number | string, string>;
 };
 
@@ -36,7 +36,7 @@ export type IOSignalEditorResources = {
   signalKindLeafOptions: FieldOption[];
   measurementUnitLeafOptions: FieldOption[];
   dataTypeTreeOptions: TreeFieldOption[];
-  fieldEquipmentTreeOptions: TreeFieldOption[];
+  equipmentCategoryTreeOptions: TreeFieldOption[];
 };
 
 const ioColumnMeta: Record<string, ColumnMeta<IOSignal>> = {
@@ -68,7 +68,7 @@ const ioColumnMeta: Record<string, ColumnMeta<IOSignal>> = {
     headerSx: { width: 168 },
     cellSx: { width: 168 },
   },
-  fieldEquipment: {
+  equipmentCategory: {
     headerSx: { width: 248 },
     cellSx: { width: 248 },
   },
@@ -134,7 +134,7 @@ export function buildIOSignalUpdatePayload(values: Record<string, unknown>): IOS
     plc_absolute_address: normalizeNullableString(values.plc_absolute_address),
     data_type_id: normalizeNullableNumber(values.data_type_id),
     signal_kind_id: normalizeNullableNumber(values.signal_kind_id),
-    field_equipment_id: normalizeNullableNumber(values.field_equipment_id),
+    equipment_category_id: normalizeNullableNumber(values.equipment_category_id),
     connection_point: normalizeNullableString(values.connection_point),
     range_from: normalizeNullableString(values.range_from),
     range_to: normalizeNullableString(values.range_to),
@@ -193,10 +193,10 @@ export function createIOSignalEditDialogState({
         options: resources.signalKindLeafOptions,
       },
       {
-        name: "field_equipment_id",
+        name: "equipment_category_id",
         label: t("pagesUi.ioSignals.fields.fieldEquipment"),
         type: "treeSelect",
-        treeOptions: resources.fieldEquipmentTreeOptions,
+        treeOptions: resources.equipmentCategoryTreeOptions,
         leafOnly: true,
       },
       {
@@ -231,7 +231,7 @@ export function createIOSignalEditDialogState({
       ...signal,
       data_type_id: signal.data_type_id ?? "",
       signal_kind_id: signal.signal_kind_id ?? "",
-      field_equipment_id: signal.field_equipment_id ?? "",
+      equipment_category_id: signal.equipment_category_id ?? "",
       measurement_unit_id: signal.measurement_unit_id ?? "",
       plc_absolute_address: signal.plc_absolute_address ?? "",
       connection_point: signal.connection_point ?? "",
@@ -307,12 +307,12 @@ export function buildIOSignalColumns({
     {
       id: "fieldEquipment",
       header: t("pagesUi.ioSignals.columns.fieldEquipment"),
-      meta: ioColumnMeta.fieldEquipment,
+      meta: ioColumnMeta.equipmentCategory,
       cell: ({ row }) =>
-        row.original.field_equipment_full_path ||
-        (row.original.field_equipment_id
-          ? lookupMaps.fieldEquipmentBreadcrumbs.get(row.original.field_equipment_id) ||
-            row.original.field_equipment_id
+        row.original.equipment_category_full_path ||
+        (row.original.equipment_category_id
+          ? lookupMaps.equipmentCategoryBreadcrumbs.get(row.original.equipment_category_id) ||
+            row.original.equipment_category_id
           : "-"),
     },
     {

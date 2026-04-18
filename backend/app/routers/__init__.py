@@ -7,7 +7,6 @@ from app.routers import technological_equipment
 from app.routers import entity_import_export
 from app.routers import measurement_units
 from app.routers import signal_types
-from app.routers import field_equipments
 from app.routers import data_types
 from app.routers import equipment_categories
 from app.routers import equipment_types
@@ -45,7 +44,6 @@ __all__ = [
     "entity_import_export",
     "measurement_units",
     "signal_types",
-    "field_equipments",
     "data_types",
     "equipment_categories",
     "equipment_types",

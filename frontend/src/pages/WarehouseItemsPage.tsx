@@ -24,6 +24,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { useTranslation } from "react-i18next";
 
 import { LOOKUP_QUERY_STALE_TIME } from "../api/queryDefaults";
+import { listEquipmentTypesForSelect } from "../api/equipmentTypes";
 import { DataTable } from "../components/DataTable";
 import { EntityDialog, DialogState } from "../components/EntityDialog";
 import { EntityImportExportIconActions } from "../components/EntityImportExportIconActions";
@@ -183,8 +184,9 @@ export default function WarehouseItemsPage() {
 
   const equipmentTypesQuery = useQuery({
     queryKey: ["equipment-types-options"],
-    queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: 200 }),
-    staleTime: LOOKUP_QUERY_STALE_TIME
+    queryFn: listEquipmentTypesForSelect,
+    staleTime: 0,
+    refetchOnMount: "always"
   });
 
   const equipmentCategoriesQuery = useQuery({
@@ -258,15 +260,15 @@ export default function WarehouseItemsPage() {
 
   const equipmentMap = useMemo(() => {
     const map = new Map<number, string>();
-    equipmentTypesQuery.data?.items.forEach((item) => map.set(item.id, item.name));
+    equipmentTypesQuery.data?.forEach((item) => map.set(item.id, item.name));
     return map;
-  }, [equipmentTypesQuery.data?.items]);
+  }, [equipmentTypesQuery.data]);
 
   const equipmentFlagsMap = useMemo(() => {
     const map = new Map<number, EquipmentType>();
-    equipmentTypesQuery.data?.items.forEach((item) => map.set(item.id, item));
+    equipmentTypesQuery.data?.forEach((item) => map.set(item.id, item));
     return map;
-  }, [equipmentTypesQuery.data?.items]);
+  }, [equipmentTypesQuery.data]);
 
   const movementMutation = useMutation({
     mutationFn: (payload: any) => createEntity("/movements", payload),
@@ -308,7 +310,7 @@ export default function WarehouseItemsPage() {
           label: t("common.fields.equipment"),
           type: "select",
           options:
-            equipmentTypesQuery.data?.items.map((item) => ({
+            (equipmentTypesQuery.data || []).map((item) => ({
               label: item.name,
               value: item.id
             })) || []
@@ -367,7 +369,7 @@ export default function WarehouseItemsPage() {
           label: t("common.fields.equipment"),
           type: "select",
           options:
-            equipmentTypesQuery.data?.items.map((item) => ({
+            (equipmentTypesQuery.data || []).map((item) => ({
               label: item.name,
               value: item.id
             })) || [],
@@ -694,7 +696,7 @@ export default function WarehouseItemsPage() {
               label={t("common.fields.equipment")}
               value={equipmentFilter}
               options={
-                equipmentTypesQuery.data?.items.map((item) => ({
+                (equipmentTypesQuery.data || []).map((item) => ({
                   value: item.id,
                   label: item.name
                 })) || []

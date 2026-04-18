@@ -21,7 +21,6 @@ from app.routers import (
     equipment_categories,
     equipment_in_operation,
     equipment_types,
-    field_equipments,
     io_signals,
     io_tree,
     ipam,
@@ -74,7 +73,6 @@ app.include_router(
 app.include_router(entity_import_export.router, prefix="/api/v1", tags=["entity-import-export"])
 app.include_router(measurement_units.router, prefix="/api/v1/measurement-units", tags=["measurement-units"])
 app.include_router(signal_types.router, prefix="/api/v1/signal-types", tags=["signal-types"])
-app.include_router(field_equipments.router, prefix="/api/v1/field-equipments", tags=["field-equipments"])
 app.include_router(data_types.router, prefix="/api/v1/data-types", tags=["data-types"])
 app.include_router(equipment_categories.router, prefix="/api/v1/equipment-categories", tags=["equipment-categories"])
 app.include_router(equipment_categories.router, prefix="/api/v1/equipment_categories", tags=["equipment-categories"])

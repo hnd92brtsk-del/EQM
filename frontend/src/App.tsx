@@ -114,7 +114,6 @@ export default function App() {
                   <Route path="/dictionaries" element={<Navigate to="/dictionaries/manufacturers" replace />} />
                   <Route path="/dictionaries/manufacturers" element={<RequireSpace space="dictionaries"><ManufacturersPage /></RequireSpace>} />
                   <Route path="/dictionaries/locations" element={<RequireSpace space="dictionaries"><LocationsPage /></RequireSpace>} />
-                  <Route path="/dictionaries/field-equipments" element={<Navigate to="/dictionaries/main-equipment" replace />} />
                   <Route path="/dictionaries/main-equipment" element={<RequireSpace space="dictionaries"><MainEquipmentPage /></RequireSpace>} />
                   <Route path="/dictionaries/data-types" element={<RequireSpace space="dictionaries"><DataTypesPage /></RequireSpace>} />
                   <Route path="/dictionaries/measurement-units" element={<RequireSpace space="dictionaries"><MeasurementUnitsPage /></RequireSpace>} />

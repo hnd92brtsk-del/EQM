@@ -43,8 +43,8 @@ export type IOSignal = {
   data_type_id?: number | null;
   data_type_full_path?: string | null;
   signal_kind_id?: number | null;
-  field_equipment_id?: number | null;
-  field_equipment_full_path?: string | null;
+  equipment_category_id?: number | null;
+  equipment_category_full_path?: string | null;
   connection_point?: string | null;
   range_from?: string | null;
   range_to?: string | null;
@@ -63,7 +63,7 @@ export type IOSignalUpdate = Partial<
     | "plc_absolute_address"
     | "data_type_id"
     | "signal_kind_id"
-    | "field_equipment_id"
+    | "equipment_category_id"
     | "connection_point"
     | "range_from"
     | "range_to"

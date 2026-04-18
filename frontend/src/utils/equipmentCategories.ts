@@ -1,33 +1,33 @@
 import { apiFetch } from "../api/client";
 
-export type FieldEquipmentTreeNode = {
+export type EquipmentCategoryTreeNode = {
   id: number;
   name: string;
-  children?: FieldEquipmentTreeNode[];
+  children?: EquipmentCategoryTreeNode[];
 };
 
-export type FieldEquipmentOption = { label: string; value: number };
+export type EquipmentCategoryOption = { label: string; value: number };
 
-export type FieldEquipmentLookups = {
-  options: FieldEquipmentOption[];
+export type EquipmentCategoryLookups = {
+  options: EquipmentCategoryOption[];
   breadcrumbMap: Map<number, string>;
   leafIds: Set<number>;
 };
 
-export async function fetchFieldEquipmentsTree(includeDeleted = false): Promise<FieldEquipmentTreeNode[]> {
+export async function fetchEquipmentCategoriesTree(includeDeleted = false): Promise<EquipmentCategoryTreeNode[]> {
   const query = includeDeleted ? "?include_deleted=true" : "";
-  return apiFetch<FieldEquipmentTreeNode[]>(`/field-equipments/tree${query}`);
+  return apiFetch<EquipmentCategoryTreeNode[]>(`/equipment-categories/tree${query}`);
 }
 
-export function buildFieldEquipmentLookups(
-  tree: FieldEquipmentTreeNode[],
+export function buildEquipmentCategoryLookups(
+  tree: EquipmentCategoryTreeNode[],
   indentUnit = "--"
-): FieldEquipmentLookups {
-  const options: FieldEquipmentOption[] = [];
+): EquipmentCategoryLookups {
+  const options: EquipmentCategoryOption[] = [];
   const breadcrumbMap = new Map<number, string>();
   const leafIds = new Set<number>();
 
-  const walk = (node: FieldEquipmentTreeNode, path: string[], depth: number) => {
+  const walk = (node: EquipmentCategoryTreeNode, path: string[], depth: number) => {
     const nextPath = [...path, node.name];
     const labelPrefix = depth > 0 ? `${indentUnit.repeat(depth)} ` : "";
     options.push({ label: `${labelPrefix}${node.name}`, value: node.id });

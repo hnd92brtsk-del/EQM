@@ -16,6 +16,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { useTranslation } from "react-i18next";
 
 import { LOOKUP_QUERY_STALE_TIME } from "../api/queryDefaults";
+import { listEquipmentTypesForSelect } from "../api/equipmentTypes";
 import { type ColumnMeta, DataTable, type DataTableFiltersState } from "../components/DataTable";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { createEntity, listEntity } from "../api/entities";
@@ -44,8 +45,6 @@ type Movement = {
   reference?: string | null;
   comment?: string | null;
 };
-
-type EquipmentType = { id: number; name: string };
 
 type Warehouse = { id: number; name: string };
 
@@ -159,8 +158,9 @@ export default function MovementsPage() {
 
   const equipmentTypesQuery = useQuery({
     queryKey: ["equipment-types-options"],
-    queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: 200 }),
-    staleTime: LOOKUP_QUERY_STALE_TIME
+    queryFn: listEquipmentTypesForSelect,
+    staleTime: 0,
+    refetchOnMount: "always"
   });
 
   const warehousesQuery = useQuery({
@@ -216,9 +216,9 @@ export default function MovementsPage() {
 
   const equipmentMap = useMemo(() => {
     const map = new Map<number, string>();
-    equipmentTypesQuery.data?.items.forEach((item) => map.set(item.id, item.name));
+    equipmentTypesQuery.data?.forEach((item) => map.set(item.id, item.name));
     return map;
-  }, [equipmentTypesQuery.data?.items]);
+  }, [equipmentTypesQuery.data]);
 
   const warehouseMap = useMemo(() => {
     const map = new Map<number, string>();
@@ -261,7 +261,7 @@ export default function MovementsPage() {
           filterKey: "equipment_type_id",
           filterPlaceholder: t("common.all"),
           filterOptions:
-            equipmentTypesQuery.data?.items.map((item) => ({
+            (equipmentTypesQuery.data || []).map((item) => ({
               label: item.name,
               value: item.id
             })) || []
@@ -336,7 +336,7 @@ export default function MovementsPage() {
         } as ColumnMeta<Movement>
       }
     ],
-    [assemblyMap, cabinetMap, equipmentMap, equipmentTypesQuery.data?.items, movementLabelMap, movementOptions, t, warehouseMap, warehousesQuery.data?.items]
+    [assemblyMap, cabinetMap, equipmentMap, equipmentTypesQuery.data, movementLabelMap, movementOptions, t, warehouseMap, warehousesQuery.data?.items]
   );
 
   const handleSubmit = () => {
@@ -441,7 +441,7 @@ export default function MovementsPage() {
               label={t("common.fields.nomenclature")}
               value={equipmentTypeId}
               options={
-                equipmentTypesQuery.data?.items.map((item) => ({
+                (equipmentTypesQuery.data || []).map((item) => ({
                   value: item.id,
                   label: item.name
                 })) || []

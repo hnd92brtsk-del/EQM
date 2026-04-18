@@ -91,7 +91,7 @@ export const navTree: NavItem[] = [
       { id: "data-types", labelKey: "menu.data_types", path: "/dictionaries/data-types", icon: IndexIcon, requiredSpace: "dictionaries" },
       { id: "measurement-units", labelKey: "menu.measurement_units", path: "/dictionaries/measurement-units", icon: IndexIcon, requiredSpace: "dictionaries" },
       { id: "signal-types", labelKey: "menu.signal_types", path: "/dictionaries/signal-types", icon: IndexIcon, requiredSpace: "dictionaries" },
-      { id: "equipment-categories", labelKey: "menu.equipment_categories", path: "/dictionaries/equipment-categories", requiredSpace: "dictionaries", showInMenu: false }
+      { id: "equipment-categories", labelKey: "menu.equipment_categories", path: "/dictionaries/equipment-categories", icon: IndexIcon, requiredSpace: "dictionaries" }
     ]
   },
   {

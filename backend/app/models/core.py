@@ -121,6 +121,16 @@ class MainEquipment(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
         remote_side="MainEquipment.id", backref="children"
     )
 
+    def full_path(self) -> str:
+        parts: list[str] = []
+        current: MainEquipment | None = self
+        seen: set[int] = set()
+        while current and current.id not in seen:
+            parts.append(current.name)
+            seen.add(current.id)
+            current = current.parent
+        return " / ".join(reversed(parts))
+
 
 class TechnologicalEquipment(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     __tablename__ = "technological_equipment"
@@ -130,11 +140,19 @@ class TechnologicalEquipment(Base, TimestampMixin, SoftDeleteMixin, VersionMixin
     main_equipment_id: Mapped[int] = mapped_column(
         ForeignKey("main_equipment.id"), index=True, nullable=False
     )
+    main_equipment_drive_id: Mapped[int | None] = mapped_column(
+        ForeignKey("main_equipment.id"), index=True
+    )
     tag: Mapped[str | None] = mapped_column(String(120), index=True)
     location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id"), index=True)
     description: Mapped[str | None] = mapped_column(Text)
 
-    main_equipment: Mapped["MainEquipment"] = relationship()
+    main_equipment: Mapped["MainEquipment"] = relationship(
+        foreign_keys=[main_equipment_id]
+    )
+    main_equipment_drive: Mapped["MainEquipment | None"] = relationship(
+        foreign_keys=[main_equipment_drive_id]
+    )
     location: Mapped["Location | None"] = relationship()
 
     @property
@@ -221,38 +239,6 @@ Index(
     SignalTypeDictionary.name,
     unique=True,
     postgresql_where=(SignalTypeDictionary.is_deleted == False),
-)
-
-
-class FieldEquipment(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
-    __tablename__ = "field_equipments"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(200), nullable=False)
-    parent_id: Mapped[int | None] = mapped_column(
-        ForeignKey("field_equipments.id", ondelete="SET NULL"), index=True
-    )
-    parent: Mapped["FieldEquipment | None"] = relationship(
-        remote_side="FieldEquipment.id", backref="children"
-    )
-
-    def full_path(self) -> str:
-        parts: list[str] = []
-        current: FieldEquipment | None = self
-        seen: set[int] = set()
-        while current and current.id not in seen:
-            parts.append(current.name)
-            seen.add(current.id)
-            current = current.parent
-        return " / ".join(reversed(parts))
-
-
-Index(
-    "ix_field_equipments_parent_name_active_unique",
-    FieldEquipment.parent_id,
-    FieldEquipment.name,
-    unique=True,
-    postgresql_where=(FieldEquipment.is_deleted == False),
 )
 
 

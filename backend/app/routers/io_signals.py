@@ -4,7 +4,7 @@ from sqlalchemy import select, case
 from app.core.dependencies import get_db, require_read_access, require_write_access
 from app.core.audit import add_audit_log, model_to_dict
 from app.models.io import IOSignal, SignalType
-from app.models.core import DataType, FieldEquipment, MeasurementUnit, SignalTypeDictionary
+from app.models.core import DataType, EquipmentCategory, MeasurementUnit, SignalTypeDictionary
 from app.models.operations import CabinetItem
 from app.models.security import User
 from app.schemas.io_signals import IOSignalOut, IOSignalUpdate
@@ -43,8 +43,8 @@ def build_data_type_full_path(item_id: int | None, items_map: dict[int, DataType
     return " / ".join(reversed(parts))
 
 
-def build_field_equipment_full_path(
-    item_id: int | None, items_map: dict[int, FieldEquipment]
+def build_equipment_category_full_path(
+    item_id: int | None, items_map: dict[int, EquipmentCategory]
 ) -> str | None:
     if not item_id or item_id not in items_map:
         return None
@@ -64,15 +64,15 @@ def attach_lookup_paths(items: list[IOSignal], db) -> None:
     units_map = {unit.id: unit for unit in units}
     data_types = db.scalars(select(DataType)).all()
     data_types_map = {item.id: item for item in data_types}
-    field_equipments = db.scalars(select(FieldEquipment)).all()
-    field_equipments_map = {item.id: item for item in field_equipments}
+    equipment_categories = db.scalars(select(EquipmentCategory)).all()
+    equipment_categories_map = {item.id: item for item in equipment_categories}
     for item in items:
         item.measurement_unit_full_path = build_measurement_unit_full_path(
             item.measurement_unit_id, units_map
         )
         item.data_type_full_path = build_data_type_full_path(item.data_type_id, data_types_map)
-        item.field_equipment_full_path = build_field_equipment_full_path(
-            item.field_equipment_id, field_equipments_map
+        item.equipment_category_full_path = build_equipment_category_full_path(
+            item.equipment_category_id, equipment_categories_map
         )
 
 
@@ -182,23 +182,23 @@ def update_signal(
         if child:
             raise HTTPException(status_code=400, detail="Signal type must be a leaf")
 
-    if "field_equipment_id" in data and data["field_equipment_id"] is not None:
-        field_equipment = db.scalar(
-            select(FieldEquipment).where(
-                FieldEquipment.id == data["field_equipment_id"],
-                FieldEquipment.is_deleted == False,
+    if "equipment_category_id" in data and data["equipment_category_id"] is not None:
+        equipment_category = db.scalar(
+            select(EquipmentCategory).where(
+                EquipmentCategory.id == data["equipment_category_id"],
+                EquipmentCategory.is_deleted == False,
             )
         )
-        if not field_equipment:
-            raise HTTPException(status_code=404, detail="Field equipment not found")
+        if not equipment_category:
+            raise HTTPException(status_code=404, detail="Equipment category not found")
         child = db.scalar(
-            select(FieldEquipment.id).where(
-                FieldEquipment.parent_id == data["field_equipment_id"],
-                FieldEquipment.is_deleted == False,
+            select(EquipmentCategory.id).where(
+                EquipmentCategory.parent_id == data["equipment_category_id"],
+                EquipmentCategory.is_deleted == False,
             )
         )
         if child:
-            raise HTTPException(status_code=400, detail="Field equipment must be a leaf")
+            raise HTTPException(status_code=400, detail="Equipment category must be a leaf")
 
     for field, value in data.items():
         setattr(signal, field, value)

@@ -34,7 +34,7 @@ import {
 } from "../api/ioSignals";
 import { buildMeasurementUnitLookups, fetchMeasurementUnitsTree } from "../utils/measurementUnits";
 import { buildDataTypeLookups, fetchDataTypesTree } from "../utils/dataTypes";
-import { buildFieldEquipmentLookups, fetchFieldEquipmentsTree } from "../utils/fieldEquipments";
+import { buildEquipmentCategoryLookups, fetchEquipmentCategoriesTree } from "../utils/equipmentCategories";
 import { buildSignalTypeLookups, fetchSignalTypesTree } from "../utils/signalTypes";
 import { annotateLiveTree, type LiveTreeAnnotation } from "../utils/liveFilter";
 import {
@@ -139,9 +139,9 @@ export default function IOSignalsPage() {
     queryFn: () => fetchDataTypesTree(false)
   });
 
-  const fieldEquipmentsTreeQuery = useQuery({
-    queryKey: ["field-equipments-tree-options", false],
-    queryFn: () => fetchFieldEquipmentsTree(false)
+  const equipmentCategoriesTreeQuery = useQuery({
+    queryKey: ["equipment-categories-tree-options", false],
+    queryFn: () => fetchEquipmentCategoriesTree(false)
   });
 
   const formatErrorMessage = (error: unknown, fallbackKey: string) => {
@@ -200,9 +200,9 @@ export default function IOSignalsPage() {
     [dataTypesTreeQuery.data]
   );
 
-  const { breadcrumbMap: fieldEquipmentBreadcrumbs } = useMemo(
-    () => buildFieldEquipmentLookups(fieldEquipmentsTreeQuery.data || []),
-    [fieldEquipmentsTreeQuery.data]
+  const { breadcrumbMap: equipmentCategoryBreadcrumbs } = useMemo(
+    () => buildEquipmentCategoryLookups(equipmentCategoriesTreeQuery.data || []),
+    [equipmentCategoriesTreeQuery.data]
   );
 
   const dataTypeTreeOptions = useMemo(
@@ -210,9 +210,9 @@ export default function IOSignalsPage() {
     [dataTypesTreeQuery.data]
   );
 
-  const fieldEquipmentTreeOptions = useMemo(
-    () => buildTreeSelectOptions((fieldEquipmentsTreeQuery.data || []) as TreeSelectNode[]),
-    [fieldEquipmentsTreeQuery.data]
+  const equipmentCategoryTreeOptions = useMemo(
+    () => buildTreeSelectOptions((equipmentCategoriesTreeQuery.data || []) as TreeSelectNode[]),
+    [equipmentCategoriesTreeQuery.data]
   );
 
   const refreshSignals = () => {
@@ -408,7 +408,7 @@ export default function IOSignalsPage() {
         lookupMaps: {
           dataTypeBreadcrumbs,
           signalKindBreadcrumbs,
-          fieldEquipmentBreadcrumbs,
+          equipmentCategoryBreadcrumbs,
           measurementUnitBreadcrumbs
         },
         onEdit: (signal) =>
@@ -421,7 +421,7 @@ export default function IOSignalsPage() {
                 signalKindLeafOptions,
                 measurementUnitLeafOptions,
                 dataTypeTreeOptions,
-                fieldEquipmentTreeOptions
+                equipmentCategoryTreeOptions
               },
               onSave: (values) =>
                 updateMutation.mutateAsync({
@@ -435,8 +435,8 @@ export default function IOSignalsPage() {
     canWrite,
     dataTypeBreadcrumbs,
     dataTypeTreeOptions,
-    fieldEquipmentBreadcrumbs,
-    fieldEquipmentTreeOptions,
+    equipmentCategoryBreadcrumbs,
+    equipmentCategoryTreeOptions,
     measurementUnitBreadcrumbs,
     measurementUnitLeafOptions,
     signalKindBreadcrumbs,

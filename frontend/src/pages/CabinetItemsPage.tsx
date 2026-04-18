@@ -43,6 +43,7 @@ import { useNavigate } from "react-router-dom";
 
 import { LOOKUP_QUERY_STALE_TIME } from "../api/queryDefaults";
 import { createDirectToCabinetBatch } from "../api/movements";
+import { listEquipmentTypesForSelect } from "../api/equipmentTypes";
 import { EntityImportExportIconActions } from "../components/EntityImportExportIconActions";
 import { ErrorSnackbar } from "../components/ErrorSnackbar";
 import { deleteEntity, listEntity, restoreEntity, updateEntity } from "../api/entities";
@@ -1615,8 +1616,9 @@ export default function CabinetItemsPage() {
 
   const equipmentTypesQuery = useQuery({
     queryKey: ["equipment-types-options"],
-    queryFn: () => listEntity<EquipmentType>("/equipment-types", { page: 1, page_size: 200 }),
-    staleTime: LOOKUP_QUERY_STALE_TIME
+    queryFn: listEquipmentTypesForSelect,
+    staleTime: 0,
+    refetchOnMount: "always"
   });
 
   const manufacturersQuery = useQuery({
@@ -1708,22 +1710,22 @@ export default function CabinetItemsPage() {
 
   const equipmentMap = useMemo(() => {
     const map = new Map<number, string>();
-    equipmentTypesQuery.data?.items.forEach((item) => map.set(item.id, item.name));
+    equipmentTypesQuery.data?.forEach((item) => map.set(item.id, item.name));
     return map;
-  }, [equipmentTypesQuery.data?.items]);
+  }, [equipmentTypesQuery.data]);
 
   const equipmentFlagsMap = useMemo(() => {
     const map = new Map<number, EquipmentType>();
-    equipmentTypesQuery.data?.items.forEach((item) => map.set(item.id, item));
+    equipmentTypesQuery.data?.forEach((item) => map.set(item.id, item));
     return map;
-  }, [equipmentTypesQuery.data?.items]);
+  }, [equipmentTypesQuery.data]);
   const equipmentOptions = useMemo(
     () =>
-      equipmentTypesQuery.data?.items.map((item) => ({
+      (equipmentTypesQuery.data || []).map((item) => ({
         value: item.id,
         label: `${item.name} — ${formatEquipmentPowerSummary(item)}`
       })) || [],
-    [equipmentTypesQuery.data?.items]
+    [equipmentTypesQuery.data]
   );
 
   const containerOptions = useMemo(() => {

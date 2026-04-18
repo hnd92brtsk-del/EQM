@@ -61,6 +61,10 @@ export type EquipmentTypeUpdatePayload = {
   network_ports?: { type: string; count: number }[] | undefined;
 };
 
+// Rule for nomenclature selects:
+// always load the full active equipment_types list via pagination.
+// Do not use a single page (for example page_size=200) for UI selectors,
+// otherwise newly added positions can disappear from dropdowns.
 export async function listEquipmentTypesForSelect() {
   const pageSize = 200;
   let page = 1;

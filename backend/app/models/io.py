@@ -38,8 +38,8 @@ class IOSignal(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     signal_kind_id: Mapped[int | None] = mapped_column(
         ForeignKey("signal_types.id", ondelete="SET NULL"), index=True
     )
-    field_equipment_id: Mapped[int | None] = mapped_column(
-        ForeignKey("field_equipments.id", ondelete="SET NULL"), index=True
+    equipment_category_id: Mapped[int | None] = mapped_column(
+        ForeignKey("equipment_categories.id", ondelete="SET NULL"), index=True
     )
     connection_point: Mapped[str | None] = mapped_column(String(255))
     range_from: Mapped[str | None] = mapped_column(String(255))
@@ -53,7 +53,7 @@ class IOSignal(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
     equipment_in_operation: Mapped["CabinetItem"] = relationship()
     data_type: Mapped["DataType | None"] = relationship()
     signal_kind: Mapped["SignalTypeDictionary | None"] = relationship()
-    field_equipment: Mapped["FieldEquipment | None"] = relationship()
+    equipment_category: Mapped["EquipmentCategory | None"] = relationship()
     measurement_unit: Mapped["MeasurementUnit | None"] = relationship()
 
     __table_args__ = (
