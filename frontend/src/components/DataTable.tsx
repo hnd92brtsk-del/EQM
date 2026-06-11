@@ -64,6 +64,17 @@ const matchesAlphabet = (value: unknown, alphabet: string) => {
   return true;
 };
 
+const headerTextSx = {
+  whiteSpace: "normal",
+  overflowWrap: "normal",
+  wordBreak: "normal",
+  hyphens: "manual",
+  lineBreak: "auto",
+  fontSize: "clamp(0.68rem, 0.62rem + 0.18vw, 0.8rem)",
+  lineHeight: 1.45,
+  verticalAlign: "top"
+} as const;
+
 export function DataTable<T>({
   data,
   columns,
@@ -271,8 +282,23 @@ export function DataTable<T>({
   };
 
   return (
-    <TableContainer component={Paper} elevation={0}>
-      <Table size="small" sx={tableSx}>
+    <TableContainer
+      component={Paper}
+      elevation={0}
+      sx={{
+        maxHeight: { xs: "max(260px, calc(100vh - 260px))", md: "max(320px, calc(100vh - 300px))" },
+        minHeight: 160,
+        overflow: "auto"
+      }}
+    >
+      <Table
+        stickyHeader
+        size="small"
+        sx={[
+          { minWidth: 760 },
+          ...(Array.isArray(tableSx) ? tableSx : tableSx ? [tableSx] : [])
+        ]}
+      >
         <TableHead>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
@@ -282,10 +308,7 @@ export function DataTable<T>({
                   <TableCell
                     key={header.id}
                     sx={{
-                      whiteSpace: "normal",
-                      overflowWrap: "anywhere",
-                      wordBreak: "break-word",
-                      verticalAlign: "top",
+                      ...headerTextSx,
                       ...meta?.headerSx
                     }}
                   >
@@ -305,6 +328,9 @@ export function DataTable<T>({
                   <TableCell
                     key={`${header.id}-filters`}
                     sx={{
+                      position: "sticky",
+                      top: 48,
+                      zIndex: 4,
                       verticalAlign: "top",
                       py: 1,
                       ...meta?.headerSx

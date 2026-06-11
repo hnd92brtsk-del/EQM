@@ -1,6 +1,20 @@
 import { useMemo, useState } from "react";
 import {
-  Box, Card, CardContent, FormControl, Grid, InputLabel, MenuItem, Select, Typography
+  Box,
+  Card,
+  CardContent,
+  FormControl,
+  Grid,
+  InputLabel,
+  MenuItem,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -138,34 +152,34 @@ export default function MntReliabilityPage() {
             <Card>
               <CardContent>
                 <Typography variant="subtitle1" sx={{ mb: 1 }}>{t("mnt.reliability.per_cabinet")}</Typography>
-                <Box sx={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-                    <thead>
-                      <tr style={{ borderBottom: "2px solid #ddd" }}>
-                        <th style={{ textAlign: "left", padding: 8 }}>{t("mnt.reliability.cols.cabinet")}</th>
-                        <th style={{ textAlign: "right", padding: 8 }}>{t("mnt.reliability.cols.incidents")}</th>
-                        <th style={{ textAlign: "right", padding: 8 }}>{t("mnt.reliability.cols.op_hours")}</th>
-                        <th style={{ textAlign: "right", padding: 8 }}>{t("mnt.reliability.cols.downtime")}</th>
-                        <th style={{ textAlign: "right", padding: 8 }}>MTBF (h)</th>
-                        <th style={{ textAlign: "right", padding: 8 }}>MTTR (h)</th>
-                        <th style={{ textAlign: "right", padding: 8 }}>{t("mnt.reliability.cols.availability")}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                <TableContainer sx={{ maxHeight: 420, overflow: "auto" }}>
+                  <Table size="small" stickyHeader sx={{ minWidth: 760 }}>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>{t("mnt.reliability.cols.cabinet")}</TableCell>
+                        <TableCell align="right">{t("mnt.reliability.cols.incidents")}</TableCell>
+                        <TableCell align="right">{t("mnt.reliability.cols.op_hours")}</TableCell>
+                        <TableCell align="right">{t("mnt.reliability.cols.downtime")}</TableCell>
+                        <TableCell align="right">MTBF (h)</TableCell>
+                        <TableCell align="right">MTTR (h)</TableCell>
+                        <TableCell align="right">{t("mnt.reliability.cols.availability")}</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
                       {summary.map((r, i) => (
-                        <tr key={r.cabinet_id ?? i} style={{ borderBottom: "1px solid #eee" }}>
-                          <td style={{ padding: 8 }}>{r.cabinet_name}</td>
-                          <td style={{ padding: 8, textAlign: "right" }}>{r.total_incidents}</td>
-                          <td style={{ padding: 8, textAlign: "right" }}>{r.total_operating_hours}</td>
-                          <td style={{ padding: 8, textAlign: "right" }}>{r.total_downtime_hours}</td>
-                          <td style={{ padding: 8, textAlign: "right" }}>{r.mtbf_hours ?? "—"}</td>
-                          <td style={{ padding: 8, textAlign: "right" }}>{r.mttr_hours ?? "—"}</td>
-                          <td style={{ padding: 8, textAlign: "right" }}>{r.availability_pct != null ? `${r.availability_pct}%` : "—"}</td>
-                        </tr>
+                        <TableRow key={r.cabinet_id ?? i} hover>
+                          <TableCell>{r.cabinet_name}</TableCell>
+                          <TableCell align="right">{r.total_incidents}</TableCell>
+                          <TableCell align="right">{r.total_operating_hours}</TableCell>
+                          <TableCell align="right">{r.total_downtime_hours}</TableCell>
+                          <TableCell align="right">{r.mtbf_hours ?? "—"}</TableCell>
+                          <TableCell align="right">{r.mttr_hours ?? "—"}</TableCell>
+                          <TableCell align="right">{r.availability_pct != null ? `${r.availability_pct}%` : "—"}</TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
-                </Box>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               </CardContent>
             </Card>
           </Grid>
@@ -174,3 +188,4 @@ export default function MntReliabilityPage() {
     </Box>
   );
 }
+

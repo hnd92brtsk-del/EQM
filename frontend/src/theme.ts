@@ -351,13 +351,19 @@ export function createAppTheme(mode: PaletteMode) {
           head: {
             position: "sticky",
             top: 0,
-            zIndex: 1,
+            zIndex: 3,
             backgroundColor: alpha(isDark ? "#132131" : "#f6f9fc", isDark ? 0.94 : 0.96),
             color: textPrimary,
             fontWeight: 800,
-            fontSize: "0.77rem",
+            fontSize: "clamp(0.68rem, 0.62rem + 0.18vw, 0.8rem)",
+            lineHeight: 1.45,
             letterSpacing: "0.06em",
             textTransform: "uppercase",
+            whiteSpace: "normal",
+            overflowWrap: "normal",
+            wordBreak: "normal",
+            hyphens: "manual",
+            lineBreak: "auto",
             borderBottom: `1px solid ${tokens.panelBorderStrong}`
           }
         }

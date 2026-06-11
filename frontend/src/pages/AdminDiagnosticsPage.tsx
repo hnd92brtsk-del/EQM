@@ -22,6 +22,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableContainer,
   TableHead,
   TablePagination,
   TableRow,
@@ -558,7 +559,8 @@ export default function AdminDiagnosticsPage() {
                 <Chip variant="outlined" label={`Всего строк: ${formatInteger(summaryQuery.data?.database_overview.total_rows || 0, i18n.language)}`} />
               </Box>
               {topTablesCompact.length ? (
-                <Table size="small">
+                <TableContainer sx={{ maxHeight: 360, overflow: "auto" }}>
+                  <Table size="small" stickyHeader sx={{ minWidth: 620 }}>
                   <TableHead>
                     <TableRow>
                       <TableCell>Таблица</TableCell>
@@ -579,7 +581,8 @@ export default function AdminDiagnosticsPage() {
                       </TableRow>
                     ))}
                   </TableBody>
-                </Table>
+                  </Table>
+                </TableContainer>
               ) : (
                 <Alert severity="info">Нет данных для компактного обзора таблиц.</Alert>
               )}
