@@ -21,11 +21,13 @@ export function buildQuery(params: Record<string, string | number | boolean | un
 export async function listEntity<T>(path: string, params: Record<string, any>) {
   const { filters, ...rest } = params;
   const qs = buildQuery({ ...rest, ...(filters || {}) });
-  return apiFetch<Pagination<T>>(`${path}${qs}`);
+  const collectionPath = path.endsWith("/") ? path : `${path}/`;
+  return apiFetch<Pagination<T>>(`${collectionPath}${qs}`);
 }
 
 export async function createEntity<T>(path: string, payload: any) {
-  return apiFetch<T>(path, { method: "POST", body: JSON.stringify(payload) });
+  const collectionPath = path.endsWith("/") ? path : `${path}/`;
+  return apiFetch<T>(collectionPath, { method: "POST", body: JSON.stringify(payload) });
 }
 
 export async function updateEntity<T>(path: string, id: number, payload: any) {
