@@ -4,8 +4,9 @@ from fastapi.security import OAuth2PasswordBearer
 import jwt
 
 from app.db.session import SessionLocal
-from app.core.security import decode_token
+from app.core.security import decode_token, hash_token
 from app.models.security import User, UserRole
+from app.models.sessions import UserSession
 from sqlalchemy import select
 
 
@@ -27,8 +28,15 @@ def get_current_user(token: str = Depends(oauth2_scheme), db=Depends(get_db)) ->
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
     user_id = payload.get("user_id")
-    if not user_id:
+    session_id = payload.get("session_id")
+    if not user_id or not session_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+    session = db.scalar(select(UserSession).where(UserSession.id == session_id, UserSession.user_id == user_id))
+    if not session or session.ended_at is not None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session is no longer active")
+    if session.session_token_hash != hash_token(token):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session is no longer active")
 
     user = db.scalar(select(User).where(User.id == user_id))
     if not user or user.is_deleted:

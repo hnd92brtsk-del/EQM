@@ -5,7 +5,11 @@ export async function sendChat(messages: Message[], isAdmin = false) {
   const url = isAdmin ? "/chat/admin" : "/chat";
   const data = await apiFetch<{ content: string }>(url, {
     method: "POST",
-    body: JSON.stringify({ messages })
+    body: JSON.stringify({
+      messages: messages
+        .filter((message) => message.role === "user")
+        .map(({ role, content }) => ({ role, content }))
+    })
   });
   return data.content;
 }

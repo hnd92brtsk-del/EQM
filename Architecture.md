@@ -1,1822 +1,455 @@
-# Architecture (ТЗ / System Design)
+# EQM — архитектура системы (as built)
 
-Версия документа: 0.1 (19.12.2025)  
-Технологический стек: **PostgreSQL 16.3**, **FastAPI (Python 3.12.10)**, **SQLAlchemy 2.x**, **Alembic**, **Pydantic 2.x**, **React 18.3 + Vite 5 + TypeScript 5.6**, **MUI 5**, **TanStack Query 5 / Table 8**, **Recharts 2**, **i18next** (Node 24.12.0, npm 11.6.2).  
-Среда развёртывания: **локальная сеть (on‑prem)**, несколько одновременных пользователей, HTTPS.
+- Версия документа: **1.0**
+- Дата актуализации: **17.09.2026**
+- Версия проекта: **v1.1.19**
+- Актуальная ревизия БД: **`0050_add_main_equipment_drive_to_technological_equipment`**
 
----
+Этот документ описывает фактически реализованное состояние EQM. Источниками истины являются код приложения, SQLAlchemy-модели, цепочка Alembic и OpenAPI, формируемый FastAPI. Старые проектные примеры и нереализованные рекомендации из предыдущей редакции удалены.
 
-## 1. Цели и границы системы
+## 1. Назначение и границы
 
-### 1.1. Назначение
-Web‑приложение для:
-- учёта и хранения оборудования (остатки на складах, движение, списание),
-- учёта шкафов автоматизации и их комплектации,
-- ведения I/O листов и DCL листов (как минимум I/O сигналы; DCL расширяемо),
-- управления справочниками (номенклатура, производители, локации и др.),
-- аудита действий пользователей, истории логинов/сессий,
-- визуализации агрегированных метрик на дашбордах.
+EQM — on-premise веб-система для учёта оборудования автоматизации и связанных инженерных данных. Система объединяет:
 
-### 1.2. Ключевые сущности (из приложенного описания)
-- manufacturers (производители)
-- equipment_categories (типы оборудования)
-- locations (иерархия локаций)
-- equipment_types (номенклатура/каталог типов оборудования)
-- warehouses (склады)
-- cabinets (шкафы)
-- warehouse_items (остатки по складам)
-- cabinet_items (состав шкафа)
-- io_signals (I/O лист / сигналы)
+- номенклатуру, производителей, категории и иерархические локации;
+- склады, шкафы, сборки, экземпляры оборудования и движения остатков;
+- I/O-сигналы и дерево оборудования в эксплуатации;
+- технологическое оборудование и P&ID-схемы;
+- IPAM, сетевые топологии и карты последовательных соединений;
+- цифровые двойники электрических цепей;
+- персонал, компетенции, обучения и годовые графики;
+- ТОиР: инциденты, наряды, планы, наработку и показатели надёжности;
+- пользователей, динамический RBAC, сессии, аудит и диагностику;
+- локальный LLM-чат через совместимый с OpenAI API сервер LM Studio.
 
-### 1.3. Существенные нефункциональные требования
-- Одновременная работа нескольких пользователей (конкурентные изменения, блокировки/версии).
-- RBAC: **Администратор / Инженер / Просмотрщик**.
-- Аудит: логирование CRUD и логинов/логаутов/таймаутов.
-- Security: защита от XSS/CSRF/SQLi, HTTPS, безопасное хранение паролей.
-- Надёжность: миграции схемы, резервное копирование, мониторинг.
-- Производительность: сервер‑side пагинация, индексы, оптимизация агрегатов для дашбордов.
+Система рассчитана на работу в локальной сети. Основной production-сценарий — автономная поставка Docker-образов, дампа PostgreSQL и постоянных файлов без доступа сервера к интернету.
 
----
-
-## 2. Архитектура решения
-
-### 2.1. Общая схема
-- **Frontend (React SPA)**: роутинг, таблицы (search/filter/sort/pagination), формы CRUD, графики/дашборды.
-- **Backend (FastAPI)**: REST API, RBAC, валидация (Pydantic), транзакции, аудит, агрегации.
-- **DB (PostgreSQL)**: нормализованная схема + JSONB для расширяемых атрибутов.
-- **File storage (опционально)**: хранение вложений (локально на сервере или S3‑совместимое хранилище).
-
-### 2.2. Стандарт API
-- JSON over HTTPS.
-- Версионирование: `/api/v1/...`
-- Пагинация (унифицировано):
-  - `page` (>=1), `page_size` (1..200)
-  - ответ: `items`, `page`, `page_size`, `total`
-- Сортировка:
-  - `sort=field` или `sort=-field` (минус = DESC)
-- Поиск:
-  - `q=...` (full‑text‑подобный поиск по ключевым полям)
-- Фильтры:
-  - точечные: `field=value`
-  - диапазоны: `created_at_from`, `created_at_to`, `updated_at_from`, `updated_at_to`
-
-### 2.3. Конкурентный доступ
-- Для изменяемых таблиц: **оптимистическая блокировка** через `row_version` (Integer, auto‑increment) либо `updated_at`.
-- На уровне БД: транзакции `READ COMMITTED`, для операций перемещения остатков — транзакции + проверка остатка.
-
----
-
-## 3. Модель данных (SQLAlchemy Models)
-
-Ниже приведена **полная структура БД** для проекта: базовые таблицы из вашего файла + необходимые системные таблицы (users/roles/audit/sessions/attachments), а также минимальные расширения для согласования с требованиями дашбордов и UI.
-
-> Примечание: Везде, где нужно «мягкое удаление», используется `is_deleted`, `deleted_at`, `deleted_by_id`. Для справочников рекомендуется частичный уникальный индекс `WHERE is_deleted = false`.
-
-### 3.1. Общие mixin-и
-
-```python
-# app/db/base.py
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import Boolean, DateTime, Integer, func, ForeignKey
-
-class Base(DeclarativeBase):
-    pass
-
-class TimestampMixin:
-    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
-
-class SoftDeleteMixin:
-    is_deleted: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
-    deleted_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    deleted_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-
-class VersionMixin:
-    row_version: Mapped[int] = mapped_column(Integer, server_default="1", nullable=False)
-```
-
----
-
-### 3.2. Security / Users
-
-```python
-# app/models/security.py
-from sqlalchemy import String, Enum, DateTime, func, Index
-from sqlalchemy.orm import Mapped, mapped_column
-import enum
-
-class UserRole(enum.Enum):
-    admin = "admin"
-    engineer = "engineer"
-    viewer = "viewer"
-
-class User(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
-    __tablename__ = "users"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    username: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    role: Mapped[UserRole] = mapped_column(Enum(UserRole, name="user_role"), nullable=False, index=True)
-    last_login_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
-
-Index("ix_users_username_active_unique", User.username, unique=True, postgresql_where=(User.is_deleted == False))
-```
-
-```python
-# app/models/sessions.py
-from sqlalchemy import String, DateTime, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column
-
-class UserSession(Base, TimestampMixin):
-    __tablename__ = "user_sessions"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True, nullable=False)
-    session_token_hash: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
-    started_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    ended_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True))
-    end_reason: Mapped[str | None] = mapped_column(String(32))  # logout / timeout / revoked
-    ip_address: Mapped[str | None] = mapped_column(String(64))
-    user_agent: Mapped[str | None] = mapped_column(String(255))
-```
-
----
-
-### 3.3. Core dictionaries and entities (из вашего файла)
-
-```python
-# app/models/core.py
-from sqlalchemy import String, Integer, Boolean, ForeignKey, Index
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-class Manufacturer(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
-    __tablename__ = "manufacturers"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    country: Mapped[str] = mapped_column(String(100), nullable=False)
-
-Index("ix_manufacturers_name_active_unique", Manufacturer.name, unique=True,
-      postgresql_where=(Manufacturer.is_deleted == False))
-
-
-class EquipmentCategory(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
-    __tablename__ = "equipment_categories"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(200), nullable=False)
-
-    nomenclatures: Mapped[list["EquipmentType"]] = relationship(back_populates="equipment_category")
-
-Index("ix_equipment_categories_name_active_unique", EquipmentCategory.name, unique=True,
-      postgresql_where=(EquipmentCategory.is_deleted == False))
-
-
-class Location(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
-    __tablename__ = "locations"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(150), nullable=False)
-    parent_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id", ondelete="SET NULL"), index=True)
-    parent: Mapped["Location | None"] = relationship(remote_side="Location.id", backref="children")
-
-
-class EquipmentType(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
-    __tablename__ = "equipment_types"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(200), nullable=False)
-    nomenclature_number: Mapped[str] = mapped_column(String(100), nullable=False)
-    manufacturer_id: Mapped[int] = mapped_column(ForeignKey("manufacturers.id"), index=True, nullable=False)
-    equipment_category_id: Mapped[int | None] = mapped_column(
-        ForeignKey("equipment_categories.id"), index=True
-    )
-    is_channel_forming: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
-    channel_count: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)
-    meta_data: Mapped[dict | None] = mapped_column(JSONB)
-
-    manufacturer: Mapped[Manufacturer] = relationship()
-    equipment_category: Mapped[EquipmentCategory | None] = relationship(
-        back_populates="nomenclatures"
-    )
-
-Index("ix_equipment_types_nomenclature_active_unique", EquipmentType.nomenclature_number, unique=True,
-      postgresql_where=(EquipmentType.is_deleted == False))
-
-
-class Warehouse(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
-    __tablename__ = "warehouses"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(200), nullable=False)
-    location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id", ondelete="SET NULL"), index=True)
-    meta_data: Mapped[dict | None] = mapped_column(JSONB)
-
-    location: Mapped[Location | None] = relationship()
-
-
-class Cabinet(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
-    __tablename__ = "cabinets"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(200), nullable=False)  # ШУ-12
-    location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id", ondelete="SET NULL"), index=True)
-    meta_data: Mapped[dict | None] = mapped_column(JSONB)
-
-    location: Mapped[Location | None] = relationship()
-```
-
----
-
-### 3.4. Operational tables (из вашего файла)
-
-```python
-# app/models/operations.py
-from sqlalchemy import DateTime, Integer, ForeignKey, UniqueConstraint, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-class WarehouseItem(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
-    # Остатки по складу и типу оборудования.
-    __tablename__ = "warehouse_items"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    warehouse_id: Mapped[int] = mapped_column(ForeignKey("warehouses.id"), index=True, nullable=False)
-    equipment_type_id: Mapped[int] = mapped_column(ForeignKey("equipment_types.id"), index=True, nullable=False)
-    quantity: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
-    last_updated: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-
-    warehouse: Mapped["Warehouse"] = relationship()
-    equipment_type: Mapped["EquipmentType"] = relationship()
-
-    __table_args__ = (
-        UniqueConstraint("warehouse_id", "equipment_type_id", name="uq_warehouse_items_wh_eqtype"),
-    )
-
-
-class CabinetItem(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
-    # Состав шкафа: какая номенклатура в каком шкафу и сколько.
-    __tablename__ = "cabinet_items"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    cabinet_id: Mapped[int] = mapped_column(ForeignKey("cabinets.id"), index=True, nullable=False)
-    equipment_type_id: Mapped[int] = mapped_column(ForeignKey("equipment_types.id"), index=True, nullable=False)
-    quantity: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
-
-    cabinet: Mapped["Cabinet"] = relationship()
-    equipment_type: Mapped["EquipmentType"] = relationship()
-
-    __table_args__ = (
-        UniqueConstraint("cabinet_id", "equipment_type_id", name="uq_cabinet_items_cb_eqtype"),
-    )
-```
-
-```python
-# app/models/io.py
-from sqlalchemy import String, Enum, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-import enum
-
-class SignalType(enum.Enum):
-    AI = "AI"
-    AO = "AO"
-    DI = "DI"
-    DO = "DO"
-
-class MeasurementType(enum.Enum):
-    mA_4_20 = "4-20mA"
-    v_0_10 = "0-10V"
-    other = "other"
-
-class IOSignal(Base, TimestampMixin, SoftDeleteMixin, VersionMixin):
-    __tablename__ = "io_signals"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    cabinet_component_id: Mapped[int] = mapped_column(ForeignKey("cabinet_items.id"), index=True, nullable=False)
-
-    tag_name: Mapped[str | None] = mapped_column(String(200))
-    signal_name: Mapped[str | None] = mapped_column(String(500))
-    plc_channel_address: Mapped[str | None] = mapped_column(String(100))
-
-    signal_type: Mapped[SignalType] = mapped_column(Enum(SignalType, name="signal_type"), nullable=False)
-    measurement_type: Mapped[MeasurementType] = mapped_column(Enum(MeasurementType, name="measurement_type"), nullable=False)
-
-    terminal_connection: Mapped[str | None] = mapped_column(String(100))
-    sensor_range: Mapped[str | None] = mapped_column(String(100))
-    engineering_units: Mapped[str | None] = mapped_column(String(50))
-
-    cabinet_component: Mapped["CabinetItem"] = relationship()
-```
-
----
-
-### 3.5. Движение оборудования (добавлено для закрытия требований)
-
-В текущей схеме (warehouse_items/cabinet_items) отсутствует **журнал движений**, из‑за чего:
-- сложно восстановить историю (“когда и кем перемещено”),
-- сложно корректно реализовать “последние действия с Equipment” на дашборде,
-- невозможно безопасно обработать конкурентные списания/перемещения без следа.
-
-Добавляется таблица движений:
-
-```python
-# app/models/movements.py
-from sqlalchemy import String, Enum, CheckConstraint, ForeignKey, Integer
-from sqlalchemy.orm import Mapped, mapped_column
-import enum
-
-class MovementType(enum.Enum):
-    inbound = "inbound"            # приход на склад (внешний источник)
-    transfer = "transfer"          # склад -> склад
-    to_cabinet = "to_cabinet"      # склад -> шкаф
-    from_cabinet = "from_cabinet"  # шкаф -> склад
-    direct_to_cabinet = "direct_to_cabinet"  # напрямую в шкаф
-    to_warehouse = "to_warehouse"  # зачисление на склад без источника
-    writeoff = "writeoff"          # списание
-    adjustment = "adjustment"      # инвентаризация/корректировка
-
-class EquipmentMovement(Base, TimestampMixin):
-    __tablename__ = "equipment_movements"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    movement_type: Mapped[MovementType] = mapped_column(Enum(MovementType, name="movement_type"), nullable=False, index=True)
-
-    equipment_type_id: Mapped[int] = mapped_column(ForeignKey("equipment_types.id"), index=True, nullable=False)
-    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
-
-    from_warehouse_id: Mapped[int | None] = mapped_column(ForeignKey("warehouses.id"), index=True)
-    to_warehouse_id: Mapped[int | None] = mapped_column(ForeignKey("warehouses.id"), index=True)
-
-    from_cabinet_id: Mapped[int | None] = mapped_column(ForeignKey("cabinets.id"), index=True)
-    to_cabinet_id: Mapped[int | None] = mapped_column(ForeignKey("cabinets.id"), index=True)
-
-    reference: Mapped[str | None] = mapped_column(String(200))  # накладная/заказ/акт
-    comment: Mapped[str | None] = mapped_column(String(1000))
-
-    performed_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True, nullable=False)
-
-    __table_args__ = (
-        CheckConstraint("quantity > 0", name="ck_equipment_movements_qty_positive"),
-    )
-```
-
-**Правило:** изменения `warehouse_items` и `cabinet_items` производятся только в транзакции вместе с записью в `equipment_movements`.
-
----
-
-### 3.6. Аудит (логирование действий)
-
-```python
-# app/models/audit.py
-from sqlalchemy import String, JSON, ForeignKey, Integer
-from sqlalchemy.orm import Mapped, mapped_column
-
-class AuditLog(Base, TimestampMixin):
-    __tablename__ = "audit_logs"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    actor_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True, nullable=False)
-    action: Mapped[str] = mapped_column(String(32), index=True, nullable=False)  # CREATE/UPDATE/DELETE/LOGIN/LOGOUT
-    entity: Mapped[str] = mapped_column(String(64), index=True, nullable=False)  # table/model name
-    entity_id: Mapped[int | None] = mapped_column(Integer, index=True)
-    before: Mapped[dict | None] = mapped_column(JSON)
-    after: Mapped[dict | None] = mapped_column(JSON)
-    meta: Mapped[dict | None] = mapped_column(JSON)  # ip, ua, request_id etc.
-```
-
----
-
-### 3.7. Вложения (файлы/изображения)
-
-```python
-# app/models/attachments.py
-from sqlalchemy import String, Integer, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column
-
-class Attachment(Base, TimestampMixin, SoftDeleteMixin):
-    __tablename__ = "attachments"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    entity: Mapped[str] = mapped_column(String(64), index=True, nullable=False)     # e.g. "equipment_types"
-    entity_id: Mapped[int] = mapped_column(Integer, index=True, nullable=False)    # target row id
-    filename: Mapped[str] = mapped_column(String(255), nullable=False)
-    content_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
-    storage_path: Mapped[str] = mapped_column(String(500), nullable=False)         # path on server / bucket key
-    uploaded_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True, nullable=False)
-```
-
----
-
-## 4. REST API спецификация (v1)
-
-### 4.1. Auth & Sessions
-**POST** `/api/v1/auth/login`  
-Request:
-```json
-{ "username": "user", "password": "secret" }
-```
-Response:
-```json
-{ "access_token": "<jwt>", "token_type": "bearer", "user": { "id": 1, "username": "user", "role": "engineer" } }
-```
-
-**POST** `/api/v1/auth/logout`  
-— завершает текущую сессию (логируется), инвалидирует токен (опционально через denylist).
-
-**GET** `/api/v1/auth/me`  
-— возвращает текущего пользователя.
-
-**GET** `/api/v1/sessions` (admin)  
-Query: `user_id`, `from`, `to`, `page`, `page_size`  
-— список логинов/сессий для дашборда 2.1.5.
-
-Требование: таймаут неактивности 5 минут. Реализация: short‑lived access token + refresh (или sliding expiration), либо server‑side sessions с last_seen.
-
----
-
-### 4.2. Унифицированные CRUD endpoints
-Для всех сущностей (кроме спец‑эндпоинтов) поддерживаются:
-- **GET** list (с пагинацией/поиском/фильтрами)
-- **GET** by id
-- **POST** create
-- **PUT** update (полное) или **PATCH** (частичное)
-- **DELETE** soft delete (по умолчанию)
-- **POST** `/restore` восстановление (для справочников)
-
-Также:
-- `include_deleted=true` — показывать удалённые (по умолчанию false)
-- `with_relations=true` — отдавать развёрнутые FK (например manufacturer name), либо всегда возвращать dto с joined полями.
-
----
-
-### 4.3. Dictionaries
-
-#### Manufacturers
-- `GET /api/v1/manufacturers`
-- `GET /api/v1/manufacturers/{id}`
-- `POST /api/v1/manufacturers`
-- `PUT /api/v1/manufacturers/{id}`
-- `DELETE /api/v1/manufacturers/{id}`
-- `POST /api/v1/manufacturers/{id}/restore`
-
-#### Locations
-- `GET /api/v1/locations` (плоский список)
-- `GET /api/v1/locations/tree` (дерево)
-- `POST /api/v1/locations`
-- `PUT /api/v1/locations/{id}`
-- `DELETE /api/v1/locations/{id}`
-- `POST /api/v1/locations/{id}/restore`
-
-Валидации:
-- запрет циклов `parent_id` (родитель не может быть потомком),
-- при delete: `ondelete=SET NULL` для ссылок, либо запрет удаления если используется (выбирается политикой).
-
-#### Equipment Categories
-- `GET /api/v1/equipment-categories`
-- `GET /api/v1/equipment-categories/{id}`
-- `POST /api/v1/equipment-categories`
-- `PUT /api/v1/equipment-categories/{id}`
-- `DELETE /api/v1/equipment-categories/{id}`
-- `POST /api/v1/equipment-categories/{id}/restore`
-
-#### Equipment Types
-- `GET /api/v1/equipment-types`
-- `GET /api/v1/equipment-types/{id}`
-- `POST /api/v1/equipment-types`
-- `PUT /api/v1/equipment-types/{id}`
-- `DELETE /api/v1/equipment-types/{id}`
-- `POST /api/v1/equipment-types/{id}/restore`
-
----
-
-### 4.4. Warehouses & Warehouse items
-
-#### Warehouses
-- `GET /api/v1/warehouses`
-- `GET /api/v1/warehouses/{id}`
-- `POST /api/v1/warehouses`
-- `PUT /api/v1/warehouses/{id}`
-- `DELETE /api/v1/warehouses/{id}`
-- `POST /api/v1/warehouses/{id}/restore`
-
-#### Warehouse items (остатки)
-- `GET /api/v1/warehouse-items`
-  - filters: `warehouse_id`, `equipment_type_id`, `manufacturer_id`, `equipment_category_id`,
-    `unit_price_rub_min`, `unit_price_rub_max`, `created_at_from/to`, `updated_at_from/to`, `q`, `include_deleted`
-- `GET /api/v1/warehouse-items/{id}`
-- `POST /api/v1/warehouse-items` (создание начального остатка; обычно через movements)
-- `PUT /api/v1/warehouse-items/{id}`
-- `DELETE /api/v1/warehouse-items/{id}`
-- `POST /api/v1/warehouse-items/{id}/restore`
-
-Рекомендуемый путь: изменять остатки **только** через endpoints движений.
-
----
-
-### 4.5. Cabinets & Cabinet items
-
-#### Cabinets
-- `GET /api/v1/cabinets`
-- `GET /api/v1/cabinets/{id}`
-- `POST /api/v1/cabinets`
-- `PUT /api/v1/cabinets/{id}`
-- `DELETE /api/v1/cabinets/{id}`
-- `POST /api/v1/cabinets/{id}/restore`
-
-#### Cabinet items
-- `GET /api/v1/cabinet-items`
-  - filters: `cabinet_id`, `equipment_type_id`
-- `GET /api/v1/cabinet-items/{id}`
-- `POST /api/v1/cabinet-items`
-- `PUT /api/v1/cabinet-items/{id}`
-- `DELETE /api/v1/cabinet-items/{id}`
-- `POST /api/v1/cabinet-items/{id}/restore`
-
----
-
-### 4.6. I/O Signals
-- `GET /api/v1/io-signals`
-  - filters: `cabinet_id` (через join), `cabinet_component_id`, `signal_type`, `tag_name`
-- `POST /api/v1/io-signals`
-- `PUT /api/v1/io-signals/{id}`
-- `DELETE /api/v1/io-signals/{id}`
-- `POST /api/v1/io-signals/{id}/restore`
-
-Валидации:
-- `cabinet_component_id` должен ссылаться на `cabinet_items`, где `equipment_type.is_channel_forming = true` (как указано в вашем файле).
-
----
-
-### 4.7. Movements (операции прихода/перемещения/списания)
-- `GET /api/v1/movements`
-  - filters: `movement_type`, `equipment_type_id`, `warehouse_id`, `cabinet_id`, `performed_by_id`, `created_at_from/to`, `q`
-- `POST /api/v1/movements`
-Request (пример transfer склад→шкаф):
-```json
-{
-  "movement_type": "to_cabinet",
-  "equipment_type_id": 10,
-  "quantity": 2,
-  "from_warehouse_id": 1,
-  "to_cabinet_id": 7,
-  "reference": "Накладная 123",
-  "comment": "Монтаж ШУ-12"
-}
-```
-Response: movement + пересчитанные остатки.
-
----
-
-### 4.8. Audit
-- `GET /api/v1/audit-logs` (admin/engineer)
-  - filters: `actor_id`, `entity`, `action`, `created_at_from/to`, `q`
-- `GET /api/v1/audit-logs/{id}`
-
----
-
-### 4.9. Dashboards (Overview)
-
-**GET** `/api/v1/dashboard`  
-Возвращает агрегаты для Overview:
-```json
-{
-  "metrics": {
-    "cabinets_total": 345,
-    "equipment_types_total": 120,
-    "warehouse_items_total": 560,
-    "cabinet_items_total": 410,
-    "signals_total": 7448
-  },
-  "equipment_by_type": [
-    { "equipment_type_id": 10, "name": "ПЛК", "quantity": 120, "percent": 10.0 }
-  ],
-  "equipment_by_warehouse": [
-    { "warehouse_id": 1, "warehouse": "Склад 1", "quantity": 134 }
-  ]
-}
-```
-Примечания:
-- `equipment_by_type.quantity` = сумма по складам и шкафам.
-- `signals_total` = count(io_signals) с учётом is_deleted=false.
-
----
-
-## 5. Требования к UI/UX (расширено)
-
-### 5.1. Общие принципы
-- Минималистичный современный интерфейс (нейтральные цвета, простая типографика, 8‑pt grid).
-- Адаптивность: desktop + tablet.
-- A11y: контраст, фокус‑стили, навигация с клавиатуры, aria‑лейблы.
-- Единый компонент таблиц и форм во всех разделах.
-
-### 5.2. Таблицы
-Для каждой таблицы:
-- server‑side **pagination**, **sorting**, **filtering**, **search**.
-- фиксированная панель действий:
-  - “+” добавить
-  - “⋮” действия: редактировать/копировать/вставить/удалить/восстановить (если удалено)
-- inline‑отображение статуса удалено/активно, переключатель “показывать удалённые”.
-- экспорт (добавлено): **CSV/XLSX** для инженеров/админов.
-- массовые операции (добавлено): multi‑select и bulk delete/restore (admin/engineer).
-
-### 5.3. Формы Create/Update
-- Pydantic‑валидация + отображение ошибок рядом с полями.
-- обязательные поля помечены.
-- Upload вложений (если разрешено для сущности).
-- tooltips для сложных полей.
-- подтверждение удалений.
-- предупреждение при уходе со страницы с несохранёнными изменениями (особенно для справочников).
-
-### 5.4. Overview (дашборды)
-- donut charts + bar charts (по складам) + табличные виджеты.
-- период/фильтры: “все склады / конкретный склад”, “все типы / тип”.
-- авто‑обновление по кнопке “Обновить” (не continuous, чтобы не грузить сеть).
-
-### 5.5. Роли и доступы в UI
-- Viewer: read‑only, скрывать кнопки действий.
-- Engineer: полный CRUD по бизнес‑таблицам и справочникам (кроме пользователей).
-- Admin: всё + управление пользователями/ролями.
-
----
-
-## 6. Требования к Backend (расширено)
-
-### 6.1. Безопасность
-- Пароли: bcrypt/argon2, политика сложности.
-- JWT (access/refresh) или server‑side sessions.
-- CORS только для доверенных origin в локальной сети.
-- CSRF: если cookies‑auth — включить CSRF; если Bearer JWT — CSRF не нужен, но нужно защищать XSS.
-- Rate limiting для login.
-- Audit trail обязателен для CREATE/UPDATE/DELETE + LOGIN/LOGOUT.
-
-### 6.2. Валидации и бизнес‑правила
-- `warehouse_items.quantity >= 0`, `cabinet_items.quantity >= 0`.
-- Поддерживаются **два независимых сценария наполнения шкафов**:
-  1. **Из склада** - через движения оборудования:
-     - движение "to_cabinet" уменьшает остаток на складе и увеличивает состав шкафа;
-     - запрещено выполнение операции при недостаточном остатке на складе.
-  2. **Непосредственно из номенклатуры (без склада)**:
-     - шкаф может быть наполнен оборудованием напрямую из `equipment_types`;
-     - при таком сценарии `warehouse_items` **не затрагиваются**;
-     - операция фиксируется как отдельный тип движения (см. ниже).
-- Тип движения `to_warehouse` используется для ручного зачисления на склад без источника (увеличивает `warehouse_items`).
-- Для `adjustment` backend принимает **ровно одну цель** (from_* или to_*), иначе возвращает 400.
-- Запрет списания (write-off) при недостаточном остатке применяется **только** к операциям,
-  которые используют склад или шкаф как источник.
-- Все изменения состава шкафов и складов должны выполняться в транзакции и логироваться.
-
-#### Дополнение: тип движения `direct_to_cabinet`
-Для поддержки наполнения шкафов без участия склада вводится дополнительный тип движения:
-- `direct_to_cabinet` — добавление оборудования в шкаф напрямую из номенклатуры.
-
-Бизнес-правила для `direct_to_cabinet`:
-- обязательно указаны: `equipment_type_id`, `to_cabinet_id`, `quantity`;
-- поля `from_warehouse_id`, `to_warehouse_id`, `from_cabinet_id` — `NULL`;
-- операция **не изменяет** `warehouse_items`;
-- операция увеличивает `cabinet_items.quantity`;
-- операция отображается в журнале движений и в аудит-логах;
-- используется для сценариев:
-  - шкаф поставлен уже укомплектованным;
-  - первичное заведение шкафа в систему;
-  - восстановление данных по проектной документации.
-- `io_signals.cabinet_component_id` — только для каналообразующего оборудования.
-- Для locations: защита от циклов.
-
-### 6.3. Наблюдаемость и эксплуатация (добавлено)
-- Structured logging (JSON logs).
-- request_id в каждом запросе.
-- Health endpoints: `/api/v1/health` (db connectivity).
-- Метрики (опционально): Prometheus.
-
----
-
-## 7. Требования к Frontend (расширено)
-
-- React 18 + TypeScript + Vite, React Router, состояние: TanStack Query.
-- Таблицы: TanStack Table.
-- UI kit: MUI (единые дизайн-токены).
-- Графики: Recharts.
-- Авторизация: хранение токена в localStorage + Bearer (как в текущей реализации).
-- Обработка ошибок: toast/snackbar + error boundary (частично).
-- Локализация: i18next, RU/EN, хранение выбора в localStorage.
-- Темы: light/dark через MUI ThemeProvider, хранение выбора в localStorage.
-
----
-
-## 8. Проверка коллизий и предложения исправлений
-
-### 8.1. Коллизия: “Qty в таблице Warehouses”
-В требованиях к дашборду 2.1.2 указано: “Данные берутся из суммы Qty таблицы Warehouses”.  
-В схеме `warehouses` поля `qty` нет; остатки находятся в `warehouse_items.quantity`.
-
-**Исправление:**
-- Источник данных дашборда 2.1.2: `SUM(warehouse_items.quantity) GROUP BY warehouse_id`.  
-- Не добавлять `qty` в warehouses (иначе будет денормализация и риск несогласованности).
-
-### 8.2. Коллизия: “Equipment” как отдельная таблица
-В UI описана вкладка “Equipment” как основная таблица приходов/учёта “по типам, наименованиям, идентификаторам и количеству”.
-В текущей схеме есть:
-- `equipment_types` (каталог типов),
-- `warehouse_items` (агрегированный остаток),
-но **нет** сущности “партия/приход/операция”, по которой можно показать “кто и когда добавил”.
-
-**Исправление (рекомендуемое):**
-- Использовать `equipment_movements` как “журнал Equipment”.  
-- Вкладка “Equipment” отображает список движений (inbound/transfer/…) с фильтрами и действиями.  
-- Остатки показывать отдельно (Warehouse items).
-
-### 8.3. Коллизия: “Учтено/Не учтено” как идентификатор
-Требуется donut по “Учтено/Не учтено”. В схеме нет соответствующего атрибута.
-
-**Исправление (варианты):**
-1) Добавить `accounting_status` в `equipment_movements.meta` (минимально инвазивно).  
-2) Добавить таблицу `inventory_batches` (если нужно вести инвентаризации/партии).
-
-### 8.4. Коллизия: цена для дашборда стоимости
-Дашборд 2.1.7 требует "общую стоимость по типам". В схеме цена не определена.
-
-**Текущая реализация:**
-- Цена хранится в `equipment_types.meta_data.unit_price_rub` и отдаётся в DTO как `unit_price_rub`.
-
-### 8.5. Soft delete + уникальность
-Справочники должны поддерживать “удалена, но хранится” и при этом иметь уникальные поля (`manufacturer.name`, `equipment_types.nomenclature_number`).
-Если использовать `unique=True` без учёта soft delete — нельзя будет создать запись с тем же именем после удаления.
-
-**Исправление:**
-- Убрать жёсткий unique constraint и заменить на **partial unique index** `WHERE is_deleted = false` (как в моделях выше).
-
-### 8.6. Конкурентные изменения остатков
-При одновременных изменениях остатков (двое инженеров) возможны race conditions.
-
-**Исправление:**
-- Все операции движения делать в транзакции.
-- Для строк `warehouse_items` при изменении использовать `SELECT ... FOR UPDATE` либо optimistic lock (`row_version`) + retry.
-
----
-
-## 9. Минимальный план разделов меню (предложение)
-
-- Overview (дашборды)
-- Dictionaries
-  - Manufacturers
-  - Locations
-  - Equipment Types
-- Warehouses
-  - Warehouses
-  - Warehouse items (остатки)
-  - Movements (журнал)
-- Cabinets
-  - Cabinets
-  - Cabinet items
-  - IO Signals (I/O list)
-- Admin (только admin)
-  - Users
-  - Sessions
-  - Audit logs
-
----
-
-## 10. Definition of Done (DoD)
-- RBAC реализован, UI скрывает запрещённые действия, backend проверяет права на каждом endpoint.
-- Все CRUD работают, фильтрация/поиск/пагинация на сервере.
-- Soft delete + restore для справочников.
-- Аудит: CREATE/UPDATE/DELETE + LOGIN/LOGOUT, доступен для просмотра.
-- Дашборды Overview соответствуют требованиям, считаются быстро (индексы, агрегации).
-- Миграции Alembic, базовый seed справочников.
-- Документация OpenAPI доступна `/docs`.
-
-
----
-
-## 11. Дополнительные требования (расширение ТЗ)
-
-### 11.1. Мультиязычность (i18n)
-- Реализовано через `react-i18next` (RU/EN).
-- Переключение языка доступно в верхней панели без перезагрузки.
-- Хранение выбора: localStorage (`eqm.lang`).
-- Backend локализацию сообщений пока не поддерживает.
-
-### 11.2. Темы оформления (Light / Dark mode)
-- Реализовано через MUI ThemeProvider (light/dark).
-- Переключение темы доступно в верхней панели.
-- Хранение выбора: localStorage (`eqm.theme`), с учётом `prefers-color-scheme` при первом запуске.
-
-### 11.3. Навигация и меню
-- Реализовано: вертикальный Drawer (permanent на desktop, temporary на mobile).
-- Навигация с иконками, активный пункт подсвечен.
-- Пункты Admin показываются только для роли admin.
-- Верхняя панель: приветствие пользователя, переключатели языка и темы, кнопка Logout.
-
-### 11.4. Пользовательские настройки
-- Статус: не реализовано (планируется).
-- Добавить раздел **User Settings**:
-  - язык интерфейса,
-  - тема оформления,
-  - предпочтительный размер таблиц (compact / default),
-  - количество строк на страницу по умолчанию.
-- Настройки должны храниться в БД и применяться при логине.
-
-### 11.5. Уведомления и обратная связь
-- Все системные события должны сопровождаться уведомлениями:
-  - успешное сохранение,
-  - ошибка валидации,
-  - ошибка сервера,
-  - предупреждения (например, недостаточно прав).
-- Формат уведомлений:
-  - toast/snackbar,
-  - авто‑закрытие + возможность ручного закрытия.
-- Для критических действий (удаление, списание) — modal confirmation.
-
-### 11.6. Обработка ошибок
-- Глобальный Error Boundary на frontend.
-- Страница 404 (not found) и 403 (forbidden).
-- Читаемые сообщения об ошибках для пользователя.
-- Детальная ошибка логируется только на backend.
-
-### 11.7. Экспорт и импорт данных
-- Экспорт таблиц:
-  - CSV,
-  - XLSX.
-- Импорт (опционально, role >= Engineer):
-  - CSV/XLSX для справочников и оборудования,
-  - предварительный preview данных перед сохранением,
-  - отчёт об ошибках импорта.
-
-### 11.8. История изменений (audit UI)
-- Для сущностей:
-  - Equipment movements,
-  - Warehouse items,
-  - Cabinet items,
-  - Dictionaries
-- В UI должна быть доступна вкладка **History**:
-  - кто изменил,
-  - когда,
-  - какие поля (diff).
-- Источник данных — таблица `audit_logs`.
-
-### 11.9. Производительность и ограничения
-- Время ответа API:
-  - CRUD операции ≤ 300 мс (p95),
-  - дашборды ≤ 1 сек.
-- Максимальные размеры:
-  - файл вложения ≤ 20 МБ,
-  - количество строк в таблице без фильтра — не более 100 000 (обязательная пагинация).
-- Все тяжёлые агрегации должны выполняться на стороне БД.
-
-### 11.10. Резервное копирование и восстановление
-- Регулярное резервное копирование PostgreSQL:
-  - daily full backup,
-  - хранение минимум 7 дней.
-- Документированная процедура восстановления.
-- Возможность восстановления данных без остановки frontend.
-
-### 11.11. Развёртывание и окружения
-- Минимум два окружения:
-  - development,
-  - production (on‑prem).
-- Конфигурация через переменные окружения.
-- Backend запускается через ASGI server (uvicorn/gunicorn).
-- Frontend собирается в static bundle и отдаётся через nginx.
-
-### 11.12. Тестирование
-- Backend:
-  - unit tests (services, validators),
-  - integration tests (API + DB).
-- Frontend:
-  - unit tests для компонентов,
-  - smoke tests для основных сценариев.
-- Минимальное покрытие: 60% (целевое — 80%).
-
-### 11.13. Документация
-- README:
-  - запуск проекта,
-  - переменные окружения,
-  - миграции,
-  - сидирование данных.
-- OpenAPI (Swagger) — актуален и используется как контракт.
-- Диаграмма БД (ER‑diagram) как часть документации.
-
-### 11.14. Масштабируемость и будущее развитие
-- Возможность:
-  - добавления новых типов дашбордов,
-  - расширения DCL‑листов,
-  - подключения внешних систем (ERP, MES) через API.
-- Архитектура должна быть готова к:
-  - выносу frontend/backend на разные хосты,
-  - росту количества пользователей без переписывания кода.
-
----
-
-
-
----
-
-## 12. ТЗ в формате для передачи подрядчику (Scope & Acceptance Criteria)
-
-### 12.1. Scope проекта
-Подрядчик обязан разработать web-приложение для учёта оборудования автоматизации со следующим объёмом работ:
-
-**Включено в scope:**
-- Backend (FastAPI):
-  - проектирование и реализация REST API;
-  - реализация RBAC (Admin / Engineer / Viewer);
-  - реализация CRUD для всех сущностей;
-  - аудит действий пользователей;
-  - дашборды и агрегаты;
-  - безопасность (auth, permissions, validations).
-- Frontend (React):
-  - SPA с роутингом;
-  - таблицы с фильтрацией/поиском/пагинацией;
-  - формы CRUD;
-  - дашборды и графики;
-  - мультиязычность и темы;
-  - role-based UI.
-- Database:
-  - PostgreSQL schema;
-  - Alembic migrations;
-  - seed-данные.
-- Документация:
-  - OpenAPI;
-  - README;
-  - ER-diagram.
-
-**Не входит в scope (по умолчанию):**
-- мобильные приложения;
-- облачное развёртывание;
-- интеграции с внешними ERP/MES (если не оговорено отдельно).
-
----
-
-### 12.2. Acceptance Criteria (общие)
-Функциональность считается принятой, если:
-- все endpoints доступны и документированы в Swagger;
-- роли корректно ограничивают доступ;
-- CRUD операции работают и логируются;
-- soft delete и restore функционируют;
-- дашборды отображают корректные данные;
-- приложение стабильно работает минимум с 10 одновременными пользователями;
-- отсутствуют критические уязвимости (SQLi/XSS/CSRF);
-- frontend не содержит console errors.
-
----
-
-## 13. Checklist реализации по этапам
-
-### 13.1. MVP (базовая рабочая версия)
-**Цель:** получить минимально рабочую систему учёта.
-
-Backend:
-- [x] Auth (login/logout, роли)
-- [x] Users, Sessions
-- [x] Manufacturers, Locations
-- [x] Equipment Types
-- [x] Warehouses, Warehouse Items
-- [x] Cabinets, Cabinet Items
-- [x] Movements (inbound, transfer)
-- [x] Audit logging
-- [x] Alembic migrations
-
-Frontend:
-- [x] Login page
-- [x] Layout + меню
-- [x] Таблицы (CRUD) без расширенной кастомизации
-- [x] Role-based UI
-- [x] Базовые формы
-
-DB:
-- [x] PostgreSQL schema
-- [x] Индексы
-- [x] Seed-данные
-
----
-
-### 13.2. v1 (функционально завершённая версия)
-**Цель:** полноценное использование инженерами.
-
-Backend:
-- [x] I/O Signals
-- [x] Write-off / adjustment movements
-- [x] Dashboard endpoints
-- [ ] Export CSV/XLSX
-- [ ] Optimistic locking
-- [ ] Backup scripts
-
-Frontend:
-- [x] Overview dashboards
-- [x] Фильтры, поиск, пагинация
-- [x] Dark / Light theme
-- [x] RU / EN
-- [ ] Notifications
-- [x] History (audit UI)
-
-UX:
-- [ ] Tooltips
-- [ ] Confirmation dialogs
-- [ ] Error pages (403/404)
-
----
-
-### 13.3. v2 (расширение и оптимизация)
-**Цель:** масштабируемость и удобство.
-
-- [ ] Импорт CSV/XLSX
-- [ ] Массовые операции
-- [ ] User settings
-- [ ] Advanced dashboards
-- [ ] Performance tuning
-- [ ] Metrics / monitoring
-- [ ] Подготовка к интеграциям (public API)
-
----
-
-## 14. ER-diagram (Mermaid)
+## 2. Контекст и компоненты
 
 ```mermaid
-erDiagram
-    USERS ||--o{ USER_SESSIONS : has
-    USERS ||--o{ AUDIT_LOGS : creates
-    USERS ||--o{ EQUIPMENT_MOVEMENTS : performs
-
-    MANUFACTURERS ||--o{ EQUIPMENT_TYPES : produces
-    LOCATIONS ||--o{ WAREHOUSES : contains
-    LOCATIONS ||--o{ CABINETS : contains
-    LOCATIONS ||--o{ LOCATIONS : parent
-
-    EQUIPMENT_TYPES ||--o{ WAREHOUSE_ITEMS : stored_as
-    WAREHOUSES ||--o{ WAREHOUSE_ITEMS : holds
-
-    EQUIPMENT_TYPES ||--o{ CABINET_ITEMS : installed_as
-    CABINETS ||--o{ CABINET_ITEMS : consists_of
-
-    CABINET_ITEMS ||--o{ IO_SIGNALS : provides
-
-    EQUIPMENT_TYPES ||--o{ EQUIPMENT_MOVEMENTS : moved
-    WAREHOUSES ||--o{ EQUIPMENT_MOVEMENTS : source_dest
-    CABINETS ||--o{ EQUIPMENT_MOVEMENTS : source_dest
-
-    USERS {
-        int id
-        string username
-        enum role
-    }
-
-    EQUIPMENT_TYPES {
-        int id
-        string name
-        string nomenclature_number
-        bool is_channel_forming
-    }
-
-    WAREHOUSE_ITEMS {
-        int quantity
-    }
-
-    CABINET_ITEMS {
-        int quantity
-    }
-
-    IO_SIGNALS {
-        string tag_name
-        enum signal_type
-    }
+flowchart LR
+    U[Пользователь в браузере] --> H[Host Nginx :80]
+    H --> F[React SPA / Nginx :18080]
+    H -->|/api, /docs, /health| B[FastAPI :18000]
+    B --> P[(PostgreSQL 16 :15432)]
+    B --> FS[(Локальные файловые каталоги)]
+    B -->|/v1/chat/completions| L[LM Studio / совместимый LLM API]
 ```
 
----
+Логические слои:
 
-## 15. Финальный критерий приёмки проекта
-Проект считается завершённым, если:
-- все пункты MVP + v1 реализованы;
-- система стабильно работает в локальной сети;
-- документация актуальна;
-- заказчик может развернуть систему самостоятельно по README;
-- архитектура допускает дальнейшее расширение без рефакторинга ядра.
+1. **Presentation** — React SPA, маршрутизация, таблицы, формы, редакторы схем и локализация.
+2. **Application/API** — FastAPI routers, зависимости авторизации, Pydantic DTO и прикладные сервисы.
+3. **Persistence** — SQLAlchemy 2.x, PostgreSQL 16, Alembic и JSONB-документы.
+4. **File storage** — фотографии, datasheet-файлы, вложения шкафов и P&ID-ресурсы.
+5. **Operations** — health-check, диагностика, аудит, резервная копия и offline deploy bundle.
 
+## 3. Технологический стек
 
----
+### 3.1. Backend
 
-## 16. Production-ready структура репозитория (FastAPI + React)
+- Python 3.12;
+- FastAPI и Uvicorn;
+- SQLAlchemy 2.x и psycopg2;
+- Alembic;
+- Pydantic 2 и pydantic-settings;
+- PyJWT, Passlib и bcrypt;
+- httpx для LLM-прокси;
+- openpyxl для табличного импорта/экспорта;
+- pytest и httpx для тестов.
 
-### 16.1. Монорепозиторий (рекомендуется)
-```
-project-root/
-  backend/
-    app/
-      __init__.py
-      main.py
-      api/
-        __init__.py
-        deps.py                 # зависимости (DB session, current_user, RBAC)
-        router.py               # корневой router v1
-        v1/
-          __init__.py
-          auth.py
-          users.py
-          manufacturers.py
-          locations.py
-          equipment_categories.py
-          equipment_types.py
-          warehouses.py
-          warehouse_items.py
-          cabinets.py
-          cabinet_items.py
-          io_signals.py
-          movements.py
-          audit_logs.py
-          sessions.py
-          dashboard.py
-      core/
-        __init__.py
-        config.py               # pydantic-settings
-        security.py             # password hashing, JWT/session helpers
-        logging.py              # structured logging, request_id
-      db/
-        __init__.py
-        base.py                 # Base + mixins
-        session.py              # engine, sessionmaker
-      models/
-        __init__.py
-        security.py
-        sessions.py
-        core.py
-        operations.py
-        io.py
-        movements.py
-        audit.py
-        attachments.py
-      schemas/                  # Pydantic DTO contracts
-        __init__.py
-        common.py
-        auth.py
-        users.py
-        manufacturers.py
-        locations.py
-        equipment_categories.py
-        equipment_types.py
-        warehouses.py
-        warehouse_items.py
-        cabinets.py
-        cabinet_items.py
-        io_signals.py
-        movements.py
-        audit_logs.py
-        dashboard.py
-      services/                 # бизнес-логика (use-cases)
-        __init__.py
-        auth_service.py
-        movement_service.py     # транзакции движения и пересчёт остатков
-        dashboard_service.py
-        audit_service.py
-      repositories/             # доступ к данным (query building)
-        __init__.py
-        base.py
-        manufacturers.py
-        locations.py
-        equipment_categories.py
-        equipment_types.py
-        warehouses.py
-        warehouse_items.py
-        cabinets.py
-        cabinet_items.py
-        io_signals.py
-        movements.py
-        users.py
-      utils/
-        __init__.py
-        pagination.py
-        filters.py
-        sorting.py
-        time.py
-      tests/
-        __init__.py
-        conftest.py
-        test_auth.py
-        test_movements.py
-        test_permissions.py
-    alembic/
-      env.py
-      script.py.mako
-      versions/
-        0001_initial.py
-        0002_indexes.py
-    scripts/
-      seed.py                   # заполнение справочников/пользователей
-      backup_db.ps1
-      backup_db.sh
-    pyproject.toml
-    requirements.txt
-    README.md
+Зависимости backend задаются нижними границами в `backend/requirements.txt`; воспроизводимость production обеспечивается заранее собранным Docker-образом.
 
-  frontend/
-    src/
-      app/
-        App.tsx
-        routes.tsx
-        providers/
-          AuthProvider.tsx
-          I18nProvider.tsx
-          ThemeProvider.tsx
-          QueryProvider.tsx
-      api/
-        client.ts               # fetch/axios wrapper, token handling
-        contracts.ts            # типы DTO (генерация из OpenAPI опционально)
-        endpoints/
-          auth.ts
-          manufacturers.ts
-          locations.ts
-          equipmentTypes.ts
-          warehouses.ts
-          warehouseItems.ts
-          cabinets.ts
-          cabinetItems.ts
-          ioSignals.ts
-          movements.ts
-          auditLogs.ts
-          dashboard.ts
-      components/
-        layout/
-          Sidebar.tsx
-          Topbar.tsx
-          PageShell.tsx
-        tables/
-          DataTable.tsx         # единый компонент таблиц (pagination/sort/filter)
-          TableToolbar.tsx
-        forms/
-          FormModal.tsx
-          FileUpload.tsx
-        common/
-          ConfirmDialog.tsx
-          Toast.tsx
-          ErrorBoundary.tsx
-      features/
-        overview/
-          OverviewPage.tsx
-          widgets/
-            DonutWidget.tsx
-            MetricsWidget.tsx
-            RecentActionsWidget.tsx
-        dictionaries/
-          DictionariesPage.tsx
-          ManufacturersPage.tsx
-          LocationsPage.tsx
-          EquipmentTypesPage.tsx
-        warehouses/
-          WarehousesPage.tsx
-          WarehouseItemsPage.tsx
-          MovementsPage.tsx
-        cabinets/
-          CabinetsPage.tsx
-          CabinetItemsPage.tsx
-          IoSignalsPage.tsx
-        admin/
-          UsersPage.tsx
-          SessionsPage.tsx
-          AuditLogsPage.tsx
-        settings/
-          UserSettingsPage.tsx
-      i18n/
-        index.ts
-        ru.json
-        en.json
-      theme/
-        tokens.ts
-        index.ts
-      styles/
-        globals.css
-      main.tsx
-    public/
-    package.json
-    tsconfig.json
-    vite.config.ts
-    README.md
+### 3.2. Frontend
 
-  docker/                       # опционально для dev
-    docker-compose.yml
-    nginx.conf
+- React 18.3.1;
+- TypeScript 5.9.3;
+- Vite 7.3.5;
+- Material UI 5.18.0 и Emotion;
+- TanStack Query 5 и TanStack Table 8;
+- React Router 6;
+- React Flow 11 для инженерных графов;
+- Recharts 2;
+- i18next/react-i18next;
+- Vitest и Testing Library.
 
-  README.md
+Точные версии frontend зафиксированы в `frontend/package-lock.json`.
+
+### 3.3. Runtime и инфраструктура
+
+- PostgreSQL 16;
+- Nginx 1.24 Alpine для SPA-контейнера;
+- Docker Compose для production runtime;
+- отдельный host Nginx как единая точка входа;
+- PowerShell-сценарии для локальной разработки и сборки offline bundle.
+
+## 4. Функциональные пространства
+
+Доступ в UI и API группируется по пространствам `SpaceKey`.
+
+| Пространство | Основные функции |
+| --- | --- |
+| `overview` | Дашборд, агрегаты, последние действия и логины |
+| `personnel` | Карточки персонала, компетенции, обучения, вложения, годовой график |
+| `equipment` | Номенклатура, технологическое оборудование, складские и шкафные позиции, движения |
+| `cabinets` | Шкафы, сборки, состав, фото, datasheet и файлы |
+| `engineering` | P&ID, I/O, IPAM, DCL, serial map, network map, digital twin |
+| `maintenance` | Инциденты, наряды, планы, наработка и надёжность |
+| `dictionaries` | Склады и иерархические справочники |
+| `admin_users` | Пользователи, роли и матрица прав |
+| `admin_sessions` | Активные и завершённые сессии |
+| `admin_audit` | Журнал аудита |
+| `admin_diagnostics` | Диагностика процессов, портов и журналов |
+
+Системные роли `admin`, `engineer`, `viewer` создаются при инициализации. Каталог ролей расширяем: дополнительные роли хранятся в `role_definitions`, а права — в `role_space_permissions`.
+
+## 5. Backend
+
+### 5.1. Структура
+
+```text
+backend/
+├─ alembic/versions/       # миграции БД
+├─ app/
+│  ├─ core/                # конфигурация, безопасность, RBAC, аудит, файлы
+│  ├─ db/                  # engine, session, bootstrap, declarative base
+│  ├─ models/              # SQLAlchemy-модели
+│  ├─ routers/             # HTTP API
+│  ├─ schemas/             # Pydantic DTO
+│  ├─ services/            # прикладная логика
+│  ├─ reference_data/      # исходные иерархические справочники
+│  └─ pid_storage/         # JSON-схемы и изображения P&ID
+├─ scripts/                # создание БД, seed, deploy metadata
+├─ storage/                # файлы шкафов
+├─ tests/                  # pytest
+└─ uploads/                # общие загруженные файлы
 ```
 
-### 16.2. Принципы модульности
-- **api/**: только HTTP слой (валидация входа/выхода, зависимости, RBAC guards).
-- **services/**: бизнес-логика, транзакции, расчёты, агрегаты.
-- **repositories/**: запросы к БД, построение фильтров/поиска/сортировки.
-- **schemas/**: DTO/контракты (Pydantic) — единый источник истины для API.
-- **models/**: ORM сущности (SQLAlchemy).
-- **frontend/features/**: feature-first структура; общие компоненты в components/.
+`app/main.py` создаёт одно FastAPI-приложение, подключает CORS, регистрирует routers под `/api/v1` и публикует P&ID-изображения через `StaticFiles`.
 
----
+### 5.2. API
 
-## 17. Alembic migrations + seed (пример)
+Базовый путь прикладного API — `/api/v1`. Служебные endpoints:
 
-### 17.1. Alembic: env.py (ключевые моменты)
-- Использовать `SQLALCHEMY_DATABASE_URL` из env.
-- Подключить `Base.metadata` из `app.db.base`.
-- Включить autogenerate и naming convention.
+- `GET /` — минимальная проверка доступности;
+- `GET /health` — статус и версия приложения;
+- `GET /docs` — Swagger UI;
+- `GET /openapi.json` — контракт API.
 
-Фрагмент (идея):
-```python
-# backend/alembic/env.py (фрагмент)
-from app.db.session import engine
-from app.db.base import Base
-from app.models import security, core, operations, io, movements, audit, attachments  # noqa: F401
+На момент актуализации OpenAPI содержит 241 path и 367 HTTP-операций. Контракт OpenAPI является источником истины для точного набора параметров и DTO.
 
-target_metadata = Base.metadata
+Основные группы endpoints:
+
+- `/auth`, `/users`, `/sessions`, `/audit-logs`, `/admin/role-permissions`, `/admin/diagnostics`;
+- `/manufacturers`, `/locations`, `/equipment-categories`, `/equipment-types`;
+- `/warehouses`, `/warehouse-items`, `/cabinets`, `/cabinet-items`, `/assemblies`, `/assembly-items`, `/movements`;
+- `/main-equipment`, `/technological-equipment`, `/equipment-in-operation`, `/io-signals`, `/io-tree`;
+- `/pid`, `/ipam`, `/network-topologies`, `/serial-map-documents`, `/digital-twins`;
+- `/personnel` и `/maintenance/*`;
+- `/dashboard` и `/chat`.
+
+Для справочников и основных реестров реализованы CRUD, soft delete/restore, серверная пагинация, поиск, сортировка и фильтрация. Многие сущности поддерживают XLSX import/export и выдачу шаблона.
+
+Исторический alias `/api/v1/equipment_categories` сохранён вместе с каноническим `/api/v1/equipment-categories` для обратной совместимости.
+
+### 5.3. Транзакции и конкурентные изменения
+
+- SQLAlchemy Session создаётся на запрос; `pool_pre_ping=True` проверяет соединения из пула.
+- Изменения бизнес-сущностей выполняются в транзакциях PostgreSQL.
+- `VersionMixin` добавляет `row_version`; обработчик `before_flush` увеличивает версию изменённого объекта.
+- Складские движения изменяют остатки и добавляют запись `equipment_movements` в одной транзакции.
+- Ограничения и уникальные индексы дублируют критические инварианты на уровне БД.
+
+## 6. Аутентификация, авторизация и безопасность
+
+### 6.1. Аутентификация
+
+- `POST /api/v1/auth/login` принимает JSON с логином и паролем.
+- Пароли хранятся как bcrypt-хеши.
+- Backend выпускает JWT с `user_id`, ролью, `session_id` и сроком действия.
+- В БД хранится только SHA-256-хеш токена сессии.
+- Каждый защищённый запрос проверяет JWT, пользователя и незавершённую запись `user_sessions`.
+- `heartbeat` обновляет `last_seen_at`; `logout` закрывает сессию.
+- Frontend хранит bearer token в `localStorage` под ключом `eqm_token`.
+
+### 6.2. RBAC
+
+Права задаются тройкой `can_read`, `can_write`, `can_admin` для пары роль/пространство. Нормализация гарантирует, что write/admin подразумевают read. Проверки выполняются:
+
+- на backend через зависимости `require_space_access`, `require_read_access`, `require_write_access`, `require_admin`;
+- на frontend через `RequireSpace`, фильтрацию меню и permission helpers.
+
+Frontend-проверки улучшают UX, но не считаются границей безопасности; окончательное решение всегда принимает backend.
+
+### 6.3. Production-ограничения конфигурации
+
+При `ENV=production` приложение отказывается запускаться с:
+
+- пустым или стандартным `JWT_SECRET` либо секретом короче 32 символов;
+- стандартными паролями БД и seed-администратора;
+- LLM endpoint вне loopback/private network и вне `LLM_ALLOWED_HOSTS`.
+
+CORS задаётся явным списком `CORS_ORIGINS`. SQL-инъекции ограничиваются параметризованными запросами SQLAlchemy. Upload API проверяет расширение, MIME и размер файлов.
+
+### 6.4. LLM-интеграция
+
+`/api/v1/chat` доступен читающим пользователям, `/api/v1/chat/admin` — только администраторам. Backend:
+
+- не принимает клиентский `output_schema`;
+- добавляет фиксированный системный prompt;
+- передаёт только сообщения пользователя;
+- ограничивает timeout и возвращает 502 при недоступности LLM;
+- запрещает произвольный внешний LLM-host в production.
+
+LLM не является обязательным для основного функционала EQM.
+
+## 7. Модель данных
+
+SQLAlchemy metadata содержит 51 таблицу. Общие mixin:
+
+- `TimestampMixin`: `created_at`, `updated_at`;
+- `SoftDeleteMixin`: `is_deleted`, `deleted_at`, `deleted_by_id`;
+- `VersionMixin`: `row_version`.
+
+### 7.1. Пользователи и контроль доступа
+
+- `users`, `user_sessions`, `audit_logs`;
+- `role_definitions`, `access_spaces`, `role_space_permissions`;
+- `attachments`.
+
+### 7.2. Справочники и структура объекта
+
+- `manufacturers`, `equipment_categories`, `locations` — иерархические справочники;
+- `main_equipment` — иерархия основного оборудования;
+- `technological_equipment` — технологические объекты с основным механизмом, приводом, тегом и локацией;
+- `measurement_units`, `signal_types`, `data_types`;
+- `equipment_types` — номенклатура с I/O-, network-, serial- и power-атрибутами.
+
+Legacy-таблица `field_equipments` удалена миграцией 0049. Привязка полевого оборудования в актуальной модели выполняется через категорию оборудования.
+
+### 7.3. Учёт оборудования
+
+- `warehouses`, `warehouse_items`;
+- `cabinets`, `cabinet_items`, `cabinet_files`;
+- `assemblies`, `assembly_items`;
+- `equipment_movements`.
+
+Поддерживаемые движения: `inbound`, `transfer`, `to_cabinet`, `from_cabinet`, `direct_to_cabinet`, `to_assembly`, `direct_to_assembly`, `to_warehouse`, `writeoff`, `adjustment`.
+
+### 7.4. Инженерные данные
+
+- `io_signals` — каналы, адреса ПЛК, типы данных/сигнала, категория, диапазоны и единицы измерения;
+- `pid_processes`; содержимое P&ID хранится в JSON-файлах в `PID_STORAGE_ROOT`;
+- `network_topology_documents`, `serial_map_documents`, `digital_twin_documents` — версионируемые JSONB-документы;
+- `vlans`, `subnets`, `equipment_network_interfaces`, `ip_addresses`, `ip_address_audit_logs` — IPAM.
+
+### 7.5. Персонал
+
+- `personnel`, `personnel_competencies`, `personnel_trainings`;
+- `personnel_schedule_templates`;
+- `personnel_yearly_schedule_assignments`, `personnel_yearly_schedule_events`.
+
+Карточка персонала может быть связана с пользователем EQM, но пользователь и сотрудник остаются разными сущностями.
+
+### 7.6. ТОиР
+
+- справочники: `mnt_failure_modes`, `mnt_failure_mechanisms`, `mnt_failure_causes`, `mnt_detection_methods`, `mnt_activity_types`;
+- события и работы: `mnt_incidents`, `mnt_incident_components`, `mnt_work_orders`, `mnt_work_order_items`;
+- планирование и аналитика: `mnt_plans`, `mnt_operating_time`.
+
+Актуальную физическую схему следует получать из SQLAlchemy metadata и Alembic. `docs/EQM_DB_ERD.md` остаётся обзорной схемой и требует синхронизации после изменений моделей; на дату этого документа в нём ещё присутствует удалённая таблица `field_equipments` и отсутствует часть ТОиР/технологического оборудования.
+
+## 8. Ключевые бизнес-процессы
+
+### 8.1. Движение оборудования
+
+Клиент отправляет одиночную или пакетную операцию в `/api/v1/movements`. Backend валидирует обязательные источник/назначение, блокирует отрицательный остаток, обновляет агрегированные позиции склада/шкафа/сборки и пишет неизменяемую запись движения с исполнителем.
+
+Прямое добавление в шкаф или сборку не требует складского источника. Удаление учётной позиции не должно подменять движение: история количества сохраняется в журнале операций.
+
+### 8.2. I/O
+
+I/O строится вокруг уникальных экземпляров оборудования в эксплуатации. API предоставляет плоский список, дерево, import/export и rebuild. Сигнал связан с каналом, типом данных, типом сигнала, категорией оборудования и единицей измерения.
+
+### 8.3. IPAM
+
+IPAM управляет VLAN, подсетями, вычислением адресного пространства, резервированием/назначением/освобождением IP и сетевыми интерфейсами оборудования. Каждое изменение IP фиксируется в отдельном журнале `ip_address_audit_logs`.
+
+### 8.4. Инженерные редакторы
+
+P&ID сохраняет описание процесса в файловом JSON-хранилище. Network map, serial map и digital twin используют JSONB-документы в PostgreSQL, поддерживают привязку к локации/источнику, дублирование и optimistic versioning.
+
+### 8.5. ТОиР
+
+Инцидент может включать затронутые компоненты и классификацию отказа. Наряд связывается с инцидентом или планом и содержит состав работ. Наработка используется для сводок надёжности, трендов отказов и рейтинга причин.
+
+## 9. Frontend
+
+### 9.1. Структура приложения
+
+```text
+frontend/src/
+├─ api/             # HTTP-клиенты и контракты
+├─ components/      # общие компоненты и UI primitives
+├─ context/         # AuthContext и ThemeContext
+├─ features/        # IPAM, P&ID, network map, serial map, digital twin, schedule
+├─ i18n/            # ru/en ресурсы
+├─ navigation/      # единая модель меню
+├─ pages/           # route-level страницы
+├─ utils/           # форматирование и helpers
+├─ App.tsx          # lazy routes и guards
+└─ main.tsx         # bootstrap React
 ```
 
-### 17.2. Migration 0001_initial.py (примерный каркас)
-> Пример ниже намеренно сокращён. В реальном проекте Alembic autogenerate создаст полный DDL.
+Route-level страницы загружаются через `React.lazy`/`Suspense`. TanStack Query управляет серверным состоянием. Авторизация и вычисленные права доступны через `AuthContext`; тема — через `ThemeContext`.
 
-```python
-# backend/alembic/versions/0001_initial.py
-from alembic import op
-import sqlalchemy as sa
+### 9.2. Навигация
 
-revision = "0001_initial"
-down_revision = None
+Основные route-группы:
 
-def upgrade():
-    op.create_table(
-        "users",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("username", sa.String(length=64), nullable=False),
-        sa.Column("password_hash", sa.String(length=255), nullable=False),
-        sa.Column("role", sa.Enum("admin","engineer","viewer", name="user_role"), nullable=False),
-        sa.Column("is_deleted", sa.Boolean(), server_default=sa.text("false"), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-    )
-    op.create_index("ix_users_username", "users", ["username"], unique=True)
+- `/dashboard`;
+- `/personnel/*`;
+- `/equipment/*`, `/warehouse-items`, `/cabinet-items`, `/movements`;
+- `/cabinets/*`, `/assemblies/*`;
+- `/engineering/*`, `/io-signals`, `/ipam`;
+- `/maintenance/*`;
+- `/dictionaries/*`, `/warehouses`;
+- `/admin/*`;
+- `/help`.
 
-    op.create_table(
-        "manufacturers",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("name", sa.String(length=100), nullable=False),
-        sa.Column("country", sa.String(length=100), nullable=False),
-        sa.Column("is_deleted", sa.Boolean(), server_default=sa.text("false"), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-    )
-    # ... остальные таблицы ...
+Модель меню и route guards используют одинаковые ключи пространств, что снижает риск показа недоступных разделов.
 
-def downgrade():
-    op.drop_table("manufacturers")
-    op.drop_table("users")
+### 9.3. API base URL
+
+В development frontend использует `VITE_API_URL`, а при его отсутствии — `http://localhost:8000/api/v1`. Production-сборка использует `/api/v1`, который host Nginx проксирует в backend.
+
+## 10. Файловое хранение
+
+Файлы не сохраняются в PostgreSQL; БД содержит метаданные и имена.
+
+| Категория | Настройка/каталог | Ограничения |
+| --- | --- | --- |
+| Фото номенклатуры/шкафов | `PHOTO_DIR` | JPEG/PNG/WebP, до 2 MB |
+| Datasheet | `DATASHEET_DIR` | PDF/XLSX/DOC/DOCX, до 5 MB |
+| Файлы шкафов | `CABINET_FILES_DIR` | лимит `CABINET_FILES_MAX_SIZE`, production default 10 GB |
+| Общие вложения | `UPLOAD_DIR` | метаданные в `attachments` |
+| P&ID | `PID_STORAGE_ROOT` | diagrams JSON и images |
+
+Production-каталоги монтируются в контейнер backend как bind volumes и должны входить в резервное копирование.
+
+## 11. Конфигурация
+
+Backend читает `backend/.env`; production Compose использует `deploy/app/.env`. Основные группы переменных:
+
+- БД: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`;
+- security: `ENV`, `JWT_SECRET`, `JWT_ALGORITHM`, `JWT_EXPIRE_MINUTES`, `CORS_ORIGINS`;
+- URL/runtime: `PUBLIC_BASE_URL`, `FRONTEND_*`, `BACKEND_*`;
+- storage: `PHOTO_DIR`, `DATASHEET_DIR`, `UPLOAD_DIR`, `CABINET_FILES_DIR`, `PID_STORAGE_ROOT`;
+- LLM: `LM_STUDIO_BASE_URL`, `LM_STUDIO_API_KEY`, `LM_MODEL`, `LLM_ALLOWED_HOSTS`;
+- bootstrap: `SEED_ADMIN_USERNAME`, `SEED_ADMIN_PASSWORD`, `ALLOW_ADMIN_PASSWORD_RESET`.
+
+Секреты не должны попадать в Git. В репозитории хранятся только `.env.example` с placeholder-значениями.
+
+## 12. Миграции и bootstrap
+
+Схема развивается через Alembic. Текущий head — `0050_add_main_equipment_drive_to_technological_equipment`; в каталоге миграций находятся 51 файл, включая merge revision для исторического разветвления.
+
+Production backend запускается в последовательности:
+
+1. `python -m app.db.bootstrap` — гарантирует служебную таблицу Alembic;
+2. `alembic upgrade head`;
+3. повторный bootstrap — создаёт/восстанавливает seed-администратора;
+4. `uvicorn app.main:app --host 0.0.0.0 --port 8000`.
+
+Скрипт `backend/scripts/seed.py` заполняет базовые справочники, роли и демонстрационные/начальные данные. Текущий bootstrap синхронизирует роль и пароль seed-администратора со значениями окружения при каждом запуске, поэтому production-значение `SEED_ADMIN_PASSWORD` является постоянным секретом эксплуатации.
+
+## 13. Развёртывание
+
+### 13.1. Локальная разработка
+
+Штатная схема:
+
+```text
+Browser -> Vite :5173 -> FastAPI :8000 -> PostgreSQL :5432
 ```
 
-### 17.3. Seed-скрипт (scripts/seed.py)
-Требования к seed:
-- создаёт администратора (если отсутствует);
-- добавляет минимальные справочники (manufacturers, equipment_types пример, warehouses пример);
-- запускается идемпотентно.
-
-```python
-# backend/scripts/seed.py
-import os
-from sqlalchemy import select
-from app.db.session import SessionLocal
-from app.core.security import hash_password
-from app.models.security import User, UserRole
-from app.models.core import Manufacturer, EquipmentType, Warehouse
-
-def run():
-    db = SessionLocal()
-    try:
-        # Admin user
-        admin_username = os.getenv("SEED_ADMIN_USERNAME", "admin")
-        admin_password = os.getenv("SEED_ADMIN_PASSWORD", "admin123")
-        admin = db.scalar(select(User).where(User.username == admin_username))
-        if not admin:
-            admin = User(username=admin_username, password_hash=hash_password(admin_password), role=UserRole.admin)
-            db.add(admin)
-
-        # Manufacturers
-        siemens = db.scalar(select(Manufacturer).where(Manufacturer.name == "Siemens", Manufacturer.is_deleted == False))
-        if not siemens:
-            siemens = Manufacturer(name="Siemens", country="Germany")
-            db.add(siemens)
-
-        # Warehouses
-        wh = db.scalar(select(Warehouse).where(Warehouse.name == "Склад 1", Warehouse.is_deleted == False))
-        if not wh:
-            wh = Warehouse(name="Склад 1")
-            db.add(wh)
-
-        # Equipment type example (with price)
-        et = db.scalar(select(EquipmentType).where(EquipmentType.nomenclature_number == "PLC-001", EquipmentType.is_deleted == False))
-        if not et:
-            et = EquipmentType(
-                name="ПЛК базовый",
-                nomenclature_number="PLC-001",
-                manufacturer=siemens,
-                is_channel_forming=True,
-                channel_count=16,
-                meta_data={"unit_price_rub": 100000}
-            )
-            db.add(et)
-
-        db.commit()
-        print("Seed completed.")
-    finally:
-        db.close()
-
-if __name__ == "__main__":
-    run()
-```
-
----
-
-## 18. User Stories + Acceptance Criteria по ролям
-
-### 18.1. Общие определения
-- “Могу” = доступно по UI и разрешено backend-ом (RBAC enforced).
-- “Просмотрщик” никогда не видит кнопки действий и не может выполнять write-endpoints.
-
-### 18.2. Admin (Администратор)
-
-**US-A1: Управление пользователями**
-- Как Admin, я хочу создавать пользователей и назначать роли, чтобы управлять доступом.
-**AC:**
-- Admin видит меню Admin → Users.
-- Admin может: создать пользователя, сбросить пароль, изменить роль, деактивировать (soft delete).
-- Пароль в БД не хранится в открытом виде; используется hash.
-- Все действия пишутся в `audit_logs` (action=CREATE/UPDATE/DELETE, entity=users).
-
-**US-A2: Просмотр сессий и логинов**
-- Как Admin, я хочу видеть историю логинов, чтобы контролировать доступ.
-**AC:**
-- Admin видит Admin → Sessions.
-- Список фильтруется по user/date.
-- Видны started_at, ended_at, end_reason.
-
-**US-A3: Аудит действий**
-- Как Admin, я хочу просматривать действия всех пользователей.
-**AC:**
-- Admin видит Admin → Audit Logs.
-- Есть поиск, фильтры по actor/entity/action/датам.
-- Запись содержит before/after (если применимо).
-
-### 18.3. Engineer (Инженер)
-
-**US-E1: Управление справочниками**
-- Как Engineer, я хочу создавать/редактировать/удалять записи справочников, чтобы поддерживать актуальные данные.
-**AC:**
-- Engineer видит Dictionaries и все CRUD-кнопки.
-- Удаление — soft delete. Есть переключатель “показывать удалённые”.
-- Есть restore.
-- Уникальность справочников соблюдается для active записей (partial unique index).
-
-**US-E2: Движение оборудования**
-- Как Engineer, я хочу оформлять приход/перемещение/списание, чтобы остатки были корректны.
-**AC:**
-- Любая операция движения создаёт запись в `equipment_movements`.
-- Остатки в `warehouse_items`/`cabinet_items` корректируются в одной транзакции.
-- Нельзя списать больше остатка.
-- Конкурентные операции не приводят к отрицательным остаткам.
-
-**US-E3: Ведение I/O сигналов**
-- Как Engineer, я хочу добавлять/редактировать сигналы, чтобы поддерживать I/O лист.
-**AC:**
-- Сигнал можно привязать только к `cabinet_items`, где equipment_type.is_channel_forming=true.
-- Поддерживаются фильтры по шкафу и типу сигнала.
-- CRUD логируется.
-
-### 18.4. Viewer (Просмотрщик)
-
-**US-V1: Просмотр данных без изменения**
-- Как Viewer, я хочу просматривать данные и дашборды, не рискуя их изменить.
-**AC:**
-- Viewer видит все вкладки (кроме Admin).
-- Отсутствуют кнопки создания/редактирования/удаления.
-- Backend отклоняет любые POST/PUT/PATCH/DELETE (403).
-- Viewer может использовать фильтры/поиск/пагинацию.
-
----
-
-## 19. API contracts (DTO / Pydantic schemas) для ключевых endpoints
-
-### 19.1. Общие схемы
-```python
-# app/schemas/common.py
-from pydantic import BaseModel, Field
-from typing import Generic, TypeVar, List, Optional
-from datetime import datetime
-
-T = TypeVar("T")
-
-class Pagination(BaseModel, Generic[T]):
-    items: List[T]
-    page: int = Field(ge=1)
-    page_size: int = Field(ge=1, le=200)
-    total: int = Field(ge=0)
-
-class EntityBase(BaseModel):
-    id: int
-    created_at: datetime
-    updated_at: datetime
-
-class SoftDeleteFields(BaseModel):
-    is_deleted: bool
-    deleted_at: Optional[datetime] = None
-```
-
-### 19.2. Auth
-```python
-# app/schemas/auth.py
-from pydantic import BaseModel
-from .users import UserOut
-
-class LoginIn(BaseModel):
-    username: str
-    password: str
-
-class TokenOut(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    user: UserOut
-```
-
-### 19.3. Users
-```python
-# app/schemas/users.py
-from pydantic import BaseModel, Field
-from enum import Enum
-from .common import EntityBase, SoftDeleteFields
-
-class UserRole(str, Enum):
-    admin = "admin"
-    engineer = "engineer"
-    viewer = "viewer"
-
-class UserOut(EntityBase, SoftDeleteFields):
-    username: str
-    role: UserRole
-
-class UserCreate(BaseModel):
-    username: str = Field(min_length=3, max_length=64)
-    password: str = Field(min_length=8, max_length=128)
-    role: UserRole
-
-class UserUpdate(BaseModel):
-    password: str | None = Field(default=None, min_length=8, max_length=128)
-    role: UserRole | None = None
-    is_deleted: bool | None = None
-```
-
-### 19.4. Dictionaries: Manufacturers / Equipment Categories / Equipment Types
-```python
-# app/schemas/manufacturers.py
-from pydantic import BaseModel, Field
-from .common import EntityBase, SoftDeleteFields
-
-class ManufacturerOut(EntityBase, SoftDeleteFields):
-    name: str
-    country: str
-
-class ManufacturerCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=100)
-    country: str = Field(min_length=1, max_length=100)
-
-class ManufacturerUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=100)
-    country: str | None = Field(default=None, min_length=1, max_length=100)
-    is_deleted: bool | None = None
-```
-
-```python
-# app/schemas/equipment_categories.py
-from pydantic import BaseModel, Field
-from .common import EntityBase, SoftDeleteFields
-
-class EquipmentCategoryOut(EntityBase, SoftDeleteFields):
-    name: str
-
-class EquipmentCategoryCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=200)
-
-class EquipmentCategoryUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=200)
-    is_deleted: bool | None = None
-```
-
-```python
-# app/schemas/equipment_types.py
-from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
-from .common import EntityBase, SoftDeleteFields
-
-class EquipmentTypeOut(EntityBase, SoftDeleteFields):
-    name: str
-    nomenclature_number: str
-    manufacturer_id: int
-    equipment_category_id: int | None = None
-    is_channel_forming: bool
-    channel_count: int
-    unit_price_rub: float | None = None
-    meta_data: Optional[Dict[str, Any]] = None
-
-class EquipmentTypeCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=200)
-    nomenclature_number: str = Field(min_length=1, max_length=100)
-    manufacturer_id: int
-    equipment_category_id: int | None = None
-    is_channel_forming: bool = False
-    channel_count: int = Field(default=0, ge=0)
-    unit_price_rub: float | None = Field(default=None, ge=0)
-    meta_data: Optional[Dict[str, Any]] = None
-
-class EquipmentTypeUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=200)
-    manufacturer_id: int | None = None
-    equipment_category_id: int | None = None
-    is_channel_forming: bool | None = None
-    channel_count: int | None = Field(default=None, ge=0)
-    unit_price_rub: float | None = Field(default=None, ge=0)
-    meta_data: Optional[Dict[str, Any]] = None
-    is_deleted: bool | None = None
-```
-
-### 19.5. Movements (ключевой бизнес-эндпоинт)
-```python
-# app/schemas/movements.py
-from pydantic import BaseModel, Field, model_validator
-from enum import Enum
-from typing import Optional
-from .common import EntityBase
-
-class MovementType(str, Enum):
-    inbound = "inbound"
-    transfer = "transfer"
-    to_cabinet = "to_cabinet"
-    from_cabinet = "from_cabinet"
-    direct_to_cabinet = "direct_to_cabinet"
-    to_warehouse = "to_warehouse"
-    writeoff = "writeoff"
-    adjustment = "adjustment"
-
-class MovementCreate(BaseModel):
-    movement_type: MovementType
-    equipment_type_id: int
-    quantity: int = Field(ge=1)
-
-    from_warehouse_id: Optional[int] = None
-    to_warehouse_id: Optional[int] = None
-    from_cabinet_id: Optional[int] = None
-    to_cabinet_id: Optional[int] = None
-
-    reference: Optional[str] = Field(default=None, max_length=200)
-    comment: Optional[str] = Field(default=None, max_length=1000)
-
-    @model_validator(mode="after")
-    def validate_targets(self):
-        mt = self.movement_type
-        if mt == MovementType.inbound:
-            if not self.to_warehouse_id:
-                raise ValueError("to_warehouse_id is required for inbound")
-        if mt == MovementType.transfer:
-            if not self.from_warehouse_id or not self.to_warehouse_id:
-                raise ValueError("from_warehouse_id and to_warehouse_id are required for transfer")
-        if mt == MovementType.to_cabinet:
-            if not self.from_warehouse_id or not self.to_cabinet_id:
-                raise ValueError("from_warehouse_id and to_cabinet_id are required for to_cabinet")
-        if mt == MovementType.from_cabinet:
-            if not self.from_cabinet_id or not self.to_warehouse_id:
-                raise ValueError("from_cabinet_id and to_warehouse_id are required for from_cabinet")
-        if mt == MovementType.direct_to_cabinet:
-            if not self.to_cabinet_id:
-                raise ValueError("to_cabinet_id is required for direct_to_cabinet")
-        if mt == MovementType.to_warehouse:
-            if not self.to_warehouse_id:
-                raise ValueError("to_warehouse_id is required for to_warehouse")
-        if mt == MovementType.writeoff:
-            if not (self.from_warehouse_id or self.from_cabinet_id):
-                raise ValueError("from_warehouse_id or from_cabinet_id is required for writeoff")
-        if mt == MovementType.adjustment:
-            if not (self.from_warehouse_id or self.from_cabinet_id or self.to_warehouse_id or self.to_cabinet_id):
-                raise ValueError("from_* or to_* is required for adjustment")
-        return self
-
-class MovementOut(EntityBase):
-    movement_type: MovementType
-    equipment_type_id: int
-    quantity: int
-    from_warehouse_id: Optional[int] = None
-    to_warehouse_id: Optional[int] = None
-    from_cabinet_id: Optional[int] = None
-    to_cabinet_id: Optional[int] = None
-    reference: Optional[str] = None
-    comment: Optional[str] = None
-    performed_by_id: int
-```
-
-### 19.6. Dashboard DTO (пример)
-```python
-# app/schemas/dashboard.py
-from pydantic import BaseModel
-from typing import List
-
-class EquipmentByTypeItem(BaseModel):
-    equipment_type_id: int
-    name: str
-    quantity: int
-    percent: float
-
-class EquipmentByWarehouseItem(BaseModel):
-    warehouse_id: int
-    warehouse: str
-    quantity: int
-
-class MetricsOut(BaseModel):
-    cabinets_total: int
-    equipment_types_total: int
-    warehouse_items_total: int
-    cabinet_items_total: int
-    signals_total: int
-
-class DashboardOut(BaseModel):
-    metrics: MetricsOut
-    equipment_by_type: List[EquipmentByTypeItem]
-    equipment_by_warehouse: List[EquipmentByWarehouseItem]
-```
-
----
-
-### 19.7. Рекомендация по генерации контрактов на Frontend
-- Источник истины: OpenAPI `/docs` (FastAPI).
-- Опционально: генерация TypeScript типов из OpenAPI (openapi-typescript) и хранение в `frontend/src/api/contracts.ts`.
-
-
----
-
-## 20. UI-логика наполнения шкафов: «Со склада» / «Непосредственно в шкаф»
-
-### 20.1. Где реализуется
-Сценарий наполнения шкафов реализуется в разделе **Cabinets → Cabinet items** (и/или отдельной странице **Cabinets → Movements**, если вы выносите журнал операций по шкафам отдельно).
-
-Рекомендуемая реализация (наиболее понятна пользователям):
-- В **Cabinet items** отображается текущий состав шкафа (таблица).
-- Кнопка **“+” Добавить** открывает модальное окно **“Добавить оборудование в шкаф”**.
-
-### 20.2. Выбор сценария (UI)
-В модальном окне “Добавить оборудование в шкаф” первым полем идёт переключатель источника:
-
-- **Источник оборудования** (segmented control / radio):
-  - **Со склада**
-  - **Непосредственно в шкаф (без склада)**
-
-По умолчанию:
-- если в системе есть склады и пользователь ранее выбирал источник — использовать последнее значение (из user settings);
-- иначе дефолт: **Непосредственно в шкаф** (т.к. типичный сценарий — шкаф приходит укомплектованным).
-
-### 20.3. Поведение формы в зависимости от сценария
-
-#### 20.3.1. Сценарий «Со склада»
-UI-поля:
-- Warehouse (dropdown, обязательное)
-- Equipment type (dropdown, обязательное)
-- Quantity (number, обязательное, >=1)
-- Reference (опционально)
-- Comment (опционально)
-
-UX-логика:
-- После выбора склада и номенклатуры отображать **доступный остаток** (read-only): `available_quantity`.
-- При вводе Quantity:
-  - если `quantity > available_quantity` — ошибка валидации (до отправки формы).
-- Кнопка “Сохранить” вызывает:
-  - `POST /api/v1/movements` с `movement_type="to_cabinet"` и `from_warehouse_id`, `to_cabinet_id`.
-
-Серверные ошибки:
-- 409 Conflict (recommended): “Недостаточно остатка” (если остаток изменился конкурентно).
-- UI должен показать сообщение и предложить обновить остатки.
-
-#### 20.3.2. Сценарий «Непосредственно в шкаф (без склада)»
-UI-поля:
-- Equipment type (dropdown, обязательное)
-- Quantity (number, обязательное, >=1)
-- Reference (опционально, например “Поставка шкафа ШУ‑12”, “As-built”)
-- Comment (опционально)
-
-UX-логика:
-- Поле Warehouse скрыто/отключено.
-- Отсутствует проверка доступного остатка.
-- Кнопка “Сохранить” вызывает:
-  - `POST /api/v1/movements` с `movement_type="direct_to_cabinet"` и `to_cabinet_id`.
-
-### 20.4. Дополнительные UX детали (рекомендуется)
-- В таблице Cabinet items добавить колонку **“Источник”** (computed):
-  - показывает агрегированно, какие позиции попали “со склада” и какие “direct”.
-  - Реализация: опционально через агрегаты по `equipment_movements` (если требуется аналитика).
-- Для действий “Удалить” из состава шкафа:
-  - вместо прямого DELETE CabinetItem рекомендуется оформлять **движение обратного типа**:
-    - “from_cabinet” (в склад) или
-    - “writeoff” (списание),
-    - “adjustment” (корректировка).
-  - Это сохраняет консистентность журнала и аудита.
-- Добавить быстрый переход из Cabinet items в Movements с pre-filter `cabinet_id`.
-
-### 20.5. Требования к отображению в журнале Movements
-В таблице Movements (журнал):
-- добавить фильтр `movement_type` (включая direct_to_cabinet),
-- в строке операции отображать:
-  - Source: Warehouse/Cabinet/— (для direct)
-  - Destination: Warehouse/Cabinet/—,
-  - Quantity, Equipment type, Performed by, DateTime, Reference.
-
-### 20.6. Требования к API для поддержки UX (минимальные расширения)
-Для сценария “Со склада” UI должен получать доступный остаток. Два допустимых варианта:
-
-**Вариант A (рекомендуется):** использовать существующий list endpoint
-- `GET /api/v1/warehouse-items?warehouse_id=...&equipment_type_id=...`
-- UI вытаскивает `quantity` как `available_quantity`.
-
-**Вариант B (доп. endpoint для удобства):**
-- `GET /api/v1/warehouses/{warehouse_id}/availability?equipment_type_id=...`
-- Response: `{ "warehouse_id": 1, "equipment_type_id": 10, "available_quantity": 12 }`
-
-Оба варианта совместимы с текущей архитектурой.
+Команды `start-local.ps1` и `stop-local.ps1` работают с локальным кластером `.postgres/data`. Порты можно переопределить переменными окружения и `VITE_API_URL`, если стандартные заняты.
+
+### 13.2. Production/offline
+
+Docker Compose поднимает три контейнера в сети `eqm`:
+
+| Сервис | Внутренний порт | Loopback-порт хоста по умолчанию |
+| --- | ---: | ---: |
+| PostgreSQL | 5432 | 15432 |
+| FastAPI | 8000 | 18000 |
+| Frontend Nginx | 80 | 18080 |
+
+Host Nginx принимает запросы на порту 80, проксирует `/api`, `/docs`, `/openapi.json`, `/health` в backend, остальные запросы — во frontend. Контейнерные порты не публикуются во внешнюю сеть напрямую.
+
+Offline bundle собирается `deploy/build-offline-bundle.ps1` и должен содержать:
+
+- исходники и production-конфигурацию;
+- frontend build;
+- backend/frontend/PostgreSQL Docker images;
+- свежий SQL dump и отчёты состава БД;
+- постоянные файлы и эксплуатационную документацию.
+
+Известное несоответствие на дату актуализации: `deploy/build-offline-bundle.ps1` всё ещё проверяет ожидаемую ревизию `0043_add_io_signal_plc_range_fields`, тогда как текущий head — 0050. До следующей успешной сборки bundle проверку необходимо синхронизировать с head.
+
+## 14. Наблюдаемость и эксплуатация
+
+- `/health` используется Docker health-check и внешней проверкой;
+- backend, frontend и PostgreSQL пишут раздельные runtime logs;
+- аудит фиксирует пользователя, действие, сущность, значения до/после и metadata;
+- журнал сессий хранит IP, User-Agent, начало, heartbeat, завершение и причину;
+- административная диагностика показывает runtime summary, процессы, порты и журналы и защищена admin-space;
+- retention для сессий и аудита ограничивает рост служебных таблиц;
+- дамп PostgreSQL и bind-mounted storage должны резервироваться согласованно.
+
+## 15. Тестирование и контроль качества
+
+Backend-тесты покрывают health/version, авторизацию и online-сессии, RBAC, диагностику, движения, уникальность экземпляров, файлы, I/O, IPAM, P&ID, цифровые двойники, персонал и security configuration.
+
+Frontend-тесты покрывают API helpers, обработку ошибок, чат, P&ID symbols/state, photo compression и отдельные интерактивные компоненты. Дополнительно выполняются:
+
+- `npm run build` — TypeScript + production bundle;
+- `npm run test` — Vitest;
+- `npm run audit:i18n` — поиск жёстко заданных UI-строк;
+- `pytest` — backend suite;
+- smoke-check `/health`, `/docs`, frontend и login flow;
+- freshness-check deploy bundle перед выпуском.
+
+## 16. Версионирование и источники истины
+
+- версия продукта хранится в корневом `VERSION` и встраивается в backend/frontend;
+- любая итерация изменений повышает BUILD через `python tools/bump_version.py`;
+- схема БД определяется SQLAlchemy-моделями и Alembic;
+- HTTP-контракт определяется `/openapi.json`;
+- frontend navigation определяется `frontend/src/navigation/nav.ts`;
+- production topology определяется `deploy/app/docker-compose.yml` и Nginx-конфигурациями;
+- deploy bundle после изменений должен быть пересобран и проверен `tools/check-deploy-bundle-freshness.ps1`.
+
+## 17. Ограничения текущей реализации
+
+- приложение развёртывается как один backend monolith и одна SPA; горизонтальное масштабирование и внешнее объектное хранилище не настроены;
+- bearer token хранится в `localStorage`, поэтому защита frontend от XSS критична;
+- backend dependencies не закреплены lock-файлом, воспроизводимость зависит от Docker-образа;
+- P&ID использует файловое JSON-хранилище, тогда как остальные редакторы — JSONB в PostgreSQL;
+- полнотекстовый поиск реализован как прикладной поиск по полям, а не как отдельный поисковый движок;
+- TLS завершается внешней инфраструктурой/host Nginx; контейнеры сами HTTPS не предоставляют;
+- `docs/EQM_DB_ERD.md` и expected revision в bundle builder требуют отдельной синхронизации с head 0050.
+
+## 18. Критерии архитектурной целостности
+
+Изменение считается согласованным с архитектурой, если:
+
+1. модель, миграция, schema и API изменены совместно;
+2. backend проверяет доступ независимо от frontend;
+3. изменение количества оборудования проходит через транзакционный movement flow;
+4. новые пользовательские строки добавлены в ru/en локализации;
+5. новые страницы зарегистрированы в routes и navigation с корректным `SpaceKey`;
+6. новые файлы имеют явные ограничения и постоянный storage path;
+7. добавлены тесты пропорционально риску;
+8. повышена версия проекта;
+9. пересобран и проверен offline deploy bundle.

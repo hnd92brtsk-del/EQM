@@ -32,6 +32,7 @@ from app.schemas.ipam import (
 SERVICE_STATUSES = {"network", "broadcast", "gateway"}
 DEFAULT_SOURCE = "manual"
 EQUIPMENT_SOURCES = {"cabinet", "assembly"}
+SUPPORTED_SUBNET_PREFIXES = {16, 20, 24}
 
 
 def build_location_full_path(location_id: int | None, locations_map: dict[int, Location]) -> str | None:
@@ -209,6 +210,8 @@ def validate_subnet_cidr(cidr: str) -> tuple[ipaddress.IPv4Network, int]:
         raise HTTPException(status_code=400, detail=f"Invalid CIDR: {cidr}") from exc
     if network.version != 4:
         raise HTTPException(status_code=400, detail="Only IPv4 is supported")
+    if network.prefixlen not in SUPPORTED_SUBNET_PREFIXES:
+        raise HTTPException(status_code=400, detail="Unsupported subnet prefix")
     return network, network.prefixlen
 
 

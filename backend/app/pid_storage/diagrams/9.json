@@ -1,0 +1,39 @@
+{
+  "processId": 9,
+  "version": 1,
+  "updatedAt": "2026-09-17T09:48:46.102000Z",
+  "viewport": {
+    "x": 156.1391178875756,
+    "y": 40.547619264644226,
+    "zoom": 0.8122524044101643
+  },
+  "nodes": [
+    {
+      "id": "node_1789638526101",
+      "type": "equipment",
+      "category": "main",
+      "symbolKey": "10.4",
+      "label": "Ионообменная колонна (сорбция/десорбция)",
+      "tag": "",
+      "position": {
+        "x": 606.4314968470849,
+        "y": 292.249737010234
+      },
+      "sourceRef": {
+        "source": "main-equipment",
+        "id": 313,
+        "name": "Ионообменная колонна (сорбция/десорбция)",
+        "meta": {
+          "shapeKey": "me_10_4",
+          "pidSymbol": {
+            "source": "library",
+            "libraryKey": "me_10_4",
+            "standard": "ISO-14617"
+          }
+        }
+      },
+      "properties": {}
+    }
+  ],
+  "edges": []
+}

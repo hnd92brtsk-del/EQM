@@ -70,7 +70,13 @@ def logout(
     payload = decode_token(token)
     session_id = payload.get("session_id")
     if session_id:
-        session = db.scalar(select(UserSession).where(UserSession.id == session_id))
+        session = db.scalar(
+            select(UserSession).where(
+                UserSession.id == session_id,
+                UserSession.user_id == user.id,
+                UserSession.session_token_hash == hash_token(token),
+            )
+        )
         if session and not session.ended_at:
             session.ended_at = datetime.utcnow()
             session.end_reason = "logout"
@@ -100,7 +106,7 @@ def heartbeat(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
     session = db.scalar(select(UserSession).where(UserSession.id == session_id, UserSession.user_id == user.id))
-    if not session or session.ended_at:
+    if not session or session.ended_at or session.session_token_hash != hash_token(token):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session is no longer active")
 
     session.last_seen_at = datetime.utcnow()

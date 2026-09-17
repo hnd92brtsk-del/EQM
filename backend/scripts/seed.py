@@ -13,6 +13,7 @@ sys.path.append(str(BASE_DIR))
 load_dotenv(BASE_DIR / ".env")
 
 from app.db.session import SessionLocal
+from app.core.config import MIN_JWT_SECRET_LENGTH, get_settings
 from app.core.security import hash_password, verify_password
 from app.models.security import User, UserRole
 from app.models.core import (
@@ -30,6 +31,7 @@ from app.models.assemblies import Assembly
 from app.models.operations import AssemblyItem
 
 MAIN_EQUIPMENT_CODE_RE = re.compile(r"^\d+(?:\.\d+)*$")
+settings = get_settings()
 
 DATA_TYPES_TREE: list[tuple[str, str | None, list]] = [
     (
@@ -393,28 +395,56 @@ def seed_data_types(db) -> dict[str, int]:
     }
 
 
+def is_strong_password(password: str) -> bool:
+    return len(password.strip()) >= MIN_JWT_SECRET_LENGTH
+
+
+def validate_seed_admin_password(password: str) -> None:
+    if settings.is_production and not is_strong_password(password):
+        raise RuntimeError("Production seed requires a strong SEED_ADMIN_PASSWORD")
+
+
+def should_reset_existing_admin_password() -> bool:
+    return os.getenv("ALLOW_ADMIN_PASSWORD_RESET", "").strip().lower() == "true"
+
+
+def seed_admin_user(db, admin_username: str, admin_password: str) -> User:
+    validate_seed_admin_password(admin_password)
+    admin = db.scalar(select(User).where(User.username == admin_username))
+    if not admin:
+        admin = User(
+            username=admin_username,
+            password_hash=hash_password(admin_password),
+            role=UserRole.admin,
+        )
+        db.add(admin)
+        return admin
+
+    if admin.is_deleted:
+        admin.is_deleted = False
+        admin.deleted_at = None
+        admin.deleted_by_id = None
+    if admin.role != UserRole.admin:
+        admin.role = UserRole.admin
+    if not verify_password(admin_password, admin.password_hash):
+        if settings.is_production and not should_reset_existing_admin_password():
+            print(
+                "Production seed skipped admin password reset because "
+                "ALLOW_ADMIN_PASSWORD_RESET=true was not provided."
+            )
+        else:
+            if settings.is_production and not is_strong_password(admin_password):
+                raise RuntimeError("Refusing to reset admin password to a weak production seed value")
+            admin.password_hash = hash_password(admin_password)
+    return admin
+
+
 def run():
     db = SessionLocal()
     try:
         admin_username = os.getenv("SEED_ADMIN_USERNAME", "admin")
         admin_password = os.getenv("SEED_ADMIN_PASSWORD", "admin12345")
-        admin = db.scalar(select(User).where(User.username == admin_username))
-        if not admin:
-            admin = User(
-                username=admin_username,
-                password_hash=hash_password(admin_password),
-                role=UserRole.admin,
-            )
-            db.add(admin)
-        else:
-            if admin.is_deleted:
-                admin.is_deleted = False
-                admin.deleted_at = None
-                admin.deleted_by_id = None
-            if admin.role != UserRole.admin:
-                admin.role = UserRole.admin
-            if not verify_password(admin_password, admin.password_hash):
-                admin.password_hash = hash_password(admin_password)
+        seed_admin_user(db, admin_username, admin_password)
 
         siemens = db.scalar(
             select(Manufacturer).where(Manufacturer.name == "Siemens", Manufacturer.is_deleted == False)
