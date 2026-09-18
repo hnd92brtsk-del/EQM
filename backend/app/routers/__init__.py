@@ -33,6 +33,7 @@ from app.routers import network_topologies
 from app.routers import serial_map_documents
 from app.routers import diagnostics
 from app.routers import digital_twins
+from app.routers import cad
 
 __all__ = [
     "auth",
@@ -69,4 +70,5 @@ __all__ = [
     "serial_map_documents",
     "diagnostics",
     "digital_twins",
+    "cad",
 ]

@@ -14,7 +14,7 @@ if ($PSVersionTable.PSVersion.Major -ge 7) {
 $deployRoot = Split-Path -Parent $PSCommandPath
 $repoRoot = Split-Path -Parent $deployRoot
 $version = (Get-Content (Join-Path $repoRoot "VERSION") -TotalCount 1).Trim()
-$expectedRevision = "0043_add_io_signal_plc_range_fields"
+$expectedRevision = "0051_add_cad_foundation"
 $deployJwtSecret = "eqm-offline-jwt-$($version.Trim())-server-2026-secure-key"
 
 if (-not $OutputDir) {

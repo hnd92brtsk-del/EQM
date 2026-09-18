@@ -17,6 +17,7 @@ from app.routers import (
     data_types,
     diagnostics,
     digital_twins,
+    cad,
     entity_import_export,
     equipment_categories,
     equipment_in_operation,
@@ -104,6 +105,7 @@ app.include_router(network_topologies.router, prefix="/api/v1/network-topologies
 app.include_router(serial_map_documents.router, prefix="/api/v1/serial-map-documents", tags=["serial-map-documents"])
 app.include_router(diagnostics.router, prefix="/api/v1/admin/diagnostics", tags=["diagnostics"])
 app.include_router(digital_twins.router, prefix="/api/v1/digital-twins", tags=["digital-twins"])
+app.include_router(cad.router, prefix="/api/v1/cad", tags=["cad"])
 app.include_router(mnt_dictionaries.router, prefix="/api/v1/maintenance", tags=["maintenance-dictionaries"])
 app.include_router(mnt_incidents.router, prefix="/api/v1/maintenance/incidents", tags=["maintenance-incidents"])
 app.include_router(mnt_work_orders.router, prefix="/api/v1/maintenance/work-orders", tags=["maintenance-work-orders"])

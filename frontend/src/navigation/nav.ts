@@ -65,6 +65,7 @@ export const navTree: NavItem[] = [
       { id: "serial-map", labelKey: "menu.serial_map", path: "/engineering/serial-map", icon: NumbersSignalIcon, requiredSpace: "engineering" },
       { id: "serial-map-v2", labelKey: "menu.serial_map_v2", path: "/engineering/serial-map-v2", icon: NumbersSignalIcon, requiredSpace: "engineering" },
       { id: "network-map", labelKey: "menu.network_map", path: "/engineering/network-map", icon: NumbersSignalIcon, requiredSpace: "engineering" }
+      ,{ id: "cad", labelKey: "menu.cad", path: "/engineering/cad/:documentId", icon: NumbersSignalIcon, requiredSpace: "engineering", showInMenu: false }
     ]
   },
   {

@@ -96,6 +96,12 @@
     }
   },
   "pages": {
+    "cad": {
+      "notFound": "CAD-документ не найден.",
+      "rendererError": "Не удалось запустить CAD-рендерер. Требуется поддержка WebGL.",
+      "foundation": "Рабочая область фундамента CAD",
+      "savedPlaceholder": "Состояние сохранения: готово"
+    },
     "dashboard": "Обзор",
     "users": "Пользователи",
     "dictionaries": "Справочники",
@@ -462,6 +468,7 @@
     "units": "ед."
   },
   "menu": {
+    "cad": "CAD",
     "root": "Меню",
     "overview": "Обзор",
     "equipment": "Оборудование",

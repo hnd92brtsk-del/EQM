@@ -31,6 +31,7 @@ from app.models.ipam import Vlan, Subnet, EquipmentNetworkInterface, IPAddress, 
 from app.models.network_topology import NetworkTopologyDocument
 from app.models.digital_twins import DigitalTwinDocument
 from app.models.serial_map import SerialMapDocument
+from app.models.cad import CadDocument, CadEntityBinding
 from app.models.maintenance import (
     MntFailureMode,
     MntFailureMechanism,
@@ -90,6 +91,8 @@ __all__ = [
     "NetworkTopologyDocument",
     "SerialMapDocument",
     "DigitalTwinDocument",
+    "CadDocument",
+    "CadEntityBinding",
     "MntFailureMode",
     "MntFailureMechanism",
     "MntFailureCause",

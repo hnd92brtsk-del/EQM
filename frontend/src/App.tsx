@@ -45,6 +45,7 @@ const MntWorkOrdersPage = lazy(() => import("./pages/maintenance/MntWorkOrdersPa
 const MntPlansPage = lazy(() => import("./pages/maintenance/MntPlansPage"));
 const MntOperatingTimePage = lazy(() => import("./pages/maintenance/MntOperatingTimePage"));
 const MntReliabilityPage = lazy(() => import("./pages/maintenance/MntReliabilityPage"));
+const CadPage = lazy(() => import("./features/cad/CadPage"));
 
 function RouteLoadingFallback() {
   return (
@@ -136,6 +137,7 @@ export default function App() {
                   <Route path="/engineering/serial-map" element={<RequireSpace space="engineering"><SerialMapPage /></RequireSpace>} />
                   <Route path="/engineering/serial-map-v2" element={<RequireSpace space="engineering"><SerialMapV2Page /></RequireSpace>} />
                   <Route path="/engineering/network-map" element={<RequireSpace space="engineering"><NetworkMapPage /></RequireSpace>} />
+                  <Route path="/engineering/cad/:documentId" element={<RequireSpace space="engineering"><CadPage /></RequireSpace>} />
                   <Route path="/maintenance/incidents" element={<RequireSpace space="maintenance"><MntIncidentsPage /></RequireSpace>} />
                   <Route path="/maintenance/work-orders" element={<RequireSpace space="maintenance"><MntWorkOrdersPage /></RequireSpace>} />
                   <Route path="/maintenance/plans" element={<RequireSpace space="maintenance"><MntPlansPage /></RequireSpace>} />

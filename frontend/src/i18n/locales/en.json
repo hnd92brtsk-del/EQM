@@ -96,6 +96,12 @@
     }
   },
   "pages": {
+    "cad": {
+      "notFound": "CAD document was not found.",
+      "rendererError": "The CAD renderer could not start. WebGL support is required.",
+      "foundation": "CAD foundation workspace",
+      "savedPlaceholder": "Save state: ready"
+    },
     "dashboard": "Overview",
     "users": "Users",
     "dictionaries": "Dictionaries",
@@ -462,6 +468,7 @@
     "units": "units"
   },
   "menu": {
+    "cad": "CAD",
     "root": "Menu",
     "overview": "Overview",
     "equipment": "Equipment",
